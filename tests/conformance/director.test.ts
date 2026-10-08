@@ -871,23 +871,31 @@ describe("the night's plan, before anyone builds", () => {
   it("takes what kind of project this is on the plan, and refuses a kind that is not one", () => {
     const one = JSON.stringify([{ id: "board" }]);
     const board = (
-      compilePlan({ summary: "a chess board that reads", workers: one, kind: "static-board" }) as { plan: any }
+      compilePlan({ summary: "a unit converter that reads", workers: one, kind: "utility" }) as { plan: any }
     ).plan;
     assert.deepEqual(
       board.app,
-      { kind: "static-board", hud: false, mouseLook: false, keyboardMove: false, playScript: null },
+      {
+        kind: "utility",
+        ui: true,
+        navigation: false,
+        typing: true,
+        mouseLook: false,
+        keyboardMove: false,
+        playScript: null,
+      },
       "a declared kind brings its own traits and nothing else",
     );
 
     const scripted = (
       compilePlan({
-        summary: "a builder you pan around",
+        summary: "a diagram editor you pan around",
         workers: one,
-        kind: "free-camera",
+        kind: "editor",
         play_script: JSON.stringify([{ type: "drag", fromX: 100, fromY: 100, x: 300, y: 200 }]),
       }) as { plan: any }
     ).plan;
-    assert.equal(scripted.app.kind, "free-camera");
+    assert.equal(scripted.app.kind, "editor");
     assert.equal(
       scripted.app.playScript.length,
       1,
@@ -5417,7 +5425,7 @@ describe("a director's night through the real core and harness", () => {
         serve: ".",
         own: true,
         kind: "three-modules",
-        app: { kind: "top-down", hud: true, mouseLook: false, keyboardMove: true, declaredBy: "an earlier night" },
+        app: { kind: "dashboard", ui: true, navigation: true, typing: false, declaredBy: "an earlier night" },
       }),
     );
     const project = await rig.core.adoptProject(dir);
@@ -5427,8 +5435,8 @@ describe("a director's night through the real core and harness", () => {
       if (request.director) {
         seen.director.push(request);
         const call = (name: string, args: Record<string, unknown>) => request.onLiveTool!(name, args);
-        // The director looked and decided this is not the top-down project the file says.
-        results.planned = text(await call("plan", { ...planFor("core"), kind: "first-person" }));
+        // The director looked and decided this is not the dashboard the file says.
+        results.planned = text(await call("plan", { ...planFor("core"), kind: "form-flow" }));
         // A worker with no seam owns nearly the whole repository, so it starts alone…
         results.startedCore = json(
           await call("worker_start", {
@@ -5497,18 +5505,18 @@ describe("a director's night through the real core and harness", () => {
     // brief says so — the director confirms or corrects it instead of guessing again.
     assert.match(
       seen.director[0]!.prompt,
-      /THIS PROJECT ALREADY SAYS WHAT IT IS: its studio\.json declares a top-down project/,
+      /THIS PROJECT ALREADY SAYS WHAT IT IS: its studio\.json declares a dashboard project/,
       seen.director[0]!.prompt.slice(0, 4_000),
     );
 
     // What the night decided is on the plan card the user reads before any builder starts.
     const card = customEvents(events, "autopilot_plan_review").find((e) => e.runId === runId)!;
-    assert.equal((card.app as { kind?: string })?.kind, "first-person", JSON.stringify(card));
+    assert.equal((card.app as { kind?: string })?.kind, "form-flow", JSON.stringify(card));
 
     // …and it is in their studio.json, committed by the studio that wrote it: the folder ends
     // the night exactly as clean as it began.
     const stored = JSON.parse(await readFile(path.join(project.dir, "studio.json"), "utf8"));
-    assert.equal(stored.app.kind, "first-person", JSON.stringify(stored.app));
+    assert.equal(stored.app.kind, "form-flow", JSON.stringify(stored.app));
     assert.equal(stored.app.declaredBy, "plan");
     assert.equal(stored.name, "boardgame", "every key the file already had survived");
     assert.equal(
@@ -5516,10 +5524,7 @@ describe("a director's night through the real core and harness", () => {
       "",
       "no edit of the studio's own is left for the user to explain",
     );
-    assert.match(
-      await git(project.dir, ["log", "-1", "--format=%s"]),
-      /studio: this project is a first-person project/,
-    );
+    assert.match(await git(project.dir, ["log", "-1", "--format=%s"]), /studio: this project is a form-flow project/);
 
     // The second worker was refused by name, and never started.
     assert.equal(results.startedCore.started, "core", JSON.stringify(results.startedCore));

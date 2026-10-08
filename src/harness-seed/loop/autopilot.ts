@@ -325,18 +325,18 @@ export function makeLock(): () => Promise<() => void> {
 /**
  * What the plan says the project IS (M4.4). One kind from the table in kinds.ts; the three traits
  * the harness adds its own checks for are named in the explanation below and left OUT of the
- * shape, because a planner copies this line as it stands. Printed as `"hud":false,
- * "mouseLook":false,"keyboardMove":false` they were copied through as declarations, and an
- * explicit false outranks the kind's own traits — so a first-person project arrived declaring it
- * has no HUD, no mouse look and no keyboard movement, and the four harness-owned checks that
- * kind exists to bring were dropped from every board with nothing said. Absent, each trait
- * takes the declared kind's own value; a plan that declares no kind is still assumed nothing.
+ * shape, because a planner copies this line as it stands. Printed as `"ui":false,
+ * "navigation":false,"typing":false` they were copied through as declarations, and an
+ * explicit false outranks the kind's own traits — so a form arrived declaring it has no UI, no
+ * navigation and no typing, and the harness-owned checks that kind exists to bring were dropped
+ * from every board with nothing said. Absent, each trait takes the declared kind's own value; a
+ * plan that declares no kind is still assumed nothing.
  */
 const APP_DECLARATION = `"app":{"kind":"<one of ${KIND_NAMES.join(", ")}, or null>","playScript":null}`;
 
 /** The same declaration, said in words, for the planner that reads the shape line above. */
 const PROJECT_EXPLANATION =
-  "`genres` names the genre groups of the catalogue that apply (what the run learns is filed under them); `project` declares what the project IS — its `kind` (one of the names above). The kind carries whether the project has a HUD, mouse look and keyboard movement; add the booleans `hud`, `mouseLook`, `keyboardMove` beside it ONLY where this project differs from its kind, and remember that `false` is a declaration too — it takes that check off every board. With no kind and no trait nothing is assumed: the harness adds its own checks only for what the project can pass, and drives that kind's play script before every judgement. `playScript` overrides that script with your own actions; `craft` names the craft recipe packs this project needs.";
+  "`genres` names the genre groups of the catalogue that apply (what the run learns is filed under them); `app` declares what the software IS — its `kind` (one of the names above). The kind carries whether the project has DOM UI to inspect, views to move between and fields to type into; add the booleans `ui`, `navigation`, `typing` (and, for a scene with a player, `mouseLook` and `keyboardMove`) beside it ONLY where this project differs from its kind, and remember that `false` is a declaration too — it takes that check off every board. With no kind and no trait nothing is assumed: the harness adds its own checks only for what the project can pass, and drives that kind's exercise script (clicks, typing, Tab, scrolling) before every judgement. `playScript` overrides that script with your own actions (click, type, press, drag, scroll, wait); `craft` names the craft recipe packs this project needs.";
 
 /**
  * The check vocabulary, for a planner whose skill file predates typed specs (an install whose
@@ -355,7 +355,7 @@ const V2_SCHEMA_FALLBACK = [
     kinds: [CheckKind.Scene, CheckKind.Pixel, CheckKind.Probe, CheckKind.Demo, CheckKind.Vision, CheckKind.Play],
     helpers: false,
   }),
-  'Mark 2–4 checks per facet weight:"identity"; hard:true for techniques known to need a spike. eye:spawn, eye:here, eye:down, eye:back are harness-owned cameras.',
+  'Mark 2–4 checks per facet weight:"identity"; hard:true for techniques known to need a spike.',
   PROJECT_EXPLANATION,
 ].join("\n");
 
@@ -401,7 +401,7 @@ export async function decompose(
     backlog,
     guidance: activePlugins.guidance,
     catalogueText,
-    craftText: craftMenu(craftRecipes),
+    craftText: craftMenu(craftRecipes, known.app?.kind),
   });
   try {
     const { raw, facets, validation } = await askForFacets(plannerCall(ctx, run, skill), ask, craftRecipes);
@@ -452,11 +452,15 @@ async function readPlannerSkill(ctx: HarnessCtx): Promise<string> {
   }
 }
 
-/** The craft packs as the planner's menu; nothing when the library cannot render one. */
-function craftMenu(craftRecipes: CraftRecipes): string {
+/** The craft packs for this kind of software as the planner's menu; nothing when the library cannot render one. */
+function craftMenu(craftRecipes: CraftRecipes, kind: unknown): string {
   if (typeof library.renderCraftForPlanner !== "function") return "";
   try {
-    return library.renderCraftForPlanner(craftRecipes, {}) ?? "";
+    const forKind =
+      typeof library.recipesForKind === "function"
+        ? library.recipesForKind(craftRecipes, String(kind ?? ""))
+        : craftRecipes;
+    return library.renderCraftForPlanner(forKind, {}) ?? "";
   } catch {
     return "";
   }
@@ -742,7 +746,7 @@ function declaredApp(raw: AnyRecord | null): AnyRecord | null {
   if (!isPlainRecord(project)) return null;
   const declared = normalizeAppTraits(project);
   const declaresAnything =
-    declared.kind || declared.hud || declared.mouseLook || declared.keyboardMove || declared.playScript;
+    declared.kind || declared.ui || declared.navigation || declared.typing || declared.playScript;
   return declaresAnything ? declared : null;
 }
 
@@ -1359,7 +1363,7 @@ async function prepareFolder(pipeline: Pipeline): Promise<void> {
   if (upgraded?.upgraded) {
     await appendRunEvent(ctx, threadId, RunEvent.AutopilotDecision, {
       runId: run.runId,
-      decision: `upgraded src/studio.js to the v2 contract (the previous copy is kept as ${upgraded.backup}); main.js must pass scene/renderer/camera/player to installStudio`,
+      decision: `upgraded src/studio.js to the v2 contract (the previous copy is kept as ${upgraded.backup}); main.js must pass probes, views and demos to installStudio`,
       at: new Date().toISOString(),
     });
   }

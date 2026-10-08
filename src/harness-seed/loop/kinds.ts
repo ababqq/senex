@@ -1,22 +1,21 @@
 /**
- * What kind of project this is — the one table nobody re-decides.
+ * What kind of software this is — the one table nobody re-decides.
  *
- * Until this file the harness knew one project: the template's first-person walker. Every board
- * carried its screen rules, every input check read `player.x`/`player.z`/`player.yaw`, every
- * judge was told a place is what it is looking at, and a project the user brought — a chess board,
- * a builder, a side-scroller — failed checks about a player it does not have and collected
- * `[dead-input]` reports for controls it was never asked to answer.
+ * A harness that knows one kind of project judges every other kind by its rules: a form
+ * collects reports about controls it was never meant to answer, a dashboard fails checks about a
+ * camera, a utility is told to look for a world. So a project says what it is. A kind carries
+ * these things and nothing else:
  *
- * So a project says what it is. A kind carries five things and nothing else:
- *
- *  - `traits`: what the harness may assume (a HUD drawn into the canvas, mouse look, keys that
- *    move a player). EVERY trait is off until something declares it: a plan that says nothing
- *    gets a board with no screen rule, no look check and no movement check;
- *  - `look` / `move`: the state paths the two input checks read, so a top-down project is measured
- *    on the axes it actually moves on;
- *  - `eyes`: whether an eye camera (the player's own view) is worth photographing;
- *  - `critic`: `place` for a world a player walks through, `screen` for a project that is a screen
- *    to read (a board, a side-on level);
+ *  - `traits`: what the harness may assume (DOM UI it can inspect, views to move between, fields
+ *    to type into; for a canvas, a mouse-looked camera and keys that move a player). EVERY trait
+ *    is off until something declares it: a plan that says nothing gets a board with no screen
+ *    rule, no navigation check and no typing check;
+ *  - `navigate` / `edit` / `look` / `move`: the state paths the input checks read, so a content
+ *    site is measured on its address, a form on its fields and a walkable scene on its player;
+ *  - `eyes`: whether an eye camera (a player's own view) is worth photographing — only a
+ *    project with a first-person world has one;
+ *  - `critic`: `place` for a world a person moves through, `screen` for software that is a
+ *    screen to read and operate;
  *  - `script`: the controls the harness drives before every judgement, so two builds are
  *    compared on the same inputs and the judge is told which ones.
  *
@@ -24,7 +23,7 @@
  */
 import { HostMethod } from "./host-methods.ts";
 import { CLIP_QUOTE, clip } from "./text.ts";
-import { CONTROL_EXERCISE, type PlayAction } from "./play-script.ts";
+import { CONTROL_EXERCISE, WALK_EXERCISE, type PlayAction } from "./play-script.ts";
 import { SECOND_MS } from "./time.ts";
 import { isPlainRecord } from "./json.ts";
 import { MAX_ACTION_MS, MAX_PLAY_SCRIPT } from "./config.ts";
@@ -41,13 +40,20 @@ const WAIT_DEFAULT_MS = 100;
 const CAMERA_NAME_CHARS = 60;
 /** The most keys one tap or hold may press together. */
 const MAX_ACTION_KEYS = 8;
+/** The most text one typing action may enter, and the longest key chord one press may name. */
+const MAX_TYPED_CHARS = 200;
+const MAX_COMBO_CHARS = 40;
+/** The most times one press may repeat. */
+const MAX_PRESS_REPEAT = 20;
 /** How much of who declared the project (`declaredBy`) studio.json keeps. */
 const DECLARED_BY_CHARS = 80;
 
 /** A kind of project: the phrase a judge is given, and what the harness does for it. */
 export interface AppKind {
   says: string;
-  traits: { hud: boolean; mouseLook: boolean; keyboardMove: boolean };
+  traits: { ui: boolean; navigation: boolean; typing: boolean; mouseLook: boolean; keyboardMove: boolean };
+  navigate: string[];
+  edit: string[];
   look: string[];
   move: string[];
   eyes: boolean;
@@ -60,7 +66,9 @@ export interface AppKind {
  * studio.json and plans keep them by these names: never rename a value.
  */
 export const AppTrait = {
-  Hud: "hud",
+  Ui: "ui",
+  Navigation: "navigation",
+  Typing: "typing",
   MouseLook: "mouseLook",
   KeyboardMove: "keyboardMove",
 } as const;
@@ -69,141 +77,195 @@ export type AppTrait = (typeof AppTrait)[keyof typeof AppTrait];
 /** What the harness may assume about a project, every trait decided. */
 export interface AppTraits {
   kind: string | null;
-  hud: boolean;
+  ui: boolean;
+  navigation: boolean;
+  typing: boolean;
   mouseLook: boolean;
   keyboardMove: boolean;
   playScript: PlayAction[] | null;
 }
 
-/** One of the two input checks: the state paths it reads, its expression and its note. */
+/** One of the four input checks: the state paths it reads, its expression and its note. */
 export interface InputProbe {
   paths: string[];
   expr: string;
   note: string;
 }
 
-/** The controls a keyboard-moved project is driven with when it declares no script of its own. */
-const KEYS_EXERCISE: PlayAction[] = [
-  { type: "hold", keys: ["w", "ArrowUp"], ms: 1200 },
-  { type: "hold", keys: ["a", "ArrowLeft"], ms: 800 },
-  { type: "tap", keys: ["space"] },
+/** What the studio's page layer counts on every page (`src/page/ui-activity.ts`): the evidence the inputs landed. */
+const NAVIGATION_PATHS = ["ui.navigations", "ui.reactions"];
+const EDIT_PATHS = ["ui.edits"];
+/** What a scene's `player()` reports, for a canvas project a person walks and looks around in. */
+const LOOK_PATHS = ["player.yaw"];
+const MOVE_PATHS = ["player.x", "player.z"];
+
+/** Click a spot, type into whatever took focus, move on with Tab, submit with Return. */
+const FORM_EXERCISE: PlayAction[] = [
+  { type: "click", x: 0.5, y: 0.35 },
+  { type: "type", text: "Ada Lovelace" },
+  { type: "press", combo: "Tab" },
+  { type: "type", text: "ada@example.com" },
+  { type: "press", combo: "Tab" },
+  { type: "press", combo: "Return" },
+  { type: "wait", ms: 300 },
 ];
 
-const RACING_EXERCISE: PlayAction[] = [
-  { type: "hold", keys: ["w", "ArrowUp"], ms: 1600 },
-  { type: "hold", keys: ["a", "ArrowLeft"], ms: 600 },
-  { type: "hold", keys: ["w", "ArrowUp"], ms: 800 },
+/** Add an item, add another, then touch the first one. */
+const LIST_EXERCISE: PlayAction[] = [
+  { type: "click", x: 0.5, y: 0.2 },
+  { type: "type", text: "Buy milk" },
+  { type: "press", combo: "Return" },
+  { type: "wait", ms: 200 },
+  { type: "type", text: "Call Ada" },
+  { type: "press", combo: "Return" },
+  { type: "wait", ms: 200 },
+  { type: "click", x: 0.4, y: 0.35 },
+  { type: "wait", ms: 200 },
 ];
 
-// The look action is not decoration: flight names a look axis, so a plan that declares
-// `mouseLook: true` on a flight project must have something for the check to measure.
-const FLIGHT_EXERCISE: PlayAction[] = [
-  { type: "hold", keys: ["w", "ArrowUp"], ms: 1200 },
-  { type: "look", dx: 40, dy: -12 },
-  { type: "hold", keys: ["a", "ArrowLeft"], ms: 600 },
+/** Move between the views a dashboard offers, change a filter, read down the page. */
+const DASHBOARD_EXERCISE: PlayAction[] = [
+  { type: "click", x: 0.12, y: 0.3 },
+  { type: "wait", ms: 300 },
+  { type: "click", x: 0.5, y: 0.25 },
+  { type: "press", combo: "Tab", repeat: 2 },
+  { type: "scroll", dx: 0, dy: 400 },
+  { type: "wait", ms: 200 },
 ];
 
-const SIDE_EXERCISE: PlayAction[] = [
-  { type: "hold", keys: ["d", "ArrowRight"], ms: 1200 },
-  { type: "tap", keys: ["space"] },
-  { type: "hold", keys: ["a", "ArrowLeft"], ms: 600 },
+/** Read down a page, follow the first link the keyboard reaches, come back up. */
+const SITE_EXERCISE: PlayAction[] = [
+  { type: "scroll", dx: 0, dy: 600 },
+  { type: "wait", ms: 200 },
+  { type: "press", combo: "Tab", repeat: 2 },
+  { type: "press", combo: "Return" },
+  { type: "wait", ms: 300 },
+  { type: "scroll", dx: 0, dy: -600 },
 ];
 
-const BOARD_EXERCISE: PlayAction[] = [
+/** Make a mark on the canvas or document, type into it, take it back. */
+const EDITOR_EXERCISE: PlayAction[] = [
   { type: "click", x: 0.5, y: 0.5 },
-  { type: "wait", ms: 300 },
-  { type: "drag", fromX: 0.4, fromY: 0.6, x: 0.6, y: 0.4 },
-  { type: "wait", ms: 300 },
+  { type: "type", text: "Hello" },
+  { type: "drag", fromX: 0.3, fromY: 0.4, x: 0.6, y: 0.6 },
+  { type: "wait", ms: 200 },
+  { type: "press", combo: "ctrl+z" },
 ];
 
-const CAMERA_EXERCISE: PlayAction[] = [
-  { type: "drag", fromX: 0.35, fromY: 0.5, x: 0.65, y: 0.5 },
+/** Hover a mark, zoom, pan. */
+const EXPLORE_EXERCISE: PlayAction[] = [
+  { type: "move", x: 0.5, y: 0.5 },
+  { type: "wait", ms: 200 },
+  { type: "move", x: 0.6, y: 0.55 },
   { type: "scroll", dx: 0, dy: -240 },
+  { type: "drag", fromX: 0.4, fromY: 0.5, x: 0.6, y: 0.5 },
+];
+
+/** Give a tool its inputs and ask for the result. */
+const UTILITY_EXERCISE: PlayAction[] = [
+  { type: "click", x: 0.5, y: 0.4 },
+  { type: "type", text: "42" },
+  { type: "press", combo: "Tab" },
+  { type: "type", text: "7" },
+  { type: "press", combo: "Return" },
   { type: "wait", ms: 300 },
-  { type: "drag", fromX: 0.5, fromY: 0.4, x: 0.5, y: 0.6 },
 ];
 
 /** The eight kinds. `says` is the phrase every judge is given; the rest is what the harness does. */
 export const APP_KINDS: Record<string, AppKind> = {
-  "first-person": {
-    says: "a first-person project — the camera is the player's own eyes",
-    traits: { hud: true, mouseLook: true, keyboardMove: true },
-    look: ["player.yaw"],
-    move: ["player.x", "player.z"],
-    eyes: true,
-    critic: "place",
-    script: CONTROL_EXERCISE,
-  },
-  "third-person": {
-    says: "a third-person project — a camera behind a character the player steers",
-    traits: { hud: true, mouseLook: true, keyboardMove: true },
-    look: ["player.yaw"],
-    move: ["player.x", "player.z"],
-    eyes: true,
-    critic: "place",
-    script: CONTROL_EXERCISE,
-  },
-  "top-down": {
-    says: "a top-down project — the camera looks down on a world the player moves through",
-    // A top-down project is 3D-isometric on x/z as often as it is 2D on x/y; one expression
-    // covers both, so nobody has to guess which one this project chose.
-    traits: { hud: true, mouseLook: false, keyboardMove: true },
-    look: [],
-    move: ["player.x", "player.y", "player.z"],
-    eyes: false,
-    critic: "place",
-    script: KEYS_EXERCISE,
-  },
-  "side-2d": {
-    says: "a side-on project — one plane, seen from the side",
-    traits: { hud: false, mouseLook: false, keyboardMove: true },
-    look: [],
-    move: ["player.x", "player.y"],
-    eyes: false,
-    critic: "screen",
-    script: SIDE_EXERCISE,
-  },
-  racing: {
-    says: "a racing project — a vehicle the player drives along a course",
-    traits: { hud: true, mouseLook: false, keyboardMove: true },
-    look: [],
-    move: ["player.x", "player.z", "player.y"],
-    eyes: false,
-    critic: "place",
-    script: RACING_EXERCISE,
-  },
-  flight: {
-    says: "a flight project — a craft the player pitches and turns through open space",
-    traits: { hud: true, mouseLook: false, keyboardMove: true },
-    look: ["player.pitch", "player.yaw"],
-    move: ["player.x", "player.y", "player.z"],
-    eyes: false,
-    critic: "place",
-    script: FLIGHT_EXERCISE,
-  },
-  "static-board": {
-    says: "a board project on one screen — pieces on a board, not a world a player walks through",
-    // No HUD rule: a board project's interface is the most likely of all to be real DOM or React,
-    // and the template's canvas-only screen rule would fail it for existing.
-    traits: { hud: false, mouseLook: false, keyboardMove: false },
+  dashboard: {
+    says: "a dashboard — tables, charts and filters over data, with views to move between",
+    traits: { ui: true, navigation: true, typing: false, mouseLook: false, keyboardMove: false },
+    navigate: NAVIGATION_PATHS,
+    edit: EDIT_PATHS,
     look: [],
     move: [],
     eyes: false,
     critic: "screen",
-    script: BOARD_EXERCISE,
+    script: DASHBOARD_EXERCISE,
   },
-  "free-camera": {
-    says: "a free-camera project — the player orbits and builds rather than walks",
-    traits: { hud: false, mouseLook: false, keyboardMove: false },
+  "form-flow": {
+    says: "a form flow — fields, validation and a submit, possibly over several steps",
+    traits: { ui: true, navigation: false, typing: true, mouseLook: false, keyboardMove: false },
+    navigate: NAVIGATION_PATHS,
+    edit: EDIT_PATHS,
     look: [],
     move: [],
     eyes: false,
+    critic: "screen",
+    script: FORM_EXERCISE,
+  },
+  "list-manager": {
+    says: "a list manager — items the user adds, edits, completes and removes",
+    traits: { ui: true, navigation: false, typing: true, mouseLook: false, keyboardMove: false },
+    navigate: NAVIGATION_PATHS,
+    edit: EDIT_PATHS,
+    look: [],
+    move: [],
+    eyes: false,
+    critic: "screen",
+    script: LIST_EXERCISE,
+  },
+  "content-site": {
+    says: "a content site — pages to read and links between them",
+    traits: { ui: true, navigation: true, typing: false, mouseLook: false, keyboardMove: false },
+    navigate: NAVIGATION_PATHS,
+    edit: EDIT_PATHS,
+    look: [],
+    move: [],
+    eyes: false,
+    critic: "screen",
+    script: SITE_EXERCISE,
+  },
+  editor: {
+    says: "an editor or builder — a document or canvas the user changes with pointer and keyboard",
+    traits: { ui: true, navigation: false, typing: true, mouseLook: false, keyboardMove: false },
+    navigate: NAVIGATION_PATHS,
+    edit: EDIT_PATHS,
+    look: [],
+    move: [],
+    eyes: false,
+    critic: "screen",
+    script: EDITOR_EXERCISE,
+  },
+  "data-viz": {
+    says: "an interactive visualisation — a chart, map or diagram the user explores",
+    traits: { ui: true, navigation: false, typing: false, mouseLook: false, keyboardMove: false },
+    navigate: NAVIGATION_PATHS,
+    edit: EDIT_PATHS,
+    look: [],
+    move: [],
+    eyes: false,
+    critic: "screen",
+    script: EXPLORE_EXERCISE,
+  },
+  utility: {
+    says: "a small utility — inputs in, a result out",
+    traits: { ui: true, navigation: false, typing: true, mouseLook: false, keyboardMove: false },
+    navigate: NAVIGATION_PATHS,
+    edit: EDIT_PATHS,
+    look: [],
+    move: [],
+    eyes: false,
+    critic: "screen",
+    script: UTILITY_EXERCISE,
+  },
+  graphics: {
+    says: "an interactive graphics project — a canvas the user steers with keyboard and pointer, a game or a 3D scene",
+    // No screen rule and no DOM input check: a canvas has no DOM to name and no field to type into.
+    // A walkable scene opts in to the look and move checks by declaring `mouseLook` / `keyboardMove`.
+    traits: { ui: false, navigation: false, typing: false, mouseLook: false, keyboardMove: false },
+    navigate: [],
+    edit: [],
+    look: LOOK_PATHS,
+    move: MOVE_PATHS,
+    eyes: false,
     critic: "place",
-    script: CAMERA_EXERCISE,
+    script: WALK_EXERCISE,
   },
 };
 
-/** The eight names, in the order a planner should read them. */
+/** The names, in the order a planner should read them. */
 export const KIND_NAMES = Object.keys(APP_KINDS);
 
 export function isAppKind(value: unknown): value is string {
@@ -217,11 +279,15 @@ export function isAppKind(value: unknown): value is string {
  */
 export function normalizeAppTraits(raw: AnyRecord | null | undefined): AppTraits {
   const kind = isAppKind(raw?.kind) ? String(raw!.kind) : null;
-  const base = kind ? APP_KINDS[kind]!.traits : { hud: false, mouseLook: false, keyboardMove: false };
+  const base = kind
+    ? APP_KINDS[kind]!.traits
+    : { ui: false, navigation: false, typing: false, mouseLook: false, keyboardMove: false };
   const flag = (value: unknown, fallback: boolean): boolean => (typeof value === "boolean" ? value : fallback);
   return {
     kind,
-    hud: flag(raw?.hud ?? raw?.ui, base.hud),
+    ui: flag(raw?.ui, base.ui),
+    navigation: flag(raw?.navigation ?? raw?.nav, base.navigation),
+    typing: flag(raw?.typing, base.typing),
     mouseLook: flag(raw?.mouseLook ?? raw?.mouse, base.mouseLook),
     keyboardMove: flag(raw?.keyboardMove ?? raw?.keys, base.keyboardMove),
     playScript: normalizePlayScript(raw?.playScript ?? raw?.play),
@@ -281,6 +347,16 @@ const ACTIONS: Record<string, (raw: AnyRecord) => PlayAction | null> = {
   camera: (raw) => {
     const name = typeof raw.name === "string" ? raw.name.trim().slice(0, CAMERA_NAME_CHARS) : "";
     return name ? { type: "camera", name } : null;
+  },
+  type: (raw) => {
+    const typed = typeof raw.text === "string" ? raw.text.slice(0, MAX_TYPED_CHARS) : "";
+    return typed ? { type: "type", text: typed } : null;
+  },
+  press: (raw) => {
+    const combo = typeof raw.combo === "string" ? raw.combo.trim().slice(0, MAX_COMBO_CHARS) : "";
+    if (!combo) return null;
+    const repeat = Math.round(clamp(raw.repeat ?? 1, 1, MAX_PRESS_REPEAT));
+    return { type: "press", combo, ...(repeat > 1 ? { repeat } : {}) };
   },
 };
 
@@ -347,7 +423,9 @@ function clauseFor(action: PlayAction | null | undefined): string {
   if (type === "move") return `move the pointer to ${at(action!.x, action!.y)}`;
   if (type === "scroll") return `scroll ${number(action!.dx, 0)}, ${number(action!.dy, 0)}`;
   if (type === "wait") return `wait ${seconds(action!.ms ?? 100)}`;
-  if (type === "camera") return `switch to the ${action!.name} camera`;
+  if (type === "camera") return `switch to the ${action!.name} view`;
+  if (type === "type") return `type "${clip(String(action!.text ?? ""), CLIP_QUOTE)}"`;
+  if (type === "press") return `press ${action!.combo}${(action!.repeat ?? 1) > 1 ? ` ${action!.repeat} times` : ""}`;
   return "";
 }
 
@@ -400,57 +478,91 @@ export function appLine(app: AnyRecord | null | undefined): string {
     if (!traits.playScript) return "";
     return `PROJECT: nothing declared what kind of project this is.${drives}`;
   }
-  const paths = [...kind.look, ...kind.move];
-  // `kind && look.length === 0 && move.length === 0` — the shape of this test is the whole
-  // point: a project with no measurable player must be told about, not given an empty list.
+  const paths = [...kind.navigate, ...kind.edit];
+  // `kind && navigate.length === 0 && edit.length === 0` — the shape of this test is the whole
+  // point: a project with no input the studio can measure must be told about, not given an empty list.
   if (paths.length === 0) {
-    return `PROJECT: ${kind.says}.${drives} This project has no player the studio can measure, so the artefact class [dead-input] does not apply — do not report it.`;
+    return `PROJECT: ${kind.says}.${drives} This project has no input the studio can measure, so the artefact class [dead-input] does not apply — do not report it.`;
   }
   return `PROJECT: ${kind.says}.${drives} The input evidence is ${paths.join(", ")} in __studio.state() — report [dead-input] only if those are unchanged.`;
 }
 
-/** `place` for a world a player walks through, `screen` for a project that is a screen to read. */
+/** Whether the project draws a scene a person moves through (a canvas, a 3D world) rather than a page of DOM. */
+export function drawsScene(app: AnyRecord | null | undefined): boolean {
+  return normalizeAppTraits(app).kind === "graphics";
+}
+
+/** `place` for a world a person moves through, `screen` for software that is a screen to read and operate. */
 export function criticFor(app: AnyRecord | null | undefined): string {
   const kind = normalizeAppTraits(app).kind;
-  return APP_KINDS[kind as string]?.critic ?? "place";
+  return APP_KINDS[kind as string]?.critic ?? "screen";
 }
 
 /**
- * The template's own axes — what an undeclared project is still measured on, and what a declared
- * kind with no axis of its own falls back to. Written `abs(delta(path)) > 0` for the reason
- * given below lookProbe: a project that reports no player must not pass an identity check.
+ * The axes an undeclared project is still measured on, and what a declared kind with no axis of
+ * its own falls back to. Written `abs(delta(path)) > 0` for the reason given below
+ * `navigationProbe`: a page that reports nothing must not pass an identity check.
  */
-const TEMPLATE_PROBES: { look: InputProbe; move: InputProbe } = {
+const TEMPLATE_PROBES: { navigate: InputProbe; edit: InputProbe; look: InputProbe; move: InputProbe } = {
+  navigate: {
+    paths: NAVIGATION_PATHS,
+    expr: "abs(delta('ui.navigations')) > 0 || abs(delta('ui.reactions')) > 0",
+    note: "harness-owned: after the scripted clicks the address or the page changed — the pointer reaches something that responds",
+  },
+  edit: {
+    paths: EDIT_PATHS,
+    expr: "abs(delta('ui.edits')) > 0",
+    note: "harness-owned: after the scripted typing a field took input — the keyboard reaches the form",
+  },
   look: {
-    paths: ["player.yaw"],
+    paths: LOOK_PATHS,
     expr: "abs(delta('player.yaw')) > 0.01",
     note: "harness-owned: after the scripted look (56 px right) player().yaw changed — the mouse path from ctx.look to the camera works",
   },
   move: {
-    paths: ["player.x", "player.z"],
+    paths: MOVE_PATHS,
     expr: "abs(delta('player.x')) > 0 || abs(delta('player.z')) > 0",
     note: "harness-owned: after the scripted W/A hold player().x or .z changed — the key path from ctx.keys to the controller works",
   },
 };
 
 /**
- * The two input checks' expressions, on the axes this kind actually moves on.
+ * The four input checks' expressions, on the axes this kind actually answers on.
  *
- * A declared trait whose kind names no axis falls back to the template's axes rather than
- * dropping the check: "declare mouseLook: true" is the documented remedy for a mouse-steered
- * racer, and a remedy that silently does nothing is worse than no remedy.
+ * A declared trait whose kind names no axis falls back to the page-level axes rather than
+ * dropping the check: "declare typing: true" is the documented remedy for a project whose
+ * kind does not imply it, and a remedy that silently does nothing is worse than no remedy.
  */
-export function inputProbesFor(app: AnyRecord | null | undefined): { look: InputProbe; move: InputProbe } {
+export function inputProbesFor(app: AnyRecord | null | undefined): {
+  navigate: InputProbe;
+  edit: InputProbe;
+  look: InputProbe;
+  move: InputProbe;
+} {
   const kind = normalizeAppTraits(app).kind;
   const entry = kind ? APP_KINDS[kind] : null;
   return {
+    navigate: entry?.navigate.length
+      ? counterProbe(entry.navigate, "clicks", "the pointer reaches something that responds")
+      : TEMPLATE_PROBES.navigate,
+    edit: entry?.edit.length
+      ? counterProbe(entry.edit, "typing", "the keyboard reaches a field")
+      : TEMPLATE_PROBES.edit,
     look: entry?.look.length ? lookProbe(entry.look) : TEMPLATE_PROBES.look,
     move: entry?.move.length ? moveProbe(entry.move) : TEMPLATE_PROBES.move,
   };
 }
 
 // `abs(delta(path)) > 0` and not `delta(path) != 0`: an axis the project does not report reads
-// undefined, and `undefined != 0` is true — the check would pass on a project with no player at all.
+// undefined, and `undefined != 0` is true — the check would pass on a page that reports nothing.
+function counterProbe(paths: string[], scripted: string, meaning: string): InputProbe {
+  return {
+    paths,
+    expr: paths.map((path) => `abs(delta('${path}')) > 0`).join(" || "),
+    note: `harness-owned: after the scripted ${scripted} ${paths.join(" or ")} changed — ${meaning}`,
+  };
+}
+
 function lookProbe(paths: string[]): InputProbe {
   return {
     paths,
@@ -460,19 +572,14 @@ function lookProbe(paths: string[]): InputProbe {
 }
 
 function moveProbe(paths: string[]): InputProbe {
-  return {
-    paths,
-    expr: paths.map((path) => `abs(delta('${path}')) > 0`).join(" || "),
-    note: `harness-owned: after the scripted keys ${paths.join(" or ")} changed — the key path reaches the player`,
-  };
+  return counterProbe(paths, "keys", "the key path reaches the player");
 }
 
-/** Whether an eye camera — the player's own view — is worth photographing for this kind. */
+/** Whether an eye camera — a first-person view — is worth photographing for this kind. */
 export function wantsEyeCameras(app: AnyRecord | null | undefined): boolean {
   const kind = normalizeAppTraits(app).kind;
-  // An undeclared project keeps today's behaviour: the eyes are looked for, and a project that has
-  // none simply reports none.
-  return APP_KINDS[kind as string]?.eyes ?? true;
+  // Software has no eyes to look through, declared or not.
+  return APP_KINDS[kind as string]?.eyes ?? false;
 }
 
 /**
@@ -507,9 +614,9 @@ export async function writeDeclaredApp(
   }
   const block = {
     ...(traits.kind ? { kind: traits.kind } : {}),
-    hud: traits.hud,
-    mouseLook: traits.mouseLook,
-    keyboardMove: traits.keyboardMove,
+    ui: traits.ui,
+    navigation: traits.navigation,
+    typing: traits.typing,
     ...(traits.playScript ? { playScript: traits.playScript } : {}),
     declaredBy: String(from).slice(0, DECLARED_BY_CHARS),
   };

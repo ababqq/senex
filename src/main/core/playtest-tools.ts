@@ -68,8 +68,8 @@ export const PLAYTEST_TOOLS: readonly LiveTool[] = [
   {
     name: PlaytestTool.Screenshot,
     description:
-      "Save a screenshot of what you see right now to a file and return its path — Read the file to look at it. Pass a camera name to switch viewpoints first (eye:here is your own eyes).",
-    parameters: { type: "object", properties: { camera: str("optional camera name, e.g. eye:here, default") } },
+      "Save a screenshot of what you see right now to a file and return its path — Read the file to look at it. Pass a view name to switch screens first (default is the page as it loads).",
+    parameters: { type: "object", properties: { camera: str("optional view name, e.g. empty, default") } },
   },
   {
     name: PlaytestTool.ProjectState,

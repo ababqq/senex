@@ -41,10 +41,11 @@ describe("project folders", () => {
     assert.match(project.pathLabel, /mood-board/);
     assert.equal(project.dir, await realpath(dir));
     assert.ok(await readFile(path.join(dir, "index.html"), "utf8"));
-    // The assets door (AG-930): a scaffolded or adopted project gets the folder, the loader and the git attributes.
+    // The assets door (AG-930): a scaffolded or adopted project gets the folder and the git attributes,
+    // and the base styles every screen builds on.
     assert.match(await readFile(path.join(dir, "assets", "README.md"), "utf8"), /studio's own tools/);
     assert.match(await readFile(path.join(dir, ".gitattributes"), "utf8"), /\*\.glb binary/);
-    assert.match(await readFile(path.join(dir, "src", "assets.js"), "utf8"), /export async function loadAsset/);
+    assert.match(await readFile(path.join(dir, "src", "styles.css"), "utf8"), /--accent/);
     assert.match(await readFile(path.join(dir, "docs", "CONTRACT.md"), "utf8"), /## Assets/);
     assert.equal(await readFile(path.join(dir, "notes-from-me.txt"), "utf8"), "rainy neon streets");
     assert.ok((await rig.core.projects.list()).some((g) => g.name === project.name));

@@ -68,13 +68,13 @@ function playBrief({
   maxActions: number;
 }): string {
   const app = run.app ?? null;
-  // The controls this kind of project actually has. A board project is clicked, a builder is panned
-  // and dragged; telling a playtester to walk with WASD in either is how a working project comes
-  // back as "I could not move".
+  // The controls this kind of project actually has. A graphics project is steered with keys and the
+  // pointer, a form is typed into and tabbed through; telling a tester to walk with WASD in a
+  // form is how a working project comes back as "I could not move".
   const kind = app?.kind ? APP_KINDS[app.kind] : null;
   const drive = kind
-    ? `${kind.move?.length ? "Move (press_keys with the keys this project uses — w/a/s/d, the arrows, space)" : "Drive it the way this project is played (press_keys, click, drag)"}${kind.look?.length ? ", look around (look)" : ""}, click and drag (click)`
-    : "Move (press_keys with w/a/s/d, space), look around (look), click (click)";
+    ? `${kind.edit?.length ? "Fill in the fields (click one, type, Tab to the next)" : "Use it the way it is meant to be used (click, type, press keys, scroll)"}${kind.navigate?.length ? ", move between its views (click links and tabs, use the keyboard)" : ""}, drag and scroll where it makes sense`
+    : "Click around (click), type into what takes text (computer type), press keys (press_keys: Tab, Enter, Escape, arrows), scroll";
   const eyes = wantsEyeCameras(app)
     ? " (eye:here is your own eyes; default is the project's camera)"
     : " (default is the project's camera)";

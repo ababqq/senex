@@ -17,7 +17,7 @@ import type { AnyRecord, Run } from "../types/harness.d.ts";
  */
 export function contractWiringAsk(shape: { main?: string } | null | undefined): string {
   const entryMain = shape?.main ?? "src/main.js";
-  return `Add the two lines to ${entryMain} (or a module it imports): \`import { installStudio } from "./studio.js"\` — the contract module the studio keeps in src/, with its types in src/studio.d.ts beside it — and \`installStudio({ renderer, player })\` with this project's real renderer and a player() locator, once the renderer exists. Two lines is the whole ask: the studio's own code is already on the page and finds the scene, the camera and the frames from what the project draws; the renderer and the player are the two it cannot guess.`;
+  return `Add the two lines to ${entryMain} (or a module it imports): \`import { installStudio } from "./studio.js"\` — the contract module the studio keeps in src/, with its types in src/studio.d.ts beside it — and \`installStudio({ probes })\` with a probes() that reports what this project holds (items, selection, route). Two lines is the whole ask: the studio's own code is already on the page and watches what is done to it (clicks, typing, navigation, errors); what the project holds is the one thing it cannot guess. A project that draws a canvas or 3D world also passes its renderer and camera.`;
 }
 
 /**
@@ -61,11 +61,11 @@ export function baseBrief({
     ``,
     `ALWAYS, whatever the notes say:`,
     ...(ownShape ? ownShapeRules(shape) : templateRules(facets)),
-    `- probes() reports what the facets will need (player position, counts per group).`,
+    `- probes() reports what the facets will need (counts per list, the selection, the route).`,
     cameraRule(facets),
     ownShape
       ? `- The project already exists and works. Add only the contract wiring and the shared structure the facets need; do not remove, restyle or "clean up" what is there.`
-      : `- The new project is empty. Add only shared structure required by this specific project. Do not add a demo scene, generic player mesh, pickups, grid, score or HUD. Empty facet groups and empty renders are valid at this stage; runtime, inspection, and camera placement must still work. Each facet creates its own visible content from the brief.`,
+      : `- The new project is empty. Add only shared structure required by this specific project. Do not add demo content, placeholder copy, sample users or a fake dashboard. An empty page and empty regions are valid at this stage; the shell, inspection and view switching must still work. Each facet creates its own visible content from the brief.`,
     `- The project must still load and window.__studio must work. Do not build facet content — scaffolding only. Do not commit; the studio commits.`,
     ``,
     `YOU HAVE HANDS AND EYES: ${toolCall(roleEngine(run, RoleKey.Builder), "computer")} runs this folder's build live in its own window (its own description lists every action), and ${toolCall(roleEngine(run, RoleKey.Builder), "capture")} takes every registered camera at once. Look before you finish: a base nobody can see is a base nobody can build on.`,
@@ -78,15 +78,15 @@ export function baseBrief({
 /** A director's night from scratch: one visible, working first version, and no roll call. */
 function startingSceneBrief(run: BriefRun, projectLabel: string, setup: AnyRecord | null): string {
   return [
-    `You are building the starting scene for "${projectLabel}". Goal: ${run.goal}`,
+    `You are building the first working version of "${projectLabel}". Goal: ${run.goal}`,
     run.reference?.name ? `Direction: ${run.reference.name}.` : "",
-    `Complete one visible, working first version now. Preserve the user's intended scene/project; later workers can enrich detail. Include the goal's main subject, a suitable setting, lighting and a camera that frames it. Do not spend this stage designing a large framework.`,
-    `Read src/main.js first, then edit it. Read docs/CONTRACT.md only for a specific unanswered API question. src/studio.js is existing host instrumentation: use its public API; do not study or rewrite its implementation. index.html already supplies the Three.js import map.`,
-    `Integration guide: keep import { installStudio } from "./studio.js" and the existing renderer resize handler. Add your THREE objects to scene; tag important objects with obj.userData.tag. Set camera.position and camera.lookAt to frame visible objects. Define cameras.default() with that same framing; it is called by reset.`,
-    `Keep installStudio({canvas:renderer.domElement, scene, renderer, camera, input:{pointerLock:false}, reset(){cameras.default()}, update(dt){/* optional animation */}, render(){renderer.render(scene,camera)}, probes(){return {phase:"scene",drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles}}, cameras}). Studio drives update/render: no separate animation loop. Keep the FACET WIRING markers for later edits.`,
-    `Input/UI API when the goal needs it: update(dtSeconds, ctx) receives ctx.keys (Set of KeyboardEvent.code strings such as "Space" and "KeyW"), ctx.look and ctx.wheel. const api = installStudio(config) returns synchronously; AFTER that call, api.hud.text("title", "Your title", {x:0.05,y:0.05,size:24,color:"#ffffff"}) draws text in the captured canvas. HUD x/y are fractions of the frame. Update a score with the same text id. Declare state and renderStats before installStudio, and never call HUD functions before installation. For a scene without interaction, omit score/input/UI.`,
-    `Do not invent helpers or controls you have not implemented. Make the requested subject visible using Three.js geometry and materials first. Use Blender only when needed for the goal; preserve the requested final quality as work for later stages.`,
-    `After writing, use computer to reload and inspect the actual scene, fix console errors or bad framing, then finish with what you observed. The host commits and validates your changes. No git commit is needed.`,
+    `Complete one visible, working first version now: the goal's main screen with real controls that do something, realistic fixture data, and the states a person meets first. Preserve the user's intended product; later workers can enrich detail. Do not spend this stage designing a large framework.`,
+    `Read src/main.js first, then edit it. Read docs/CONTRACT.md only for a specific unanswered API question. src/studio.js is existing host instrumentation: use its public API; do not study or rewrite its implementation. index.html mounts <main id="app"> and links src/styles.css, which holds the shared tokens (colour, spacing, type scale).`,
+    `Integration guide: keep import { installStudio } from "./studio.js" and the FACET WIRING markers. Render into #app with real elements — buttons, links, labels, headings, landmarks — keep the data in one store module, and derive the screen from it with one render function. Define views.default() so the page can be brought back to the screen it boots into; it is called by reset.`,
+    `Keep installStudio({reset(seed){/* known state for this seed */}, probes(){return {phase:"app", items:store.items().length, route:location.hash}}, views:{default(){...}, empty(){...}}, demos:{}}). The studio paces the page: no separate animation loop unless the product animates. Keep the FACET WIRING markers for later edits.`,
+    `Input/UI: ordinary DOM events on real elements. The page reports clicks, typing, navigation and errors by itself in state().ui, so nothing needs faking; give every control a name, handle the empty state, and show a failure on the page. A project that animates or draws a canvas passes update(dtSeconds, ctx) and reads ctx.keys, ctx.look and ctx.wheel.`,
+    `Do not invent helpers or controls you have not implemented. Make the requested screen real with HTML and CSS first; use the studio's asset tools only when the goal needs an image or icon you cannot draw in code.`,
+    `After writing, use computer to reload and use the actual page: click through it, type into its fields, fix console errors and layout breaks, then finish with what you observed. The host commits and validates your changes. No git commit is needed.`,
     setup ? `Requested inspection state: ${JSON.stringify(setup)}` : "",
   ]
     .filter(Boolean)
@@ -127,34 +127,34 @@ function ownShapeRules(shape: BriefShape): string[] {
   const builtWith = shape?.build ? `, its page is built with \`${shape.build}\`` : "";
   return [
     `- THIS PROJECT HAS ITS OWN SHAPE — it is not the studio's template. Its entry is ${entryMain}${builtWith} and the studio serves ${shape?.entry ?? "index.html"}. Keep that: no second entry, do not replace index.html, do not rewrite the project in plain JS, keep its UI and input handling.`,
-    `- ${contractWiringAsk(shape)} Register the cameras the facets name through config.cameras, in the same call.`,
+    `- ${contractWiringAsk(shape)} Register the views the facets name through config.views, in the same call.`,
     // Said as a prohibition, because the template's answer to "where do parallel builders
     // meet" is a marker block and a group per facet, and imposing either on a project that
     // already has its own structure is how a night rewrites somebody's architecture.
-    `- Do NOT impose the studio template's structure on this project: no marker block in the entry for builders to add import lines to, no empty per-builder container added to the scene, no shared module invented to hold them. Builders here are given a seam in the code this project already has — a file, a folder or a glob — and they wire their work in the way this project already wires things.`,
+    `- Do NOT impose the studio template's structure on this project: no marker block in the entry for builders to add import lines to, no empty per-builder container added to the page, no shared module invented to hold them. Builders here are given a seam in the code this project already has — a file, a folder or a glob — and they wire their work in the way this project already wires things.`,
     ...(shape?.build
       ? [
-          `- Run \`${shape.build}\` yourself before you finish and fix every error it reports — the studio runs the same build before every preview, and a build that fails is a black screen for every critic.`,
+          `- Run \`${shape.build}\` yourself before you finish and fix every error it reports — the studio runs the same build before every preview, and a build that fails is a blank screen for every critic.`,
         ]
       : []),
   ];
 }
 
-/** The rules for the studio's template: the wiring block, a group per facet, and a shared palette. */
+/** The rules for the studio's template: the wiring block, a region per facet, and shared tokens. */
 function templateRules(facets: BriefFacets): string[] {
   return [
     facets.length
-      ? `- src/main.js passes scene, renderer and camera to installStudio (plus an actual player() locator if this project needs one), keeps the FACET WIRING block, and creates one empty tagged THREE.Group per facet (group.userData.tag = "<facet id>") added to the scene, exported from src/world.js so each facet fills its own group.`
-      : `- src/main.js passes scene, renderer and camera to installStudio (plus an actual player() locator if this project needs one), keeps the FACET WIRING block (one import + one init line per builder — the studio union-merges that block, so it is where parallel work meets), and exports from src/world.js one empty tagged THREE.Group per part the goal names (group.userData.tag = "<part>"), added to the scene.`,
-    `- src/palette.js exports the named colours, scale constants and the player spawn point every facet must share.`,
+      ? `- src/main.js keeps the FACET WIRING block and builds the shell in #app (header, nav, main, footer), with one empty region per facet (a <section data-facet="<facet id>"> with its heading) exported from src/shell.js so each facet fills its own region.`
+      : `- src/main.js keeps the FACET WIRING block (one import + one init line per builder — the studio union-merges that block, so it is where parallel work meets) and builds the shell in #app (header, nav, main, footer), exporting from src/shell.js one empty region per part the goal names (<section data-facet="<part>"> with its heading).`,
+    `- src/styles.css holds the tokens every facet must share: the colours, the spacing and type scales, the radius and the focus ring. Facets use the tokens and add their own rules in their own files, never raw numbers for what a token covers.`,
   ];
 }
 
-/** Which camera views the base registers: the facets' own, or a default plus one per part. */
+/** Which views the base registers: the facets' own, or a default plus one per screen. */
 function cameraRule(facets: BriefFacets): string {
   if (facets.length)
-    return `- Register distinct, working camera views for the cameras the facets name: ${[...new Set(facets.flatMap((f) => f.cameras ?? []))].join(", ")}.`;
-  return `- Register distinct, working camera views through config.cameras: "default" framing the project as a player sees it, plus one per part the goal names. Every judge and every check looks through them.`;
+    return `- Register distinct, working views (config.views — the harness calls them cameras) for the screens the facets name: ${[...new Set(facets.flatMap((f) => f.cameras ?? []))].join(", ")}.`;
+  return `- Register distinct, working views through config.views: "default" showing the project as a person first meets it, an "empty" and one per screen the goal names. Every judge and every check looks through them.`;
 }
 
 /** How the setup script names the state it replays: its note, its demo, or its input actions. */
@@ -168,9 +168,9 @@ function replayedSteps(setup: AnyRecord): string {
   return `${(setup.actions ?? []).length} input action(s)`;
 }
 
-/** The state the run is about, which the base's cameras must be registered against. */
+/** The state the run is about, which the base's views must be registered against. */
 function requestedStateLine(setup: AnyRecord): string {
   const equals = setup.verify && "equals" in setup.verify ? ` == ${JSON.stringify(setup.verify.equals)}` : "";
   const verified = setup.verify ? `, verified by ${setup.verify.path}${equals}` : "";
-  return `THE REQUESTED STATE: this run is about a state the project does not boot into — the studio replays a setup script after every load (${setupLabel(setup)})${verified}. Register the facets' cameras against THAT state (the map, the mode, the scene the goal names), and keep the way a player reaches it working — do not change what the project boots into.`;
+  return `THE REQUESTED STATE: this run is about a state the project does not boot into — the studio replays a setup script after every load (${setupLabel(setup)})${verified}. Register the facets' views against THAT state (the account, the data set, the screen the goal names), and keep the way a person reaches it working — do not change what the project boots into.`;
 }

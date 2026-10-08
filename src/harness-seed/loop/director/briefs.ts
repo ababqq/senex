@@ -149,12 +149,12 @@ function requestedStateLine(setup: AnyRecord | null | undefined): string {
  */
 function contractLine(contract: AnyRecord | null, shape: AnyRecord | null, leads: boolean): string {
   if (contract?.ok && contract?.attached)
-    return `THE PROJECT IS JUDGEABLE NOW: nothing in its sources installs the studio contract, but the studio attaches to its page on its own — it watches the frames the project draws and finds the renderer, the scene and the camera from them. Nothing was wired and nothing about the project was changed. If a build ever stops being readable, the fix is the two lines: \`import { installStudio } from "./studio.js"\` and \`installStudio({ renderer, player })\` in ${shape?.main ?? "the entry"}.`;
+    return `THE PROJECT IS JUDGEABLE NOW: nothing in its sources installs the studio contract, but the studio attaches to its page on its own — it watches what is done to the page and what it draws. Nothing was wired and nothing about the project was changed. If a build ever stops being readable, the fix is the two lines: \`import { installStudio } from "./studio.js"\` and \`installStudio({ probes })\` in ${shape?.main ?? "the entry"}.`;
   if (contract?.ok)
     return `THE PROJECT IS JUDGEABLE NOW: it arrived without the studio contract, so the studio wired it into ${shape?.main ?? "its entry"} and committed it (${shortSha(contract.commit ?? "")}) before your session opened. That commit is what "start" means for this run and what every worker forks from — keep it wired, and nothing else about the project was touched.`;
   if (contract && leads) return LEAD_BRIEF.contractFailed(contract.error, shape?.main ?? "the entry");
   if (contract)
-    return `CONTRACT NOT INSTALLED — DO THIS FIRST: this project's page never loads the studio contract, and the studio's own attempt to wire it in failed (${contract.error}). Until it is wired nothing can be judged: no state, no cameras, no capture, and worker_start refuses every fork. Before you plan anything, read ${shape?.main ?? "the entry"}: if the call is already there, say so in a note and carry on; otherwise ${contractWiringAsk(shape)} Then look at it with capture, and commit. Change nothing else about the project.`;
+    return `CONTRACT NOT INSTALLED — DO THIS FIRST: this project's page never loads the studio contract, and the studio's own attempt to wire it in failed (${contract.error}). Until it is wired nothing can be judged: no state, no views, no capture, and worker_start refuses every fork. Before you plan anything, read ${shape?.main ?? "the entry"}: if the call is already there, say so in a note and carry on; otherwise ${contractWiringAsk(shape)} Then look at it with capture, and commit. Change nothing else about the project.`;
   return "";
 }
 

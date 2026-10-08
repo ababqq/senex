@@ -1,6 +1,6 @@
 # Assets
 
-Files made by the studio's own tools — Blender first. `assets/<name>.glb` is committed with
-the project, served to the preview and copied by export; `assets/src/<name>.py` is the Blender
-script that made it (re-running it replaces the file). Load with `loadAsset("<name>")` from
-`src/assets.js`. Never downloaded, never copied from `references/`.
+Files made by the studio's own tools — images, icons, models, audio. `assets/<name>.<ext>` is
+committed with the project, served to the preview and copied by export; reference it by a relative
+URL (`assets/logo.png`). `assets/src/` holds the scripts and sources that made a file, so re-running
+one replaces it. Never downloaded, never copied from `references/`.

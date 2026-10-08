@@ -1,0 +1,27 @@
+{
+  "id": "ui.one-primary-action",
+  "title": "Each screen has one obvious primary action",
+  "tags": ["primary", "action", "button", "hierarchy", "cta", "emphasis", "call", "affordance", "focus", "prominent"],
+  "checkClass": "primary-action-obvious",
+  "kind": "craft",
+  "pack": "visual",
+  "note": "One control per screen is visibly the main thing to do; secondary actions are quieter.",
+  "intent": "When three buttons look equally important, a person has to read all of them. Pick the single action the screen exists for and give it the accent colour and the most visual weight; secondary actions use an outline or a text style, destructive ones are quiet until confirmed. Put the primary action where the eye finishes reading (end of the form, top right of the toolbar) and give it a verb that says what happens (\"Save changes\", not \"OK\"). Keep one filled button per view.",
+  "check": {
+    "id": "primary-action-obvious",
+    "kind": "vision",
+    "camera": "default",
+    "ask": "Is it obvious which single control is the main thing to do on this screen, with the other actions visibly quieter?",
+    "weight": "normal",
+    "note": "One control is visibly the primary action of the screen."
+  },
+  "port": "styles.css defines .button (quiet) and .button.primary (accent) once; components choose one, and a view never contains two primaries.",
+  "evidence": [],
+  "stats": {
+    "applied": 0,
+    "wins": 0,
+    "losses": 0
+  },
+  "status": "candidate",
+  "origin": "seed"
+}

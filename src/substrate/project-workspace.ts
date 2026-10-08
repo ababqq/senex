@@ -96,9 +96,6 @@ const OWN_ENTRY_KEEP = ["index.html", "src/main.js"] as const;
  * downloads its own boot needs (flautout-remix, 2026-09-07). Own-shape CLAUDE.md and NOTES.md
  * are written from `CLAUDE.own.md` / `NOTES.own.md` instead; the contract's reference tables
  * live in `src/studio.js` and `src/studio.d.ts`, which are still merged in.
- *
- * `src/hud.js` is not on this list and must not join it: the contract imports it, and a project
- * with its own build fails to bundle on a dynamic import of a file that is not there.
  */
 const OWN_PROJECT_KEEP = [...OWN_ENTRY_KEEP, "CLAUDE.md", "NOTES.md", "docs/CONTRACT.md"] as const;
 

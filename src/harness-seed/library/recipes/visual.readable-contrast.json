@@ -1,0 +1,40 @@
+{
+  "id": "visual.readable-contrast",
+  "title": "Text is readable against its background",
+  "tags": [
+    "contrast",
+    "color",
+    "colour",
+    "readable",
+    "text",
+    "background",
+    "grey",
+    "gray",
+    "dark",
+    "light",
+    "wcag",
+    "muted"
+  ],
+  "checkClass": "readable-contrast",
+  "kind": "craft",
+  "pack": "visual",
+  "note": "Body text, labels and controls meet readable contrast in both light and dark colour schemes.",
+  "intent": "Light grey on white is the most common way a page becomes unreadable. Body text should reach a contrast ratio of at least 4.5:1 against its background, large text and the borders of controls at least 3:1. Do not use colour alone to carry meaning (an error also gets an icon or text). Define the palette as variables once, with a dark variant for prefers-color-scheme: dark, and check muted text in particular, since that is where contrast quietly fails. A placeholder is not a label.",
+  "check": {
+    "id": "readable-contrast",
+    "kind": "vision",
+    "camera": "default",
+    "ask": "Is all text, including muted captions and labels, easy to read against its background?",
+    "weight": "normal",
+    "note": "Text is readable against its background everywhere, muted text included."
+  },
+  "port": "Colour tokens live in styles.css with a documented contrast pair for each text/background combination; components use the tokens.",
+  "evidence": [],
+  "stats": {
+    "applied": 0,
+    "wins": 0,
+    "losses": 0
+  },
+  "status": "candidate",
+  "origin": "seed"
+}

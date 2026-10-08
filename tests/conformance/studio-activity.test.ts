@@ -82,7 +82,7 @@ test("project chats say plainly what Harness learned; restarts become Work rows 
       reason: "Recovered from the missed heartbeat",
     }),
     custom(6, "skillopt_pass", { tasks: 8, staged: 0, accepted: 0, rejected: 3 }),
-    custom(7, "skillopt_accepted", { skill: "director", title: "Check the player’s view before finishing a scene" }),
+    custom(7, "skillopt_accepted", { skill: "director", title: "Check a narrow window before finishing a screen" }),
   ]);
   assert.deepEqual(
     result.map((item) => item.kind),
@@ -118,7 +118,7 @@ test("Activity describes runs and instruction changes in plain words", () => {
     custom(4, "skillopt_accepted", {
       skill: "facet-decomposition",
       approvedBy: "human",
-      title: "Check the player’s view",
+      title: "Check a narrow window",
       summary: ["Looks through the player’s eyes."],
     }),
     custom(5, "skillopt_accepted", {
@@ -136,7 +136,7 @@ test("Activity describes runs and instruction changes in plain words", () => {
     changes.map((item) => [item.title, item.approvedBy]),
     [
       ["Changed how Harness plans a build", "auto"],
-      ["Check the player’s view", "human"],
+      ["Check a narrow window", "human"],
     ],
   );
   assert.deepEqual(changes[1]!.summary, ["Looks through the player’s eyes."]);

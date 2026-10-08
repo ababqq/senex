@@ -18,6 +18,7 @@
   "checkClass": "flora",
   "kind": "craft",
   "pack": "flora",
+  "appKinds": ["graphics"],
   "note": "Trees and bushes are built from alpha-tested leaf cards, never a solid crown; foliage.js makeTree/makeBush is the recipe.",
   "intent": "A crown made of one sphere, icosahedron or capsule reads as a boulder on a stick from every camera, and no material fixes it. Build the canopy from six or more crossed quads carrying a leaf texture with alphaTest around 0.5 (not plain transparency, which needs sorting and shows as a grey haze), scattered on the branch ends with random yaw and a little scale jitter, and let the silhouette break: gaps between the cards are what makes it read as leaves. The template ships this as foliage.js makeTree({ height, spread, seed, kind }) and makeBush({ radius, seed }); a mesh modelled in Blender and loaded with loadAsset counts as built from parts and passes the same check.",
   "check": {

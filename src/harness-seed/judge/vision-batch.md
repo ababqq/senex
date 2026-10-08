@@ -12,7 +12,7 @@ It is read, not decoration, and there are two thresholds:
   stay failing — a confident `yes` you did not mean keeps a defect on screen for another round.
 - Anything under **0.5** reads as "the crop does not show enough to answer". Use it when the
   picture cannot settle the question at all: the region is off-frame, black, or the feature would
-  be invisible from this camera whether it exists or not. Do not guess from the project's genre, from
+  be invisible from this camera whether it exists or not. Do not guess from the kind of project, from
   the question's wording, or from what a project like this usually has.
 
 A `no` is as useful as a `yes`. Say what you actually see in `note` — one clause, concrete, naming

@@ -1,0 +1,40 @@
+{
+  "id": "states.loading-and-failure-recover",
+  "title": "Loading, failure and retry are screens, not accidents",
+  "tags": [
+    "loading",
+    "spinner",
+    "skeleton",
+    "failure",
+    "retry",
+    "offline",
+    "timeout",
+    "async",
+    "fetch",
+    "pending",
+    "progress"
+  ],
+  "checkClass": "failure-recovers",
+  "kind": "craft",
+  "pack": "states",
+  "note": "Waiting shows progress, a failure shows what happened, and a retry brings the data back.",
+  "intent": "Anything that takes time or can fail needs three visible states besides success: waiting (a skeleton or spinner in the place the data will land, so the layout does not jump), failure (a sentence saying what happened and a Retry button), and recovery (the retry works and the screen continues from where it was). Disable a button while its action runs so a double click cannot send twice, and say so on the button (\"Saving…\"). Declare a demo named `failure-recovers` that makes the next load fail, shows the failure, retries and returns whether the failure was shown and whether the data came back.",
+  "sketch": "demos: {\n  \"failure-recovers\": async () => {\n    api.failNext();\n    await screen.load();\n    const errorShown = dom.visible('[role=alert]');\n    await screen.retry();\n    return { errorShown, recovered: dom.count('li.item') > 0 };\n  },\n}\n",
+  "check": {
+    "id": "failure-recovers",
+    "kind": "demo",
+    "name": "failure-recovers",
+    "expr": "errorShown == true && recovered == true",
+    "weight": "normal",
+    "note": "The demo `failure-recovers` fails a load on purpose, shows the failure and recovers on retry: result.errorShown and result.recovered are both true."
+  },
+  "port": "Data access goes through one `load(key)` that exposes pending/error/data; tests flip a failure flag in it, so the demo needs no network.",
+  "evidence": [],
+  "stats": {
+    "applied": 0,
+    "wins": 0,
+    "losses": 0
+  },
+  "status": "candidate",
+  "origin": "seed"
+}

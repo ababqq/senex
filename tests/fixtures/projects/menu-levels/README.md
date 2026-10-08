@@ -27,5 +27,5 @@ Press Start, pick a room, then move with WASD. Escape goes back to the level sel
 ## Shape
 
 `three-modules`, own, entry `index.html`, main `src/main.js`, no build, no package manager, no
-`studio.json`. `kind: "third-person"`, and `hud` is left false: this project's HUD is DOM by design
+`studio.json`. `kind: "graphics"` with `keyboardMove`, and `hud` is left false: this project's HUD is DOM by design
 and the template's one-screen checks describe a different project.

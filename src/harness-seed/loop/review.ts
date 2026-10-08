@@ -62,13 +62,6 @@ function declarationFor(studio: unknown): string {
   return String(studio ?? "").replace(/\.[cm]?js$/, ".d.ts");
 }
 
-/** `src/studio.js` → `src/hud.js`: the contract's HUD module, beside it (M4.2a). */
-function hudFor(studio: unknown): string {
-  const path = String(studio ?? "");
-  const at = path.lastIndexOf("/");
-  return at < 0 ? "hud.js" : `${path.slice(0, at + 1)}hud.js`;
-}
-
 /** `tsconfig.json` and the files it references (`tsconfig.app.json`, `tsconfig.node.json`). */
 function isTypeConfig(file: unknown): boolean {
   return /^tsconfig(\.[\w-]+)?\.json$/.test(String(file ?? ""));
@@ -141,7 +134,7 @@ export function allowedFile(file: string, spec: ReviewSpec, ownsMain: boolean): 
   if (spec.owns?.length) {
     return spec.owns.some((own) => ownMatches(file, own)) || (template && file.includes(spec.id));
   }
-  if (template) return file.startsWith("src/") && file !== studio && file !== hudFor(studio);
+  if (template) return file.startsWith("src/") && file !== studio;
   return !isEntryFile(file, main, studio);
 }
 
@@ -154,15 +147,9 @@ function sharedFile(file: string, facetId: string): boolean {
   );
 }
 
-/** The entry, the contract (its module, declaration and HUD) and the page: the entry owner's files. */
+/** The entry, the contract (its module and declaration) and the page: the entry owner's files. */
 function isEntryFile(file: string, main: string, studio: string): boolean {
-  return (
-    file === main ||
-    file === studio ||
-    file === declarationFor(studio) ||
-    file === hudFor(studio) ||
-    file === "index.html"
-  );
+  return file === main || file === studio || file === declarationFor(studio) || file === "index.html";
 }
 
 /** One file's lines in a diff: what was added (with its new line number) and what was removed. */
@@ -374,7 +361,7 @@ function contractRemovals(review: FileReview): Violation[] {
       line: 0,
       category: "contract",
       what: "installStudio() call removed — the build cannot be judged",
-      fix: "restore the call — installStudio({ renderer, player }) is the whole ask; the studio's page shim supplies the rest",
+      fix: "restore the call — installStudio({ probes }) is the whole ask; the studio's page shim supplies the rest",
       source: "mechanical",
     });
   }

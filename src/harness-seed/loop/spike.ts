@@ -202,7 +202,7 @@ export function spikeBrief({
   build?: string | null;
 }): string {
   return [
-    `You are building a SPIKE inside Autopilot run ${run.runId} — a throwaway mini-scene that proves ONE technique against ONE check, in isolation from the project. Nothing you write here ships; the technique does.`,
+    `You are building a SPIKE inside Autopilot run ${run.runId} — a throwaway mini-page that proves ONE technique against ONE check, in isolation from the project. Nothing you write here ships; the technique does.`,
     ``,
     `PROJECT GOAL (context only): ${run.goal}`,
     `FACET (context only): ${spec.title} — ${spec.intent.slice(0, CLIP_BRIEF)}`,
@@ -211,8 +211,8 @@ export function spikeBrief({
     renderChecks([check]),
     ``,
     `BUILD EXACTLY THIS:`,
-    `- ${page}: a page that carries this import map verbatim and loads ./${script.split("/").pop()} as a module. The studio serves this page itself, so the map's five keys resolve from its vendored three with no install and no bundler:\n${importMap}`,
-    `- ${script}: builds ONLY the subsystem the check is about, with objects tagged (userData.tag) and cameras { default${check.camera && check.camera !== "default" ? `, ${check.camera}` : ""} } registered. Register them by calling installStudio({ scene, renderer, camera, player, cameras }) — import it from ${contract} if this project keeps the contract module there; if that import does not resolve, leave it out and just render: the studio puts its own code on every page it serves, so the harness can still see and photograph what your page draws.`,
+    `- ${page}: a page that carries this import map verbatim (it is for a canvas or 3D technique; a DOM technique simply never imports three) and loads ./${script.split("/").pop()} as a module. The studio serves this page itself, so the map's five keys resolve from its vendored three with no install and no bundler:\n${importMap}`,
+    `- ${script}: builds ONLY the subsystem the check is about — real elements for a DOM technique, objects tagged (userData.tag) for a canvas or 3D one — with views { default${check.camera && check.camera !== "default" ? `, ${check.camera}` : ""} } registered. Register them by calling installStudio({ probes, views, scene, renderer, camera }) — import it from ${contract} if this project keeps the contract module there; if that import does not resolve, leave it out and just render: the studio puts its own code on every page it serves, so the harness can still see and photograph what your page draws.`,
     ownShape
       ? `- Do NOT edit the project: nothing under its own source folders, not its entry, not its page. The spike lives in ${page.slice(0, page.lastIndexOf("/"))}/ only, plus spike/VERDICT.md${build ? `. \`${build}\` must still build this project exactly as it does now — do not change what it does` : ""}.`
       : `- Do NOT edit src/, index.html or any file of the project. The spike lives in ${page.slice(0, page.lastIndexOf("/"))}/ only.`,

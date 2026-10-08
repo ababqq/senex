@@ -808,17 +808,29 @@ function templatePage() {
     camera,
     noted,
     pose,
-    api: installStudio({ renderer, camera, scene, player: () => ({ x: 0, y: 0, z: 0, yaw: 0 }) } as never),
+    api: installStudio({
+      renderer,
+      camera,
+      scene,
+      views: {
+        // A view that points the project's own camera somewhere else, 1.6 up and pitched down.
+        down() {
+          camera.position.set(0, 1.6, 0);
+          camera.lookAt(0, 0.73);
+        },
+      },
+    } as never),
     restore: () => Object.assign(globals, before),
   };
 }
 
-describe("the template photographs the viewpoint the harness placed", () => {
+describe("the template photographs the view the harness placed", () => {
   it("does not let the page's next frame put the project's own camera back", async () => {
     const page = templatePage();
     try {
-      assert.deepEqual(page.api.eyes(), ["eye:spawn", "eye:here", "eye:down", "eye:back"]);
-      const placed = page.api.eye("eye:down");
+      assert.deepEqual(page.api.eyes(), [], "the eye cameras belong to the 3D contract the DOM template dropped");
+      assert.deepEqual(page.api.cameras(), ["down"]);
+      const placed = await page.api.debugCamera("down");
       assert.equal(placed.ok, true);
       const shot = await page.api.capture();
       // Before the placement survived the photograph, the picture came back as `y0/pitch0` —
@@ -835,7 +847,7 @@ describe("the template photographs the viewpoint the harness placed", () => {
   it("records what its own capture did, where the studio reads it", async () => {
     const page = templatePage();
     try {
-      page.api.eye("eye:spawn");
+      await page.api.debugCamera("down");
       await page.api.capture();
       assert.equal(page.noted.length, 1, "a picture the template took itself must be recorded");
       assert.deepEqual(page.noted[0].ladder, ["render"]);

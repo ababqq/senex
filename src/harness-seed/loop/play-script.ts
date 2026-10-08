@@ -1,8 +1,8 @@
 /**
- * Scripted play — seed, then drive controls, then step.
+ * Scripted use — seed, then drive controls, then step.
  *
- * The critic cannot feel a project that only ticks the clock. A short WASD/look/jump script is how
- * two builds are compared on the same inputs.
+ * The critic cannot judge a project that only ticks the clock. A short script of clicks, typing,
+ * Tab and scrolling is how two builds are compared on the same inputs.
  */
 import { HostMethod } from "./host-methods.ts";
 import { PageMethod } from "./page-contract.ts";
@@ -11,12 +11,18 @@ import type { AnyRecord, CallParams, HarnessCtx } from "../types/harness.d.ts";
 import type { HarnessHostMethod, MessageImage, PreviewInputAction } from "../types/host-api.d.ts";
 
 /**
- * One control the harness drives: keys held or tapped, a look, a click, a drag, a pointer move,
- * a scroll, a wait, a camera switch. A declared script is normalised to these (`kinds.ts`).
+ * One control the harness drives: keys held or tapped, text typed, a key chord, a look, a click,
+ * a drag, a pointer move, a scroll, a wait, a view switch. A declared script is normalised to
+ * these (`kinds.ts`).
  */
 export interface PlayAction {
   type: string;
   keys?: string[];
+  /** Literal text for a `type` action. */
+  text?: string;
+  /** A key or `+`-joined chord ("Tab", "ctrl+z") for a `press` action, repeated `repeat` times. */
+  combo?: string;
+  repeat?: number;
   ms?: number;
   dx?: number;
   dy?: number;
@@ -29,7 +35,19 @@ export interface PlayAction {
   name?: string;
 }
 
+/** What a project that declares no script is driven with: aim at the page, tab through it, activate, scroll. */
 export const CONTROL_EXERCISE: PlayAction[] = [
+  { type: "click", x: 0.5, y: 0.3 },
+  { type: "press", combo: "Tab", repeat: 3 },
+  { type: "press", combo: "Return" },
+  { type: "wait", ms: 200 },
+  { type: "scroll", dx: 0, dy: 360 },
+  { type: "wait", ms: 200 },
+  { type: "scroll", dx: 0, dy: -360 },
+];
+
+/** How a graphics project a person walks through is driven: move, look, jump, use the primary button. */
+export const WALK_EXERCISE: PlayAction[] = [
   { type: "hold", keys: ["w"], ms: 1600 },
   { type: "look", dx: 56, dy: -8 },
   { type: "tap", keys: ["space"] },
@@ -96,6 +114,18 @@ const ACTION_STEPS = new Map<string, (drive: Drive, action: ScriptAction) => Pro
   [
     "look",
     (drive, action) => inputThenFrame(drive, { type: "look", dx: Number(action.dx) || 0, dy: Number(action.dy) || 0 }),
+  ],
+  // Literal text, one character at a time the way a keyboard delivers it; the frame after lets a
+  // field that formats or validates as you type answer.
+  ["type", (drive, action) => inputThenFrame(drive, { type: "type", text: String(action.text ?? "") })],
+  [
+    "press",
+    (drive, action) =>
+      inputThenFrame(drive, {
+        type: "press",
+        combo: String(action.combo ?? ""),
+        ...(Number(action.repeat) > 1 ? { repeat: Number(action.repeat) } : {}),
+      }),
   ],
   [
     "click",

@@ -65,8 +65,8 @@ const PLAN = {
     },
   ],
   // Every trait is off unless the plan declares one (M4.4): a plan that says nothing gets no
-  // HUD rule, no look check and no movement check, so the rig declares the kind it means.
-  app: { kind: "first-person" },
+  // page rule and no input check, so the rig declares the kind it means.
+  app: { kind: "dashboard" },
   mainOwner: "terrain",
   base: { notes: "one palette", files: [{ path: "src/palette.js", purpose: "shared colours" }] },
   integrationNotes: "shared palette",
@@ -1421,12 +1421,12 @@ describe("a round is started only when it can finish", () => {
 
 /**
  * M4.4 — the project declaration the planner is shown. The shape is copied as it stands, so the
- * three traits printed in it are declarations: `"hud":false,"mouseLook":false,"keyboardMove":
- * false` came back filled in beside a first-person kind, an explicit false outranks the kind's
- * own traits, and every board silently lost the four harness-owned checks the kind exists to
+ * traits printed in it are declarations: `"ui":false,"navigation":false,"typing":false`
+ * came back filled in beside a dashboard kind, an explicit false outranks the kind's
+ * own traits, and every board silently lost the harness-owned checks the kind exists to
  * bring. The traits are named in words instead; absent, each takes the declared kind's value.
  */
-describe("the shape the planner copies declares a kind, not three falses", () => {
+describe("the shape the planner copies declares a kind, not a column of falses", () => {
   const askFor = async (answer: Record<string, unknown>): Promise<{ ask: string; plan: Record<string, any> }> => {
     let ask = "";
     const ctx = {
@@ -1439,7 +1439,7 @@ describe("the shape the planner copies declares a kind, not three falses", () =>
     const plan = await decompose(
       ctx as never,
       {
-        run: { runId: "r", goal: "a first-person skate plaza" },
+        run: { runId: "r", goal: "a sales dashboard" },
         profile: { maxParallel: 2, delegated: true },
       } as never,
     );
@@ -1458,34 +1458,36 @@ describe("the shape the planner copies declares a kind, not three falses", () =>
 
   it("prints no trait value to copy, and a copied kind brings that kind's own traits", async () => {
     const { ask, plan } = await askFor({
-      app: { kind: "first-person", playScript: null },
+      app: { kind: "dashboard", playScript: null },
       facets: FACETS,
       mainOwner: "plaza",
       assumptions: [],
     });
-    assert.doesNotMatch(ask, /"hud":\s*false/, "a false in the shape is a declaration the planner copies");
-    assert.doesNotMatch(ask, /"mouseLook":\s*false/);
-    assert.doesNotMatch(ask, /"keyboardMove":\s*false/);
-    assert.match(ask, /"project":\{"kind":"<one of /, "the kind is still the shape's own field");
+    assert.doesNotMatch(ask, /"ui":\s*false/, "a false in the shape is a declaration the planner copies");
+    assert.doesNotMatch(ask, /"navigation":\s*false/);
+    assert.doesNotMatch(ask, /"typing":\s*false/);
+    assert.match(ask, /"app":\{"kind":"<one of /, "the kind is still the shape's own field");
     // The behaviour the falses cost: a kind declared alone brings its own traits, so the
-    // harness-owned HUD, look and movement checks reach the board.
+    // harness-owned page and navigation checks reach the board.
     assert.deepEqual(plan.app, {
-      kind: "first-person",
-      hud: true,
-      mouseLook: true,
-      keyboardMove: true,
+      kind: "dashboard",
+      ui: true,
+      navigation: true,
+      typing: false,
+      mouseLook: false,
+      keyboardMove: false,
       playScript: null,
     });
   });
 
   it("still lets a plan say this project differs from its kind", async () => {
     const { plan } = await askFor({
-      app: { kind: "first-person", hud: false, playScript: null },
+      app: { kind: "dashboard", ui: false, playScript: null },
       facets: FACETS,
       mainOwner: "plaza",
       assumptions: [],
     });
-    assert.equal(plan.app.hud, false, "an explicit false is a declaration and still wins");
-    assert.equal(plan.app.mouseLook, true, "and what it did not name keeps the kind's own value");
+    assert.equal(plan.app.ui, false, "an explicit false is a declaration and still wins");
+    assert.equal(plan.app.navigation, true, "and what it did not name keeps the kind's own value");
   });
 });

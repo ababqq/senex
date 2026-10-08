@@ -66,7 +66,7 @@ describe("the check grammar has one source", () => {
 
     const full = renderCheckGrammar();
     assert.ok(full.length > compact.length, "the full grammar says more, not less");
-    assert.match(full, /Helpers in scope: scene, renderer, camera, state, player, objects\(tag\)/);
+    assert.match(full, /Helpers in scope: dom \(count\(selector\), visible\(selector\)/);
     assert.match(full, /`needs` names up to four dotted paths/);
   });
 

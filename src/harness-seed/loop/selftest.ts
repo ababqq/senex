@@ -316,46 +316,63 @@ const SELFTEST_STEPS: readonly SelftestStep[] = [
     () => {
       // Every trait is off until a kind (or an explicit flag) declares it, so each of these
       // says which project it is talking about; a spec with no project carries no harness check.
-      const firstPerson = { kind: "first-person" };
+      const dashboard = {
+        kind: "graphics",
+        ui: true,
+        navigation: true,
+        typing: true,
+        mouseLook: true,
+        keyboardMove: true,
+      };
       const spec = withHarnessChecks(
-        normalizeFacetSpec({ id: "gun", intent: "a gun", checks: [{ id: "single-hud", kind: "scene", js: "true" }] }),
-        { ownsMain: true, app: firstPerson },
+        normalizeFacetSpec({
+          id: "filters",
+          intent: "filters",
+          checks: [{ id: "no-console-errors", kind: "probe", expr: "true" }],
+        }),
+        { ownsMain: true, app: dashboard },
       );
       check(
-        "four harness checks, no duplicate",
+        "every harness check, no duplicate",
         Object.keys(HARNESS_CHECKS).every((id) => spec.checks.filter((c) => c.id === id).length === 1),
       );
       check(
         "harness origin wins",
-        spec.checks.find((c) => c.id === "single-hud")!.js === HARNESS_CHECKS["single-hud"].js &&
-          spec.checks.find((c) => c.id === "single-hud")!.origin === "harness",
+        spec.checks.find((c) => c.id === "no-console-errors")!.expr === HARNESS_CHECKS["no-console-errors"].expr &&
+          spec.checks.find((c) => c.id === "no-console-errors")!.origin === "harness",
       );
       check(
         "input checks only for the main owner",
-        withHarnessChecks({ id: "x", checks: [], cameras: [] }, { ownsMain: false, app: firstPerson }).checks.length ===
-          2,
+        withHarnessChecks({ id: "x", checks: [], cameras: [] }, { ownsMain: false, app: dashboard }).checks.length ===
+          3,
       );
       check(
         "a project that declares nothing carries no harness check",
         withHarnessChecks({ id: "x", checks: [], cameras: [] }, { ownsMain: true }).checks.length === 0,
       );
       check(
-        "a project without a HUD or mouse look gets no such checks",
+        "a project with neither UI, navigation nor mouse look gets no such checks",
         withHarnessChecks(
           { id: "x", checks: [] as Check[], cameras: [] },
-          { ownsMain: true, app: { ...firstPerson, hud: false, mouseLook: false } },
+          { ownsMain: true, app: { ...dashboard, ui: false, navigation: false, mouseLook: false } },
         )
           .checks.map((c) => c.id)
-          .join(",") === "keys-move-player",
+          .join(",") === "fields-take-input,keys-move-player",
       );
       const grown = defectsToChecks(
-        { id: "gun", checks: [], cameras: ["default", "camGun"] },
-        ["the gun is a white box — camGun", "no hands hold the weapon", "the gun is a white box — camGun", "d4", "d5"],
+        { id: "form", checks: [], cameras: ["default", "camForm"] },
+        [
+          "the submit button is an unstyled grey box — camForm",
+          "no message under the field",
+          "the submit button is an unstyled grey box — camForm",
+          "d4",
+          "d5",
+        ],
         { iteration: 1 },
       );
       check(
         "worst two, deduplicated (WP2e)",
-        grown.length === 2 && grown[0].camera === "camGun" && grown[1].camera === "default",
+        grown.length === 2 && grown[0].camera === "camForm" && grown[1].camera === "default",
       );
       check(
         "judge origin vision checks",

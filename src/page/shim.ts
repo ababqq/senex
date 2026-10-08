@@ -1,4 +1,5 @@
 import { animationGate } from "./animation-gate.ts";
+import { installUiActivity, type UiActivity } from "./ui-activity.ts";
 /**
  * The page shim — the studio owns the clock (M4.1).
  *
@@ -1489,11 +1490,13 @@ const hookAttached = () => {
 };
 
 /** What the page is doing: the project's own state when it has one, else the shim's view of it. */
-function pageState(win: Foreign, watch: CanvasWatch, clock: ShimClock, lock: LockState) {
+function pageState(win: Foreign, watch: CanvasWatch, clock: ShimClock, lock: LockState, activity: UiActivity) {
   const project = readProjectState(win);
   const render = renderReport(watch, clock);
-  if (project && typeof project === "object") return withRender(project, render);
-  return {
+  // What people did to the page rides on every snapshot; a project that reports its own `ui` keeps its keys.
+  const withUi = (state: Foreign) => ({ ...state, ui: { ...activity.report(), ...(state.ui ?? {}) } });
+  if (project && typeof project === "object") return withUi(withRender(project, render));
+  return withUi({
     frame: clock.frames(),
     simulatedMs: Math.round(clock.elapsed()),
     running: !clock.frozen(),
@@ -1502,7 +1505,7 @@ function pageState(win: Foreign, watch: CanvasWatch, clock: ShimClock, lock: Loc
     render,
     __render: render,
     __attached: hookAttached(),
-  };
+  });
 }
 
 /** The facade's answers for what only the hook or the capture can see, with their fallbacks. */
@@ -1540,17 +1543,18 @@ interface FacadeParts {
   watch: CanvasWatch;
   clock: ShimClock;
   lock: LockState;
+  activity: UiActivity;
   ready: (why: Foreign) => Foreign;
 }
 
 // ── the merging facade ──
-function studioFacade({ win, watch, clock, lock, ready }: FacadeParts) {
+function studioFacade({ win, watch, clock, lock, activity, ready }: FacadeParts) {
   const injected = { keys: new Set(), look: { x: 0, y: 0 } };
   return {
     version: CLOCK_VERSION,
     hud: undefined,
     attached: hookAttached,
-    state: () => pageState(win, watch, clock, lock),
+    state: () => pageState(win, watch, clock, lock, activity),
     ready,
     async step(ms: number) {
       // The stepper yields a microtask between frames, so this is a promise: every caller of
@@ -1756,7 +1760,8 @@ export function installStudioShim(rawOptions: Foreign) {
     settleReady(readiness, natives, clock, typeof why === "string" && why ? why : "declared", true);
   watchTrustedInput(win, readiness);
   startPump({ natives, clock, loaders, options }, watch, readiness);
-  installFacade(win, studioFacade({ win, watch, clock, lock, ready }));
+  const activity = installUiActivity({ scope: win });
+  installFacade(win, studioFacade({ win, watch, clock, lock, activity, ready }));
   installCaptureGlobal(win, watch, clock, natives);
   installClockGlobal({ win, natives, options, clock, watch, loaders, lock, readiness, random, ready });
   return win.__studioClock;

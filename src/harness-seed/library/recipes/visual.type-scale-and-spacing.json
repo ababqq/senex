@@ -1,0 +1,40 @@
+{
+  "id": "visual.type-scale-and-spacing",
+  "title": "A clear type scale and a spacing rhythm",
+  "tags": [
+    "typography",
+    "type",
+    "scale",
+    "heading",
+    "spacing",
+    "rhythm",
+    "padding",
+    "margin",
+    "consistent",
+    "hierarchy",
+    "font",
+    "size"
+  ],
+  "checkClass": "type-and-spacing",
+  "kind": "craft",
+  "pack": "visual",
+  "note": "Headings, body and captions step clearly in size; spacing comes from one scale, not from guesses.",
+  "intent": "A page looks designed when its sizes and gaps repeat. Pick a type scale (for example 12, 14, 16, 20, 28, 40 px) and use only those; body text 16 px at 1.5 line height in a column no wider than about 72 characters; headings clearly larger and heavier than body; captions smaller and muted. Take every gap from a spacing scale (4, 8, 12, 16, 24, 32 px) kept as CSS variables, and make like things look alike: one corner radius, one border colour, one button height. Never separate blocks with nothing: margins between sections should be larger than margins within them.",
+  "check": {
+    "id": "type-and-spacing",
+    "kind": "vision",
+    "camera": "default",
+    "ask": "Do headings, body text and captions step clearly in size, and is the spacing between and within blocks consistent?",
+    "weight": "normal",
+    "note": "A clear type hierarchy and consistent spacing are visible."
+  },
+  "port": "The owner of styles.css defines the scales as custom properties; facets use var(--space-3) and var(--text-lg), never raw numbers.",
+  "evidence": [],
+  "stats": {
+    "applied": 0,
+    "wins": 0,
+    "losses": 0
+  },
+  "status": "candidate",
+  "origin": "seed"
+}

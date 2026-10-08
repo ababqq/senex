@@ -38,7 +38,21 @@ import {
 } from "../../src/page/hook.ts";
 
 const DOC = "project://sweep/index.html";
-const TEMPLATE = fs.readFileSync(path.resolve("src/project-template/index.html"), "utf8");
+/** A page with the import map a three.js project writes for itself; the DOM template has none to rewrite. */
+const TEMPLATE = `<!doctype html>
+<meta charset="utf-8" />
+<script type="importmap">
+  {
+    "imports": {
+      "three/webgpu": "/vendor/three.webgpu.js",
+      "three/tsl": "/vendor/three.tsl.js",
+      "three": "/vendor/three.module.js",
+      "three/addons/": "/vendor/three/examples/jsm/",
+      "three/": "/vendor/three/"
+    }
+  }
+</script>
+<script type="module" src="/src/main.js"></script>`;
 const FIXTURES = path.resolve("tests/fixtures/pages");
 const page = (name: string) => fs.readFileSync(path.join(FIXTURES, name), "utf8");
 
@@ -465,7 +479,7 @@ describe("the two-line contract", () => {
       // The renderer reached the hook by name, and inspect() delegates to it.
       const inspected = (api.inspect as () => { available: boolean; reason?: string })();
       assert.equal(inspected.available, false);
-      assert.match(String(inspected.reason), /no scene has been rendered yet/);
+      assert.match(String(inspected.reason), /no 3D scene the studio can see/);
 
       const world = scene(5);
       (renderer.render as (a: unknown, b: unknown) => void)(world, perspective);
@@ -475,7 +489,10 @@ describe("the two-line contract", () => {
         ["default"],
         "the view the project renders is a camera the studio can name",
       );
-      assert.equal((api.debugCamera as (name: string) => { ok: boolean })("default").ok, true);
+      assert.equal(
+        ((await (api.debugCamera as (name: string) => Promise<{ ok: boolean }>)("default")) as { ok: boolean }).ok,
+        true,
+      );
       assert.equal((api.inspect as () => { scene: unknown })().scene, world);
     } finally {
       globals.window = had.window;

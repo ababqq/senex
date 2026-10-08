@@ -1,0 +1,39 @@
+{
+  "id": "states.errors-are-shown-not-thrown",
+  "title": "Errors are caught and shown, never thrown at the console",
+  "tags": [
+    "error",
+    "exception",
+    "console",
+    "throw",
+    "reject",
+    "promise",
+    "try",
+    "catch",
+    "failure",
+    "recover",
+    "boundary"
+  ],
+  "checkClass": "no-console-errors",
+  "kind": "craft",
+  "pack": "states",
+  "note": "Nothing throws, rejects or logs console.error; a failure is caught and shown in the page with a way to retry.",
+  "intent": "An uncaught error is the cheapest evidence a build is broken, and a person who sees nothing happen has no way to know why. Catch at the edges where things can fail (a fetch, a parse, a storage read) and turn the failure into a message on the screen: what went wrong in words, and a retry or a way back. Handle promise rejections (await inside try/catch, or .catch) and never leave a console.error as the only signal. Guard what the data might not be: a missing field, an empty list, a number that is NaN. The page counts errors it saw (uncaught, rejected, console.error, failed resource loads) in state().ui.errors and keeps the last in ui.lastError.",
+  "check": {
+    "id": "no-console-errors",
+    "kind": "probe",
+    "expr": "ui.errors == 0",
+    "needs": ["ui.errors"],
+    "weight": "identity",
+    "note": "Nothing on the page threw, rejected, called console.error or failed to load: state().ui.errors is 0."
+  },
+  "port": "Wrap each async action in one helper that catches, records the message in the store and renders it in a role=\"alert\" region; components never need their own try/catch.",
+  "evidence": [],
+  "stats": {
+    "applied": 0,
+    "wins": 0,
+    "losses": 0
+  },
+  "status": "candidate",
+  "origin": "seed"
+}

@@ -323,13 +323,13 @@ describe("the scout says what kind of project it just drove", () => {
   it("keeps a validated kind, a normalised play script and a gesture", () => {
     const report = normalizeScoutReport({
       ...REPORT,
-      kind: "static-board",
+      kind: "utility",
       play: [
         { type: "click", x: 0.5, y: 0.5 },
         { type: "step", ms: 16 },
       ],
     }) as any;
-    assert.equal(report.kind, "static-board");
+    assert.equal(report.kind, "utility");
     // The studio owns the clock and the evidence: a plan may not step or pause the project.
     assert.deepEqual(report.play, [{ type: "click", x: 0.5, y: 0.5 }]);
     assert.equal(
@@ -337,9 +337,9 @@ describe("the scout says what kind of project it just drove", () => {
       null,
       "an unknown kind is no kind",
     );
-    // A scout that answered only "this is a side-on project" told the planner something no other
+    // A scout that answered only "this is a form" told the planner something no other
     // source knows; the discard guard must not throw it away.
-    assert.equal((normalizeScoutReport({ kind: "side-2d" }) as any)?.kind, "side-2d");
+    assert.equal((normalizeScoutReport({ kind: "form-flow" }) as any)?.kind, "form-flow");
     assert.deepEqual(
       normalizeScoutSetup({ gesture: true }),
       { gesture: true },
@@ -352,12 +352,12 @@ describe("the scout says what kind of project it just drove", () => {
     const text = renderScoutForPlanner(
       normalizeScoutReport({
         ...REPORT,
-        kind: "top-down",
+        kind: "dashboard",
         play: [{ type: "hold", keys: ["w"], ms: 800 }],
         setup: { ...REPORT.setup, gesture: true },
       }),
     );
-    assert.match(text, /Kind: top-down/);
+    assert.match(text, /Kind: dashboard/);
     assert.match(text, /hold W for 800 ms/);
     assert.match(text, /the studio clicks once/);
     const brief = scoutBrief({
@@ -365,8 +365,7 @@ describe("the scout says what kind of project it just drove", () => {
       profile: { maxParallel: 1, delegated: true },
     } as never);
     assert.match(brief, /WHAT KIND OF PROJECT IS THIS/);
-    for (const kind of ["first-person", "top-down", "static-board", "free-camera"])
-      assert.ok(brief.includes(kind), kind);
+    for (const kind of ["dashboard", "form-flow", "utility", "graphics"]) assert.ok(brief.includes(kind), kind);
     assert.match(brief, /"gesture": true/);
     assert.match(brief, /"play"/);
   });

@@ -23,6 +23,7 @@
   "checkClass": "flora",
   "kind": "craft",
   "pack": "flora",
+  "appKinds": ["graphics"],
   "note": "Nothing organic is a flat-shaded sphere, icosahedron or capsule — faceted balls read as rocks from every camera.",
   "intent": "A flat-shaded sphere or icosahedron reads as a rock, whatever it is tagged. Every time a build has stood a faceted ball in for something alive — a bush, a hay bale, a chicken, a puff of smoke, a head — the judge has named it as a blob. Replace the primitive with the shape family that actually reads: leaf cards for anything leafy, a small hierarchy of parts for an animal or a person, a soft additive sprite for smoke, a cylinder with cut ends for a log. If a sphere is genuinely right (a pumpkin, a ball), give it a smooth normal and a material rather than flatShading, so it stops reading as low-poly stone.",
   "check": {

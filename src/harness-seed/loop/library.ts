@@ -30,7 +30,7 @@ import {
 import { renderScoreboard } from "./checks.ts";
 import { nearestReference } from "./style.ts";
 import { facetNotes } from "./repo.ts";
-import { appLine } from "./kinds.ts";
+import { appLine, drawsScene } from "./kinds.ts";
 import { roleEngine, RoleKey, toolCall } from "./model-roles.ts";
 import { clip, CLIP_BRIEF, CLIP_DETAIL, CLIP_QUOTE, CLIP_REASON, sharesStem } from "./text.ts";
 import { isRecord } from "./json.ts";
@@ -90,6 +90,8 @@ export interface Recipe {
   /** "technique" (how the harness can see and drive a build) or "craft" (an opinion about looks). */
   kind: string;
   pack: string;
+  /** The kinds of software (loop/kinds.ts) this recipe is for; empty means every kind. */
+  appKinds: string[];
   note: string;
   intent: string;
   sketch: string;
@@ -179,6 +181,22 @@ export type RecipeKind = (typeof RecipeKind)[keyof typeof RecipeKind];
 /** Every recipe kind, for code that checks one at run time. */
 export const RECIPE_KINDS: string[] = Object.values(RecipeKind);
 
+/**
+ * The recipes that apply to one kind of software. A recipe that names no kind is for every kind;
+ * a project whose kind is not known yet is shown only those, because a weapon's silhouette is no
+ * advice for a settings form and nothing yet says it is not one. The craft menu and the
+ * retrieval for failing checks both read this; resolving a recipe a plan names does not.
+ */
+export function recipesForKind(
+  recipes: readonly Recipe[] | null | undefined,
+  kind: string | null | undefined,
+): Recipe[] {
+  const wanted = String(kind ?? "").toLowerCase();
+  return (recipes ?? []).filter(
+    (recipe) => recipe.appKinds.length === 0 || (wanted && recipe.appKinds.includes(wanted)),
+  );
+}
+
 /** A recipe kept for one project, asked about by another one. */
 function belongsElsewhere(recipe: Recipe, project: string | null | undefined): boolean {
   return (
@@ -200,6 +218,7 @@ export function normalizeRecipe(raw: AnyRecord | null | undefined): Recipe | nul
     // A recipe written before craft existed is a technique: that is what they all were.
     kind: RECIPE_KINDS.includes(raw.kind) ? raw.kind : RecipeKind.Technique,
     pack: slug(raw.pack ?? "", "").slice(0, PACK_CHARS),
+    appKinds: recipeTags(raw.appKinds),
     // One line, for the menu. The intent is the how; this is what it is for.
     note: String(raw.note ?? "")
       .replace(/\s+/g, " ")
@@ -753,8 +772,8 @@ export function renderBrief({
   fix = null,
   /** false for a project the user brought with its own UI and input handling — the one-screen rule is the template's, not this project's. */
   screen = true,
-  /** Which critic asked the liveness question — "place" (a world you stand in) or "screen" (a board, a puzzle, a builder). */
-  critic = "place",
+  /** Which critic asked the liveness question — "screen" (software you operate) or "place" (a 3D world you stand in). */
+  critic = "screen",
   /** false for a project the user brought: the determinism, one-input-path and Blender rules are the studio template's craft law, not this project's (M4.6). */
   template = true,
   /** The night's declared project — kind, traits and play script (loop/kinds.ts). Its one line heads the brief the way it heads every judge call. */
@@ -1019,18 +1038,20 @@ function briefRules(
 ): string[] {
   return [
     `## Rules that do not change`,
-    `- Tag every object you create: \`obj.userData.tag = "<tag>"\` — untagged objects are invisible to scene checks and do not count.`,
+    drawsScene(run.app)
+      ? `- Tag every object you create: \`obj.userData.tag = "<tag>"\` — untagged objects are invisible to scene checks and do not count.`
+      : `- Make what you build measurable: a probe in \`probes()\` for what it holds, a view in \`views\` that shows its screen (and its empty and error states), a demo in \`demos\` for a workflow the generic exercise cannot reach.`,
     screen
-      ? `- ONE SCREEN: all UI goes through \`__studio.hud\` (text/bar/crosshair/flash, drawn into the canvas). No DOM elements, no second HUD quad, no camera-parented panels — the harness-owned checks no-dom-ui and single-hud fail the build otherwise.`
-      : `- THE PROJECT'S OWN SCREEN: this project has its own UI and input handling — keep them as they are; do not add __studio.hud overlays or a second input path.`,
+      ? `- THE PAGE IS THE PRODUCT: build the interface in the DOM — real buttons, links, labels and headings, landmarks, a visible focus ring, text that wraps, every control named. Handle empty, loading and error states and show a failure on the page. The harness-owned checks controls-named and no-horizontal-overflow measure this off the page itself.`
+      : `- THE PROJECT'S OWN SCREEN: this project has its own UI and input handling — keep them as they are; do not rebuild its screens or add a second input path.`,
     template
-      ? `- ONE INPUT PATH: read keys from ctx.keys (Mouse1/Mouse2 included), mouse look from ctx.look, wheel from ctx.wheel — never add your own pointer-lock or mousemove listeners; studio.js owns them and feeds the same ctx a human's mouse does.`
+      ? `- INPUT: the harness drives real clicks, typing and keys, so ordinary DOM event handlers on real elements are the input path. A canvas project that passes update reads keys from ctx.keys (Mouse1/Mouse2 included), look from ctx.look, wheel from ctx.wheel — never add your own pointer-lock or mousemove listeners; studio.js owns them.`
       : `- THIS PROJECT'S INPUT PATH: it already reads its own keys and mouse — leave that alone. The studio's input arrives as real DOM events on the page, so the listeners this project has are the ones that get it.`,
     template
-      ? `- Keep window.__studio working (installStudio with scene/renderer/camera/player passed). A build the harness cannot inspect is a loss.`
-      : `- Keep the studio able to see this project. It attaches to whatever your three renders — do not fight it; and where the entry calls \`installStudio({ renderer, player })\`, leave those two lines in. A build the harness cannot inspect is a loss.`,
+      ? `- Keep window.__studio working (installStudio with probes, views and demos). A build the harness cannot drive is a loss.`
+      : `- Keep the studio able to see this project. It attaches to the page and watches what is done to it — do not fight it; and where the entry calls \`installStudio({ probes })\`, leave those lines in. A build the harness cannot inspect is a loss.`,
     template
-      ? `- Determinism: rng from update(), no Math.random, no wall clock.`
+      ? `- Determinism: rng from update() or reset(seed), no Math.random, no wall clock, no network.`
       : `- Determinism: the studio seeds Math.random and owns the clock for this page, so the same seed replays the same run — take time from the delta your own loop already computes, never from a second clock of your own.`,
     `- Capture (${toolCall(roleEngine(run, RoleKey.Builder), "capture")}) after every meaningful change and LOOK before you finish; write what you tried and why in ${facetNotes(spec.id)}.`,
     `- A line beginning \`HARNESS:\` in ${facetNotes(spec.id)} is read by the loop, not by the next builder: use it to say a check cannot pass as written (name the check id) or that a camera cannot see what it asks — the planner re-points the check instead of you burning iterations.`,

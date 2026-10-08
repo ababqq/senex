@@ -195,12 +195,12 @@ export const DIRECTOR_TOOLS: LiveToolSpec[] = [
         critic: {
           type: "string",
           description:
-            "Which critic reviews this part every round: screen for a UI or HUD part (is it readable, does it say the project's state, does every action answer on screen), place for a world a player stands in. Default: the kind's.",
+            "Which critic reviews this part every round: screen for software a person reads and operates (is it readable, does it say the project's state, does every action answer on screen), place for a world a person moves through. Default: the kind's.",
         },
         traits: {
           type: "string",
           description:
-            "Comma-separated project traits the harness adds its own checks for: hud, mouseLook, keyboardMove. Only what you name is added — an unnamed trait is not declared false, it is simply not measured.",
+            "Comma-separated project traits the harness adds its own checks for: ui, navigation, typing, mouseLook, keyboardMove. Only what you name is added — an unnamed trait is not declared false, it is simply not measured.",
         },
         policy: {
           type: "string",

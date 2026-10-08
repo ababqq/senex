@@ -637,8 +637,8 @@ const TASK_MINERS: Partial<Record<string, TaskMiner>> = {
 /** How a proposal is described for the person who uses the app: the analyst's and the describer's rules. */
 const PLAIN_WORDS_RULES = [
   "They are not technical and never read this file. `title`: at most eight plain words starting with a verb,",
-  "saying what the agent will do differently (for example \"Check the player's view before finishing a",
-  'scene"). `summary`: one to three short plain sentences about the same change. No file, skill, tool or',
+  'saying what the agent will do differently (for example "Check a narrow window before finishing a',
+  'screen"). `summary`: one to three short plain sentences about the same change. No file, skill, tool or',
   "camera names, no jargon.",
 ];
 const DESCRIBE_REPLY = 'Reply with JSON only: {"title":"…","summary":["…"]}';

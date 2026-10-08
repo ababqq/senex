@@ -39,8 +39,11 @@ export function isBuiltShape(shape: ProjectShape): boolean {
   return shape.own;
 }
 
-/** The import map only the studio writes: `three` resolved to the copy vendored with the app. */
+/** The import map only an older studio template wrote: `three` resolved to the copy vendored with the app. */
 const STUDIO_IMPORT_MAP = "/vendor/three.module.js";
+
+/** The tag the studio's current template page carries, and no folder of the user's own does. */
+const STUDIO_TEMPLATE_META = '<meta name="studio-template"';
 
 /** The query a Genex project reads to skip its authorization redirect in a local test run. */
 const GENEX_LOCAL_TEST_QUERY = "?genex_local_test=1";
@@ -139,14 +142,16 @@ function isGenexProject(pkg: PackageManifest | null): boolean {
  * Read a folder's own shape from the evidence in it: every script the page loads, the package's
  * build script and dependencies, the bundler's output folder, the engine's runtime files.
  * `null` means the studio's own template — recognised only by the two things the studio itself
- * writes, the `contractVersion` in studio.json and the vendored-three import map. Everything
+ * writes, the `contractVersion` in studio.json and the template page's own mark (its
+ * `studio-template` meta, or the vendored-three import map an older template carried). Everything
  * else in the world is somebody's own project.
  */
 export async function detectProjectShape(dir: string): Promise<ProjectShape | null> {
   const html = await readFile(path.join(dir, "index.html"), "utf8").catch(() => null);
   if (html === null) return null;
   const meta = await readJsonIfExists<{ contractVersion?: unknown }>(path.join(dir, "studio.json")).catch(() => null);
-  if (typeof meta?.contractVersion === "number" && html.includes(STUDIO_IMPORT_MAP)) return null;
+  const writtenByStudio = html.includes(STUDIO_TEMPLATE_META) || html.includes(STUDIO_IMPORT_MAP);
+  if (typeof meta?.contractVersion === "number" && writtenByStudio) return null;
 
   const srcs = pageScripts(html);
   const [firstLocal] = srcs.filter((src) => !isRemoteSrc(src));

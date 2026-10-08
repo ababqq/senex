@@ -81,8 +81,8 @@ const PLAN = {
     },
   ],
   // Every trait is off unless the plan declares one (M4.4): a plan that says nothing gets no
-  // HUD rule, no look check and no movement check, so the rig declares the kind it means.
-  app: { kind: "first-person" },
+  // page rule and no input check, so the rig declares the kind it means.
+  app: { kind: "dashboard" },
   mainOwner: "water",
   base: null,
   integrationNotes: "one palette",

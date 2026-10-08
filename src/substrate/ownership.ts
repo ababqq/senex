@@ -58,12 +58,6 @@ function declarationFor(studio: string): string {
   return studio.replace(/\.[cm]?js$/, ".d.ts");
 }
 
-/** `src/studio.js` → `src/hud.js`: the contract's HUD module, beside it (M4.2a). */
-function hudFor(studio: string): string {
-  const at = studio.lastIndexOf("/");
-  return at < 0 ? "hud.js" : `${studio.slice(0, at + 1)}hud.js`;
-}
-
 /** `tsconfig.json` and the files it references (`tsconfig.app.json`, `tsconfig.node.json`). */
 function isTypeConfig(file: string): boolean {
   return /^tsconfig(\.[\w-]+)?\.json$/.test(file);
@@ -140,7 +134,7 @@ function isEntryOwnersFile(file: string, entry: ReturnType<typeof entryFiles>): 
   // TypeScript project whose build is `tsc -b && vite build` cannot import ./studio.js until they
   // agree, and the brief that tells the builder to fix that must not also forbid the edit.
   if (file === declarationFor(entry.studio) || isTypeConfig(file)) return true;
-  return file === entry.main || file === entry.studio || file === hudFor(entry.studio) || file === "index.html";
+  return file === entry.main || file === entry.studio || file === "index.html";
 }
 
 /**
@@ -149,7 +143,7 @@ function isEntryOwnersFile(file: string, entry: ReturnType<typeof entryFiles>): 
  * code is not under src/ — and the reason `worker_start` refuses to start a second one.
  */
 function outsideEntry(file: string, entry: ReturnType<typeof entryFiles>): boolean {
-  const reserved = [entry.main, entry.studio, declarationFor(entry.studio), hudFor(entry.studio), "index.html"];
+  const reserved = [entry.main, entry.studio, declarationFor(entry.studio), "index.html"];
   return !reserved.includes(file);
 }
 
@@ -171,8 +165,7 @@ export function allowedFile(file: string, spec: OwnershipSpec, ownsMain: boolean
     return spec.owns.some((own) => ownMatches(file, own)) || (template && file.includes(spec.id));
   }
   if (!template) return outsideEntry(file, entry);
-  const contractFile = file === entry.studio || file === hudFor(entry.studio);
-  return file.startsWith("src/") && !contractFile;
+  return file.startsWith("src/") && file !== entry.studio;
 }
 
 /**

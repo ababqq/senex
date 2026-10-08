@@ -1,0 +1,40 @@
+{
+  "id": "states.empty-state-has-a-next-step",
+  "title": "The empty screen says what is missing and what to do",
+  "tags": [
+    "empty",
+    "state",
+    "blank",
+    "nothing",
+    "zero",
+    "first",
+    "run",
+    "onboarding",
+    "placeholder",
+    "list",
+    "illustration"
+  ],
+  "checkClass": "empty-state-explains",
+  "kind": "craft",
+  "pack": "states",
+  "note": "An empty list says so in words and offers one clear first action; it is never a blank box.",
+  "intent": "Every list, table and dashboard starts empty, and that is the first thing a new person sees. A blank area reads as broken. Show a short plain sentence for what belongs here (\"No tasks yet\"), one sentence of why it matters if it is not obvious, and the single action that fills it (a primary button: \"Add your first task\"). Keep the layout of the full state so the screen does not jump when data arrives. Declare a view named `empty` that clears the data so the critic can photograph this state.",
+  "sketch": "installStudio({\n  views: {\n    empty: () => { store.clear(); render(); },\n    filled: () => { store.seed(fixtures); render(); },\n  },\n});\n",
+  "check": {
+    "id": "empty-state-explains",
+    "kind": "vision",
+    "camera": "empty",
+    "ask": "Does this empty screen say in words what is missing and offer one clear next step, rather than showing a blank area?",
+    "weight": "normal",
+    "note": "The view `empty` shows the screen with no data: it says what is missing and offers a next action."
+  },
+  "port": "Declare `views.empty = () => store.clear()`; every list component renders its empty state through one shared `emptyState({ title, action })` helper.",
+  "evidence": [],
+  "stats": {
+    "applied": 0,
+    "wins": 0,
+    "losses": 0
+  },
+  "status": "candidate",
+  "origin": "seed"
+}

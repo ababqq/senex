@@ -38,7 +38,7 @@ export function computerToolDescription(options: {
     "scroll scroll_direction=up|down|left|right scroll_amount=<notches> [coordinate=x,y]. " +
     "type text=<literal text>. key text=<a key or +chord: w, i, Return, Escape, space, ctrl+s> [repeat=n]. hold_key text=w duration=<seconds> (walks, grinds). " +
     "wait duration=<seconds>. cursor_position. " +
-    `camera text=<name>: jump the view to a studio camera (eye:here is the player's eyes, default the project's own).${options.cameras} ` +
+    `camera text=<name>: jump to a named view the project registered (default is the page as it loads).${options.cameras} ` +
     "state: the project's own __studio.state() numbers (a claim — a screenshot is the proof). console: errors since load." +
     reload +
     " screenshot, camera and zoom take surface=screen|canvas: screen is the whole page — a DOM menu, an HTML HUD, a loading screen — and canvas is only what the project draws. Leave it out and the studio picks. " +
@@ -86,6 +86,6 @@ export const COMPUTER_ARG_PROBLEM = {
   scrollNeedsDirection: "scroll needs scroll_direction=up|down|left|right (and scroll_amount, default 3)",
   typeNeedsText: "type needs text=<what to type>",
   keyNeedsText: (action: string) => `${action} needs text=<key or combo, e.g. Return, Escape, ctrl+s, w>`,
-  cameraNeedsName: "camera needs text=<camera name> (eye:here is your own eyes; default is the project's camera)",
+  cameraNeedsName: "camera needs text=<view name> (default is the page as it loads)",
   unknownSurface: (raw: string) => `surface "${raw}" is not screen or canvas — the studio picked the surface itself`,
 } as const;

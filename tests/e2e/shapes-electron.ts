@@ -345,7 +345,7 @@ async function main(): Promise<void> {
     if (id === "esm-addons") {
       prepared.ok(
         "merge-survives",
-        studioJson.title === "Orbit Yard" && (studioJson.app as { kind?: string })?.kind === "free-camera",
+        studioJson.title === "Orbit Yard" && (studioJson.app as { kind?: string })?.kind === "graphics",
         `studio.json keeps ${JSON.stringify(studioJson)}`,
       );
     }
@@ -497,23 +497,23 @@ async function main(): Promise<void> {
         `gpu: ${JSON.stringify(evidence.gpuErrors ?? [])}`,
       );
 
-      // The PROJECT line: a kind with no measurable player carries the retraction; a kind with one
+      // The PROJECT line: a kind with no measurable input carries the retraction; a kind with one
       // names probes that either moved or the project never reports at all.
-      // A kind that names no axis is retracted by name, not by the template fallback the probe
+      // A kind that names no counter is retracted by name, not by the page-level fallback the probe
       // table hands back for it.
-      const declaredKind = (APP_KINDS as Record<string, { look: string[]; move: string[] } | undefined>)[
+      const declaredKind = (APP_KINDS as Record<string, { navigate: string[]; edit: string[] } | undefined>)[
         String(traits.kind)
       ];
-      if ((declaredKind?.look.length ?? 0) === 0 && (declaredKind?.move.length ?? 0) === 0) {
+      if ((declaredKind?.navigate.length ?? 0) === 0 && (declaredKind?.edit.length ?? 0) === 0) {
         sheet.ok("project-line", line.includes("[dead-input] does not apply"), `PROJECT line: ${line}`);
       } else {
         sheet.ok("project-line", line.includes("__studio.state()"), `PROJECT line: ${line}`);
         for (const [name, probe] of [
-          ["look", probes.look],
-          ["move", probes.move],
+          ["navigate", probes.navigate],
+          ["edit", probes.edit],
         ] as const) {
-          if (name === "look" && traits.mouseLook !== true) continue;
-          if (name === "move" && traits.keyboardMove !== true) continue;
+          if (name === "navigate" && traits.navigation !== true) continue;
+          if (name === "edit" && traits.typing !== true) continue;
           const unmeasurable = probe.paths.every((dotted: string) => at(evidence.state, dotted) === undefined);
           const moved = probe.paths.some((dotted: string) =>
             measured.some((entry) => entry.path === dotted && entry.moved >= entry.min),

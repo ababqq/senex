@@ -55,9 +55,9 @@ const MESSAGE = {
   MathRandom: (file: string) => `${file} uses Math.random() — runs will not be comparable`,
   BootsPaused:
     "studio.js boots paused (`let running = false`) and nothing calls start() — the project will sit on one frozen frame",
-  PredatesInspect:
-    "src/studio.js predates the v2 contract (no inspect()) — scene checks and eye cameras are unavailable",
-  NoPlayer: "installStudio() is called without scene/camera/player — scene checks fail and eye cameras do not exist",
+  PredatesInspect: "src/studio.js predates the v2 contract (no inspect()) — scene and element checks are unavailable",
+  NoProbes:
+    "installStudio() is called without probes — checks can only read what the page reports about its own use (state().ui), not what the project holds",
 } as const;
 
 /** What `validateProjectDir` found: the problems that stop a judged build, the warnings, and the contract's word. */
@@ -79,10 +79,12 @@ export interface ProjectValidation {
  *
  * 0 no file at all, 1 predates `inspect()`, 2 has `inspect()` and no HUD, 3 the one-screen
  * contract (HUD and input), 4 the M4 contract: the HUD is a lazy facade over `./hud.js` and an
- * eye camera is borrowed from the project and given back.
+ * eye camera is borrowed from the project and given back, 5 the DOM contract: no HUD or eye
+ * cameras, named views, and `dom` helpers beside the scene ones.
  */
 export function studioContractGeneration(source: string | null): number {
   if (source === null) return 0;
+  if (/\bdomInspect\s*\(/.test(source)) return 5;
   if (/\bcreateHudFacade\s*[(=]/.test(source) || /\bborrowedCamera\b/.test(source)) return 4;
   if (!/\binspect\s*[(:]/.test(source)) return 1;
   return /\bhud\s*:\s*hud\.api/.test(source) ? 3 : 2;
@@ -116,7 +118,7 @@ function unresolvedImportsProblem(shape: ProjectShape, mapped: string[], unresol
 /** What the page's own sources do with the contract, as `scanContractUse` reads them. */
 interface ContractUse {
   installsContract: boolean;
-  hasPlayer: boolean;
+  hasProbes: boolean;
   hasInspect: boolean;
   bootsPaused: boolean;
   callsStart: boolean;
@@ -128,7 +130,7 @@ interface ContractUse {
 async function scanContractUse(dir: string, sources: string[]): Promise<ContractUse> {
   const use: ContractUse = {
     installsContract: false,
-    hasPlayer: false,
+    hasProbes: false,
     hasInspect: false,
     bootsPaused: false,
     callsStart: false,
@@ -154,7 +156,7 @@ function noteContractModule(use: ContractUse, text: string): void {
 function noteProjectSource(use: ContractUse, rel: string, text: string): void {
   const installs = /installStudio\s*\(/.test(text);
   if (/window\.__studio\s*=/.test(text) || installs) use.installsContract = true;
-  if (installs && /\bplayer\s*[:(]/.test(text)) use.hasPlayer = true;
+  if (installs && /\bprobes\s*[:(]/.test(text)) use.hasProbes = true;
   if (/\bMath\.random\s*\(/.test(text)) use.randomUsers.push(rel);
   if (/\.start\s*\(/.test(text)) use.callsStart = true;
 }
@@ -176,10 +178,10 @@ function contractWarnings(use: ContractUse): string[] {
   if (!use.installsContract) return [];
   const warnings: string[] = [];
   if (use.bootsPaused && !use.callsStart) warnings.push(MESSAGE.BootsPaused);
-  // The v2 contract (scene checks, eye cameras) is a warning, not a problem: an older project
+  // The v2 contract (scene and element checks) is a warning, not a problem: an older project
   // still judges by taste; it just cannot be scored mechanically.
   if (!use.hasInspect) warnings.push(MESSAGE.PredatesInspect);
-  else if (!use.hasPlayer) warnings.push(MESSAGE.NoPlayer);
+  else if (!use.hasProbes) warnings.push(MESSAGE.NoProbes);
   return warnings;
 }
 

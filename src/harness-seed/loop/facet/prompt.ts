@@ -1,6 +1,6 @@
 /** What the facet loop says to its builder: the prompt, the steer, the wind-down ask, the images and the brief's moved sections. */
 import { CheckKind, CheckWeight, HARNESS_CHECKS, renderChecks } from "../spec.ts";
-import { APP_KINDS, describePlayScript, playScriptFor } from "../kinds.ts";
+import { APP_KINDS, describePlayScript, drawsScene, playScriptFor } from "../kinds.ts";
 import { roleEngine, RoleKey, toolCall } from "../model-roles.ts";
 import { facetNotes } from "../repo.ts";
 import { CLIP_QUOTE } from "../text.ts";
@@ -505,25 +505,27 @@ function templateOwnership({ spec: facet, entryMain, ownsMain }: PromptInput): s
   ];
 }
 
-/** Notes, tags and the one-screen rule: the conventions the brief carries when there is one. */
+/** Notes, tags and the screen rule: the conventions the brief carries when there is one. */
 function conventionLines(p: PromptInput): string[] {
   if (p.pointsAtBrief) return [];
   return [
     `- Keep your working notes in ${facetNotes(p.spec.id)} — do not edit the shared NOTES.md; the integrator folds notes together.`,
-    `- Tag every object you create (obj.userData.tag = "<tag>") with the tag names the checks use. Untagged objects do not exist to the checks.`,
-    p.ownShape ? ownShapeLine(p) : oneScreenLine(p),
+    drawsScene(p.run?.app)
+      ? `- Tag every object you create (obj.userData.tag = "<tag>") with the tag names the checks use. Untagged objects do not exist to the checks.`
+      : `- Give every screen you build a probe (what it holds), a view (so it can be photographed, empty and error states included) and, for a workflow the generic exercise cannot reach, a demo. What cannot be measured does not exist to the checks.`,
+    p.ownShape ? ownShapeLine(p) : pageLine(p),
   ];
 }
 
 function ownShapeLine({ entryMain, shape }: PromptInput): string {
   const built = shape?.build ? `, it is built with \`${shape.build}\`` : "";
   const runBuild = shape?.build
-    ? ` Run \`${shape.build}\` before you finish: the studio runs the same build before every preview, and a build that fails is a black screen for every critic.`
+    ? ` Run \`${shape.build}\` before you finish: the studio runs the same build before every preview, and a build that fails is a blank screen for every critic.`
     : "";
-  return `- THIS PROJECT HAS ITS OWN SHAPE: its entry is ${entryMain}${built} and the studio serves ${shape?.entry ?? "index.html"}. Keep its UI and input handling as they are — no __studio.hud overlays, no second input path. Keep window.__studio working (installStudio in ${entryMain}).${runBuild}`;
+  return `- THIS PROJECT HAS ITS OWN SHAPE: its entry is ${entryMain}${built} and the studio serves ${shape?.entry ?? "index.html"}. Keep its UI and input handling as they are — do not rebuild its screens or add a second input path. Keep window.__studio working (installStudio in ${entryMain}).${runBuild}`;
 }
 
-function oneScreenLine({ spec: facet }: PromptInput): string {
+function pageLine({ spec: facet }: PromptInput): string {
   // Only the harness-owned checks this facet actually carries — under the declared-only rule a
   // board may carry none of them, and naming a check nobody scores teaches the wrong lesson.
   const harnessOnBoard = (facet.checks ?? [])
@@ -533,7 +535,7 @@ function oneScreenLine({ spec: facet }: PromptInput): string {
   const enforced = harnessOnBoard.length
     ? ` The harness-owned check${one ? "" : "s"} ${harnessOnBoard.join(", ")} enforce${one ? "s" : ""} this.`
     : "";
-  return `- ONE SCREEN, ONE INPUT PATH: all UI through __studio.hud (drawn into the canvas; no DOM, no second HUD); all input from ctx.keys / ctx.look / ctx.wheel (studio.js owns pointer lock and the mouse).${enforced} A label that belongs to something in the world — a player's name, a marker over a target — is a sprite or mesh in the scene, attached to that object and tagged with it (never hud), so it moves and hides with it; __studio.hud holds only what stays on the screen.`;
+  return `- THE PAGE IS THE PRODUCT: build the interface in the DOM — real buttons, links, labels and headings, landmarks, a visible focus ring, text that wraps, every control named, empty, loading and error states handled, a failure shown on the page. Input is real clicks and keystrokes on real elements; a canvas project that passes update reads ctx.keys / ctx.look / ctx.wheel (studio.js owns pointer lock and the mouse).${enforced}`;
 }
 
 /** The last build's news: its failure, the legacy gap, or the board. */
@@ -666,7 +668,7 @@ function closingLines({ run, worktree, pointsAtBrief }: PromptInput): string[] {
     ...(pointsAtBrief
       ? []
       : [
-          `- Make sure the project still loads and window.__studio still works (installStudio with scene/renderer/camera/player) — a build that cannot be verified counts as a loss.`,
+          `- Make sure the project still loads and window.__studio still works (installStudio with probes, views and demos) — a build that cannot be verified counts as a loss.`,
         ]),
   ];
 }

@@ -723,10 +723,10 @@ describe("what the night says as it goes", () => {
     const named = planReviewWords({
       summary: "Tonight: crash damage you can feel.",
       facets: [{ title: "Crash damage" }],
-      app: { kind: "third-person" },
+      app: { kind: "form-flow" },
       waitMinutes: 12,
     });
-    assert.match(named, /third person project/);
+    assert.match(named, /form flow project/);
     assert.match(named, /Say "go" to start it/, "the kind sentence goes before the ask, not after it");
     // A plan that declared no kind says nothing rather than guessing one.
     const unnamed = planReviewWords({

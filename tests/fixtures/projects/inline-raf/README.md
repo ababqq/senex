@@ -25,4 +25,4 @@ Drive the pale cube with WASD or the arrow keys and collect the twelve green sha
 ## Shape
 
 `three-modules`, own, entry and main both `index.html` (the page's only script is inline, so the
-page is its own entry), no build, no package manager, no `studio.json`. `kind: "top-down"`.
+page is its own entry), no build, no package manager, no `studio.json`. `kind: "graphics"` with `keyboardMove`.

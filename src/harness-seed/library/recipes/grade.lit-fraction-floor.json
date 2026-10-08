@@ -5,6 +5,7 @@
   "checkClass": "grade",
   "kind": "craft",
   "pack": "world",
+  "appKinds": ["graphics"],
   "note": "An exterior or arena default frame is not under-lit: at least a fifth of its pixels read as lit. Dark interiors are exempt.",
   "intent": "The opposite failure to a missing black point: a scene so dark that nothing is legible and every judge answers no. An exterior needs a key (sun or moon, directional, with shadows), a sky-coloured fill so the shadow sides are not black, and bounce off the ground. Aim for a fifth of the frame reading as lit at minimum. A deliberately dark interior is exempt — say so in the facet's intent and drop the check rather than lifting the whole scene to satisfy it.",
   "check": {

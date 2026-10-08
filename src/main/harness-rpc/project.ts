@@ -40,22 +40,18 @@ const MESSAGE = {
 
 /**
  * Harness-owned files that ride along with a contract upgrade: a project scaffolded before one of
- * them existed gets it.
+ * them existed gets it. A project that predates the DOM contract keeps its old `hud.js`,
+ * `materials.js`, `foliage.js` and `assets.js` as project code: the new `studio.js` imports none of
+ * them, and the studio does not delete what a builder may still import.
  */
 const CONTRACT_COMPANION_FILES = [
-  // The material library rides along: a project scaffolded before it gets the file.
-  // …and the foliage recipe: both are harness-owned files.
-  "materials.js",
-  "foliage.js",
-  // …and the assets door (AG-930): `src/assets.js` loads what the studio's tools made.
-  "assets.js",
-  // …and the contract's own typings (M2.3): a TypeScript project whose build is `tsc -b &&
+  // …the contract's own typings (M2.3): a TypeScript project whose build is `tsc -b &&
   // vite build` cannot import an untyped ./studio.js, so the declaration travels with it.
   "studio.d.ts",
-  // …and the HUD (M4.2a): the upgraded studio.js imports ./hud.js, so a project that gets the
-  // new contract without the file it imports loses its overlay on the first HUD call.
-  "hud.js",
 ];
+
+/** The contract vintages that carry the canvas HUD and the eye cameras (see `studioContractGeneration`). */
+const HUD_GENERATIONS: readonly number[] = [3, 4];
 
 /** A run id an integration workspace is filed under: a plain slug, dots allowed. */
 const RUN_ID = /^[a-z0-9][a-z0-9-_.]*$/i;
@@ -246,8 +242,12 @@ async function upgradeContract(core: StudioCore, project: string): Promise<Harne
   const template = await readText(path.join(core.projects.templateDir, "src", "studio.js"));
   if (template === null) return { upgraded: false, reason: "no template studio.js" };
   // Only a copy older than the shipped one is replaced, so a project that already holds the
-  // current contract is left alone and a template that ever moves backwards writes nothing.
-  if (generation >= studioContractGeneration(template)) return { upgraded: false, materialsAdded };
+  // current contract is left alone and a template that ever moves backwards writes nothing. The
+  // HUD vintages are left alone too: their builders call `__studio.hud` and `eye:*`, which the DOM
+  // contract no longer carries, so replacing the file would break a project that works.
+  if (generation >= studioContractGeneration(template) || HUD_GENERATIONS.includes(generation)) {
+    return { upgraded: false, materialsAdded };
+  }
   let backup: string | null = null;
   if (current !== null) {
     backup = `src/studio.v${generation}.js`;

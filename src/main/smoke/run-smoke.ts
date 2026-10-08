@@ -1194,11 +1194,11 @@ async function checkEmptyScaffoldEvidence(buildSmoke: BuildSmoke): Promise<void>
   const { core, resources, pushUiEvent } = buildSmoke.ctx;
   const callHost = hostCaller(core);
   const observed = (await callHost(HostMethod.PreviewEvaluate, {
-    expression: `(() => { const s = window.__studio; const i = s.inspect(); const state = s.state(); return { children: i.scene.children.length, player: state.player, hudItems: state.hud.items.length, phase: state.phase }; })()`,
-  })) as { children: number; player: unknown; hudItems: number; phase: string };
+    expression: `(() => { const s = window.__studio; const i = s.inspect(); const state = s.state(); return { elements: document.getElementById("app").children.length, empty: i.dom.empty(), phase: state.phase }; })()`,
+  })) as { elements: number; empty: boolean; phase: string };
   check(
-    "fresh project has no stock geometry, player or HUD",
-    observed.children === 0 && observed.player === null && observed.hudItems === 0 && observed.phase === "empty",
+    "fresh project has no stock content or controls",
+    observed.elements === 0 && observed.empty === true && observed.phase === "empty",
     JSON.stringify(observed),
   );
   const { pathToFileURL } = await import("node:url");
@@ -1862,13 +1862,13 @@ async function checkRunTimeAndLead(buildSmoke: BuildSmoke, { followRun, followEv
 async function checkLiveRevisions(buildSmoke: BuildSmoke, { followRun, followEvent }: FollowRun): Promise<void> {
   const { wc, check, waitFor, project } = buildSmoke;
   const { core, pushUiEvent } = buildSmoke.ctx;
-  // Real tiny Three.js revisions exercise the stage's rules against native loads.
+  // Real tiny page revisions exercise the stage's rules against native loads.
   const liveMain = path.join(project.dir, "src/main.js");
   const emptyMain = await fs.readFile(liveMain, "utf8");
   const playableMain = emptyMain
     .replace(
-      "const scene = new THREE.Scene();",
-      "const scene = new THREE.Scene(); const cube = new THREE.Mesh(new THREE.BoxGeometry(1,1,1),new THREE.MeshBasicMaterial({color:0x44cc88})); cube.position.z=-3; scene.add(cube);",
+      'const app = document.getElementById("app");',
+      'const app = document.getElementById("app"); app.innerHTML = \'<h1 style="color:#44cc88">Playable</h1>\';',
     )
     .replace('phase: "empty"', 'phase: "playing"');
   await fs.writeFile(liveMain, playableMain);
@@ -1903,7 +1903,7 @@ async function checkLiveRevisions(buildSmoke: BuildSmoke, { followRun, followEve
       15000,
     ),
   );
-  await fs.writeFile(liveMain, playableMain.replace("0x44cc88", "0x4488cc"));
+  await fs.writeFile(liveMain, playableMain.replace("#44cc88", "#4488cc"));
   const nextPlayable = (
     await core.snapshots.snapshot({
       scope: SnapshotScope.Project,
@@ -1985,7 +1985,7 @@ async function checkLiveStaysStill(
     await waitFor(`${shown(nextPlayable)}&&${reloadState(null)}`, 20000),
   );
   // A builder's checkpoint after the project folder changed: the note rides on Reload, Live stays.
-  await fs.writeFile(liveMain, (await fs.readFile(liveMain, "utf8")).replace("0x4488cc", "0xcc8844"));
+  await fs.writeFile(liveMain, (await fs.readFile(liveMain, "utf8")).replace("#4488cc", "#cc8844"));
   await core.snapshots.snapshot({
     scope: SnapshotScope.Project,
     projectWorkspace: project.name,
@@ -2060,13 +2060,13 @@ async function seedOutcomeRun(buildSmoke: BuildSmoke): Promise<OutcomeRun> {
     build: { head: "head-6" },
     measured: {
       planned: [
-        { id: "movement", pass: true },
-        { id: "world", pass: true },
-        { id: "hud", pass: true },
+        { id: "navigation", pass: true },
+        { id: "data", pass: true },
+        { id: "forms", pass: true },
         { id: "detail", pass: true },
       ],
     },
-    seen: { question: "Is the requested first-person view confirmed?", answer: false },
+    seen: { question: "Is the requested dashboard view confirmed?", answer: false },
   });
   await outcomeEvent(CustomEvent.RunInteractionEvidence, {
     head: "head-6",
@@ -2094,7 +2094,7 @@ async function finishOutcomeRun(
     JSON.stringify({
       head: "head-6",
       answer: {
-        question: "Is the requested first-person view confirmed?",
+        question: "Is the requested dashboard view confirmed?",
         yes: false,
         note: "Fixture observation on head-6",
         camera: "default",
@@ -2208,7 +2208,7 @@ async function checkChecksAndCapture(buildSmoke: BuildSmoke): Promise<void> {
   check(
     "checks show the failed question on its own revision",
     await waitFor(
-      `document.body.innerText.includes('Is the requested first-person view confirmed?')&&document.body.innerText.includes('head-6')&&document.body.innerText.includes('failed · visual')`,
+      `document.body.innerText.includes('Is the requested dashboard view confirmed?')&&document.body.innerText.includes('head-6')&&document.body.innerText.includes('failed · visual')`,
     ),
   );
   await wc.executeJavaScript(

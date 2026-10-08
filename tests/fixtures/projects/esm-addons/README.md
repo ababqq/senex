@@ -21,11 +21,11 @@ There is no player and there are no keys. Drag to orbit the yard, wheel to zoom.
 - A scene held in a module closure is inspectable: nothing here is reachable from `window`.
 - `studio.json`'s nested `project` block is the third declaration source, after the plan and the
   scout — and the top-level `kind` (the project shape) is not it.
-- A kind with no input probes invites no `[dead-input]` report: `free-camera` asks for no look
+- A kind with no input probes invites no `[dead-input]` report: `graphics` asks for no look
   check and no movement check, so an unmoving player is not a defect here.
 
 ## Shape
 
 `three-modules`, own, entry `index.html`, main `src/main.js`, no build, no package manager. Its
 `studio.json` carries no `contractVersion` and no shape fields, so `readProjectShape` falls
-through to detection. `kind: "free-camera"`.
+through to detection. `kind: "graphics"`.

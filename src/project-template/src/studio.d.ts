@@ -78,47 +78,44 @@ export interface UpdateContext {
   pointer: { x: number; y: number; locked: boolean };
 }
 
-/** Where a HUD item is drawn: fractions of the frame, y from the top. */
-export interface HudPlacement {
-  x?: number;
-  y?: number;
-  size?: number;
-  color?: string;
-  align?: "left" | "center" | "right";
+/** Read-only queries over the page's own elements: only what is on screen counts. */
+export interface StudioDom {
+  /** How many displayed elements match. */
+  count(selector: string): number;
+  /** Whether at least one displayed element matches. */
+  visible(selector: string): boolean;
+  /** The text a person reads in each displayed match. */
+  text(selector: string): string[];
+  /** The text of the first displayed match, or "". */
+  first(selector: string): string;
+  /** The current value of the first match (an input, select or textarea), or null. */
+  value(selector: string): string | null;
+  /** True when the page shows no text and no visual element — a scaffold nobody has built on. */
+  empty(): boolean;
+  /** Up to forty displayed matches named as `tag#id.class "first words"`. */
+  list(selector?: string): string[];
+  /** Title, headings and counts of buttons, links, fields and landmarks. */
+  summary(): DomSummary;
 }
 
-/** The only UI a template project may have: one quad tagged `hud`, drawn into the canvas. */
-export interface StudioHud {
-  text(id: string, text: string, opts?: HudPlacement): void;
-  bar(id: string, fraction: number, opts?: HudPlacement & { w?: number; h?: number }): void;
-  crosshair(opts?: {
-    size?: number;
-    gap?: number;
-    thickness?: number;
-    color?: string;
-    visible?: boolean;
-    spread?: number;
-  }): void;
-  flash(color?: string, alpha?: number): void;
-  remove(id: string): void;
-  clear(): void;
-  get(id: string): unknown;
-  items(): string[];
-  enable(on?: boolean): void;
-}
-
-/** What the HUD is showing, as `state()` reports it. */
-export interface HudSummary {
-  items: string[];
-  crosshair: boolean;
-  flash: number;
+/** What `dom.summary()` and `sceneSummary()` report about the page. */
+export interface DomSummary {
+  title: string;
+  headings: string[];
+  buttons: number;
+  links: number;
+  fields: number;
+  landmarks: number;
 }
 
 /** Read-only scene-graph helpers a `scene` check is evaluated against. */
 export interface StudioInspect {
-  /** True once there is a scene to answer about — see {@link StudioUnavailable}. */
+  /** True once there is something to answer about — see {@link StudioUnavailable}. */
   available?: true;
+  /** The 3D scene, or null on a page of DOM (its scene helpers then throw `reason`). */
   scene: unknown;
+  /** Why there is no scene, on a page of DOM. */
+  reason?: string;
   renderer: unknown;
   camera: unknown;
   state: StudioState;
@@ -132,17 +129,19 @@ export interface StudioInspect {
   count(tag?: string): number;
   bbox(tag?: string): Bounds | null;
   bboxOf(obj: SceneObject | null | undefined): Bounds | null;
-  /** Visible DOM elements outside the canvas — the UI a canvas capture never sees. */
+  /** Displayed DOM elements, named as `dom.list()` names them. */
   domUi(): string[];
-  hud(): HudSummary;
+  /** The page's own elements: forms, lists, headings, dialogs. */
+  dom: StudioDom;
   renderTargets(): Array<{ width: number; height: number }>;
   audio(): AudioProbe;
 }
 
 /**
- * What `inspect()` answers with before anything has been rendered: a project the studio attached to
- * has no scene until its first `renderer.render(scene, camera)`, and a check must be able to say
- * "not measured yet" instead of failing. Every helper on this object throws with the reason.
+ * What `inspect()` answers with before a 3D page has drawn its first frame: a project the studio
+ * attached to has no scene until its first `renderer.render(scene, camera)`, and a scene check
+ * waits rather than fails. `dom` always works; every scene helper throws with the reason. A page
+ * that draws no 3D world at all answers {@link StudioInspect} with `scene: null` instead.
  */
 export interface StudioUnavailable {
   available: false;
@@ -150,6 +149,7 @@ export interface StudioUnavailable {
   scene: null;
   renderer: unknown;
   camera: unknown;
+  dom: StudioDom;
   [helper: string]: unknown;
 }
 
@@ -158,6 +158,28 @@ export interface AudioProbe {
   available: boolean;
   rms: number;
   centroid: number;
+}
+
+/** What the page reports about how it was used, with no help from the project. */
+export interface UiActivity {
+  version: number;
+  clicks: number;
+  keys: number;
+  /** Edits to text fields, selects and checkboxes. */
+  edits: number;
+  focusMoves: number;
+  navigations: number;
+  /** Interactions the page answered with a visible change within a moment. */
+  reactions: number;
+  errors: number;
+  lastError: string | null;
+  /** The location or route the page is showing. */
+  view: string;
+  /** Interactive elements with no accessible name. */
+  unnamedControls: number;
+  unnamedSample: string[];
+  /** Whether the page scrolls sideways. */
+  overflowX: boolean;
 }
 
 /** The JSON snapshot every judge and every `state.*` check reads, plus the project's own probes. */
@@ -170,10 +192,12 @@ export interface StudioState {
   fps: number;
   held: string[];
   pointerLock: boolean;
-  hud: HudSummary;
+  /** The screen the last `debugCamera()` showed; `default` is the page as it loads. */
   camera: string;
   error: string | null;
   player: PlayerPose | null;
+  /** What people did to the page, reported by the studio itself — see {@link UiActivity}. */
+  ui?: UiActivity;
   [probe: string]: unknown;
 }
 
@@ -182,33 +206,36 @@ export interface StudioState {
  *
  * Pass `update` and the studio drives a fixed-step loop and owns the clock verbs; leave it out
  * and the studio's own shim paces the loop the project already has, and this object's job is only
- * to say the things a page cannot: where the player is, what a named camera looks at, what a
- * probe measures. `installStudio({ renderer, player })` is the whole of the two-line install.
+ * to say the things a page cannot: what its state means, which screens to photograph, which flows
+ * to run. `installStudio({ probes })` is the whole of the two-line install.
  */
 export interface StudioConfig {
   /** Simulation step in milliseconds; defaults to 1000/60. */
   fixedStepMs?: number;
   /** The fixed-step simulation. With it, `step()`/`pause()`/`start()` are this object's; without it, the studio's. */
   update?(dtSeconds: number, ctx: UpdateContext): void;
-  /** May return a promise (a WebGPU `renderAsync`); `capture()` awaits it. Omit it and the studio photographs the frame the project drew itself. */
+  /** Draws the project's frame (a canvas, a chart); may return a promise. Omit it for a page of DOM. */
   render?(): unknown;
-  /** `false` turns the HUD off entirely — a project whose UI is its own never loads `./hud.js`. */
-  hud?: false;
-  /** Named readings of the project's own mechanics — what `state.<name>` checks measure. */
+  /** Named readings of the project's own state — what `state.<name>` checks measure. */
   probes?: () => Record<string, unknown>;
-  /** Named viewpoints, so two builds are photographed from the same place. */
-  cameras?: Record<string, () => void>;
-  /** Scripted demonstrations the generic playthrough cannot reach; each ends paused. */
+  /** Named screens (a route, a tab, a dialog, an empty state), so two builds are photographed on the same one. May be async. */
+  views?: Record<string, () => unknown>;
+  /** The older spelling of `views`. */
+  cameras?: Record<string, () => unknown>;
+  /** Scripted workflows the generic run cannot reach; each ends on its last screen. May be async. */
   demos?: Record<string, () => unknown>;
+  /** Back to a known state for this seed: empty the store, seed the fixtures. */
   reset?: (seed: number) => void;
+  /** The canvas of a project that draws one. */
   canvas?: HTMLCanvasElement;
-  /** The project's scene graph, renderer and camera — whatever library they come from. */
+  /** A 3D or canvas world's scene graph, renderer and camera — whatever library they come from. */
   scene?: unknown;
   renderer?: unknown;
   camera?: unknown;
+  /** Where the user's avatar is, for a project that has one (a map, a 3D viewer). */
   player?: () => PlayerLocation | null | undefined;
-  eyeHeight?: number;
   audio?: () => AnalyserNode | null;
+  /** Pointer lock is opt-in: a page of forms and lists keeps its cursor. */
   input?: { pointerLock?: boolean };
 }
 
@@ -223,18 +250,18 @@ export interface StudioApi {
   /** Present when the project passed `update`; otherwise the studio's shim owns the clock verbs. */
   step?(dtMs?: number): { frame: number; simulatedMs: number };
   state(): StudioState;
-  debugCamera(name: string): { ok: true; camera: string } | { ok: false; available?: string[]; reason?: string };
-  cameras(): string[];
-  /** `eye:spawn`, `eye:here`, `eye:down`, `eye:back` — available once `camera` and `player()` are passed in. */
-  eyes(): string[];
-  eye(
+  /** Show a named screen (see `views`), let the page settle and report which one is up. */
+  debugCamera(
     name: string,
-  ): { ok: true; camera: string; player: PlayerPose | null } | { ok: false; available?: string[]; reason?: string };
-  /** Re-render and read the canvas in the same turn — the critic's screenshot path. */
+  ): Promise<{ ok: true; camera: string } | { ok: false; available?: string[]; reason?: string }>;
+  /** The screens the project declared, or `["default"]`. */
+  cameras(): string[];
+  /** Always empty: eye cameras belong to the 3D contract this page no longer carries. */
+  eyes(): string[];
+  /** Read the page (or the canvas) as the critic's screenshot path does. */
   capture(): Promise<string | null>;
-  hud: StudioHud;
   demos(): string[];
-  demo(name: string): { ok: true; demo: string; result: unknown } | { ok: false; available: string[] };
+  demo(name: string): Promise<{ ok: true; demo: string; result: unknown } | { ok: false; available: string[] }>;
   /** The critic's hands: key names (`KeyW`, `w`) and mouse deltas in pixels. */
   injectInput(input: {
     down?: string[];
@@ -243,12 +270,14 @@ export interface StudioApi {
     wheel?: { dx?: number; dy?: number };
   }): { keys: string[]; look: { x: number; y: number }; wheel: { x: number; y: number } };
   inspect(): StudioInspect | StudioUnavailable;
-  sceneSummary(): {
-    meshes: number;
-    untagged: number;
-    byTag: Record<string, number>;
-    lights: string[];
-    renderTargets: Array<{ width: number; height: number }>;
+  sceneSummary(): DomSummary & {
+    available: boolean;
+    reason?: string;
+    meshes?: number;
+    untagged?: number;
+    byTag?: Record<string, number>;
+    lights?: string[];
+    renderTargets?: Array<{ width: number; height: number }>;
   };
   audio(): AudioProbe;
 }
@@ -260,12 +289,12 @@ export function makeRng(seed: number): () => number;
  * Install the contract on `window.__studio`. Returns the same object.
  *
  * ```js
- * installStudio({ renderer, player: () => ({ x: player.position.x, z: player.position.z }) });
+ * installStudio({ probes: () => ({ items: store.items.length, route: location.hash }) });
  * ```
  *
  * That is the whole of it for a project with its own loop: the studio already paces the page, seeds
- * its randomness and photographs its frames, and those two lines tell it which renderer is the
- * project's and where the player stands. Pass `update` as well and the studio drives the loop.
+ * its randomness, photographs its screens and reports what people did to it, and that line tells it
+ * what the project's state means. Pass `update` as well and the studio drives the loop.
  */
 export function installStudio(config: StudioConfig): StudioApi;
 

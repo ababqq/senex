@@ -548,15 +548,18 @@ function weighSteps(out: StepProof, samples: AnyRecord[]): StepProof {
 /**
  * The empty-scene exemption, as one expression a test can run under `node:vm`.
  *
- * It censuses every scene the hook says was rendered (a menu → level machine renders two, and
- * the content may be in either), duck-types the scene and the camera rather than trusting a
- * three.js flag, and accepts a WebGPU backend everywhere `isWebGLRenderer` was once the gate.
+ * A page of DOM is empty when `inspect().dom` says it shows no text and no visual element. A page
+ * that draws a world censuses every scene the hook says was rendered (a menu → level machine
+ * renders two, and the content may be in either), duck-types the scene and the camera rather than
+ * trusting a three.js flag, and accepts a WebGPU backend everywhere `isWebGLRenderer` was once the
+ * gate.
  */
 export const EMPTY_SCENE_PROBE = `(() => {
   try {
     var s = window.__studio;
     var i = s && typeof s.inspect === "function" ? s.inspect() : null;
     if (!i || typeof i !== "object") return false;
+    if (!i.scene && i.dom && typeof i.dom.empty === "function") return i.dom.empty() === true;
     var r = i.renderer;
     var backend = !!r && (r.isWebGLRenderer === true || (!!r.backend && (r.backend.isWebGPUBackend === true || r.backend.isWebGLBackend === true)));
     var c = i.camera;

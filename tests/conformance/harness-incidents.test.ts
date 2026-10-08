@@ -1743,7 +1743,7 @@ describe("harness incidents", () => {
     );
     assert.match(
       contract[0]!.fix as never,
-      /installStudio\(\{ renderer, player \}\)/,
+      /installStudio\(\{ probes \}\)/,
       "the fix names the two-line ask, not the template's five arguments",
     );
     assert.equal(templateOnlyFinding(contract[0]), false);
@@ -2391,14 +2391,18 @@ describe("harness incidents", () => {
   });
 
   it("V5. the liveness critic: eight principles scored from the frames; a grow gap becomes the next move, a polish gap stays on its card and never pads the ledger", async () => {
-    const parsed = normalizeLiveness({
-      extent: { score: 1, reason: "ends at the well", fix: "a lane of houses behind the well" },
-      life: { score: 0, reason: "nothing moves", fix: "chimney smoke and a dog" },
-      wear: { score: 1, reason: "clean walls", fix: "soot above the hearth" },
-      material: { score: 3, reason: "fine", fix: "" },
-      biggest: "life",
-      summary: "a set",
-    });
+    // The default critic is the screen's now; this one is about a world a person moves through.
+    const parsed = normalizeLiveness(
+      {
+        extent: { score: 1, reason: "ends at the well", fix: "a lane of houses behind the well" },
+        life: { score: 0, reason: "nothing moves", fix: "chimney smoke and a dog" },
+        wear: { score: 1, reason: "clean walls", fix: "soot above the hearth" },
+        material: { score: 3, reason: "fine", fix: "" },
+        biggest: "life",
+        summary: "a set",
+      },
+      "place",
+    );
     assert.equal(parsed.total, 5);
     assert.equal(parsed.max, 12);
     assert.deepEqual(
@@ -2416,7 +2420,8 @@ describe("harness incidents", () => {
 
     const rig = await startRig();
     rigs.push(rig);
-    const plan = twoFacetPlan();
+    // A world a person moves through: the place critic reads it, not the default screen critic.
+    const plan = { ...twoFacetPlan(), app: { kind: "graphics" } };
     const builds: Record<string, number> = { water: 0, sky: 0 };
     let critiques = 0;
     let sawCard = false;
@@ -2686,7 +2691,7 @@ describe("harness incidents", () => {
   it("T2. the last round is a full round: the liveness critic and a pending move are not skipped when the build overran the facet's clock", async () => {
     const rig = await startRig();
     rigs.push(rig);
-    const plan = twoFacetPlan();
+    const plan = { ...twoFacetPlan(), app: { kind: "graphics" } };
     const builds: Record<string, number> = { water: 0, sky: 0 };
     let critiques = 0;
     registerFakeEngine(rig, {
@@ -2802,23 +2807,27 @@ describe("harness incidents", () => {
     assert.ok(!grown.some((g) => /dog/.test(g.defect ?? "")), "the dog did not also grow on the judged facet");
   });
 
-  it("T4. trees are cards, not balls: foliage.js builds an alpha-tested crown the flora pack accepts, and a sphere canopy fails it", async () => {
+  it("T4. trees are cards, not balls: an alpha-tested leaf-card crown passes the flora pack, and a sphere canopy fails it", async () => {
     // three ships no types; the test only needs its constructors.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     type Obj = any;
     const threeName = "three";
     const THREE = (await import(threeName)) as Record<string, Obj>;
-    const foliageName = "../../src/project-template/src/foliage.js";
-    const foliage = (await import(foliageName)) as {
-      makeTree: (o: Record<string, unknown>) => Obj;
-      makeBush: (o: Record<string, unknown>) => Obj;
-      makeLogPile: (o: Record<string, unknown>) => Obj;
-      swayTree: (t: Obj, time: number, w: Record<string, unknown>) => void;
-    };
     const bark = new THREE.MeshStandardMaterial();
-    const tree = foliage.makeTree({ height: 8, spread: 4, seed: 3, bark });
-    const bush = foliage.makeBush({ seed: 2 });
-    const pile = foliage.makeLogPile({ seed: 1, bark });
+    // What a tree built from parts is: a trunk and a crown of crossed, alpha-tested leaf cards.
+    const leaves = new THREE.MeshStandardMaterial({ alphaTest: 0.5, transparent: true });
+    const crown = (tag: string, cards: number) => {
+      const group = new THREE.Group();
+      group.userData.tag = tag;
+      group.add(new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.3, 3), bark));
+      for (let i = 0; i < cards; i++) group.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), leaves));
+      return group;
+    };
+    const tree = crown("tree", 24);
+    const bush = crown("bush", 12);
+    const pile = new THREE.Group();
+    pile.userData.tag = "log";
+    for (let i = 0; i < 4; i++) pile.add(new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 2), bark));
     assert.equal(tree.userData.tag, "tree");
     assert.equal(bush.userData.tag, "bush");
     // A boulder tree the way the village run built one: a flat-shaded icosahedron on a cylinder.
@@ -2865,7 +2874,7 @@ describe("harness incidents", () => {
       const scope = scopeFor(roots);
       return new Function("objects", "tags", `return ${flora[id]!.js};`)(scope.objects, scope.tags) as boolean;
     };
-    assert.equal(evaluate("foliage-is-cards", [tree, bush]), true, "foliage.js trees and bushes pass");
+    assert.equal(evaluate("foliage-is-cards", [tree, bush]), true, "leaf-card trees and bushes pass");
     assert.equal(evaluate("organic-not-solid", [tree, bush]), true);
     assert.equal(evaluate("logs-are-cylinders", [pile]), true);
     assert.equal(evaluate("foliage-is-cards", [boulder]), false, "a ball on a post fails");
@@ -2875,14 +2884,12 @@ describe("harness incidents", () => {
       "a flat-shaded icosahedron under an organic tag fails",
     );
     assert.equal(evaluate("logs-are-cylinders", [spheres]), false, "a row of spheres is not a log");
-    // The tree sways as a whole from one wind, and the sprite has air in it.
-    foliage.swayTree(tree, 1.5, { dir: [1, 0], strength: 0.6 });
-    assert.notEqual(tree.rotation.z, 0);
+    // The crown has air in it: dozens of cards, not one solid.
     let cards = 0;
     tree.traverse((o: Obj) => {
       if (o.isMesh && o.material?.alphaTest > 0) cards++;
     });
-    assert.ok(cards >= 20, `a tree is dozens of leaf cards: ${cards}`);
+    assert.ok(cards >= 6, `a tree is a crown of leaf cards: ${cards}`);
   });
 });
 
@@ -7780,15 +7787,15 @@ describe("a worker of its own for the UI and HUD (owner, 2026-10-02)", () => {
   it("GGR-13. a HUD part in a soccer project was reviewed as a place ('a woodpile at a door'): a worker started with critic=screen is reviewed as a screen", async () => {
     const { compileWorkerSpec } = await import("../../src/harness-seed/loop/director/rules.ts");
     const { partCritic } = await import("../../src/harness-seed/loop/facet/state.ts");
-    const app = { kind: "top-down" };
+    const app = { kind: "graphics" };
     const hud = compileWorkerSpec({
       id: "hud",
       brief: "the broadcast scoreboard, the title and result screens, the shot-power bar",
-      kind: "top-down",
+      kind: "graphics",
       critic: "screen",
     });
     assert.equal(partCritic(hud.spec, app), "screen", "the readability critic reviews the HUD");
-    const stadium = compileWorkerSpec({ id: "stadium", brief: "a floodlit stadium", kind: "top-down" });
+    const stadium = compileWorkerSpec({ id: "stadium", brief: "a floodlit stadium", kind: "graphics" });
     assert.equal(partCritic(stadium.spec, app), "place", "a part with no critic of its own keeps its kind's");
     assert.equal(partCritic({ ...stadium.spec, critic: "noir" }, app), "place", "an unknown critic is no critic");
   });

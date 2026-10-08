@@ -1,0 +1,61 @@
+/* Base styles: tokens, a reset and the focus ring. Every screen builds on these, so change a token
+   here rather than a colour in one component. */
+:root {
+  color-scheme: light dark;
+  --bg: #ffffff;
+  --surface: #f5f6f8;
+  --text: #16181d;
+  --muted: #5a6070;
+  --border: #d9dce3;
+  --accent: #2557d6;
+  --accent-text: #ffffff;
+  --danger: #b3261e;
+  --radius: 8px;
+  --space: 8px;
+  --font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #101216;
+    --surface: #1a1d23;
+    --text: #eceef3;
+    --muted: #a0a6b5;
+    --border: #2d3139;
+    --accent: #7aa2ff;
+    --accent-text: #0b1020;
+    --danger: #ff8a80;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 16px / 1.5 var(--font);
+  overflow-wrap: anywhere;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+#fatal {
+  display: none;
+  margin: 0;
+  padding: 24px;
+  background: #3a0d0d;
+  color: #ffd6d2;
+  font:
+    13px / 1.5 ui-monospace,
+    SFMono-Regular,
+    monospace;
+  white-space: pre-wrap;
+}

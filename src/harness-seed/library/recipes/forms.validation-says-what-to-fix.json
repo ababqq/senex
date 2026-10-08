@@ -1,0 +1,40 @@
+{
+  "id": "forms.validation-says-what-to-fix",
+  "title": "A wrong entry shows a message beside the field",
+  "tags": [
+    "validation",
+    "invalid",
+    "error",
+    "message",
+    "required",
+    "field",
+    "inline",
+    "form",
+    "submit",
+    "aria",
+    "describedby"
+  ],
+  "checkClass": "validation-explains",
+  "kind": "craft",
+  "pack": "forms",
+  "appKinds": ["form-flow", "editor", "utility"],
+  "note": "Invalid fields show an inline message saying what to change; the form keeps what was typed.",
+  "intent": "Rejecting a form silently, or with a red border alone, leaves the person guessing. Validate on submit (and on blur once a field has been touched), keep everything they typed, put a message directly under the field saying what to change in plain words (\"Enter an email like name@example.com\"), mark the field aria-invalid and connect the message with aria-describedby, and move focus to the first invalid field. Disable the submit button only while sending, never as the way to say the form is wrong. Declare a view named `invalid` that submits the form with bad values so the critic can photograph the state.",
+  "check": {
+    "id": "validation-explains",
+    "kind": "vision",
+    "camera": "invalid",
+    "ask": "Does every invalid field show a message next to it that says in words what to change, while keeping what was typed?",
+    "weight": "normal",
+    "note": "The view `invalid` submits the form wrongly: each bad field shows a specific inline message."
+  },
+  "port": "The form helper that emits label + input also emits an error slot; validation fills the slot and sets aria-invalid, so no facet writes its own error markup.",
+  "evidence": [],
+  "stats": {
+    "applied": 0,
+    "wins": 0,
+    "losses": 0
+  },
+  "status": "candidate",
+  "origin": "seed"
+}

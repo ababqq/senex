@@ -391,6 +391,19 @@ describe("a project's own shape", () => {
       /installStudio/,
       "the contract module is still in the folder",
     );
+    // A page of DOM has no renderer for the hook to read, so without the call it is not judged on
+    // anything it holds: installing the two lines is the base builder's first job.
+    const plain = await projects.validateAt(template);
+    assert.equal(plain.contract, "missing");
+    assert.equal(plain.reach, "none");
+    assert.ok(plain.problems.includes(NO_CONTRACT_PROBLEM), plain.problems.join("; "));
+
+    // A page that draws a 3D world carries its own map, and that map is what the serve layer
+    // points at the hook: the studio reads its scene, camera and renderer with nothing installed.
+    await writeFile(
+      path.join(template, "index.html"),
+      `<!doctype html><title>3D</title>\n<script type="importmap">{"imports":{"three":"/vendor/three.module.js"}}</script>\n<script type="module" src="/src/main.js"></script>\n`,
+    );
     const attached = await projects.validateAt(template);
     assert.equal(attached.contract, "attached");
     assert.equal(attached.reach, "import-map", "the page's own map is what the serve layer points at the hook");
@@ -535,7 +548,7 @@ describe("a project's own shape", () => {
     assert.ok(!(await projects.validateAt(dir)).problems.some((p) => /needs a build command/.test(p)));
   });
 
-  it("warns about a contract installed without a player, and not about one that has it", async () => {
+  it("warns about a contract installed without probes, and not about one that has them", async () => {
     const { projects } = await workspaces();
     const base = await tmpDir("studio-player-");
     const folder = async (name: string, call: string): Promise<string> => {
@@ -560,14 +573,14 @@ describe("a project's own shape", () => {
     const bare = await projects.validateAt(await folder("bare", "installStudio({ renderer });"));
     assert.equal(bare.contract, "loaded");
     assert.ok(
-      bare.warnings.some((w) => /without scene\/camera\/player/.test(w)),
+      bare.warnings.some((w) => /without probes/.test(w)),
       bare.warnings.join("; "),
     );
     const whole = await projects.validateAt(
-      await folder("whole", "installStudio({ renderer, player: () => ({ x: 0, y: 0, z: 0, yaw: 0 }) });"),
+      await folder("whole", "installStudio({ renderer, probes: () => ({ items: 0 }) });"),
     );
     assert.equal(whole.contract, "loaded");
-    assert.ok(!whole.warnings.some((w) => /without scene\/camera\/player/.test(w)), whole.warnings.join("; "));
+    assert.ok(!whole.warnings.some((w) => /without probes/.test(w)), whole.warnings.join("; "));
   });
 
   it("finds the project one folder down and suggests it, and writes nothing while looking", async () => {
@@ -884,11 +897,14 @@ describe("a project's own shape", () => {
         `const studio: StudioApi = installStudio({`,
         `  scene: {}, renderer: {}, camera: {},`,
         `  player: () => ({ x: 0, y: 0, z: 0, yaw: 0 }),`,
-        `  update(dt, ctx) { if (ctx.keys.has("KeyW")) studio.hud.text("dt", String(dt * ctx.rng())); },`,
+        `  update(dt, ctx) { if (ctx.keys.has("KeyW")) console.log(String(dt * ctx.rng())); },`,
         `  render() {},`,
         `  probes: () => ({ phase: "playing" }),`,
+        `  views: { list: () => { location.hash = "#/list"; } },`,
+        `  demos: { "main-flow": async () => ({ items: 0 }) },`,
         `});`,
-        `studio.hud.crosshair({ visible: true });`,
+        `void studio.debugCamera("list").then((shown) => console.log(shown.ok));`,
+        `console.log(studio.inspect().dom.count("li"));`,
         // The clock verbs are the studio's own unless the project passed `update`, so the types
         // make them optional and a project reaches them the way it reaches anything optional.
         `window.__studio?.seed?.(1);`,
@@ -931,18 +947,19 @@ describe("a project's own shape", () => {
     assert.match(failed, /error TS2307|error TS7016/, failed);
   });
 
-  it("drops the one-screen checks for a project with its own UI, and keeps the input checks", () => {
-    // Traits default OFF unless declared (M4.4): the movement and look checks ride on a project
-    // that says it has them, not on every board.
+  it("drops the style checks for a project with its own shape, and keeps the correctness and input checks", () => {
+    // Traits default OFF unless declared (M4.4): the input checks ride on a project that says it
+    // has them, not on every board.
     const own = withHarnessChecks(
       { id: "f", checks: [] },
-      { ownsMain: true, app: { hud: true, mouseLook: true, keyboardMove: true } as never, screen: false },
+      { ownsMain: true, app: { ui: true, navigation: true, typing: true } as never, screen: false },
     );
     const ids = own.checks.map((c: { id: string }) => c.id);
-    assert.ok(!ids.includes("no-dom-ui") && !ids.includes("single-hud"), ids.join(","));
-    assert.ok(ids.includes("look-turns-camera") && ids.includes("keys-move-player"));
-    const template = withHarnessChecks({ id: "f", checks: [] }, { ownsMain: true, app: { hud: true } as never });
-    assert.ok(template.checks.some((c: { id: string }) => c.id === "no-dom-ui"));
+    assert.ok(!ids.includes("controls-named") && !ids.includes("no-horizontal-overflow"), ids.join(","));
+    assert.ok(ids.includes("no-console-errors"), "an error is an error in anyone's markup");
+    assert.ok(ids.includes("nav-changes-view") && ids.includes("fields-take-input"));
+    const template = withHarnessChecks({ id: "f", checks: [] }, { ownsMain: true, app: { ui: true } as never });
+    assert.ok(template.checks.some((c: { id: string }) => c.id === "controls-named"));
   });
 
   it("union-merges the real entry, not src/main.js", async () => {
@@ -984,9 +1001,9 @@ describe("a project's own shape", () => {
     assert.match(own, /src\/main\.ts/);
     assert.match(own, /npm run build/);
     assert.match(own, /dist\/index\.html/);
-    assert.ok(!/ONE SCREEN, ONE INPUT PATH/.test(own), "the template's screen rule is not this project's");
+    assert.ok(!/THE PAGE IS THE PRODUCT/.test(own), "the template's screen rule is not this project's");
     const template = facetPrompt(base);
-    assert.match(template, /ONE SCREEN, ONE INPUT PATH/);
+    assert.match(template, /THE PAGE IS THE PRODUCT/);
     assert.match(template, /src\/main\.js/);
   });
 
@@ -1671,30 +1688,33 @@ describe("the Open Project sheet", () => {
  * believing it had brought the project up to date.
  */
 describe("the contract upgrade", () => {
-  // A copy shaped like the one M4 replaced: it has inspect() and the hud facade, and nothing else.
-  const preM4 = [
+  // A copy from before the one-screen contract: it has inspect() and nothing else.
+  const preHud = "function inspect() { return { objects: [] }; }\nexport function installStudio(config) {}";
+  // A copy shaped like the one the DOM contract replaced: it has inspect() and the hud facade.
+  const withHud = [
     "function hud() { return { api: {} }; }",
     "function inspect() { return { objects: [] }; }",
     "export function installStudio(config) {",
     "  window.__studio = { version: 2, inspect, hud: hud.api, state: () => ({ version: 2 }) };",
     "}",
   ].join("\n");
+  const withEyes = `${withHud}\nfunction createHudFacade() {}\nlet borrowedCamera = null;`;
 
   it("reads the shipped template as newer than every copy that came before it", async () => {
     const shipped = await readFile(path.join(repo, "src", "project-template", "src", "studio.js"), "utf8");
-    assert.equal(studioContractGeneration(shipped), 4, "the shipped contract is the current one");
+    assert.equal(studioContractGeneration(shipped), 5, "the shipped contract is the current one");
     assert.equal(studioContractGeneration(null), 0);
     assert.equal(studioContractGeneration("export function installStudio() {}"), 1);
-    assert.equal(studioContractGeneration("function inspect() {}\nexport function installStudio() {}"), 2);
-    // The case the old gate could not see: both of the literals it tested, none of M4's.
-    assert.equal(studioContractGeneration(preM4), 3);
+    assert.equal(studioContractGeneration(preHud), 2);
+    assert.equal(studioContractGeneration(withHud), 3);
+    assert.equal(studioContractGeneration(withEyes), 4);
     assert.ok(
-      /\binspect\s*[(:]/.test(preM4) && /\bhud\s*:\s*hud\.api/.test(preM4),
+      /\binspect\s*[(:]/.test(withHud) && /\bhud\s*:\s*hud\.api/.test(withHud),
       "the two literals the gate used to trust",
     );
   });
 
-  it("replaces a copy that predates M4 and leaves the current one alone", async () => {
+  it("replaces a copy that predates the HUD and leaves the HUD vintages and the current one alone", async () => {
     const rig = await startRig();
     rigs.push(rig);
     const api = rig.core.api() as Record<string, (p: never) => Promise<unknown>>;
@@ -1708,21 +1728,30 @@ describe("the contract upgrade", () => {
       materialsAdded: false,
     });
 
-    // The project a night really opens: scaffolded before M4, so its studio.js has inspect() and
-    // the hud facade and neither the borrowed eye camera nor the lazy ./hud.js facade.
-    await writeFile(studio, preM4);
+    // A copy that has no HUD for a builder to call is brought up to date, and its predecessor kept.
+    await writeFile(studio, preHud);
     const result = (await api["project.upgradeContract"]!({ project: "aged" } as never)) as {
       upgraded: boolean;
       backup: string;
     };
-    assert.equal(result.upgraded, true, "the pre-M4 copy is replaced");
-    assert.equal(result.backup, "src/studio.v3.js", "its predecessor is kept beside it, named for its vintage");
-    assert.equal(await readFile(path.join(dir, "src", "studio.v3.js"), "utf8"), preM4);
-    const upgraded = await readFile(studio, "utf8");
-    assert.equal(studioContractGeneration(upgraded), 4);
-    assert.match(upgraded, /returnCamera/, "the eye camera is given back — the bug M4 fixed");
+    assert.equal(result.upgraded, true, "the pre-HUD copy is replaced");
+    assert.equal(result.backup, "src/studio.v2.js", "its predecessor is kept beside it, named for its vintage");
+    assert.equal(await readFile(path.join(dir, "src", "studio.v2.js"), "utf8"), preHud);
+    assert.equal(studioContractGeneration(await readFile(studio, "utf8")), 5);
 
-    // And the second call is a no-op: the project now holds what the template holds.
+    // The projects a night really opens: scaffolded on the HUD contract. Their builders call
+    // `__studio.hud` and `eye:*`, which the DOM contract no longer carries, so the file stays.
+    for (const vintage of [withHud, withEyes]) {
+      await writeFile(studio, vintage);
+      assert.deepEqual(await api["project.upgradeContract"]!({ project: "aged" } as never), {
+        upgraded: false,
+        materialsAdded: false,
+      });
+      assert.equal(await readFile(studio, "utf8"), vintage, "a copy a builder may still call is not replaced");
+    }
+
+    // And the second call on a current copy is a no-op: the project holds what the template holds.
+    await writeFile(studio, await readFile(path.join(repo, "src", "project-template", "src", "studio.js"), "utf8"));
     assert.deepEqual(await api["project.upgradeContract"]!({ project: "aged" } as never), {
       upgraded: false,
       materialsAdded: false,

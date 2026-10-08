@@ -25,9 +25,7 @@
   "needsNodeModules": false,
   "backend": "webgl",
   "app": {
-    "kind": "third-person",
-    "hud": false,
-    "mouseLook": false,
+    "kind": "graphics",
     "keyboardMove": true
   },
   "setup": {

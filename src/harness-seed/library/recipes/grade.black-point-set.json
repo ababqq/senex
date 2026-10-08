@@ -5,6 +5,7 @@
   "checkClass": "grade",
   "kind": "craft",
   "pack": "world",
+  "appKinds": ["graphics"],
   "note": "A black point was set: the darkest twentieth of the frame falls below 0.06 luma. A missing black point is what reads as low contrast.",
   "intent": "A frame whose darkest pixels sit at 0.15 has no black in it, and no amount of saturation makes it look photographic — that is what the judge means by washed out. The usual cause is ambient light or a hemisphere light lifting every shadow. Lower the ambient until the unlit sides of objects are genuinely dark, let the tone mapping curve carry the toe, and add occlusion (contact shadows, an AO map, darker interiors) so there is somewhere for the black to live. Check on the same camera the grade band uses.",
   "check": {

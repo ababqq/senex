@@ -1,29 +1,31 @@
 /**
- * The studio contract — PLAN.md §7, v2 (HARNESS-REWORK.md §4.1), attachable since M4.2a.
+ * The studio contract — attachable to any page, optional to install.
  *
  * Projects are built so the critic can *judge* them: deterministic runs, exposed state, named
- * camera angles, fixed-timestep stepping — and, since v2, an inspectable scene graph. The
- * harness verifies a facet's contract with `scene` checks (`meshes("roof").every(...)`), so a
- * build tags what it creates (`obj.userData.tag = "roof"`); untagged objects are invisible to
- * checks, and that is the incentive.
+ * views and fixed-timestep stepping. The harness verifies a project's contract with `probe`
+ * checks over `state()` (`state.items.length > 0`), with `play` scripts that click, type and
+ * press keys the way a person does, and with `demo` checks that drive a flow the generic
+ * script cannot reach. What only the project knows is declared here: what its state means
+ * (`probes`), which screens the critic should photograph (`views`), which flows to run (`demos`).
  *
- * NOTHING HERE IS REQUIRED ANY MORE. The studio serves the page itself and attaches to whatever
- * it renders, so a project that calls none of this is still stepped, seeded, photographed and
- * inspected. What this file adds is the things only the project knows: where the player is, what a
- * named camera looks at, what a probe measures, what a demo does. A project with its own loop needs
- * two lines — `installStudio({ renderer, player })` — and everything else is optional: pass
- * `update` and the studio drives a fixed-step loop for you; leave it out and the studio paces
- * the loop the project already has.
+ * NOTHING HERE IS REQUIRED. The studio serves the page itself and attaches to whatever it renders,
+ * so a project that calls none of this is still stepped, seeded, photographed and watched: the
+ * page reports what people did to it (`state().ui`: clicks, typing, navigations, errors, unnamed
+ * controls, overflow) by itself. A project with its own loop needs two lines —
+ * `installStudio({ probes })` — and everything else is optional: pass `update` and the studio
+ * drives a fixed-step loop for you; leave it out and the studio paces the loop the project
+ * already has.
  *
- * There is no `import "three"` here, on purpose: the contract must be importable by a project with
- * no import map, another version of three, or no three in its graph at all. The HUD is the one
- * part that needs three, and it lives in `./hud.js`, loaded the first time a project draws with it.
+ * There is no import of a rendering library here, on purpose: the contract must be importable by a project with
+ * no import map and no rendering library at all. A project that does draw a 3D or canvas world
+ * hands its renderer, scene and camera over (or lets the studio's hook read them off the frames)
+ * and gets `inspect()` scene checks; a DOM project never needs any of it.
  *
  * The project runs from the moment `installStudio` returns — nobody in the pipeline calls
  * `start()`, so a build that waits for it ships a frozen screen. `pause()` is how a judge
  * freezes the simulation to `step()` it deterministically; `seed()` pauses for the same reason.
  *
- * Keep this file intact. Extend it (new probes, new cameras) rather than removing anything —
+ * Keep this file intact. Extend it (new probes, new views) rather than removing anything —
  * every method here is something the harness calls.
  */
 
@@ -39,12 +41,14 @@ export function makeRng(seed) {
   };
 }
 
-const EYE_HEIGHT = 1.6;
-const DEG = Math.PI / 180;
 /** Mouse buttons arrive in `ctx.keys` under these names — the same set a harness click produces. */
 const MOUSE_KEYS = ["Mouse1", "Mouse3", "Mouse2"];
-/** The screen flash fades by this factor per simulation step. */
-const FLASH_DECAY = 0.86;
+/** The longest a view or a demo may take to settle before the harness photographs it. */
+const SETTLE_TURNS = 3;
+/** The most elements one `dom.list()` names. */
+const DOM_LIST_LIMIT = 40;
+/** How much of an element's text an entry in a list carries. */
+const DOM_TEXT_CHARS = 60;
 
 /**
  * @param {{
@@ -52,22 +56,24 @@ const FLASH_DECAY = 0.86;
  *   update?: (dtSeconds: number, ctx: {rng: () => number, frame: number, keys: Set<string>, look: {x: number, y: number}, wheel: {x: number, y: number}, pointer: {x: number, y: number, locked: boolean}}) => void,
  *   render?: () => void,
  *   probes?: () => Record<string, unknown>,
- *   cameras?: Record<string, () => void>,
+ *   views?: Record<string, () => unknown>,
+ *   cameras?: Record<string, () => unknown>,
  *   demos?: Record<string, () => unknown>,
  *   reset?: (seed: number) => void,
  *   canvas?: HTMLCanvasElement,
  *   scene?: unknown,
  *   renderer?: unknown,
  *   camera?: unknown,
- *   player?: () => ({x: number, y: number, z: number, yaw?: number, pitch?: number}),
- *   eyeHeight?: number,
+ *   player?: () => ({x: number, y: number, z?: number, yaw?: number, pitch?: number}),
  *   audio?: () => (AnalyserNode | null),
  *   input?: { pointerLock?: boolean },
  * }} config
  */
-// biome-ignore lint/complexity/noExcessiveLinesPerFunction: the contract is one closure. Every verb reads and writes the same loop state (seed, frame, keys, look, the borrowed camera), and a project may call any of them at any time; splitting it would change how every shipped project's contract is built. The helpers that need none of that state live below it.
+// biome-ignore lint/complexity/noExcessiveLinesPerFunction: the contract is one closure. Every verb reads and writes the same loop state (seed, frame, keys, look, the current view), and a project may call any of them at any time; splitting it would change how every shipped project's contract is built. The helpers that need none of that state live below it.
 export function installStudio(config) {
   const fixedStepMs = config.fixedStepMs ?? 1000 / 60;
+  /** The named screens: `views` is the spelling, `cameras` the one older projects still use. */
+  const views = { ...(config.cameras ?? {}), ...(config.views ?? {}) };
   let seed = 1;
   let rng = makeRng(seed);
   let running = true;
@@ -81,15 +87,13 @@ export function installStudio(config) {
   const look = { x: 0, y: 0 };
   const wheel = { x: 0, y: 0 };
   const pointer = { x: 0.5, y: 0.5 };
-  /** Where the player stood after the last reset — the `eye:spawn` camera's anchor. */
-  let spawn = null;
   /** Render targets the renderer has been pointed at, recorded without the builder's help. */
   const renderTargets = new Set();
 
   // ── what the studio can see, read at the moment it is used ──
-  // A project may pass its scene, camera and renderer in; a project that passes only a renderer (or
-  // nothing at all) is watched by the studio's hook, which reads them off the frames the page
-  // actually draws. Everything below asks through these, so both projects answer the same.
+  // A project that draws a 3D world may pass its scene, camera and renderer in; one that passes
+  // only a renderer (or nothing at all) is watched by the studio's hook, which reads them off the
+  // frames the page actually draws. A DOM project has neither, and every answer below says so.
   const hookNow = () => (typeof globalThis.__studioHook === "object" ? globalThis.__studioHook : null);
   const clockNow = () => (typeof globalThis.__studioClock === "object" ? globalThis.__studioClock : null);
   const worldNow = () => {
@@ -102,35 +106,8 @@ export function installStudio(config) {
   const sceneNow = () => config.scene ?? worldNow()?.scene ?? null;
   const cameraNow = () => config.camera ?? worldNow()?.camera ?? null;
   const rendererNow = () => config.renderer ?? worldNow()?.renderer ?? null;
-  /**
-   * The canvas the project draws on. The FIRST canvas is the wrong answer for a project with a 2D
-   * overlay, so the renderer's own element wins, then the largest 3D canvas the shim recorded,
-   * and only then whatever the page happens to have.
-   */
-  const canvasNow = () => {
-    if (config.canvas) return config.canvas;
-    const own = rendererNow()?.domElement ?? null;
-    if (own) return own;
-    try {
-      const seen = clockNow()?.canvases?.() ?? null;
-      if (seen && Array.isArray(seen.elements)) {
-        let best = null;
-        let bestArea = -1;
-        seen.descriptors.forEach((d, index) => {
-          if (d.kind === "2d" || d.kind === "unknown" || !d.visible) return;
-          const area = d.cssWidth * d.cssHeight;
-          if (area > bestArea) {
-            bestArea = area;
-            best = seen.elements[index];
-          }
-        });
-        if (best) return best;
-      }
-    } catch {
-      /* no shim on this page: the document answers instead */
-    }
-    return document.querySelector("canvas");
-  };
+  /** The canvas the project draws on, or null for a page that is all DOM. */
+  const canvasNow = () => config.canvas ?? rendererNow()?.domElement ?? null;
 
   if (config.renderer && typeof config.renderer.setRenderTarget === "function" && !config.renderer.__studioWrapped) {
     const original = config.renderer.setRenderTarget.bind(config.renderer);
@@ -141,9 +118,8 @@ export function installStudio(config) {
     config.renderer.__studioWrapped = true;
   }
 
-  // The two-line install. A project whose three is inside its own bundle never passes through the
-  // studio's wrapper module, so the renderer is handed to the hook by name instead — and from
-  // there its scene, its camera and its frames are as visible as any other project's.
+  // A project whose rendering library is inside its own bundle never passes through the studio's
+  // wrapper module, so the renderer is handed to the hook by name instead.
   try {
     if (config.renderer) hookNow()?.wrapRenderer?.(config.renderer);
   } catch {
@@ -162,34 +138,24 @@ export function installStudio(config) {
     }
   }
 
-  function onKeyDown(event) {
-    rememberKey(event.code, event.key, true);
-  }
-  function onKeyUp(event) {
-    rememberKey(event.code, event.key, false);
-  }
-  window.addEventListener("keydown", onKeyDown);
-  window.addEventListener("keyup", onKeyUp);
+  window.addEventListener("keydown", (event) => rememberKey(event.code, event.key, true));
+  window.addEventListener("keyup", (event) => rememberKey(event.code, event.key, false));
   window.addEventListener("blur", () => heldKeys.clear());
 
   // ── the one input path ──
-  // The studio owns live input: pointer lock on canvas click, mouse movement into the same
+  // The studio owns live input for a project that passes `update`: mouse movement into the same
   // `look` accumulator the harness's injectInput feeds, mouse buttons as keys, the wheel as
   // `ctx.wheel`. A project reads ctx and nothing else — so the human path and the harness path
-  // are the same path, and a check that proves one proves the other. (One run shipped a gun
-  // that accumulated pointer-lock movement into its own variable that the player never read;
-  // the harness, driving ctx.look, could not tell.)
-  const pointerLockWanted = config.input?.pointerLock !== false;
+  // are the same path, and a check that proves one proves the other. Pointer lock is opt-in
+  // (`input: { pointerLock: true }`): a page of forms and lists must keep its cursor.
+  const pointerLockWanted = config.input?.pointerLock === true;
   /**
    * Beats of mouse input the harness has already handed us through `injectInput`.
    *
    * One look reaches a page by up to three roads: this contract's `injectInput`, a synthetic
    * move the studio dispatches so a project with its own listener still turns, and — in a window
    * that hears native input — the browser's own trusted move. All three feed ONE accumulator
-   * here, so every camera in the harness turned two or three times as far as it was told to.
-   * The count is set when the studio injects and spent by the moves of that same beat; the
-   * synthetic move keeps its real delta, because a project that reads `movementX` itself and
-   * never reads `ctx.look` is the only thing that move exists for.
+   * here. The count is set when the studio injects and spent by the moves of that same beat.
    */
   let injectedLook = 0;
   let injectedWheel = 0;
@@ -197,7 +163,7 @@ export function installStudio(config) {
     const canvas = canvasNow();
     return Boolean(canvas) && document.pointerLockElement === canvas;
   };
-  function onMouseDown(event) {
+  window.addEventListener("mousedown", (event) => {
     const canvas = canvasNow();
     if (pointerLockWanted && canvas && event.target === canvas && !locked()) {
       try {
@@ -209,12 +175,12 @@ export function installStudio(config) {
     }
     const name = MOUSE_KEYS[event.button] ?? `Mouse${event.button + 1}`;
     rememberKey(name, name, true);
-  }
-  function onMouseUp(event) {
+  });
+  window.addEventListener("mouseup", (event) => {
     const name = MOUSE_KEYS[event.button] ?? `Mouse${event.button + 1}`;
     rememberKey(name, name, false);
-  }
-  function onMouseMove(event) {
+  });
+  window.addEventListener("mousemove", (event) => {
     const canvas = canvasNow();
     if (canvas) {
       const rect = canvas.getBoundingClientRect();
@@ -232,23 +198,21 @@ export function installStudio(config) {
     }
     look.x += event.movementX || 0;
     look.y += event.movementY || 0;
-  }
-  function onWheel(event) {
-    if (locked()) event.preventDefault();
-    if (injectedWheel > 0) {
-      injectedWheel -= 1;
-      return;
-    }
-    wheel.x += event.deltaX || 0;
-    wheel.y += event.deltaY || 0;
-  }
-  window.addEventListener("mousedown", onMouseDown);
-  window.addEventListener("mouseup", onMouseUp);
-  window.addEventListener("mousemove", onMouseMove);
-  window.addEventListener("wheel", onWheel, { passive: false });
-  window.addEventListener("contextmenu", (event) => {
-    if (event.target === canvasNow()) event.preventDefault();
   });
+  // Only a locked canvas swallows the wheel; a page that scrolls keeps scrolling (and a passive listener).
+  window.addEventListener(
+    "wheel",
+    (event) => {
+      if (locked()) event.preventDefault();
+      if (injectedWheel > 0) {
+        injectedWheel -= 1;
+        return;
+      }
+      wheel.x += event.deltaX || 0;
+      wheel.y += event.deltaY || 0;
+    },
+    { passive: !pointerLockWanted },
+  );
   document.addEventListener("pointerlockchange", () => {
     if (!locked()) for (const name of MOUSE_KEYS) heldKeys.delete(name);
   });
@@ -266,14 +230,6 @@ export function installStudio(config) {
     return out;
   }
 
-  // ── the one screen: a HUD drawn into the canvas ──
-  // Every readout, bar, crosshair and flash goes through `__studio.hud`, which paints a 2D
-  // canvas and composites it as ONE quad over the world after each render. It is tagged
-  // `hud`, counted once, and part of capture() — so the judge's picture is the user's picture.
-  // DOM UI is invisible to the canvas capture, and two builders who each learned that once
-  // painted their own HUD quads; the user got three.
-  const hud = createHudFacade(rendererNow, canvasNow, config.hud !== false);
-
   /** Frames per second for a project whose loop is its own: counted off the studio's clock. */
   let fpsMark = null;
   function clockFps(stats) {
@@ -289,21 +245,14 @@ export function installStudio(config) {
     return value;
   }
 
-  /** The named viewpoint the last debugCamera()/eye() placed; reported by state() so a capture can prove which camera it rendered. */
-  let currentCamera = "default";
+  /** The named screen the last debugCamera() showed; reported by state() so a capture can prove which one it photographed. */
+  let currentView = "default";
 
   /** A project that draws its own frames (or none) has no render function to call: that is fine. */
   function renderAll() {
     if (typeof config.render !== "function") return false;
     config.render();
-    hud.compose();
     return true;
-  }
-
-  /** The HUD quad over the world, awaited when the renderer's compose is asynchronous. */
-  function composeHud() {
-    const composed = hud.compose();
-    return composed && typeof composed.then === "function" ? composed.then(() => true) : true;
   }
 
   /**
@@ -311,27 +260,22 @@ export function installStudio(config) {
    * passed `render` draws through it, so a composer's last pass is what lands on the canvas. A
    * project that draws its own frames has no render to call, and the frame the page would draw
    * next belongs to the PROJECT's camera — so the world the hook is watching is rendered once,
-   * from the camera that was just placed. That last path skips a composer the project may have,
-   * which is the price of photographing a viewpoint the project itself never draws.
+   * from the camera the view just placed. That last path skips a composer the project may have,
+   * which is the price of photographing a view the project itself never draws.
    *
    * Returns false when there was nothing to draw with, true (or a promise of true) otherwise.
    */
   function renderPlaced() {
-    if (typeof config.render === "function") {
-      const rendered = config.render();
-      return rendered && typeof rendered.then === "function" ? rendered.then(() => composeHud()) : composeHud();
-    }
+    if (typeof config.render === "function") return config.render() ?? true;
     const renderer = rendererNow();
     const scene = sceneNow();
     const camera = cameraNow();
     if (!renderer || typeof renderer.render !== "function" || !scene || !camera) return false;
-    let drawn;
     try {
-      drawn = renderer.render(scene, camera);
+      return renderer.render(scene, camera) ?? true;
     } catch {
       return false;
     }
-    return drawn && typeof drawn.then === "function" ? drawn.then(() => composeHud()) : composeHud();
   }
 
   /**
@@ -348,10 +292,15 @@ export function installStudio(config) {
     const after = drawCallsSoFar();
     // Provenance and the page's own background, both from the studio's own capture. This picture
     // never went through it: a record left over from before the page had drawn anything
-    // described a capture that never happened (no draw count, and the "this build drew nothing"
-    // census read the gap), and a raw canvas read keeps the alpha a transparent frame was drawn
-    // with, which encodes as black.
+    // described a capture that never happened, and a raw canvas read keeps the alpha a
+    // transparent frame was drawn with, which encodes as black.
     return throughCaptureShim(url, photographRecord(url, before, after));
+  }
+
+  /** Let the page apply what a view or a demo just did: microtasks only, because timers freeze with the clock. */
+  async function settle() {
+    for (let turn = 0; turn < SETTLE_TURNS; turn++) await Promise.resolve();
+    if (canvasNow()) await Promise.resolve(renderPlaced());
   }
 
   function stepOnce() {
@@ -364,7 +313,6 @@ export function installStudio(config) {
       wheel: consumeWheel(),
       pointer: { x: pointer.x, y: pointer.y, locked: locked() },
     });
-    hud.tick();
     frame++;
     simulatedMs += fixedStepMs;
   }
@@ -394,127 +342,31 @@ export function installStudio(config) {
     }
   }
 
-  function rememberSpawn() {
-    spawn = playerNow();
-  }
-
   /**
-   * A project that drives its own camera LENDS it to the harness's eye cameras. The pose it had is
-   * kept the first time one is placed and given back before the next placement and whenever
-   * `default` is asked for again. Without that, a project whose `player()` reports the camera's own
-   * position (every attached first-person project) reads the camera the last eye moved, and each
-   * eye climbs another eye-height: the corridor fixture ended above its own ceiling and every
-   * frame after the first eye was black.
-   */
-  let borrowedCamera = null;
-  function returnCamera() {
-    const camera = cameraNow();
-    if (!camera || !borrowedCamera) return false;
-    camera.position.copy(borrowedCamera.position);
-    if (camera.quaternion && borrowedCamera.quaternion) camera.quaternion.copy(borrowedCamera.quaternion);
-    if (typeof camera.updateProjectionMatrix === "function") camera.updateProjectionMatrix();
-    borrowedCamera = null;
-    return true;
-  }
-
-  /** Point the render camera from a player-eye position: harness-owned viewpoints. */
-  function placeEye(at, yaw, pitchRad) {
-    const camera = cameraNow();
-    if (!camera || !at) return false;
-    if (!borrowedCamera) {
-      borrowedCamera = {
-        position: camera.position.clone(),
-        quaternion: camera.quaternion?.clone ? camera.quaternion.clone() : null,
-      };
-    }
-    const height = config.eyeHeight ?? EYE_HEIGHT;
-    camera.position.set(at.x, at.y + height, at.z);
-    const dx = -Math.sin(yaw) * Math.cos(pitchRad);
-    const dy = Math.sin(pitchRad);
-    const dz = -Math.cos(yaw) * Math.cos(pitchRad);
-    camera.lookAt(at.x + dx, at.y + height + dy, at.z + dz);
-    if (typeof camera.updateProjectionMatrix === "function") camera.updateProjectionMatrix();
-    return true;
-  }
-
-  const EYES = {
-    // The player-eye at spawn, pitched down 25°: what the player sees two seconds in.
-    "eye:spawn": () => placeEye(spawn ?? playerNow(), (spawn ?? playerNow())?.yaw ?? 0, -25 * DEG),
-    // Wherever the scripted walk left the player, looking ahead.
-    "eye:here": () => {
-      const p = playerNow();
-      return placeEye(p, p?.yaw ?? 0, -10 * DEG);
-    },
-    // Straight down at the player's feet — the "milky floor" camera.
-    "eye:down": () => {
-      const p = playerNow();
-      return placeEye(p, p?.yaw ?? 0, -60 * DEG);
-    },
-    // Over the shoulder, behind the player.
-    "eye:back": () => {
-      const p = playerNow();
-      if (!p) return false;
-      const back = { x: p.x + Math.sin(p.yaw) * 3, y: p.y + 0.6, z: p.z + Math.cos(p.yaw) * 3 };
-      return placeEye(back, p.yaw, -12 * DEG);
-    },
-  };
-
-  /**
-   * Read-only helpers a `scene` check evaluates against. Never serialised whole.
-   *
-   * ONE implementation for both paths: the studio's hook holds it, so a project the studio attached
-   * to and a project that called `installStudio` are inspected by exactly the same code and a check
-   * written against one means the same thing against the other. The copy below is the fallback
-   * for an exported project — played outside the studio, with no hook on its page.
+   * What `inspect()` answers with: the 3D scene helpers when the page draws a world the studio can
+   * see (the hook holds the one implementation, so an attached project and an installed one are
+   * inspected by the same code), and always `dom`, the page's own elements. A page that draws no
+   * world is still inspectable — `available: true`, `scene: null`, and its scene helpers throw the
+   * reason when called. A page that does draw one but has not yet rendered a frame says
+   * `available: false`, so a scene check waits instead of failing.
    */
   function inspect() {
     const scene = sceneNow();
     const source = {
       scene,
-      roots: [scene, hud.scene].filter(Boolean),
+      roots: [scene].filter(Boolean),
       renderer: rendererNow(),
       camera: cameraNow(),
       state: api.state(),
       player: playerNow(),
-      hud: () => hud.summary(),
       audio: () => api.audio(),
       renderTargets: () => [...renderTargets],
     };
     const hook = hookNow();
-    if (hook && typeof hook.inspect === "function") return hook.inspect(source);
-    if (!scene) return unavailableInspect();
-    return localInspect(source);
-  }
-
-  /** What `inspect()` answers with when nothing has been rendered and no scene was passed in. */
-  function unavailableInspect() {
-    const reason =
-      "no scene has been rendered yet — the project has not called renderer.render(scene, camera) since load, and installStudio was not given a scene";
-    const fail = () => {
-      throw new Error(`the project's scene graph is not available: ${reason}`);
-    };
-    return {
-      available: false,
-      reason,
-      scene: null,
-      renderer: rendererNow(),
-      camera: cameraNow(),
-      state: api.state(),
-      player: playerNow(),
-      objects: fail,
-      meshes: fail,
-      materials: fail,
-      lights: fail,
-      tags: fail,
-      untagged: fail,
-      count: fail,
-      bbox: fail,
-      bboxOf: fail,
-      domUi: fail,
-      hud: () => hud.summary(),
-      renderTargets: () => [...renderTargets],
-      audio: () => api.audio(),
-    };
+    const world = hook && typeof hook.inspect === "function" ? hook.inspect(source) : null;
+    if (world?.available) return { ...world, dom: domHelpers() };
+    const drawsWorld = Boolean(config.renderer || config.scene || config.camera || config.canvas);
+    return { ...domInspect(source), available: !drawsWorld, dom: domHelpers() };
   }
 
   const api = {
@@ -534,11 +386,9 @@ export function installStudio(config) {
       heldKeys.clear();
       look.x = 0;
       look.y = 0;
-      hud.flashAlpha = 0;
       wheel.x = 0;
       wheel.y = 0;
       config.reset?.(seed);
-      rememberSpawn();
       renderAll();
       return seed;
     },
@@ -558,8 +408,8 @@ export function installStudio(config) {
     },
 
     /**
-     * Advance the simulation by hand — the judge's scripted playthrough. Independent of wall
-     * clock, so a headless comparison run is reproducible.
+     * Advance the simulation by hand — the judge's scripted run. Independent of wall clock, so a
+     * headless comparison run is reproducible.
      */
     step(dtMs = fixedStepMs) {
       const steps = Math.max(1, Math.round(dtMs / fixedStepMs));
@@ -569,9 +419,10 @@ export function installStudio(config) {
     },
 
     /**
-     * JSON-safe snapshot: score, phase, entity counts, whatever probes the project exposes. A project
-     * with no `update` has no loop of the studio's to count, so the frame, the simulated time and
-     * the rate come from the studio's own clock, which is pacing the project's own loop.
+     * JSON-safe snapshot: whatever the project's probes report (items, selection, form values,
+     * route…). A project with no `update` has no loop of the studio's to count, so the frame, the
+     * simulated time and the rate come from the studio's own clock, which is pacing the project's
+     * own loop. The page adds `ui` — what people did to it — on top, by itself.
      */
     state() {
       const clock = typeof config.update === "function" ? null : (clockNow()?.stats?.() ?? null);
@@ -585,8 +436,7 @@ export function installStudio(config) {
         fps,
         held: [...heldKeys],
         pointerLock: locked(),
-        hud: hud.summary(),
-        camera: currentCamera,
+        camera: currentView,
         error: window.__studio_error ?? null,
         player: playerNow(),
         ...(config.probes ? config.probes() : {}),
@@ -594,118 +444,81 @@ export function installStudio(config) {
     },
 
     /**
-     * Named viewpoints so 3D judging compares like with like. `eye:*` names are built in, and
-     * `default` is the view the project renders itself — the answer for a project that registered no
-     * camera at all, which is photographed on the view it draws rather than voided.
+     * Named screens, so judging compares like with like: a route, a tab, a dialog, an empty state, a
+     * filled state. Show one, let the page settle, and the harness photographs it. `default` is
+     * the screen the project shows on load — the answer for a project that registered no view,
+     * which is photographed as it stands rather than voided. (The wire name is `debugCamera`:
+     * the contract kept it when it grew past 3D.)
      */
-    debugCamera(name) {
-      if (typeof name === "string" && name.startsWith("eye:")) return api.eye(name);
-      const camera = config.cameras?.[name];
-      if (!camera) {
-        if (name === "default" && cameraNow()) {
-          // Whatever an eye camera borrowed goes back first: `default` is the view the PROJECT
-          // renders, not wherever the harness last pointed the project's own camera.
-          returnCamera();
-          currentCamera = "default";
-          renderAll();
+    async debugCamera(name) {
+      const show = views[name];
+      if (!show) {
+        if (name === "default") {
+          currentView = "default";
+          await settle();
           return { ok: true, camera: "default" };
         }
-        return { ok: false, available: api.cameras().concat(api.eyes()) };
+        return { ok: false, available: api.cameras() };
       }
-      camera();
-      currentCamera = name;
-      renderPlaced();
+      await show();
+      currentView = name;
+      await settle();
       return { ok: true, camera: name };
     },
 
-    /** The names a project registered — or `default`, the one the studio can see it rendering. */
+    /** The names a project registered — or `default`, the screen it shows as it stands. */
     cameras() {
-      const declared = Object.keys(config.cameras ?? {});
-      if (declared.length) return declared;
-      return cameraNow() ? ["default"] : [];
+      const declared = Object.keys(views);
+      return declared.length ? declared : ["default"];
     },
 
-    /** Harness-owned player-eye cameras; available once there is a camera and a `player()`. */
+    /** The studio's own eye cameras are a 3D idea; a page declares its screens as views. */
     eyes() {
-      return cameraNow() && config.player ? Object.keys(EYES) : [];
-    },
-
-    eye(name) {
-      const place = EYES[name];
-      if (!place) return { ok: false, available: api.eyes() };
-      if (!cameraNow() || !config.player) {
-        return { ok: false, reason: "pass `camera` and `player()` to installStudio to enable eye cameras" };
-      }
-      // Before `player()` is read: a project that reports its camera's own position must be asked
-      // where the PLAYER is, not where the last eye left the lens.
-      returnCamera();
-      const ok = place();
-      if (ok) {
-        currentCamera = name;
-        renderPlaced();
-      }
-      return ok
-        ? { ok: true, camera: name, player: playerNow() }
-        : { ok: false, reason: "player() returned no position" };
+      return [];
     },
 
     /**
-     * Photograph the project from inside the page: re-render, then read the canvas in the same JS
-     * turn (WebGL buffers survive exactly that long). The studio prefers this over compositor
-     * capture because it works even when the app window is covered or on another Space —
-     * unattended runs must not depend on the window being visible.
+     * Photograph the project from inside the page. A canvas project re-renders and reads its
+     * canvas in the same JS turn (a WebGL buffer survives exactly that long); a DOM page has no
+     * canvas to read, so the studio's own capture (the compositor's picture of the page) answers.
      */
     async capture() {
-      // A project with no render of its own is photographed at the end of the frame it draws
-      // itself: re-rendering from (scene, camera) would skip a composer's last pass, which is
-      // the picture the user actually sees.
-      if (typeof config.render !== "function") {
-        // Unless the harness placed a viewpoint. The page-side capture drives one more of the
-        // PROJECT's own frames before it reads the canvas, and a project that sets its camera inside
-        // its loop — every first-person project does — puts its own view straight back: all three
-        // eye cameras came back as the project's own view and `eye:down` never saw the floor.
-        if (currentCamera !== "default") {
-          const placed = await photographPlaced();
-          if (placed) return placed;
-        }
-        const shot = globalThis.__studioCapture?.capture?.() ?? hookNow()?.capture?.() ?? null;
-        return shot && typeof shot.then === "function" ? await shot : shot;
+      // A canvas project that draws through `render`, or that a view has pointed somewhere else,
+      // is photographed here: the page-side capture drives one more of the PROJECT's own frames
+      // before it reads, and a project that sets its camera inside its loop puts its own view
+      // straight back over the one the harness placed.
+      if (canvasNow() && (typeof config.render === "function" || currentView !== "default")) {
+        const placed = await photographPlaced();
+        if (placed) return placed;
       }
-      // A WebGPU renderer renders asynchronously: wait for the frame before reading the
-      // canvas, or the picture is the previous frame (or black on the first).
-      return await photographPlaced();
+      const shot = globalThis.__studioCapture?.capture?.() ?? hookNow()?.capture?.() ?? null;
+      return shot && typeof shot.then === "function" ? await shot : shot;
     },
 
     /**
-     * The HUD: text(id, str, {x,y,size,color,align}), bar(id, fraction, {x,y,w,h,color}),
-     * crosshair({size,gap,thickness,color,visible,spread}), flash(color, alpha), remove(id),
-     * clear(), get(id), items(). Coordinates are fractions of the frame (0–1, y from the top).
-     * Drawn into the canvas as one quad tagged `hud` — the only UI a project may have.
-     */
-    hud: hud.api,
-
-    /**
-     * Scripted demonstrations of behaviour the generic playthrough cannot reach (walk to the
-     * bench and sit; open the door; fire the special). A demo must be deterministic, leave the
-     * project paused on its end state, and return a JSON-able result. The critic runs every demo
-     * and photographs its end frame — this is how a mechanic becomes visible to the judge.
+     * Scripted demonstrations of behaviour the generic run cannot reach (create an item, edit it,
+     * delete it and undo; fill the form wrongly and fix it; sign in; drag a card across the
+     * board). A demo must be deterministic, leave the project paused on its end state, and return
+     * a JSON-able result. The critic runs every demo and photographs its end screen — this is how
+     * a workflow becomes visible to the judge.
      */
     demos() {
       return Object.keys(config.demos ?? {});
     },
 
-    demo(name) {
+    async demo(name) {
       const demo = config.demos?.[name];
       if (!demo) return { ok: false, available: Object.keys(config.demos ?? {}) };
       running = false;
-      const result = demo();
+      const result = await demo();
       renderAll();
+      await settle();
       return { ok: true, demo: name, result: result === undefined ? null : result };
     },
 
     /**
-     * The critic's hands when Chromium events are not enough (paused `step()` playthroughs).
-     * `down`/`up` are key names (`KeyW`, `w`); `look` is a mouse delta in pixels.
+     * The critic's hands when Chromium events are not enough (paused `step()` runs).
+     * `down`/`up` are key names (`KeyW`, `Enter`, `a`); `look` is a mouse delta in pixels.
      */
     injectInput(input) {
       for (const key of input?.down ?? []) rememberKey(key, key, true);
@@ -726,15 +539,19 @@ export function installStudio(config) {
       return { keys: [...heldKeys], look: { x: look.x, y: look.y }, wheel: { x: wheel.x, y: wheel.y } };
     },
 
-    /** Read-only scene-graph helpers for the harness's `scene` checks. */
+    /** Read-only helpers for the harness's `scene` checks: the page's elements, and a 3D world when it has one. */
     inspect,
 
-    /** A summary a check can read without the graph: counts by tag, lights, render targets. */
+    /** A summary a check can read without the graph: counts by tag for a 3D world, element counts for a page. */
     sceneSummary() {
       const I = inspect();
+      const page = I.dom.summary();
+      if (!I.scene) return { available: false, reason: I.reason, ...page };
       const byTag = {};
       for (const tag of I.tags()) byTag[tag] = I.count(tag);
       return {
+        available: true,
+        ...page,
         meshes: I.meshes().length,
         untagged: I.untagged(),
         byTag,
@@ -745,7 +562,7 @@ export function installStudio(config) {
 
     /**
      * Audio probe: RMS level and spectral centroid of whatever `config.audio()` analyses.
-     * Enough for "footsteps exist and vary" or "the lamp buzz is present" as a scene-class check.
+     * Enough for "the alert tone exists" or "playback is silent when muted" as a check.
      */
     audio() {
       let analyser = null;
@@ -786,7 +603,6 @@ export function installStudio(config) {
 
   window.__studio = api;
   config.reset?.(seed);
-  rememberSpawn();
   renderAll();
   if (typeof config.update === "function") rafHandle = requestAnimationFrame(loop);
   return api;
@@ -831,9 +647,8 @@ function averageFps(samples) {
 
 /**
  * Where the player is. `x` plus at least one of `y`/`z` is a position: a side-scroller locates
- * its player in x/y and a top-down project in x/z, and demanding both made every check that names
- * `player.z` unsatisfiable on half the genres. The missing axis is reported as 0, never absent,
- * so a check reads a number either way.
+ * its player in x/y and a top-down project in x/z. The missing axis is reported as 0, never
+ * absent, so a check reads a number either way. A page with no player reports null.
  */
 function playerPosition(p) {
   if (!p || typeof p.x !== "number") return null;
@@ -849,98 +664,14 @@ function playerPosition(p) {
   };
 }
 
-function traverse(root, visit) {
-  if (!root) return;
-  if (typeof root.traverse === "function") root.traverse(visit);
-  else visit(root);
-}
+const DOM_SKIPPED = new Set(["SCRIPT", "STYLE", "LINK", "META", "TEMPLATE", "TITLE", "HEAD", "HTML"]);
 
-/** The nearest tag an object inherits from its parents, or null. */
-function ancestorTag(obj) {
-  let cursor = obj.parent;
-  while (cursor) {
-    if (cursor.userData?.tag) return cursor.userData.tag;
-    cursor = cursor.parent;
-  }
-  return null;
-}
-
-/** A box's eight corners. */
-function boxCorners(box) {
-  return [
-    [box.min.x, box.min.y, box.min.z],
-    [box.max.x, box.min.y, box.min.z],
-    [box.min.x, box.max.y, box.min.z],
-    [box.max.x, box.max.y, box.min.z],
-    [box.min.x, box.min.y, box.max.z],
-    [box.max.x, box.min.y, box.max.z],
-    [box.min.x, box.max.y, box.max.z],
-    [box.max.x, box.max.y, box.max.z],
-  ];
-}
-
-/** Grow world-space bounds by one object's geometry box, carried through its world matrix. */
-function growBounds(bounds, obj) {
-  if (!obj.geometry) return;
-  obj.updateWorldMatrix?.(true, false);
-  obj.geometry.computeBoundingBox?.();
-  const box = obj.geometry.boundingBox;
-  if (!box) return;
-  for (const c of boxCorners(box)) {
-    const v = { x: c[0], y: c[1], z: c[2] };
-    const e = obj.matrixWorld?.elements;
-    const wx = e ? e[0] * v.x + e[4] * v.y + e[8] * v.z + e[12] : v.x;
-    const wy = e ? e[1] * v.x + e[5] * v.y + e[9] * v.z + e[13] : v.y;
-    const wz = e ? e[2] * v.x + e[6] * v.y + e[10] * v.z + e[14] : v.z;
-    const { min, max } = bounds;
-    bounds.min = [Math.min(min[0], wx), Math.min(min[1], wy), Math.min(min[2], wz)];
-    bounds.max = [Math.max(max[0], wx), Math.max(max[1], wy), Math.max(max[2], wz)];
-  }
-}
-
-/** A point both spellings read: `.x`/`.y`/`.z` and `[0]`/`[1]`/`[2]`. */
-function xyz(v) {
-  const out = { x: v[0], y: v[1], z: v[2] };
-  Object.defineProperty(out, 0, { value: v[0], enumerable: false });
-  Object.defineProperty(out, 1, { value: v[1], enumerable: false });
-  Object.defineProperty(out, 2, { value: v[2], enumerable: false });
-  Object.defineProperty(out, "length", { value: 3, enumerable: false });
-  return out;
-}
-
-/** World-space bounds of a list of objects' geometry, or null when none of them has any. */
-function bboxOfList(list) {
-  if (list.length === 0) return null;
-  const bounds = { min: [Infinity, Infinity, Infinity], max: [-Infinity, -Infinity, -Infinity] };
-  for (const obj of list) growBounds(bounds, obj);
-  const { min, max } = bounds;
-  if (!Number.isFinite(min[0])) return null;
-  // Both spellings work: `bbox('tree').size.y` and `bbox('tree').size[1]` — twelve
-  // iterations of one run failed on `.size.y` against a bare array.
-  return { min: xyz(min), max: xyz(max), size: xyz([max[0] - min[0], max[1] - min[1], max[2] - min[2]]) };
-}
-
-const DOM_SKIPPED = new Set(["CANVAS", "SCRIPT", "STYLE", "LINK", "META", "TEMPLATE", "TITLE", "HEAD", "HTML", "BODY"]);
-const DOM_VISUAL = new Set(["IMG", "SVG", "INPUT", "BUTTON", "SELECT", "TEXTAREA", "VIDEO", "PROGRESS", "METER"]);
-const TRANSPARENT = /rgba\(\s*\d+,\s*\d+,\s*\d+,\s*0\s*\)|transparent/;
-/** The most DOM elements `domUi()` names. */
-const DOM_UI_LIMIT = 12;
-
-/** Does the element paint anything of its own: a background colour or image, or a border? */
-function paintsItself(style) {
-  const background = style.backgroundColor && !TRANSPARENT.test(style.backgroundColor);
-  const image = style.backgroundImage && style.backgroundImage !== "none";
-  const border = style.borderStyle && style.borderStyle !== "none" && parseFloat(style.borderWidth) > 0;
-  return Boolean(background || image || border);
-}
-
-/** The element's own text, not its children's. */
-function ownTextOf(el) {
-  return [...el.childNodes]
-    .filter((n) => n.nodeType === 3)
-    .map((n) => n.textContent.trim())
-    .join(" ")
-    .trim();
+/** Is the element on screen: displayed, not transparent, with a box? */
+function isShown(el) {
+  const style = getComputedStyle(el);
+  if (style.display === "none" || style.visibility === "hidden" || Number(style.opacity) === 0) return false;
+  const rect = el.getBoundingClientRect();
+  return rect.width > 0 && rect.height > 0 && el.getClientRects().length > 0;
 }
 
 /** `tag#id.class.names`, the way the failing check names an element. */
@@ -951,206 +682,79 @@ function elementName(el) {
   return `${el.tagName.toLowerCase()}${id}${classes}`;
 }
 
-/** An element drawn inside an SVG: the SVG itself is named instead. */
-const insideSvg = (el) => el.closest("svg") !== null && el.tagName !== "SVG";
+/** The text a person reads in an element: what it shows, trimmed and collapsed. */
+function shownText(el) {
+  return (el.innerText ?? el.textContent ?? "").replace(/\s+/g, " ").trim();
+}
 
-/** One element as `domUi()` names it, or null when it is not visible UI the canvas capture would miss. */
-function describeUi(el) {
-  if (DOM_SKIPPED.has(el.tagName) || insideSvg(el)) return null;
-  if (el.id === "fatal" && !el.textContent.trim()) return null;
-  const style = getComputedStyle(el);
-  const hidden = style.display === "none" || style.visibility === "hidden" || Number(style.opacity) === 0;
-  if (hidden) return null;
-  const rect = el.getBoundingClientRect();
-  const boxless = rect.width <= 0 || rect.height <= 0 || el.getClientRects().length === 0;
-  if (boxless) return null;
-  const ownText = ownTextOf(el);
-  if (!ownText && !DOM_VISUAL.has(el.tagName) && !paintsItself(style)) return null;
-  const name = elementName(el);
-  return ownText ? `${name} "${ownText.slice(0, 40)}"` : name;
+/** One element as a list names it: its selector-ish name and its first words. */
+function describeElement(el) {
+  const text = shownText(el).slice(0, DOM_TEXT_CHARS);
+  return text ? `${elementName(el)} "${text}"` : elementName(el);
 }
 
 /**
- * Visible DOM elements outside the canvas — the UI the judge's canvas capture never sees.
- * Each entry names the element and its text so the failing check is actionable.
+ * Read-only queries over the page's own elements, for checks that ask what a person would see:
+ * `dom.count("li.task")`, `dom.text("h1")`, `dom.visible("#dialog")`, `dom.list("button")`.
+ * Hidden elements do not count: a node that is on the tree but not on the screen is not UI.
  */
-function domUi() {
-  const out = [];
-  for (const el of document.body ? document.body.querySelectorAll("*") : []) {
-    const entry = describeUi(el);
-    if (!entry) continue;
-    out.push(entry);
-    if (out.length >= DOM_UI_LIMIT) break;
-  }
-  return out;
+function domHelpers() {
+  const all = (selector) => [...document.querySelectorAll(selector)].filter((el) => !DOM_SKIPPED.has(el.tagName));
+  const shown = (selector) => all(selector).filter(isShown);
+  return {
+    count: (selector) => shown(selector).length,
+    visible: (selector) => shown(selector).length > 0,
+    text: (selector) => shown(selector).map(shownText),
+    first: (selector) => {
+      const el = shown(selector)[0];
+      return el ? shownText(el) : "";
+    },
+    value: (selector) => {
+      const el = document.querySelector(selector);
+      return el && "value" in el ? el.value : null;
+    },
+    /** True when the page shows no text and no visual element: a scaffold nobody has built on. */
+    empty: () =>
+      !document.body ||
+      (shownText(document.body) === "" &&
+        shown("img, svg, canvas, video, picture, iframe, input, select, textarea, button").length === 0),
+    list: (selector = "body *") => shown(selector).slice(0, DOM_LIST_LIMIT).map(describeElement),
+    summary: () => ({
+      title: document.title,
+      headings: shown("h1, h2, h3").map(shownText).slice(0, 12),
+      buttons: shown("button, [role=button], input[type=submit]").length,
+      links: shown("a[href]").length,
+      fields: shown("input, select, textarea").length,
+      landmarks: shown("main, nav, header, footer, aside, [role=main], [role=navigation]").length,
+    }),
+  };
 }
 
-/** The scene-graph helpers over `source`, for a page with no studio hook to answer them. */
-function localInspect(source) {
-  const scene = source.scene;
-  const roots = source.roots;
-  const objects = (tag) => {
-    const out = [];
-    for (const root of roots) {
-      traverse(root, (obj) => {
-        if (obj === root) return;
-        if (tag === undefined || obj.userData?.tag === tag) out.push(obj);
-      });
-    }
-    return out;
-  };
-  const meshes = (tag) => objects(tag).filter((o) => o.isMesh || o.isInstancedMesh || o.isSkinnedMesh);
-  const materials = (tag) => {
-    const set = new Set();
-    for (const mesh of meshes(tag)) {
-      const m = mesh.material;
-      if (Array.isArray(m)) m.forEach((x) => x && set.add(x));
-      else if (m) set.add(m);
-    }
-    return [...set];
-  };
-  const lights = () => objects().filter((o) => o.isLight);
-  const tags = () => {
-    const seen = new Set();
-    traverse(scene, (obj) => {
-      if (obj?.userData?.tag) seen.add(String(obj.userData.tag));
-    });
-    return [...seen];
-  };
-  const untagged = () => meshes().filter((m) => !m.userData?.tag && !ancestorTag(m)).length;
-  const bbox = (tag) => bboxOfList(objects(tag));
-  /** World-space bounds of ONE object and its descendants — for per-character checks (grounded, silhouette). */
-  const bboxOf = (obj) => {
-    if (!obj) return null;
-    const list = [];
-    traverse(obj, (o) => list.push(o));
-    return bboxOfList(list);
+/** What `inspect()` builds on when there is no 3D world to read: scene helpers that throw the reason the world is missing. */
+function domInspect(source) {
+  const reason =
+    "this page draws no 3D scene the studio can see — use `dom` for its elements, or pass scene/camera/renderer to installStudio for a 3D world";
+  const fail = () => {
+    throw new Error(`the project's scene graph is not available: ${reason}`);
   };
   return {
-    available: true,
-    scene,
+    reason,
+    scene: null,
     renderer: source.renderer,
     camera: source.camera,
     state: source.state,
     player: source.player,
-    objects,
-    meshes,
-    materials,
-    lights,
-    tags,
-    untagged,
-    count: (tag) => objects(tag).length,
-    bbox,
-    bboxOf,
-    domUi,
-    hud: source.hud,
+    objects: fail,
+    meshes: fail,
+    materials: fail,
+    lights: fail,
+    tags: fail,
+    untagged: fail,
+    count: fail,
+    bbox: fail,
+    bboxOf: fail,
+    domUi: () => domHelpers().list("body *"),
     renderTargets: source.renderTargets,
     audio: source.audio,
-  };
-}
-
-/**
- * `__studio.hud` — a lazy facade over `./hud.js`.
- *
- * The HUD is the one part of the contract that needs three, and the contract must be importable
- * by a project with no import map, another version of three, or no three in its graph at all. So the
- * module is fetched the first time a project actually draws something with it: `compose()` and
- * `tick()` never fetch it, and a project that never calls `hud.*` never loads it. Calls made before
- * the module arrives are replayed onto it in order, so a project that draws its HUD on the first
- * frame loses nothing.
- */
-function createHudFacade(renderer, canvas, enabled) {
-  let real = null;
-  let loading = false;
-  let on = enabled !== false;
-  const queued = [];
-  const ids = new Set();
-  const pending = { crosshair: false, flashAlpha: 0 };
-
-  const load = () => {
-    if (real || loading || !on) return;
-    loading = true;
-    import("./hud.js")
-      .then((module) => {
-        real = module.createHud({ renderer, canvas });
-        if (pending.flashAlpha > 0) real.flashAlpha = pending.flashAlpha;
-        for (const [name, args] of queued) real.api[name](...args);
-        queued.length = 0;
-      })
-      .catch((err) => {
-        // A project with no three on its page has no HUD; every other part of the contract works.
-        console.warn("the studio HUD could not be loaded from ./hud.js", err);
-      });
-  };
-  const call = (name, args) => {
-    if (!on) return undefined;
-    load();
-    if (real) return real.api[name](...args);
-    queued.push([name, args]);
-    return undefined;
-  };
-
-  const api = {
-    text: (id, text, opts = {}) => {
-      ids.add(String(id));
-      return call("text", [id, text, opts]);
-    },
-    bar: (id, fraction, opts = {}) => {
-      ids.add(String(id));
-      return call("bar", [id, fraction, opts]);
-    },
-    crosshair: (opts = {}) => {
-      ids.add("crosshair");
-      pending.crosshair = opts.visible !== false;
-      return call("crosshair", [opts]);
-    },
-    flash: (color = "#ffffff", alpha = 0.5) => {
-      pending.flashAlpha = Math.max(pending.flashAlpha, Math.min(1, Number(alpha) || 0));
-      return call("flash", [color, alpha]);
-    },
-    remove: (id) => {
-      ids.delete(String(id));
-      return call("remove", [id]);
-    },
-    clear: () => {
-      ids.clear();
-      pending.crosshair = false;
-      return call("clear", []);
-    },
-    get: (id) => (real ? real.api.get(id) : null),
-    items: () => (real ? real.api.items() : [...ids]),
-    enable: (value = true) => {
-      on = Boolean(value) && enabled !== false;
-      return real ? real.api.enable(value) : undefined;
-    },
-  };
-
-  return {
-    api,
-    get scene() {
-      return real ? real.scene : null;
-    },
-    get flashAlpha() {
-      return real ? real.flashAlpha : pending.flashAlpha;
-    },
-    set flashAlpha(value) {
-      pending.flashAlpha = Number(value) || 0;
-      if (real) real.flashAlpha = pending.flashAlpha;
-    },
-    tick() {
-      if (real) return real.tick();
-      if (pending.flashAlpha > 0) {
-        pending.flashAlpha *= FLASH_DECAY;
-        if (pending.flashAlpha < 0.01) pending.flashAlpha = 0;
-      }
-      return undefined;
-    },
-    compose() {
-      return real ? real.compose() : undefined;
-    },
-    summary() {
-      if (real) return real.summary();
-      return { items: [...ids], crosshair: pending.crosshair, flash: Number(pending.flashAlpha.toFixed(3)) };
-    },
   };
 }

@@ -4,7 +4,7 @@
  */
 import { CRITIC_PRINCIPLES, referenceStats } from "../judge.ts";
 import { criticFor } from "../kinds.ts";
-import { loadContractLessons, loadRecipes } from "../library.ts";
+import { loadContractLessons, loadRecipes, recipesForKind } from "../library.ts";
 import { roleEngine, RoleKey, supportsSessions } from "../model-roles.ts";
 import { runRef } from "../repo.ts";
 import { isCommit } from "../shell.ts";
@@ -646,7 +646,10 @@ export async function createFacetLoopState(ctx: HarnessCtx, raw: FacetLoopOption
   const anchor = await incumbentAnchor(ctx, { ...options, ...facetParts, ...gitParts });
   const engine = await builderEngine(ctx, options.run, facetParts.budgets);
   const resumed = restoreResumable(options.resumeState, freshResumable(facetParts.facet, options.initialDefects));
-  const recipes = await loadRecipes(ctx.workspace).catch(() => []);
+  const library = await loadRecipes(ctx.workspace).catch(() => []);
+  // Retrieval is by relevance, so a project whose kind nobody has declared keeps the whole library.
+  const kind = options.run?.app?.kind;
+  const recipes = kind ? recipesForKind(library, kind) : library;
   /**
    * Has a stop landed here? The build turn is not the only place one can arrive: `engine.abort`
    * reaches only a live delegation, and a worker spends most of its round in review, evidence,

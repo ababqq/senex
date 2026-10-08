@@ -25,9 +25,7 @@
   "needsNodeModules": false,
   "backend": "webgpu",
   "app": {
-    "kind": "top-down",
-    "hud": false,
-    "mouseLook": false,
+    "kind": "graphics",
     "keyboardMove": true
   },
   "setup": null,

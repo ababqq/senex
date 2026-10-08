@@ -1,0 +1,40 @@
+{
+  "id": "forms.fields-take-input",
+  "title": "Typing reaches the form, and the form reacts",
+  "tags": [
+    "input",
+    "field",
+    "form",
+    "typing",
+    "keyboard",
+    "value",
+    "controlled",
+    "change",
+    "text",
+    "textarea",
+    "select"
+  ],
+  "checkClass": "fields-take-input",
+  "kind": "craft",
+  "pack": "forms",
+  "appKinds": ["form-flow", "editor", "list-manager", "utility"],
+  "note": "Real input elements, wired to state: typed text appears, changes are reflected, nothing eats the keys.",
+  "intent": "A field that does not take typing is the most visible failure a form can have. Use real <input>, <textarea> and <select> elements (not contenteditable divs unless the product is an editor), keep their value in one place, and never swallow keydown for printable keys or Enter. Update derived UI on the input event, not only on submit, so what is typed is visible to the rest of the page at once (a character count, a filtered list, a live preview). Labels are tied to their fields; autofocus the first field of a form that is the screen's whole purpose. The page counts edits to fields in state().ui.edits; typing that does not move it did not reach a field.",
+  "check": {
+    "id": "fields-take-input",
+    "kind": "probe",
+    "expr": "abs(delta('ui.edits')) > 0",
+    "needs": ["ui.edits"],
+    "weight": "identity",
+    "note": "After the scripted typing a field took input: state().ui.edits rose."
+  },
+  "port": "The form's owner builds fields with one helper that emits <label>, <input> and the error slot together; other facets add fields through it.",
+  "evidence": [],
+  "stats": {
+    "applied": 0,
+    "wins": 0,
+    "losses": 0
+  },
+  "status": "candidate",
+  "origin": "seed"
+}

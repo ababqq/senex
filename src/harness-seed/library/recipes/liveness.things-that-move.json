@@ -21,6 +21,7 @@
   "checkClass": "liveness",
   "kind": "craft",
   "pack": "liveness",
+  "appKinds": ["graphics"],
   "note": "At least three things of a kind that moves — people, animals, smoke, cloth, fire, water, foliage — exist and are tagged as such.",
   "intent": "Motion is what separates a place from a diorama, and it is cheap: chimney smoke as a slow additive sprite column, laundry or a flag on a sine sway, a dog or a chicken walking a short looped path, foliage swaying with swayTree, water with a scrolling normal. Three of them in one frame is the floor. Drive every one of them from the stepped simulation time, never the wall clock, so the harness's frozen clock and a replayed capture see the same pose. Tag them with the kind word (villager, smoke, cloth, fire, water) so the board can find them.",
   "check": {

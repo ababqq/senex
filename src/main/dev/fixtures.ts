@@ -56,7 +56,7 @@ const NOISE_EVENTS = 650;
 const IMPROVEMENT_PASS_MS = 1500;
 
 /** The fixture project's page: a canvas that counts clicks, on the studio's own import map. */
-const FIXTURE_PAGE = `<!doctype html><html><body style="margin:0;background:#14233b;color:white"><canvas width="800" height="500"></canvas>
+const FIXTURE_PAGE = `<!doctype html><html><head><meta name="studio-template" content="web-app"></head><body style="margin:0;background:#14233b;color:white"><canvas width="800" height="500"></canvas>
 <script type="importmap">{"imports":{"three":"/vendor/three.module.js"}}</script>
 <script>
 const c=document.querySelector('canvas'),x=c.getContext('2d');let clicks=0;
@@ -102,8 +102,8 @@ export async function prepareFixture(core: StudioCore, id: string): Promise<Prep
 }
 
 /**
- * The fixture stands in for a project on the studio's own shape, so its page keeps the studio
- * import map: shape detection reads that map (with studio.json's contractVersion) as the one
+ * The fixture stands in for a project on the studio's own shape, so its page keeps the studio's
+ * template mark: shape detection reads that mark (with studio.json's contractVersion) as the one
  * proof a folder is the template's rather than somebody's own project.
  */
 async function writeFixtureProject(project: FixtureProject): Promise<void> {
@@ -198,13 +198,13 @@ async function stageSuggestions(core: StudioCore): Promise<void> {
         "facet-decomposition",
         currentText,
         // One long line, as real suggestions are: the exact edit must wrap it, never scroll sideways.
-        "Fixture review: judge on-screen markers from eye:here as well as from the default camera, and when a request says something vague like slightly thicker or a bit brighter, turn it into a measured target in the check before the facet starts.",
+        "Fixture review: judge a screen in a narrow window as well as the wide one, and when a request says something vague like slightly bigger or a bit calmer, turn it into a measured target in the check before the facet starts.",
       ),
-      rationale: "The trajectories repeat overlay markers judged only from the default camera.",
-      title: "Check the player’s view before finishing a scene",
+      rationale: "The trajectories repeat layouts judged only at one window width.",
+      title: "Check a narrow window before finishing a screen",
       summary: [
-        "Checks on-screen markers from the player’s own eyes, not just the overview camera.",
-        "Turns vague requests like “slightly thicker” into a measured target.",
+        "Checks a screen in a narrow window, not just the wide default.",
+        "Turns vague requests like “slightly bigger” into a measured target.",
       ],
       gate: gate("3/3 for the candidate"),
       at: new Date().toISOString(),
@@ -296,10 +296,10 @@ export async function fixtureImprovementPass(core: StudioCore): Promise<void> {
     ...appendSuggestion(
       "facet-decomposition",
       currentText,
-      "Fixture review: keep the last fifth of a run for playing and tuning difficulty.",
+      "Fixture review: keep the last fifth of a run for using the product and tuning its spacing.",
     ),
     rationale: "Balance tuning was repeatedly left to the final unplaytested minutes.",
-    title: "Leave time to tune difficulty",
+    title: "Leave time to tune spacing",
     summary: ["Keeps the last part of each run for playing and tuning, instead of rushing it at the end."],
     gate: {
       accept: true,

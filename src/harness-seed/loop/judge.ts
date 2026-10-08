@@ -1933,11 +1933,12 @@ export function cameraSubset(
  * grow → the next move (something must come to exist), polish → the ledger (something that
  * exists must look more like itself).
  *
- * There are two critics because there are two sorts of project. `place` asks why a world does not
- * feel like somewhere you are standing — the right question for a first-person walk, the wrong
- * one for a chess board. `screen` asks what the screen tells the player: a board project, a
- * puzzle or a builder is judged on whether it reads, not on whether it feels real. Both tables
- * are five grow and three polish, so the arithmetic below is the same either way.
+ * There are two critics because there are two sorts of project. `screen` asks what the screen
+ * tells the person using it: software — a form, a dashboard, an editor — is judged on whether it
+ * reads and answers, not on whether it feels real. `place` asks why a world does not feel like
+ * somewhere you are standing — the right question for a walkable 3D scene (the `graphics` kind),
+ * the wrong one for a settings page. Both tables are five grow and three polish, so the
+ * arithmetic below is the same either way.
  */
 export const CRITIC_PRINCIPLES: Record<string, Principle[]> = {
   place: [
@@ -1952,11 +1953,11 @@ export const CRITIC_PRINCIPLES: Record<string, Principle[]> = {
   ],
   screen: [
     { key: "readable", kind: PrincipleKind.Grow, title: "every element is legible at a glance" },
-    { key: "state", kind: PrincipleKind.Grow, title: "the screen says what the state of the project is" },
+    { key: "state", kind: PrincipleKind.Grow, title: "the screen says where the user is and what has happened" },
     { key: "affordance", kind: PrincipleKind.Grow, title: "what can be acted on looks like it can" },
     { key: "feedback", kind: PrincipleKind.Grow, title: "every action answers on the screen" },
-    { key: "depth", kind: PrincipleKind.Grow, title: "the screen has layers, not one flat plane" },
-    { key: "composition", kind: PrincipleKind.Polish, title: "the frame is arranged, not scattered" },
+    { key: "depth", kind: PrincipleKind.Grow, title: "the screen has layers: content, controls, overlays" },
+    { key: "composition", kind: PrincipleKind.Polish, title: "the layout is arranged, not scattered" },
     { key: "palette", kind: PrincipleKind.Polish, title: "the colours are one set and they carry meaning" },
     { key: "finish", kind: PrincipleKind.Polish, title: "type, spacing and edges are finished" },
   ],
@@ -1965,13 +1966,13 @@ export const CRITIC_PRINCIPLES: Record<string, Principle[]> = {
 /** The place critic's table under its old name — every existing import still reads it. */
 export const LIVENESS_PRINCIPLES = CRITIC_PRINCIPLES.place!;
 
-/** Which table a critic name selects; anything unknown is the place critic, as before. */
+/** Which table a critic name selects; anything unknown is the screen critic, which software is read by. */
 export function criticPrinciples(critic: string): Principle[] {
-  return CRITIC_PRINCIPLES[critic] ?? CRITIC_PRINCIPLES.place!;
+  return CRITIC_PRINCIPLES[critic] ?? CRITIC_PRINCIPLES.screen!;
 }
 
 /** Parse a critic reply into scored principles; anything unusable scores null. */
-export function normalizeLiveness(raw: AnyRecord | null | undefined, critic = "place") {
+export function normalizeLiveness(raw: AnyRecord | null | undefined, critic = "screen") {
   const table = criticPrinciples(critic);
   const principles = table.map((p) => {
     const entry = raw && typeof raw === "object" ? raw[p.key] : null;
@@ -1994,7 +1995,7 @@ export function normalizeLiveness(raw: AnyRecord | null | undefined, critic = "p
     ? raw!.biggest
     : (scored.slice().sort((a, b) => a.score! - b.score!)[0]?.key ?? null);
   return {
-    critic: CRITIC_PRINCIPLES[critic] ? critic : "place",
+    critic: CRITIC_PRINCIPLES[critic] ? critic : "screen",
     principles,
     total,
     max: scored.length * 3,
@@ -2054,7 +2055,7 @@ export async function livenessCritique(
     evidence,
     cameras = null,
     iterationId,
-    critic = "place",
+    critic = "screen",
   }: {
     run: Run;
     facet: AnyRecord;
@@ -2064,7 +2065,7 @@ export async function livenessCritique(
     critic?: string;
   },
 ) {
-  const which = CRITIC_PRINCIPLES[critic] ? critic : "place";
+  const which = CRITIC_PRINCIPLES[critic] ? critic : "screen";
   const table = criticPrinciples(which);
   const grow = table
     .filter((p) => p.kind === PrincipleKind.Grow)

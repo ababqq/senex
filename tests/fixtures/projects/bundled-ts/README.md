@@ -42,4 +42,4 @@ does not build until it has been adopted. The runner adopts a copy, links this r
 ## Shape
 
 `three-vite`, own, entry `dist/index.html`, main `src/main.ts`, build `npm run build`, install
-`npm install`, serve `dist`. `kind: "first-person"`.
+`npm install`, serve `dist`. `kind: "graphics"` with `mouseLook` and `keyboardMove`.

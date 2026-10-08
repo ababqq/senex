@@ -26,5 +26,5 @@ Sweep the pale ring over the twenty-four ions with WASD or the arrow keys.
 ## Shape
 
 `three-modules`, own, entry `index.html`, main `src/main.js`, no build, no package manager, no
-`studio.json`. `kind: "top-down"`. Its ready budget is the longest of the five, because the
+`studio.json`. `kind: "graphics"` with `keyboardMove`. Its ready budget is the longest of the five, because the
 adapter request is the slow part and it is the whole point of the fixture.

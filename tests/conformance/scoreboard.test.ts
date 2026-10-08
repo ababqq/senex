@@ -547,45 +547,70 @@ describe("facet specs", () => {
 
 describe("the board a project actually carries", () => {
   it("puts no harness check on a project nobody described, and the kind's own axes on one they did", () => {
-    // Every trait is off until something declares it: the four harness checks describe the
-    // template's screen and the template's controls, and a project nobody described has neither.
+    // Every trait is off until something declares it: the harness checks describe a page's
+    // errors, names and inputs, and a project nobody described has none of them declared.
     assert.deepEqual(withHarnessChecks({ id: "f", checks: [] }, { ownsMain: true }).checks, []);
     assert.deepEqual(normalizeAppTraits(undefined), {
       kind: null,
-      hud: false,
+      ui: false,
+      navigation: false,
+      typing: false,
       mouseLook: false,
       keyboardMove: false,
       playScript: null,
     });
 
-    // A board project declares a kind and still carries nothing: no HUD rule, no look, no move.
+    // A canvas project declares a kind and still carries nothing: no page rule, no input check.
     assert.deepEqual(
-      withHarnessChecks({ id: "f", checks: [] }, { ownsMain: true, app: { kind: "static-board" } as never }).checks,
+      withHarnessChecks({ id: "f", checks: [] }, { ownsMain: true, app: { kind: "graphics" } as never }).checks,
       [],
     );
 
-    // The template's own shape keeps all four.
-    const firstPerson = withHarnessChecks(
-      { id: "f", checks: [] },
-      { ownsMain: true, app: { kind: "first-person" } as never },
-    ).checks;
-    assert.deepEqual(firstPerson.map((c: { id: string }) => c.id).sort(), [
-      "keys-move-player",
-      "look-turns-camera",
-      "no-dom-ui",
-      "single-hud",
+    // A form carries the page rules and the typing check, and not the navigation check.
+    const form = withHarnessChecks({ id: "f", checks: [] }, { ownsMain: true, app: { kind: "form-flow" } as never })
+      .checks as { id: string; expr?: string }[];
+    assert.deepEqual(form.map((c) => c.id).sort(), [
+      "controls-named",
+      "fields-take-input",
+      "no-console-errors",
+      "no-horizontal-overflow",
     ]);
 
-    // A top-down project has a HUD and keys but no mouse look, and its move check asks about the
-    // axes it actually moves on — x, y or z — not the first-person controller's x and z.
-    const topDown = withHarnessChecks(
+    // A dashboard navigates and does not type; a facet that does not own main carries only the page rules.
+    const dashboard = withHarnessChecks(
       { id: "f", checks: [] as Check[] },
-      { ownsMain: true, app: { kind: "top-down" } as never },
+      { ownsMain: true, app: { kind: "dashboard" } as never },
     ).checks as { id: string; expr?: string }[];
-    assert.deepEqual(topDown.map((c) => c.id).sort(), ["keys-move-player", "no-dom-ui", "single-hud"]);
-    const move = topDown.find((c) => c.id === "keys-move-player");
-    assert.match(String(move!.expr), /player\.y/);
-    assert.doesNotMatch(String(move!.expr), /player\.yaw/);
+    assert.deepEqual(dashboard.map((c) => c.id).sort(), [
+      "controls-named",
+      "nav-changes-view",
+      "no-console-errors",
+      "no-horizontal-overflow",
+    ]);
+    const nav = dashboard.find((c) => c.id === "nav-changes-view");
+    assert.match(String(nav!.expr), /ui\.navigations/);
+    assert.match(String(nav!.expr), /ui\.reactions/);
+    assert.equal(
+      (
+        withHarnessChecks({ id: "f", checks: [] }, { ownsMain: false, app: { kind: "dashboard" } as never })
+          .checks as unknown[]
+      ).length,
+      3,
+    );
+
+    // A project with its own shape keeps the correctness rule and is spared the style rules.
+    const own = withHarnessChecks(
+      { id: "f", checks: [] },
+      { ownsMain: true, app: { kind: "dashboard" } as never, screen: false },
+    ).checks as { id: string }[];
+    assert.deepEqual(own.map((c) => c.id).sort(), ["nav-changes-view", "no-console-errors"]);
+
+    // A walkable scene opts in, and is then measured on its player.
+    const scene = withHarnessChecks(
+      { id: "f", checks: [] as Check[] },
+      { ownsMain: true, app: { kind: "graphics", mouseLook: true, keyboardMove: true } as never },
+    ).checks as { id: string; expr?: string }[];
+    assert.deepEqual(scene.map((c) => c.id).sort(), ["keys-move-player", "look-turns-camera"]);
   });
 
   it("offers the planner what a sibling family learned, and tells it the truth about its own board", () => {
@@ -599,30 +624,34 @@ describe("the board a project actually carries", () => {
           passes: 2,
           catches: 2,
           runs: ["r1", "r2"],
-          kinds: ["racing"],
+          kinds: ["graphics"],
         },
         "grade-band": { kind: "pixel", origin: "judge", uses: 4, passes: 2, catches: 2, runs: ["r1", "r2"] },
       } as Record<string, Record<string, unknown>>,
     };
-    // A board project is a different family from a racer (a screen critic, no eyes), so what the
-    // racer taught is not offered to it; a check no kind ever claimed stays general.
-    const board = renderCatalogueForPlanner(catalogue, { app: { kind: "static-board" } } as never);
-    assert.doesNotMatch(board, /lap-time-drops/);
-    assert.match(board, /grade-band/);
+    // A dashboard is a different family from a scene (a screen critic against a place critic),
+    // so what the scene taught is not offered to it; a check no kind ever claimed stays general.
+    const board = renderCatalogueForPlanner(catalogue, { app: { kind: "graphics" } } as never);
+    assert.match(board, /lap-time-drops/);
+    const screen = renderCatalogueForPlanner(catalogue, { app: { kind: "utility" } } as never);
+    assert.doesNotMatch(screen, /lap-time-drops/);
+    assert.match(screen, /grade-band/);
     assert.match(
       board,
-      /No harness-owned checks ride on this project's board — declare hud, mouseLook or keyboardMove in project if it has them\.$/,
+      /No harness-owned checks ride on this project's board — declare ui, navigation, typing, mouseLook or keyboardMove in app if it has them\.$/,
     );
     // A project of the family that learned it still sees it, and its own board is named honestly.
-    const racer = renderCatalogueForPlanner(catalogue, { app: { kind: "racing" } } as never);
-    assert.match(racer, /lap-time-drops/);
     assert.match(
-      racer,
-      /Already on this project's board \(harness-owned, do not re-declare\): no-dom-ui, single-hud, keys-move-player\./,
+      renderCatalogueForPlanner(catalogue, { app: { kind: "graphics", keyboardMove: true } } as never),
+      /Already on this project's board \(harness-owned, do not re-declare\): keys-move-player\./,
     );
     // Two families have recorded it: it has stopped being one genre's opinion.
-    catalogue.checks["lap-time-drops"].kinds = ["racing", "static-board"];
-    assert.match(renderCatalogueForPlanner(catalogue, { app: { kind: "first-person" } } as never), /lap-time-drops/);
+    catalogue.checks["lap-time-drops"].kinds = ["graphics", "utility"];
+    assert.match(renderCatalogueForPlanner(catalogue, { app: { kind: "dashboard" } } as never), /lap-time-drops/);
+    assert.match(
+      renderCatalogueForPlanner(catalogue, { app: { kind: "form-flow" } } as never),
+      /Already on this project's board \(harness-owned, do not re-declare\): no-console-errors, controls-named, no-horizontal-overflow, fields-take-input\./,
+    );
   });
 
   it("asks a screen the screen critic's question, in the rubric and in the brief", () => {
@@ -645,9 +674,9 @@ describe("the board a project actually carries", () => {
     assert.equal(screen.max, 24);
     assert.equal(screen.grow[0]?.key, "readable");
     assert.equal(screen.biggest, "readable");
-    // The place critic is unchanged, and it is what an undeclared project still gets.
+    // The place critic is unchanged, and the screen critic is what an undeclared project gets.
     assert.equal(normalizeLiveness({}, "place").principles[0]!.key, "extent");
-    assert.equal(normalizeLiveness({}).critic, "place");
+    assert.equal(normalizeLiveness({}).critic, "screen");
 
     const args = {
       run: { runId: "r", goal: "g" },
@@ -675,8 +704,17 @@ describe("the board a project actually carries", () => {
  */
 describe("craft leaves the law", () => {
   const seedDir = pathMod.join(repoRoot, "src", "harness-seed");
-  /** The five technical checks that say "this is a project and the harness can see and drive it". */
-  const KEEPERS = ["camera-player-eye", "demo-walk", "drawcalls-ceiling", "player-moved", "primary-action-registers"];
+  /** The technical checks that say "this is a project and the harness can see and drive it": three for any page, five for a scene. */
+  const KEEPERS = [
+    "camera-player-eye",
+    "demo-walk",
+    "drawcalls-ceiling",
+    "main-flow-demo",
+    "one-main-landmark",
+    "page-has-heading",
+    "player-moved",
+    "primary-action-registers",
+  ];
   /** Bookkeeping the catalogue keeps and a recipe's copy of the body must not carry. */
   const BOOKKEEPING = new Set(["uses", "passes", "catches", "runs", "genres", "kinds", "lastUsed", "origin", "pack"]);
   const body = (id: string, entry: Record<string, unknown>) =>
@@ -686,19 +724,19 @@ describe("craft leaves the law", () => {
 
   it("the catalogue is exactly the five keepers, and every one of the 41 has a recipe carrying its body verbatim", async () => {
     const catalogue = await loadCatalogue(seedDir);
-    assert.deepEqual(
-      Object.keys(catalogue.checks).sort(),
-      KEEPERS,
-      "the shipped catalogue is the five technical checks",
-    );
+    assert.deepEqual(Object.keys(catalogue.checks).sort(), KEEPERS, "the shipped catalogue is the technical checks");
     const menu = renderCatalogueForPlanner(catalogue);
     const retired = Object.keys(frozen).filter((id) => !KEEPERS.includes(id) && id !== "fire-registers");
     assert.equal(retired.length, 41, "41 opinions left the board");
     for (const id of retired) assert.ok(!menu.includes(id), `the planner is not offered ${id} any more`);
 
     const recipes = await loadRecipes(seedDir);
-    assert.equal(recipes.length, 44);
-    assert.equal(recipes.filter(isCraftRecipe).length, 41);
+    assert.equal(recipes.length, 60);
+    assert.equal(
+      recipes.filter(isCraftRecipe).length,
+      57,
+      "the 41 opinions that left the board and the 16 for software",
+    );
     const byCheck = new Map<string, typeof recipes>();
     for (const recipe of recipes) {
       const list = byCheck.get(String(recipe.check?.id ?? "")) ?? [];
@@ -719,6 +757,9 @@ describe("craft leaves the law", () => {
       "stats",
       "contract",
     ]);
+    // The 16 recipes written for software are not in the frozen catalogue, so nothing above names them.
+    const software = recipes.filter((r) => isCraftRecipe(r) && !retired.includes(String(r.check?.id)));
+    assert.equal(software.length, 16, "the sixteen recipes for software are the only craft the frozen catalogue lacks");
     for (const id of retired) {
       const owners = (byCheck.get(id) ?? []).filter(isCraftRecipe);
       assert.equal(
@@ -757,7 +798,7 @@ describe("craft leaves the law", () => {
         `${recipe.id} holds today's ${id}, not a stale copy`,
       );
     }
-    assert.equal(held, 3, "the three keeper-holding technique recipes");
+    assert.equal(held, 2, "the two keeper-holding technique recipes (the named camera rig and the draw-call capture)");
     // The two bodies this package corrected: the pitch band left camera-player-eye for the
     // recipe's intent, and the draw-call ceiling reads the honest whole-frame figure.
     assert.doesNotMatch(String(catalogue.checks["camera-player-eye"]!.js), /pitch/);
@@ -800,18 +841,18 @@ describe("craft leaves the law", () => {
       evaluateProbeCheck(moved, { stateEarly: { player: { x: 1, z: 2 } }, state: { player: { x: 1, z: 5 } } }).pass,
       true,
     );
-    // The recipe that ships the same body is the same check, not a stale second copy.
+    // The contract recipe is for software and holds a check of its own, never a copy of this one.
     const recipes = await loadRecipes(seedDir);
     const seeded = recipes.find((r) => r.id === "contract.seed-step-probes")!;
-    assert.equal(seeded.check!.expr, catalogue.checks["player-moved"]!.expr);
-    assert.deepEqual(seeded.check!.needs, ["player.x", "player.z"]);
+    assert.notEqual(seeded.check!.id, "player-moved");
+    assert.deepEqual(seeded.check!.needs, ["ui.reactions", "ui.edits"]);
   });
 
-  it("gives the harness-owned move probe the same guard, on the axes the kind actually moves on", () => {
+  it("gives the harness-owned move probe the same guard, on the axes the kind actually answers on", () => {
     // The harness's own copy of the same check: identity weight, on every keyboard-moved project.
     const template = withHarnessChecks({ id: "f", checks: [] as Check[] }, {
       ownsMain: true,
-      app: { kind: "first-person" },
+      app: { kind: "graphics", keyboardMove: true },
     } as never).checks.find((c: { id: string }) => c.id === "keys-move-player") as { expr: string; needs?: string[] };
     assert.deepEqual(template.needs, ["player.x", "player.z"]);
     assert.doesNotMatch(
@@ -834,20 +875,28 @@ describe("craft leaves the law", () => {
       true,
     );
 
-    // needs follows the expression, never the template: a top-down project moves on x and y, and
-    // asking it for the first-person controller's z would report every build unmeasured.
-    const topDown = withHarnessChecks({ id: "f", checks: [] as Check[] }, {
+    // needs follows the expression, never the template: a form answers on its fields, and asking
+    // it for a scene's player would report every build unmeasured.
+    const form = withHarnessChecks({ id: "f", checks: [] as Check[] }, {
       ownsMain: true,
-      app: { kind: "top-down" },
-    } as never).checks.find((c: { id: string }) => c.id === "keys-move-player") as { expr: string; needs?: string[] };
-    assert.deepEqual(topDown.needs, [...new Set([...topDown.expr.matchAll(/delta\('([^']+)'\)/g)].map((m) => m[1]))]);
-    assert.ok(topDown.needs!.includes("player.y"), JSON.stringify(topDown));
+      app: { kind: "form-flow" },
+    } as never).checks.find((c: { id: string }) => c.id === "fields-take-input") as { expr: string; needs?: string[] };
+    assert.deepEqual(form.needs, [...new Set([...form.expr.matchAll(/delta\('([^']+)'\)/g)].map((m) => m[1]))]);
+    assert.deepEqual(form.needs, ["ui.edits"]);
     assert.equal(
-      evaluateProbeCheck({ id: "keys-move-player", kind: "probe", ...topDown } as never, {
+      evaluateProbeCheck({ id: "fields-take-input", kind: "probe", ...form } as never, {
         stateEarly: {},
-        state: { player: { x: 1, y: 1, z: 1 } },
+        state: { ui: { edits: 3 } },
       }).pass,
       null,
+      "a page that reported no counter early is unmeasured, never green",
+    );
+    assert.equal(
+      evaluateProbeCheck({ id: "fields-take-input", kind: "probe", ...form } as never, {
+        stateEarly: { ui: { edits: 0 } },
+        state: { ui: { edits: 3 } },
+      }).pass,
+      true,
     );
   });
 
