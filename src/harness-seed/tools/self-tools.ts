@@ -316,7 +316,7 @@ export const tools: HarnessTool[] = [
     description: "Take a checkpoint of the current state so you can come back to it.",
     parameters: {
       type: "object",
-      properties: { reason: str("what this checkpoint is"), project: str("project project to include") },
+      properties: { reason: str("what this checkpoint is"), project: str("project to include") },
       required: ["reason"],
     },
     async execute(args, ctx) {

@@ -133,7 +133,7 @@ const PHRASES: Array<[RegExp, (match: RegExpMatchArray) => StatusWords]> = [
   [/^integration facet$/i, () => ({ line: "Working on the merged build", short: "Merging" })],
   [/^global verdict$/i, () => ({ line: "Deciding what this build is worth", short: "Deciding" })],
   [/^director judging (.+)$/i, (m) => ({ line: `The lead is reviewing ${m[1]}`, short: `Reviewing ${m[1]}` })],
-  [/^director playtesting (.+)$/i, (m) => ({ line: `The lead is playing ${m[1]}`, short: `Playing ${m[1]}` })],
+  [/^director playtesting (.+)$/i, (m) => ({ line: `The lead is trying ${m[1]}`, short: `Trying ${m[1]}` })],
   [/^director finishing$/i, () => ({ line: "The lead is finishing the build", short: "Finishing" })],
   [/^director$/i, () => ({ line: "The lead is watching the workers", short: "The lead" })],
   [/^iteration (\d+) — building$/i, (m) => ({ line: `Round ${m[1]} · building`, short: `Round ${m[1]}` })],
@@ -609,14 +609,14 @@ export function nightWords(night: {
     return {
       headline: `Finished${after} · live in your project`,
       because: landing
-        ? `${capitalise(landing)} — open Live to play it.`
-        : "This build is your project now — open Live to play it.",
+        ? `${capitalise(landing)} — open Live to use it.`
+        : "This build is your project now — open Live to use it.",
     };
   }
   if (night.landed === false) {
     // Nothing merged: the old copy promised "kept and playable" over a card with no button at all.
     return hasBuild
-      ? { headline: `Finished${after} · not made live yet`, because: `The build is kept and playable — ${why}.` }
+      ? { headline: `Finished${after} · not made live yet`, because: `The build is kept and usable — ${why}.` }
       : { headline: `Finished${after} · nothing new`, because: `Your project is as you left it — ${why}.` };
   }
   return { headline: `Finished${after}`, because: `${capitalise(why)}.` };
@@ -1083,7 +1083,7 @@ export function resumedWords(parts: number): string {
  */
 const LIVE_BEHIND_WORDS = {
   [LiveBehindReason.Changed]: "The project changed — reload to see it",
-  [LiveBehindReason.Build]: "A new build is ready — reload to play it",
+  [LiveBehindReason.Build]: "A new build is ready — reload to use it",
   [LiveBehindReason.Broken]: "This build turned out not to run — reload to go back to your project",
 } as const satisfies Record<LiveBehindReason, string>;
 
@@ -1102,7 +1102,7 @@ export function liveBehindLabel(reason: LiveBehindReason, note: string | null): 
 export const STAGE_WORDS = {
   stop: "Stop project",
   stopping: "Stopping project",
-  play: "Play project",
+  play: "Run project",
   starting: "Starting project",
   fullScreen: "Full screen",
 } as const;
@@ -1138,9 +1138,9 @@ const SCREEN_DONE: Record<ScreenDeed, string> = {
 };
 
 /** A frame from a producer that predates deed codes: the agent is at its screen, doing something. */
-const SCREEN_PLAYING = { doing: "Playing", done: "Played" } as const;
+const SCREEN_PLAYING = { doing: "Using", done: "Used" } as const;
 
-/** Keys a player reads differently from the name an agent gives them. */
+/** Keys a person reads differently from the name an agent gives them. */
 const KEY_WORD: Record<string, string> = {
   arrowleft: "←",
   left: "←",
@@ -1173,7 +1173,7 @@ function keyWord(key: string): string {
   return key.length === 1 ? key.toUpperCase() : key.charAt(0).toUpperCase() + key.slice(1);
 }
 
-/** Keys as a player reads them: "space" is Space, "ArrowRight" is →, "shift+w" is Shift+W. */
+/** Keys as a person reads them: "space" is Space, "ArrowRight" is →, "shift+w" is Shift+W. */
 export function keysWords(keys: readonly string[]): string {
   return keys
     .flatMap((combo) => (combo === "+" ? [combo] : combo.split("+").filter(Boolean)))

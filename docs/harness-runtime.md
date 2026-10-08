@@ -7,19 +7,22 @@ What the harness may assume of any served page (studio-ultra M4). Every page the
 carries the studio's own shim before the project's first line, so `window.__studio` answers on a project
 that never heard of the contract, the studio owns the clock, `seed(n)` is reproducible, draw calls
 are counted at the graphics API, and readiness is a fact the page reports rather than a wait. That
-holds for any Three.js project of any shape — inline, ES modules with an import map, a Vite bundle
-(which adds the two-line `installStudio({ renderer, player })` and nothing else), WebGL or WebGPU.
-It does not hold for Phaser, plain canvas 2D or an engine export: those are out of scope, and a
-folder whose kind is `engine-export` can be played and photographed but can never start a night.
+holds for any web page of any shape — inline, ES modules with an import map, a Vite bundle (which adds
+the two-line `installStudio({ probes })` and nothing else), a canvas, WebGL or WebGPU. What people did
+to the page (clicks, typing, navigation, errors, unnamed controls, sideways overflow) is counted by the
+shim itself and rides on `state().ui`. It does not hold for an engine export: a folder whose kind is
+`engine-export` can be opened and photographed but can never start a night.
 
-The kind of project (`loop/kinds.ts`). Eight kinds — first-person, third-person, top-down, side-2d,
-racing, flight, static-board, free-camera. Each names the traits it implies, the state axes its
-look and move probes read, the eye cameras it wants, its critic and its play script. Every trait is
+The kind of project (`loop/kinds.ts`). Eight kinds — dashboard, form-flow, list-manager, content-site,
+editor, data-viz, utility, graphics. Each names the traits it implies, the state axes its navigation,
+edit, look and move probes read, whether it wants eye cameras, its critic and its exercise script
+(clicks, typing, Tab, scrolling; `graphics` walks and looks). Every trait is
 OFF until the planner, the director or `studio.json`'s nested `project` block declares it, so a project
 nobody described carries no harness input check at all; a declared kind supplies its traits and an
 explicit boolean beside it wins. The harness drives that kind's play script before every
 judgement, and `appLine(run.app)` is the first line of every judge call. Two critics, not one:
-`place` for a world a player walks through and `screen` for a board, a puzzle or a builder.
+`screen` for software a person reads and operates (the default) and `place` for a world a person moves
+through (`graphics`).
 
 Malformed facet ballots hold the current build and report an unmeasured comparison. A
 faceted vote needs all four explicit A/B/tie answers; an invalid legacy facet pick cannot

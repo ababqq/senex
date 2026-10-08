@@ -63,7 +63,7 @@ function BuildActions({
         }
       >
         <Icon name="play" size={13} />
-        Play this build
+        Open this build
       </Button>
       <Button
         onClick={() =>

@@ -975,6 +975,21 @@ function deltaPathsIn(expr: unknown): string[] {
   return [...new Set(found)].slice(0, MAX_DELTA_PATHS);
 }
 
+/** The harness-owned check ids a project's declared traits put on a board: page rules everywhere, input rules on the entry's owner. */
+function harnessChecksFor(
+  traits: ReturnType<typeof normalizeAppTraits>,
+  { owner, screen }: { owner: boolean; screen: boolean },
+): string[] {
+  return [
+    ...(traits.ui ? ["no-console-errors"] : []),
+    ...(screen && traits.ui ? ["controls-named", "no-horizontal-overflow"] : []),
+    ...(owner && traits.navigation ? ["nav-changes-view"] : []),
+    ...(owner && traits.typing ? ["fields-take-input"] : []),
+    ...(owner && traits.mouseLook ? ["look-turns-camera"] : []),
+    ...(owner && traits.keyboardMove ? ["keys-move-player"] : []),
+  ];
+}
+
 /**
  * The harness-owned checks a facet carries, conditional on what the plan says the project IS:
  * the page-level rules on every facet of a project with DOM UI (any facet can introduce an
@@ -999,14 +1014,7 @@ export function withHarnessChecks<S extends { checks?: Check[] }>(
   const traits = normalizeAppTraits(app);
   const owner = ownsMain || role === "integration";
   const probes = inputProbesFor(app) ?? {};
-  const wanted = [
-    ...(traits.ui ? ["no-console-errors"] : []),
-    ...(screen && traits.ui ? ["controls-named", "no-horizontal-overflow"] : []),
-    ...(owner && traits.navigation ? ["nav-changes-view"] : []),
-    ...(owner && traits.typing ? ["fields-take-input"] : []),
-    ...(owner && traits.mouseLook ? ["look-turns-camera"] : []),
-    ...(owner && traits.keyboardMove ? ["keys-move-player"] : []),
-  ];
+  const wanted = harnessChecksFor(traits, { owner, screen });
   const overrides: Record<string, AnyRecord> = {
     "nav-changes-view": inputProbe(probes.navigate, "nav-changes-view"),
     "fields-take-input": inputProbe(probes.edit, "fields-take-input"),

@@ -7,7 +7,7 @@
     </picture>
   </a>
 </p>
-<p align="center">Desktop app for project dev with AI.</p>
+<p align="center">Desktop app for building web software with AI.</p>
 <p align="center">
   <a href="https://github.com/genex-games/genex-desktop/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/genex-games/genex-desktop?style=flat-square" /></a>
   <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/github/license/genex-games/genex-desktop?style=flat-square" /></a>
@@ -33,7 +33,8 @@ Genex is early: expect rough edges, and tell us about them in
 
 → Use your Claude Code or ChatGPT subscription\
 → Or run local models\
-→ Multi-agent project dev: mix Opus and GPT models across the main agent, workers and reviewers\
+→ Multi-agent software dev: mix Opus and GPT models across the main agent, workers and reviewers\
+→ Web apps, dashboards, forms, editors and sites: each build is opened, clicked through and judged on the page itself\
 → Make 3D assets locally with the Blender plugin\
 → Meshy, Tripo, ElevenLabs and more through the Genex tools router\
 → Export anywhere, or publish to the web\

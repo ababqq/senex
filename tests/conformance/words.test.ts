@@ -141,8 +141,8 @@ describe("statusWords", () => {
       short: "Reviewing Crash damage",
     });
     assert.deepEqual(statusWords(`${run} · director playtesting Crash damage`), {
-      line: "The lead is playing Crash damage",
-      short: "Playing Crash damage",
+      line: "The lead is trying Crash damage",
+      short: "Trying Crash damage",
     });
     // Flipped (owner, 2026-10-02): no time-of-day words in the app's copy.
     assert.deepEqual(statusWords(`${run} · director finishing`), {
@@ -258,7 +258,7 @@ describe("how a night reads when it is over", () => {
       }).headline,
       "Finished after 21 rounds · not made live yet",
     );
-    assert.match(nightWords({ rounds: 21, landed: false, stoppedBecause: "land=no" }).because, /kept and playable/);
+    assert.match(nightWords({ rounds: 21, landed: false, stoppedBecause: "land=no" }).because, /kept and usable/);
     assert.match(nightWords({ rounds: 1, landed: true }).headline, /after 1 round ·/);
     // An older log says nothing about landing: the headline claims nothing either.
     assert.equal(
@@ -277,9 +277,9 @@ describe("how a night reads when it is over", () => {
     );
   });
 
-  it("promises a playable build only when there is one", () => {
+  it("promises a usable build only when there is one", () => {
     // A night that merged nothing (an early stop, an unhealthy integration) used to read
-    // "The build is kept and playable" over a card with no button on it at all.
+    // "The build is kept and usable" over a card with no button on it at all.
     const nothing = nightWords({
       rounds: 4,
       landed: false,
@@ -292,7 +292,7 @@ describe("how a night reads when it is over", () => {
     assert.match(nothing.because, /as you left it/);
     assert.match(
       nightWords({ rounds: 4, landed: false, hasBuild: true, stoppedBecause: "land=no" }).because,
-      /kept and playable/,
+      /kept and usable/,
     );
   });
 
@@ -347,7 +347,7 @@ describe("the morning card", () => {
       ...over,
     });
 
-  it("offers Play it, and says the night's own report, when the build is live", () => {
+  it("offers Open, and says the night's own report, when the build is live", () => {
     const words = night({
       landed: true,
       hasBuild: false,
@@ -373,13 +373,13 @@ describe("the morning card", () => {
     // An older night wrote no landing sentence: the card keeps the plain one.
     const older = night({ landed: true, hasBuild: false, stoppedBecause: "the director finished the run" });
     // Flipped (owner, 2026-10-02): no time-of-day words in the app's copy.
-    assert.equal(older.because, "This build is your project now — open Live to play it.");
+    assert.equal(older.because, "This build is your project now — open Live to use it.");
   });
 
   it("offers the build itself when the night merged one but did not make it live", () => {
     const words = night();
     assert.deepEqual(words.actions, ["play-build"]);
-    assert.match(words.because, /kept and playable/);
+    assert.match(words.because, /kept and usable/);
   });
 
   it("offers nothing, and promises nothing, when the night merged nothing", () => {
@@ -739,7 +739,7 @@ describe("what the night says as it goes", () => {
 
   it("says on Reload what would change Live, in the user's own terms", () => {
     assert.equal(liveBehindWords("changed"), "The project changed — reload to see it");
-    assert.equal(liveBehindWords("build"), "A new build is ready — reload to play it");
+    assert.equal(liveBehindWords("build"), "A new build is ready — reload to use it");
     for (const reason of ["changed", "build", "broken"] as const) {
       const line = liveBehindWords(reason);
       assert.doesNotMatch(line, /handle|lease|pool|worktree|integration|commit|preview/i, line);

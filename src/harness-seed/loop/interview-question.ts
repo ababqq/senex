@@ -89,7 +89,7 @@ export const askUser: HarnessTool = {
       question: {
         type: "string",
         description:
-          "One short question whose answer changes what you do next (for example: what the player does or how the project should look, before a build; or a build versus research and a plan first).",
+          "One short question whose answer changes what you do next (for example: what the user does with it or how the project should look, before a build; or a build versus research and a plan first).",
       },
       options: {
         type: "string",

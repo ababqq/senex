@@ -527,7 +527,7 @@ describe("a finished night reopened", () => {
     const { graph, summary, rows } = rowsOf(events);
     const reopenedAt = Date.parse(reopen.created_at);
     assert.match(statusLine(graph, summary, rows, reopenedAt + 5 * 60_000).strong, / · 5 of 30 min$/);
-    assert.equal(resultStatus(graph, summary).word, "Ready to play", "its build stands, but nothing is live yet");
+    assert.equal(resultStatus(graph, summary).word, "Ready to use", "its build stands, but nothing is live yet");
   });
 });
 
@@ -554,7 +554,7 @@ describe("between parts", () => {
 
   it("calls it ready once it ran, or says it didn't start", () => {
     const ran = rowsOf([...merged(), event("integration_health", { head: "h1", ok: true, problems: [] })]);
-    assert.equal(resultStatus(ran.graph, ran.summary).word, "Ready to play");
+    assert.equal(resultStatus(ran.graph, ran.summary).word, "Ready to use");
     const failed = rowsOf([
       ...merged(),
       event("integration_health", { head: "h1", ok: false, problems: ["black screen"] }),
@@ -568,7 +568,7 @@ describe("between parts", () => {
     pictured.summary.captures = { current: "/runs/run_ice/director/health_h1/default.jpg" };
     assert.equal(
       resultStatus(pictured.graph, pictured.summary).word,
-      "Ready to play",
+      "Ready to use",
       "a picture of the build is proof enough",
     );
   });

@@ -445,9 +445,9 @@ function memoryWords(memoryRestored: boolean, leads: boolean): string {
   return "You kept no .studio/DIRECTOR.md last session: run_status and the notes above are all the memory this one has. Start one now.";
 }
 
-/** What the base session is told about its clock: boot a small visible scene and hand back, not the whole goal. */
+/** What the base session is told about its clock: boot a small visible page and hand back, not the whole goal. */
 export function preparationBudgetNote(budgetMinutes: number): string {
-  return `PREPARATION BUDGET: ${budgetMinutes} minutes. Only make the entry boot with a renderer, camera and a small visible starting scene; reuse the existing template. Do not implement the entire goal, research the instrumentation or design a framework. Inspect it once, fix startup errors, and return so the lead has time to build the requested scene.`;
+  return `PREPARATION BUDGET: ${budgetMinutes} minutes. Only make the entry boot with its shell and a small visible first screen; reuse the existing template. Do not implement the entire goal, research the instrumentation or design a framework. Inspect it once, fix startup errors, and return so the lead has time to build the requested product.`;
 }
 
 /** What the director's session is told after an engine limit it was made to wait out. */

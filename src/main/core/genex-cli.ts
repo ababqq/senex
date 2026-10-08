@@ -46,7 +46,7 @@ const RUN_ID_CHARS = 12;
 export const GENEX_PLUGIN_ID = "genex";
 
 const MESSAGE = {
-  InvalidProject: "This call is not bound to a project project Studio knows.",
+  InvalidProject: "This call is not bound to a project Studio knows.",
 } as const;
 
 /** What a run needs from Studio. Every path is Studio's own; none comes from the agent. */

@@ -344,8 +344,8 @@ describe("v2 contract upgrade", () => {
     );
     const validation = (await api["project.validate"]!({ project: "oldgame" } as never)) as { warnings: string[] };
     assert.ok(
-      validation.warnings.some((w) => /without scene\/camera\/player/.test(w)),
-      "validate now asks main.js to pass the v2 config",
+      validation.warnings.some((w) => /without probes/.test(w)),
+      "validate now asks main.js to pass probes",
     );
   });
 });

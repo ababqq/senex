@@ -163,7 +163,7 @@ describe("the ledger: one durable record per outcome", () => {
     assert.equal(records[1]!.rule, "landed");
     assert.match(
       ledgerFile(workspace, "Skate Prod"),
-      /library\/projects\/skate-prod\.jsonl$/,
+      /library\/games\/skate-prod\.jsonl$/,
       "the studio's own state, never the user's repo",
     );
   });

@@ -796,7 +796,7 @@ function RunDetails({
         {head && project && (
           <Button variant="secondary" onClick={() => onPlayCommit(project, head)}>
             <Icon name="play" size={13} />
-            Play build
+            Open build
           </Button>
         )}
         {entry && project && (

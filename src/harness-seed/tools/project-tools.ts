@@ -67,7 +67,7 @@ function pinProject(args: AnyRecord, ctx: ToolCtx): { project?: string; error?: 
 export const tools: HarnessTool[] = [
   {
     name: "list_projects",
-    description: "List the project projects in the studio.",
+    description: "List the projects in the studio.",
     parameters: { type: "object", properties: {} },
     async execute(_args, ctx) {
       if (ctx.project) {
@@ -83,7 +83,7 @@ export const tools: HarnessTool[] = [
   {
     name: "new_project",
     description:
-      "Create a new project project from the three.js template. The template already satisfies the studio contract (window.__studio), so the first screenshot works immediately.",
+      "Create a new project from the web app template. The template already satisfies the studio contract (window.__studio), so the first screenshot works immediately.",
     parameters: {
       type: "object",
       properties: { name: str("lowercase project id, e.g. 'pong'"), title: str("human title") },
@@ -101,8 +101,7 @@ export const tools: HarnessTool[] = [
 
   {
     name: "list_files",
-    description:
-      "List the files of a project project. Images in references/ or ref/ are stills to look at with read_file.",
+    description: "List the files of a project. Images in references/ or ref/ are stills to look at with read_file.",
     parameters: { type: "object", properties: { project: str("project id; defaults to this chat's folder") } },
     async execute(args, ctx) {
       const pin = pinProject(args, ctx);
@@ -151,8 +150,7 @@ export const tools: HarnessTool[] = [
 
   {
     name: "write_file",
-    description:
-      "Write a file in a project project (creates or overwrites). Reload the preview afterwards to see the change.",
+    description: "Write a file in a project (creates or overwrites). Reload the preview afterwards to see the change.",
     parameters: {
       type: "object",
       properties: {

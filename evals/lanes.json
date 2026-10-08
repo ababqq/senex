@@ -105,7 +105,9 @@
       "flagsDigest": "e3616092f174",
       "status": "harness",
       "fixture": false,
-      "disabledPlugins": ["genex"]
+      "disabledPlugins": [
+        "genex"
+      ]
     },
     {
       "id": "genex-codex-plugin-off",
@@ -121,7 +123,9 @@
       "flagsDigest": "222c81208f74",
       "status": "harness",
       "fixture": false,
-      "disabledPlugins": ["genex"]
+      "disabledPlugins": [
+        "genex"
+      ]
     },
     {
       "id": "fixture-genex",

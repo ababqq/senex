@@ -16,7 +16,7 @@ appear in Activity, not here.
 Activity orders pending suggestions, **Recent runs**, then **What Harness has learned**.
 Restores, restarts and app updates are omitted. The host restores a failed harness update;
 failed recovery offers **Reset harness to shipped version** or Quit. Run rows show the project,
-request and outcome; expanding shows captures, Play build and Open project chat. Checks stay in
+request and outcome; expanding shows captures, Open build and Open project chat. Checks stay in
 Builds. Empty Activity offers **Start building** or **New project**.
 Timed runs start from the project composer's Mode menu; settings live in **Settings → Harness**.
 

@@ -232,7 +232,7 @@ export function spikeBrief({
     `## Intent`,
     `<2–5 sentences: what the technique does and why the naive approach fails, with the numbers>`,
     `## Sketch`,
-    "```js\n<the core of the technique, 10–40 lines, plain three.js>\n```",
+    "```js\n<the core of the technique, 10–40 lines, plain JavaScript (three.js for a 3D technique)>\n```",
     `## Port`,
     `<how to apply it in the facet's own files: which module, what to tag, what to expose>`,
     ``,

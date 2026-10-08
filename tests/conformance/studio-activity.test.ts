@@ -96,7 +96,7 @@ test("project chats say plainly what Harness learned; restarts become Work rows 
   assert.equal(result[2]!.kind === "notice" && result[2].row.state, "stopped");
   assert.equal(
     result[5]!.kind === "learning" && result[5].text,
-    "Harness learned to check the player’s view before finishing a scene.",
+    "Harness learned to check a narrow window before finishing a screen.",
   );
   assert.ok(
     !result.some((item) => "text" in item && /facet-decomposition|past tasks reviewed|rejected/.test(item.text)),

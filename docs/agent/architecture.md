@@ -685,7 +685,7 @@ it is converted in a deterministic commit. `landBuild` applies the same conversi
 (`unversionedNested`), and the night's landing stops with `nested-not-versioned`.
 
 **Project kinds and evidence.** `loop/kinds.ts` is the one table of eight kinds, with their traits
-(off until declared), probe axes, eye cameras, critic (`place` or `screen`) and play script;
+(off until declared), probe axes, critic (`screen`, or `place` for `graphics`) and exercise script;
 `appLine(run.app)` heads every judge call. `run.app` comes from the plan, then the scout, then
 `studio.json`'s nested `project` block; the plan's declaration is written back and committed once a
 night. `gatherEvidence` (clock proof `proveStep`, one classifier `classifyEvidenceFailure`) is
@@ -782,7 +782,7 @@ un-raced `evaluate()` calls never settle.
 per stepped frame; `window.__studio` is a merging facade that keeps whatever the project defines. The
 evidence globals (`__studioClock`, `__studioDraw`, `__studioCapture`, `__studioGl`, `__studioHook`)
 are accessors with no-op setters. `hook.ts` reports renderers and reads the scene and camera off
-frames the project draws; a bundled project adds `installStudio({ renderer, player })`. `capture.ts`
+frames the project draws; a bundled project adds `installStudio({ probes })`. `capture.ts`
 reads the canvas at the end of a drawn frame and composites over the page background (WebGPU reads
 depend on the recorded `alphaMode`); otherwise the compositor's `capturePage()` answers. Every shot
 records provenance (`stats.source`, `composited`, `drawCalls`, `provenance`, `surface`). Draw calls

@@ -37,7 +37,7 @@ function keysToPress(args: AnyRecord): string[] {
 export const tools: HarnessTool[] = [
   {
     name: "load_preview",
-    description: "Load a project project into the built-in browser.",
+    description: "Load a project into the built-in browser.",
     parameters: { type: "object", properties: { project: str("project id") }, required: ["project"] },
     async execute(args, ctx) {
       const url = await ctx.call(HostMethod.PreviewLoad, { project: args.project });
@@ -98,7 +98,7 @@ export const tools: HarnessTool[] = [
   {
     name: "press_keys",
     description:
-      "Press keys in the project preview the way a player would (WASD, Space, arrows). Hold with holdMs. Then look at a screenshot — 'I added WASD' is not a fact until the player moved.",
+      "Press keys in the project preview the way a person would (Tab, Enter, Escape, arrows, shortcuts; WASD and Space in a game). Hold with holdMs. Then look at a screenshot — 'I added the shortcut' is not a fact until the screen changed.",
     parameters: {
       type: "object",
       properties: {
@@ -180,7 +180,7 @@ export const tools: HarnessTool[] = [
   {
     name: "play_deterministic",
     description:
-      "Run a scripted, reproducible playthrough: seed, pause, drive controls, then advance by fixed steps. Two builds with the same seed and script are directly comparable. Omit script to use a short WASD/look/jump exercise.",
+      "Run a scripted, reproducible exercise: seed, pause, drive controls, then advance by fixed steps. Two builds with the same seed and script are directly comparable. Omit script to use the kind's own exercise (clicks, typing, Tab, scrolling).",
     parameters: {
       type: "object",
       properties: {

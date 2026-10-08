@@ -44,8 +44,8 @@ export function autoModeRules(seat: AutoModeSeat): { environment: string[]; allo
     environment: [
       BUILT_IN,
       seat.projectFolder
-        ? "**AI Game Studio**: A project chat on the person's own Mac, no sandbox. The person is in the chat, chose Auto, and expects ordinary project-development work done without asking."
-        : "**AI Game Studio**: A project chat on the person's own Mac, no sandbox. The person chose Auto and expects ordinary project-development work done without asking; while a build runs they may be away, and this session's prompts come from the studio's build loop, not from them.",
+        ? "**Genex**: A project chat on the person's own Mac, no sandbox. The person is in the chat, chose Auto, and expects ordinary project-development work done without asking."
+        : "**Genex**: A project chat on the person's own Mac, no sandbox. The person chose Auto and expects ordinary project-development work done without asking; while a build runs they may be away, and this session's prompts come from the studio's build loop, not from them.",
       seat.projectFolder
         ? `**Project folder**: ${seat.cwd}, the working directory and trusted repo, is the person's project. Before each message the studio checkpoints under refs/studio/ the files git does not ignore (not .env*, nested repos or files over 50 MB); Rewind restores them while HEAD stays put.`
         : "**Build session**: This session leads or answers for a build of the person's project. A lead edits and commits in the run's integration worktree, the build's workers change the project in worktrees of their own, and the studio lands the work in the project folder; its own edits there are not checkpointed.",

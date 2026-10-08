@@ -842,7 +842,7 @@ function describeEvidence(candidate: Candidate): string {
     );
     if (candidate.shots.some((s: AnyRecord) => s.camera === "user:view")) {
       lines.push(
-        `user:view is the page as the user sees it (DOM included) on the default camera; every other frame is the canvas alone. Anything on user:view that default lacks is UI the player sees and the checks did not — a defect.`,
+        `user:view is the page as the user sees it (DOM included) on the default view; on a canvas project every other frame is the canvas alone. Anything on user:view that default lacks is UI the user sees and the checks did not — a defect.`,
       );
     }
   }
@@ -850,7 +850,7 @@ function describeEvidence(candidate: Candidate): string {
     lines.push(`demos declared but not run this pass (unmeasured, not failing): ${candidate.skippedDemos.join(", ")}`);
   if (candidate.motion?.length)
     lines.push(
-      `a ${candidate.motion.length}-frame motion strip from the scripted walk is attached (MOTION 1…${candidate.motion.length}) — judge feel from it`,
+      `a ${candidate.motion.length}-frame motion strip from the scripted exercise is attached (MOTION 1…${candidate.motion.length}) — judge feel from it`,
     );
   if (candidate.consoleErrors?.length)
     lines.push(
@@ -1379,7 +1379,7 @@ function imagesLine(images: MessageImage[]): string {
 /** The move the accepted build was asked to make, and the questions asked about it. */
 function moveLine(move: string | null | undefined, accepted: string): string {
   if (!move) return "";
-  return `\nTHE MOVE the builder of build ${accepted} was asked to make this iteration (a structural change, not polish): ${String(move).slice(0, CLIP_BRIEF)}\nAnswer moveDelivered: is that change there in build ${accepted} — would a player recognise it? Answer true when it is there even if the other build has it too, and then also answer moveAlreadyPresent: true (an earlier build already delivered it). Answer scale: is the difference between the builds structural or polish?`;
+  return `\nTHE MOVE the builder of build ${accepted} was asked to make this iteration (a structural change, not polish): ${String(move).slice(0, CLIP_BRIEF)}\nAnswer moveDelivered: is that change there in build ${accepted} — would a user recognise it? Answer true when it is there even if the other build has it too, and then also answer moveAlreadyPresent: true (an earlier build already delivered it). Answer scale: is the difference between the builds structural or polish?`;
 }
 
 /** The accepted build's style distances, named for its side. */
@@ -1478,7 +1478,7 @@ export async function tasteVeto(
       "Pick the side with the better feel, or tie. If you pick the side that lost on the checks you MUST name the one regression that justifies it and phrase it as a new yes/no vision check.",
       "Name `bigMove`: the ONE bold transformation of this facet's whole domain that would most close the gap to the goal and the reference — a new system, a layer of depth, a different model, a reworked feel; never a tweak. When several problems share a root cause, name the cause.",
       "List in `defects` what is broken, missing or unreadable in the better build, worst first; at most three small cosmetic nits go in `polish`, never in `defects`. `satisfied` = the facet genuinely delivers its brief; be strict.",
-      "When the user content names THE MOVE the builder was asked to make, answer `moveDelivered`: is that structural change there in the build the checks accepted (true even when the other build has it too — then `moveAlreadyPresent` is true)? And `scale`: is the difference between the two builds structural (extent, a system, a mechanic, the player's path, the UI) or polish (materials, lighting, parameters)?",
+      "When the user content names THE MOVE the builder was asked to make, answer `moveDelivered`: is that structural change there in the build the checks accepted (true even when the other build has it too — then `moveAlreadyPresent` is true)? And `scale`: is the difference between the two builds structural (extent, a system, a workflow, the user's path, the screens) or polish (materials, lighting, parameters)?",
       `Reply with JSON only: ${TASTE_REPLY}`,
     ].join("\n"),
     artefactTokens(run),
@@ -1570,7 +1570,7 @@ export async function reviewDiff(
     ctx,
     "code-review.md",
     [
-      "Review ONE diff of a three.js project for studio-contract violations only (Math.random / wall clock in interaction, lying probes, broken __studio, untagged new meshes, edits outside the facet's files). No style comments.",
+      "Review ONE diff of a web project for studio-contract violations only (Math.random / wall clock in interaction, lying probes, broken __studio, controls with no name, untagged new meshes in a 3D scene, edits outside the facet's files). No style comments.",
       'Set "gaming": true only on a finding where a check is made to pass without the work — a probe, flag or value forced to what the check wants — and name that check\'s id in "what".',
       'Reply with JSON only: {"violations":[{"file":"…","line":0,"what":"…","fix":"…","gaming":false}],"summary":"…"}',
     ].join("\n"),
@@ -2021,7 +2021,7 @@ export function renderLiveness(liveness: { principles?: AnyRecord[]; summary?: s
   return lines.join("\n");
 }
 
-/** The critic's pictures: `default` and up to three of the facet's cameras, one eye, and the walk's first and last frames. */
+/** The critic's pictures: `default` and up to three of the facet's cameras, one eye if the project has any, and the exercise's first and last frames. */
 function criticImages(evidence: Candidate, cameras: string[] | null, facet: AnyRecord): MessageImage[] {
   const spec: string[] = (cameras ?? facet?.cameras ?? []).filter(
     (c: unknown) => typeof c === "string" && !c.startsWith("eye:"),
@@ -2036,7 +2036,7 @@ function criticImages(evidence: Candidate, cameras: string[] | null, facet: AnyR
       images.push({
         mimeType: "image/jpeg",
         data: frame.base64,
-        label: `BUILD / MOTION ${index + 1} (${index === 0 ? "first" : "last"} frame of a 6-frame walk)`,
+        label: `BUILD / MOTION ${index + 1} (${index === 0 ? "first" : "last"} frame of a 6-frame exercise)`,
       });
   }
   return images;
@@ -2081,7 +2081,7 @@ export async function livenessCritique(
     which === "screen" ? "readability.md" : "liveness.md",
     [
       which === "screen"
-        ? "You are the readability critic for ONE FACET of a project build. This project is a screen, not a place a player walks through: answer what the screen tells the player, against eight principles, each scored 0-3 with one sentence of reason from the frames and one concrete fix a builder could land in an iteration."
+        ? "You are the readability critic for ONE FACET of a project build. This project is a screen, not a place a person walks through: answer what the screen tells the person using it, against eight principles, each scored 0-3 with one sentence of reason from the frames and one concrete fix a builder could land in an iteration."
         : "You are the liveness critic for ONE FACET of a project build. Answer why it does not yet feel like a real place, against eight principles, each scored 0-3 with one sentence of reason from the frames and one concrete fix a builder could land in an iteration.",
       `Grow principles: ${grow}. Polish principles: ${polish}.`,
       `Reply with JSON only: ${shape}`,

@@ -11,11 +11,11 @@
  * to the place the brief is about, reads what it needs, and answers three questions the
  * planner cannot answer from prose:
  *
- *   1. what the project shows now, and how a player reaches the requested state (the SETUP the
+ *   1. what the project shows now, and how a user reaches the requested state (the SETUP the
  *      harness will replay before every judge, capture and worker frame, with a state probe
  *      that says it landed);
- *   2. how many builders the ask deserves — one for a refinement of one scene, more only
- *      along seams a player can name — and why;
+ *   2. how many builders the ask deserves — one for a refinement of one screen, more only
+ *      along seams a user can name — and why;
  *   3. what the planner should know: the files that matter, the risks, the things that are
  *      already there and must not be rebuilt.
  *
@@ -77,16 +77,16 @@ const MAX_GESTURE_KEYS = 4;
 const REPORT_SHAPE =
   '{"seen":"<what the window shows on load — the map, the mode, the camera, the HUD, in two sentences>",' +
   '"requested":"<what the brief is about, as seen in the project — which map, mode, area, moment>",' +
-  '"setup":{"actions":[{"type":"tap","keys":["i"]},{"type":"wait","ms":500},{"type":"click","x":480,"y":300,"px":true}],"demo":null,"gesture":false,"verify":{"path":"maps.activeId","equals":"macba"},"note":"<one sentence: what this reaches>"},' +
+  '"setup":{"actions":[{"type":"tap","keys":["g"]},{"type":"wait","ms":500},{"type":"click","x":480,"y":300,"px":true}],"demo":null,"gesture":false,"verify":{"path":"route","equals":"#/settings"},"note":"<one sentence: what this reaches>"},' +
   '"reachedRequested":true,' +
   '"kind":"<one of: ' +
   KIND_NAMES.join(", ") +
   '>",' +
-  '"play":[{"type":"hold","keys":["w"],"ms":800},{"type":"look","dx":40}],' +
+  '"play":[{"type":"click","x":0.5,"y":0.4},{"type":"type","text":"hello"},{"type":"press","combo":"Tab"}],' +
   '"files":["<the files a builder must read or edit for this ask>"],' +
   '"already":["<what already exists and must be refined, not rebuilt>"],' +
-  '"risks":["<what could go wrong for a builder — build steps, ownership, a menu that swallows input>"],' +
-  '"workers":{"count":1,"why":"<why this many — one for a refinement of one scene; more only along seams a player can name, each big enough to fill an hour>"},' +
+  '"risks":["<what could go wrong for a builder — build steps, ownership, a dialog that swallows input>"],' +
+  '"workers":{"count":1,"why":"<why this many — one for a refinement of one screen; more only along seams a user can name, each big enough to fill an hour>"},' +
   '"seams":["<if count > 1: the seams, one per worker>"]}';
 
 /** The brief for the scout session: look, play to the requested state, report as JSON. */
@@ -116,11 +116,11 @@ export function scoutBrief({
       ? `THIS PROJECT HAS ITS OWN SHAPE: entry ${shape?.main ?? "src/main.ts"}${shape?.build ? `, built with \`${shape.build}\`` : ""}; the studio builds it before the window loads.`
       : "",
     ``,
-    `YOU HAVE HANDS AND EYES: the studio's computer tool (${toolCall(roleEngine(run, RoleKey.Planner), "computer")}) drives the project in its own window. Start with action=screenshot. If the window does not show the thing the brief is about (a different map, a menu, a title screen), find the way a player gets there — read the project's input code and NOTES.md/DESIGN.md/README for the keys and menus, then press and click until you are there — and screenshot to prove it. Use action=state to read __studio.state() and find the field that names the map, mode or scene you reached (that is your verify probe). Keep the whole visit under ${Math.round(SCOUT_TIMEOUT_MS / MINUTE_MS)} minutes.`,
+    `YOU HAVE HANDS AND EYES: the studio's computer tool (${toolCall(roleEngine(run, RoleKey.Planner), "computer")}) drives the project in its own window. Start with action=screenshot. If the window does not show the thing the brief is about (a different account, a settings dialog, a logged-in state), find the way a user gets there — read the project's input code and NOTES.md/DESIGN.md/README for the keys and menus, then press and click until you are there — and screenshot to prove it. Use action=state to read __studio.state() and find the field that names the view, mode or record you reached (that is your verify probe). Keep the whole visit under ${Math.round(SCOUT_TIMEOUT_MS / MINUTE_MS)} minutes.`,
     ``,
-    `Then read what a builder would need: the entry, the module that owns the requested scene, the notes. Do not read everything.`,
+    `Then read what a builder would need: the entry, the module that owns the requested screen, the notes. Do not read everything.`,
     ``,
-    `HOW MANY BUILDERS: decide it from what you saw, not from the size of the brief. ${poolNote} A refinement of one existing scene, one map, one look, one mechanic is ONE builder — parallel builders on one scene merge into each other's files and lose. Two or more only when the ask has seams a player can name (a new district AND a new vehicle; terrain AND creatures) and each seam alone fills an hour. Say why.`,
+    `HOW MANY BUILDERS: decide it from what you saw, not from the size of the brief. ${poolNote} A refinement of one existing screen, one view, one look, one workflow is ONE builder — parallel builders on one screen merge into each other's files and lose. Two or more only when the ask has seams a user can name (a new reports page AND a new billing flow; the editor AND the export) and each seam alone fills an hour. Say why.`,
     ``,
     `WHAT KIND OF PROJECT IS THIS: answer from what you just drove, with one of these eight words — ${KIND_NAMES.join(", ")}. The kind decides which checks the builders' boards carry and which question the critic is asked, so a wrong word costs a whole run. If none of the eight fits, say the closest and say why in "risks".`,
     ``,

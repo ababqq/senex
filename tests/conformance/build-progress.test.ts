@@ -425,7 +425,7 @@ test("nothing goes into Live on its own while someone is watching a project in i
   ]) {
     assert.equal(appliesUnseen(held, stage), true, JSON.stringify(stage));
     assert.equal(appliesUnseen(broken, stage), true, JSON.stringify(stage));
-    // A night's newest build is never swapped in unasked: it waits for Reload, Play or Play latest.
+    // A night's newest build is never swapped in unasked: it waits for Reload, Open or Open latest.
     assert.equal(appliesUnseen(build, stage), false, JSON.stringify(stage));
   }
   assert.equal(appliesUnseen(null, { ...watching, view: "builds" }), false);

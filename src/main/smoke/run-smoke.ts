@@ -1964,7 +1964,7 @@ async function checkLiveStaysStill(
   await countLiveLoads(wc);
   check(
     "a later healthy build lights Reload instead of replacing Live",
-    await waitFor(reloadState("build", "A new build is ready — reload to play it")),
+    await waitFor(reloadState("build", "A new build is ready — reload to use it")),
   );
   await wc.executeJavaScript(`document.querySelector('[data-stage-reload]')?.focus();true`);
   await followShot(buildSmoke, "reload-behind");

@@ -67,7 +67,7 @@ export function ModelSetup(): JSX.Element {
 
 /**
  * A night is building in its builders' own copies. Once it has a build ready to play, the one thing
- * a person waiting here wants is to press Play latest; until then, the way to watch it being made.
+ * a person waiting here wants is to press Open latest; until then, the way to watch it being made.
  */
 function BuildingProject({
   graph,
@@ -88,7 +88,7 @@ function BuildingProject({
       subtitle={head ? "The latest build is ready to play." : "It shows up here as soon as it runs."}
       action={
         head ? (
-          <PlayButton label="Play latest" onPlay={() => onPlay(head)} />
+          <PlayButton label="Open latest" onPlay={() => onPlay(head)} />
         ) : (
           <Button variant="outline" onClick={onWatch}>
             Watch progress
@@ -149,7 +149,7 @@ export function LiveLoading({ leaving }: { leaving: boolean }): JSX.Element {
 
 /**
  * The person stopped the project. While a night builds, the stage is what it is for a building project
- * (the crane, Play latest or Watch progress); otherwise it says the project is stopped, with Play.
+ * (the crane, Open latest or Watch progress); otherwise it says the project is stopped, with Open.
  */
 export function StoppedProject({
   graph,
@@ -170,7 +170,7 @@ export function StoppedProject({
       art="stopped"
       title="Project stopped"
       subtitle=""
-      action={<PlayButton label="Play" onPlay={onResume} />}
+      action={<PlayButton label="Open" onPlay={onResume} />}
     />
   );
 }

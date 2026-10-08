@@ -15,10 +15,10 @@ comparison. Start with these authored tasks; use the same inputs for every candi
 | Task | Candidate difference | Required observations |
 | --- | --- | --- |
 | Starts | A valid page versus an intentional startup error | Startup result and console evidence; a broken build cannot win for appearance |
-| Movement | Working move/jump controls versus a disconnected input handler | Identical input replay, player displacement and playable preview |
-| Contact | Grounded geometry versus a visible floating object | Identical side and default views, with collision evidence kept separate |
-| Readability | Legible HUD versus clipped/low-contrast text | Fixed viewport, keyboard traversal and screenshot; appearance alone is insufficient |
-| Regressions | A prettier scene that breaks a previously passing control | Before/after behavioral checks plus the matched visual pair |
+| Input | Working controls versus a disconnected input handler | Identical input replay, the visible state change and a usable preview |
+| Layout | A contained layout versus text overflowing its container | Identical narrow and wide views, with overflow evidence kept separate |
+| Readability | Legible text versus clipped/low-contrast text | Fixed viewport, keyboard traversal and screenshot; appearance alone is insufficient |
+| Regressions | A prettier screen that breaks a previously passing control | Before/after behavioral checks plus the matched visual pair |
 | No change | Identical builds with shuffled A/B placement | Equal bytes/settings; a genuine tie is a valid outcome |
 | Missing evidence | An absent camera, malformed judge response or unavailable WebGPU measurement | Missing/invalid evidence remains distinguishable from a measured pass |
 | Scope | The requested change versus an unrelated attractive addition | Frozen task brief and evidence of the requested behavior |

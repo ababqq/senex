@@ -108,7 +108,7 @@ export const DIRECTOR_TOOLS: LiveToolSpec[] = [
   {
     name: DirectorTool.WorkerStart,
     description:
-      "Start a background builder with its own git worktree and hidden preview. loop (default): build, gather evidence, check, compare blindly, accept or roll back; repeat until done passes or budget ends, committing accepted builds. Supply 2–4 measurable done outcomes. single: one session, committed without a judge; you assess it. Returns a worker id — use wait and worker_status. One area a player can name per worker, on files of its own; start every independent area, up to the workers run_status allows at once.",
+      "Start a background builder with its own git worktree and hidden preview. loop (default): build, gather evidence, check, compare blindly, accept or roll back; repeat until done passes or budget ends, committing accepted builds. Supply 2–4 measurable done outcomes. single: one session, committed without a judge; you assess it. Returns a worker id — use wait and worker_status. One area a user can name per worker, on files of its own; start every independent area, up to the workers run_status allows at once.",
     parameters: {
       type: "object",
       properties: {
@@ -186,7 +186,7 @@ export const DIRECTOR_TOOLS: LiveToolSpec[] = [
         setup: {
           type: "string",
           description:
-            'JSON: the state its window and its judges open on — {"actions":[{"type":"tap","keys":["i"]},{"type":"click","x":480,"y":300,"px":true}],"verify":{"path":"maps.activeId","equals":"macba"},"note":"…"} or {"demo":"name","verify":{…}}. Default: the run\'s setup.',
+            'JSON: the state its window and its judges open on — {"actions":[{"type":"tap","keys":["g"]},{"type":"click","x":480,"y":300,"px":true}],"verify":{"path":"route","equals":"#/settings"},"note":"…"} or {"demo":"name","verify":{…}}. Default: the run\'s setup.',
         },
         kind: {
           type: "string",
@@ -279,7 +279,7 @@ export const DIRECTOR_TOOLS: LiveToolSpec[] = [
   {
     name: DirectorTool.Judge,
     description:
-      "Load a build, replay setup with seeded controls for thirty simulated seconds, capture cameras and player eyes, state and console. Optionally score typed checks, ask a vision question or compare blindly with another build. Returns frame paths; read them to inspect the evidence.",
+      "Load a build, replay setup with seeded controls for thirty simulated seconds, capture the declared views, state and console. Optionally score typed checks, ask a vision question or compare blindly with another build. Returns frame paths; read them to inspect the evidence.",
     parameters: {
       type: "object",
       properties: {

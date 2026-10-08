@@ -187,7 +187,7 @@ async function checkFullTurn({ core, check }: SelfTest): Promise<void> {
 
   const projects = await core.projects.list();
   check(
-    "the agent created a project project",
+    "the agent created a project",
     projects.some((g) => g.name === "selftest"),
     projects.map((g) => g.name).join(","),
   );

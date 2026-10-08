@@ -2709,7 +2709,7 @@ describe("a director's night through the real core and harness", () => {
 
     // The starting point: one base session, in the run's integration worktree, on the base brief.
     assert.equal(seen.base.length, 1, `one base session, got ${seen.base.length}`);
-    assert.match(seen.base[0]!.prompt, /You are building the starting scene/);
+    assert.match(seen.base[0]!.prompt, /You are building the first working version/);
     assert.match(seen.base[0]!.prompt, /Do not spend this stage designing a large framework/);
     assert.match(seen.base[0]!.prompt, /PREPARATION BUDGET: 3 minutes/);
     assert.ok(seen.base[0]!.timeoutMs! <= 200_000, "preparation leaves most working time to the lead");
@@ -3110,7 +3110,7 @@ describe("a director's night through the real core and harness", () => {
     // The ask is two lines now (M4.2b/M4.6): the studio's own code is already on the page and
     // finds the scene, the camera and the frames; the renderer and the player are what it cannot guess.
     assert.match(seen.contract[0]!.prompt, /Add the two lines to src\/main\.ts \(or a module it imports\)/);
-    assert.match(seen.contract[0]!.prompt, /installStudio\(\{ renderer, player \}\)/);
+    assert.match(seen.contract[0]!.prompt, /installStudio\(\{ probes \}\)/);
     assert.match(seen.contract[0]!.prompt, /Change nothing else/);
 
     // Its commit is the night's first, and it is the wiring.
@@ -3309,7 +3309,7 @@ describe("a director's night through the real core and harness", () => {
       /wire it yourself in the integration worktree — `import \{ installStudio \} from "\.\/studio\.js"`/,
       "and exactly what to do",
     );
-    assert.match(seen.director[0]!.prompt, /installStudio\(\{ renderer, player \}\)/, "which is the whole ask");
+    assert.match(seen.director[0]!.prompt, /installStudio\(\{ probes \}\)/, "which is the whole ask");
     assert.match(
       results.refused,
       /does not run/,

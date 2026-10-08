@@ -351,7 +351,7 @@ it("agent publish requests wait for Studio consent on every engine path", async 
       assert.equal(ask.tool, "genex__publish");
       assert.equal(ask.pluginId, "genex");
       assert.equal(ask.project, project);
-      assert.match(String(ask.prompt), /Publish this project on Genex/);
+      assert.match(String(ask.prompt), /Publish this game on Genex/);
       assert.equal(rig.core.resolveConsent(String(ask.consentId), approved), true);
       return ask;
     };
@@ -370,7 +370,7 @@ it("agent publish requests wait for Studio consent on every engine path", async 
           const declared = request.liveTools as Array<{ name: string; confirmation?: string }> | undefined;
           assert.match(
             String(declared?.find((tool) => tool.name === "genex__publish")?.confirmation),
-            /Publish this project on Genex/,
+            /Publish this game on Genex/,
           );
           assert.equal(declared?.find((tool) => tool.name === "genex__publish-status")?.confirmation, undefined);
           const decline = answerNext(false);

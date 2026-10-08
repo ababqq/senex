@@ -61,7 +61,7 @@ function PlayButton({ onPlay }: { onPlay: () => void | Promise<void> }): JSX.Ele
       }}
     >
       <Icon name="play" size={12} className="fill-current" />
-      {playing ? "Opening…" : "Play"}
+      {playing ? "Opening…" : "Open"}
     </ResultButton>
   );
 }

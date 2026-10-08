@@ -280,12 +280,12 @@ describe("facet loop v2: scoreboard, veto, memory, spikes, review", () => {
     assert.ok(board(water[0]!).flips.includes("lit"));
     // The harness's own checks ride on the board from the first iteration.
     assert.ok(
-      board(water[0]!).results.some((r) => r.id === "single-hud" && r.pass),
-      "one screen is on the board",
+      board(water[0]!).results.some((r) => r.id === "no-console-errors" && r.pass),
+      "the page rule is on the board",
     );
     assert.ok(
-      board(water[0]!).results.some((r) => r.id === "keys-move-player" && r.pass),
-      "one input path is on the main owner's board",
+      board(water[0]!).results.some((r) => r.id === "nav-changes-view" && r.pass),
+      "the navigation check is on the main owner's board",
     );
     // Which checks measured nothing, by id and not just by count: the night ledger keeps these,
     // and `rarelyMeasurable` can only warn about a check on real data.

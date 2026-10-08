@@ -57,7 +57,7 @@ export const ROLE_LITERALS = [
   ["judge:taste", "You are the taste judge for ONE FACET"],
   ["judge:code-review", "You are reviewing ONE diff"],
   ["judge:liveness", "You are the liveness critic"],
-  ["judge:readability", "This project is a screen, not a place a player walks through"],
+  ["judge:readability", "This project is software people operate, not a place they walk through"],
   ["judge:vision-check", "You answer ONE yes/no question about ONE picture"],
   ["judge:vision-batch", "You answer SEVERAL yes/no questions about pictures"],
   ["judge:reference-panel", "You are one vote on the panel that decides whether an Autopilot run has WON"],

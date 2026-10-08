@@ -50,7 +50,7 @@ async function rubric(ctx: HarnessCtx): Promise<string> {
   } catch {
     return [
       "You are a playtester with no history with this project. Play it with the tools for the whole action budget, screenshot often, then answer each yes/no question from what you actually did or saw.",
-      "Last, name bigMove: the ONE change that would most improve how this plays — a system, a rule, a control scheme, the feedback a player gets. A bold step, never a tweak.",
+      "Last, name bigMove: the ONE change that would most improve how this works for the person using it — a system, a rule, a control scheme, the feedback they get. A bold step, never a tweak.",
       'Reply with JSON only when done: {"answers":{"<check id>":{"answer":"yes"|"no","note":"…"}},"report":"…","bigMove":{"what":"…","why":"…"}}',
     ].join("\n");
   }

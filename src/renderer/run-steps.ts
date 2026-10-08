@@ -559,7 +559,7 @@ function runningResultStatus(graph: RunGraph, summary: RunSummary | null): Resul
   if (didNotStart) return { word: "Didn't start", tone: Tone.Red, state: StepState.Undone };
   if (checkingBuild(graph, summary))
     return { word: "Checking it starts…", tone: Tone.Accent, state: StepState.Judging };
-  return { word: "Ready to play", tone: Tone.Green, state: StepState.InBuild };
+  return { word: "Ready to use", tone: Tone.Green, state: StepState.InBuild };
 }
 
 /**

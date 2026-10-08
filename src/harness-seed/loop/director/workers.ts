@@ -581,7 +581,7 @@ function jsonArrayArg(value: unknown, name: string): { value: any[] | null; erro
   return { value: raw };
 }
 
-/** A `done` entry the loop can finish on: a sentence a player could check, and the check that measures it. */
+/** A `done` entry the loop can finish on: a sentence a user could check, and the check that measures it. */
 const isDoneEntry = (entry: AnyRecord | null): boolean =>
   Boolean(entry) &&
   typeof entry === "object" &&

@@ -17,13 +17,13 @@ closed, with Show in Finder for files in the project folder.
 ## The two views
 
 **Live** plays the browser project in a native view (WebGL and WebGPU); hidden unobserved previews
-pause. The strip holds Live/Builds/Assets, Play/Stop, Reload, the sound switch (⌥⌘M; only a shown
+pause. The strip holds Live/Builds/Assets, Run/Stop, Reload, the sound switch (⌥⌘M; only a shown
 Live in front is heard), Full screen (hold Esc to leave) and plugin actions such as Publish (accent
-until listed). Stop halts the project until Play or Reload. Slow loads show a halftone loader and
+until listed). Stop halts the project until Run or Reload. Slow loads show a halftone loader and
 shimmering “Loading project”. An empty scaffold shows “Ready for your first idea” (a computer), or
-“Building your project” (a crane) with Watch progress while a run works, Play latest once a build is
+“Building your project” (a crane) with Watch progress while a run works, Open latest once a build is
 ready; the first healthy build then shows itself. Otherwise only the user changes Live (opening a
-project, Reload, Play, Make live, a chat request while Live is hidden). A newer healthy build, a
+project, Reload, Open, Make live, a chat request while Live is hidden). A newer healthy build, a
 changed project folder (checkpoint, landing, rewind), a chat's show or landing, or a shown build found
 broken lights Reload (accent dot, a tooltip naming it), which brings it in. While Live is hidden and
 not stopped, all but a new build go in at once. A loaded page alone is not a successful build. The
@@ -39,7 +39,7 @@ An earlier build opens from its chat card.
 The agent tests the project in hidden windows, never in Live. Chat reuses
 the lead's frames, which never certify a delivered build. A worker finishing, checks passing,
 integration and Live showing a revision are distinct facts; summaries never merge them into
-unearned success. Chat shows the delivery's capture and Play and keeps failures visible; Builds
+unearned success. Chat shows the delivery's capture and Open and keeps failures visible; Builds
 and Studio report missing checks, coverage limits, counts and revisions.
 
 ## Continuation and interruption

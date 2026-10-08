@@ -281,7 +281,7 @@ export const RunGraph = memo(function RunGraph({
           earlier={earlier}
           action={
             hasBuild ? (
-              <PlayButton quiet={graph.active} label={graph.active ? "Play latest" : "Play"} onPlay={play} />
+              <PlayButton quiet={graph.active} label={graph.active ? "Open latest" : "Open"} onPlay={play} />
             ) : null
           }
         />

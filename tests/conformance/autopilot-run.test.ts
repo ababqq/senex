@@ -384,11 +384,11 @@ describe("autopilot: a 2-facet run on the fake engine", () => {
       assert.equal(board.unmeasured, 0);
       assert.equal(board.identityPassing, board.identityTotal);
       assert.ok(
-        board.results.some((r) => r.id === "single-hud" && r.pass === true),
-        "the harness-owned screen check rides on every facet",
+        board.results.some((r) => r.id === "controls-named" && r.pass === true),
+        "the harness-owned page check rides on every facet",
       );
       assert.equal(
-        board.results.some((r) => r.id === "look-turns-camera"),
+        board.results.some((r) => r.id === "nav-changes-view"),
         record.facetId === "terrain",
         "the input checks ride on the main owner only",
       );

@@ -34,7 +34,7 @@ export const RESUME_LOOP_CHAT =
  * nobody chose. `ask` is the question tool as the reader calls it.
  */
 function askFirst(ask: string): string {
-  return `Before you launch a build, know what the project is (what the player does in it) and how it should look and feel (a style, a project or film to match, or the stills). Take both from the conversation, the stills or the project already in this folder. If either is missing, do not guess: ask with ${ask} — one question that covers what is missing, up to 3 choices with your recommendation first — and end your reply; launch once they answer. Ask even when the user asks for speed: an answer costs them a click, a build in the wrong style costs hours. Never ask what they already said or showed, and ask once: after their answer, fill any gap left with your recommendation.`;
+  return `Before you launch a build, know what the project is (what the user does with it) and how it should look and feel (a product to match, a style, or the stills). Take both from the conversation, the stills or the project already in this folder. If either is missing, do not guess: ask with ${ask} — one question that covers what is missing, up to 3 choices with your recommendation first — and end your reply; launch once they answer. Ask even when the user asks for speed: an answer costs them a click, a build in the wrong style costs hours. Never ask what they already said or showed, and ask once: after their answer, fill any gap left with your recommendation.`;
 }
 
 /**

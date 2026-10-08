@@ -412,21 +412,24 @@ export function describePlayScript(script: unknown): string {
   return clauses.join(", ");
 }
 
+/** How each action type reads in a sentence. */
+const ACTION_CLAUSES: Record<string, (action: PlayAction) => string> = {
+  hold: (a) => `hold ${keyList(a.keys)} for ${seconds(a.ms ?? 400)}`,
+  tap: (a) => `tap ${keyList(a.keys)}`,
+  look: (a) => `look ${lookWords(a.dx, a.dy)}`,
+  click: (a) => `click ${at(a.x, a.y)}`,
+  drag: (a) => `drag from ${at(a.fromX, a.fromY)} to ${at(a.x, a.y)}`,
+  move: (a) => `move the pointer to ${at(a.x, a.y)}`,
+  scroll: (a) => `scroll ${number(a.dx, 0)}, ${number(a.dy, 0)}`,
+  wait: (a) => `wait ${seconds(a.ms ?? 100)}`,
+  camera: (a) => `switch to the ${a.name} view`,
+  type: (a) => `type "${clip(String(a.text ?? ""), CLIP_QUOTE)}"`,
+  press: (a) => `press ${a.combo}${(a.repeat ?? 1) > 1 ? ` ${a.repeat} times` : ""}`,
+};
+
 function clauseFor(action: PlayAction | null | undefined): string {
-  const type = action?.type;
-  // A type was read, so there is an action.
-  if (type === "hold") return `hold ${keyList(action!.keys)} for ${seconds(action!.ms ?? 400)}`;
-  if (type === "tap") return `tap ${keyList(action!.keys)}`;
-  if (type === "look") return `look ${lookWords(action!.dx, action!.dy)}`;
-  if (type === "click") return `click ${at(action!.x, action!.y)}`;
-  if (type === "drag") return `drag from ${at(action!.fromX, action!.fromY)} to ${at(action!.x, action!.y)}`;
-  if (type === "move") return `move the pointer to ${at(action!.x, action!.y)}`;
-  if (type === "scroll") return `scroll ${number(action!.dx, 0)}, ${number(action!.dy, 0)}`;
-  if (type === "wait") return `wait ${seconds(action!.ms ?? 100)}`;
-  if (type === "camera") return `switch to the ${action!.name} view`;
-  if (type === "type") return `type "${clip(String(action!.text ?? ""), CLIP_QUOTE)}"`;
-  if (type === "press") return `press ${action!.combo}${(action!.repeat ?? 1) > 1 ? ` ${action!.repeat} times` : ""}`;
-  return "";
+  if (!action || !Object.hasOwn(ACTION_CLAUSES, action.type)) return "";
+  return ACTION_CLAUSES[action.type]?.(action) ?? "";
 }
 
 /** A single-character key reads as the letter on the keyboard; a named key reads as it is given. */

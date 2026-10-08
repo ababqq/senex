@@ -70,13 +70,32 @@ export interface FakePreview extends PreviewPort {
   pairs: Array<{ left: number; right: number }>;
 }
 
+/** What a page counts when the exercise acts on it: a click answers, typing edits a field, keys are keys. */
+function bumpUi(preview: FakePreview, type: string): void {
+  const ui = { ...((preview.next.ui as Record<string, number> | undefined) ?? {}) };
+  const add = (key: string, by = 1) => {
+    ui[key] = (ui[key] ?? 0) + by;
+  };
+  if (type === "click") {
+    add("clicks");
+    add("navigations");
+    add("reactions");
+  }
+  if (type === "type") {
+    add("keys");
+    add("edits");
+  }
+  if (type === "press" || type === "tap" || type === "down") add("keys");
+  preview.next = { ...preview.next, ui };
+}
+
 export function makeFakePreview(): FakePreview {
   const held = new Set<string>();
   // Each read of the step witness moves the page's own counters, the way a stepped page does.
   let witnessTicks = 0;
   const preview: FakePreview = {
-    // A player that answers the harness-owned input checks the way the template does: held
-    // WASD moves it on step(), an injected look turns its yaw.
+    // A page that answers the harness-owned checks the way a served page does: its own `ui` counters
+    // rise when the exercise clicks or types, and held WASD moves the player on step() for a scene.
     next: {
       version: 1,
       seed: 1,
@@ -86,6 +105,17 @@ export function makeFakePreview(): FakePreview {
       phase: "playing",
       entities: {},
       player: { x: 0, y: 0, z: 0, yaw: 0 },
+      ui: {
+        clicks: 0,
+        keys: 0,
+        edits: 0,
+        focusMoves: 0,
+        navigations: 0,
+        reactions: 0,
+        errors: 0,
+        unnamedControls: 0,
+        overflowX: 0,
+      },
     },
     pixelStatsNext: { width: 800, height: 600, sampled: 480_000, meanLuma: 42, litFraction: 0.6, canvas: true },
     loads: [],
@@ -164,9 +194,6 @@ export function makeFakePreview(): FakePreview {
           gesture: { needed: false, done: false, reasons: [] },
         };
       }
-      // The template's own answers to the harness-owned screen checks: no DOM UI, one HUD quad.
-      if (String(expression).includes("domUi().length === 0") || String(expression).includes("count('hud') === 1"))
-        return { value: true };
       return preview.next;
     },
     async studioState() {
@@ -226,6 +253,7 @@ export function makeFakePreview(): FakePreview {
     async input(actions) {
       preview.inputs.push(...(actions ?? []));
       for (const action of (actions ?? []) as Array<{ type: string; keys?: string[]; dx?: number }>) {
+        bumpUi(preview, action.type);
         if (action.type === "down") for (const key of action.keys ?? []) held.add(key);
         if (action.type === "up") for (const key of action.keys ?? []) held.delete(key);
         if (action.type === "look") {

@@ -224,7 +224,7 @@ privileges in one call before Electron is ready; a second registration loses the
 context and disables WebGPU, while Three.js can silently render through its WebGL fallback.
 `npm run test:shapes:e2e` is the milestone's own proof, and part of `npm run verify`. It opens
 each of the five projects under `tests/fixtures/projects` as the user's own project — four of them with no
-edit at all, the bundled one with the two-line `installStudio({ renderer, player })` — waits for
+edit at all, the bundled one with the two-line `installStudio({ probes })` — waits for
 the page to report itself ready, shadow-builds the one that has a build, drives it, photographs
 it and judges the evidence with the harness's own `gatherEvidence`; then drives the same five
 again through the real Codex file bridge (the shim run as a child process, only the CLI scripted)

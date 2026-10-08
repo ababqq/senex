@@ -1,14 +1,14 @@
 # Genex: product overview
 
-Genex (formerly AI Game Studio) is a macOS Electron application for making local browser projects
-with AI. A person describes a project or a change, answers questions when needed, and reviews
-the running project and build results. The project is a real local project that can be opened,
+Genex (formerly AI Game Studio) is a macOS Electron application for making local browser software
+(web apps, tools, sites) with AI. A person describes a project or a change, answers questions when needed, and reviews
+the running project. The project is a real local project that can be opened,
 edited and exported. Unity is retired.
 
 ## What the app contains
 
 The sidebar opens projects, Plugins, Studio and Settings. Each project has one main conversation
-on the left and a stage on the right. The stage switches between **Live** (the playable
+on the left and a stage on the right. The stage switches between **Live** (the running
 project), **Builds** (work and results) and **Assets** (files and generated media).
 
 The prompt bar chooses the model, permissions, Auto or Loop mode, optional planning,

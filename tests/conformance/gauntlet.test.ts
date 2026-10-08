@@ -848,7 +848,7 @@ describe("gauntlet: faceted critic", () => {
 });
 
 describe("gauntlet: briefs and intake", () => {
-  it("iteration 1 is a first playable, later iterations close one visual-first gap, the tail integrates", () => {
+  it("iteration 1 is a first working version, later iterations close one visual-first gap, the tail integrates", () => {
     const run = {
       runId: "run_test",
       project: "city",
@@ -856,7 +856,7 @@ describe("gauntlet: briefs and intake", () => {
       reference: { name: "AAA photoreal rainy night", shots: [], kind: "direction" as const },
       budgets: { wallClockMs: 8 * 3_600_000 },
     };
-    assert.match(buildBrief({ run, iteration: 1, biggestGap: "n/a", phase: "first" }), /first playable/);
+    assert.match(buildBrief({ run, iteration: 1, biggestGap: "n/a", phase: "first" }), /first working version/);
     assert.match(
       buildBrief({ run, iteration: 3, biggestGap: "the wet road reads plastic", phase: "gap" }),
       /wet road reads plastic/,
@@ -919,11 +919,11 @@ describe("gauntlet: briefs and intake", () => {
     assert.ok(!text.includes("THE SINGLE BIGGEST REMAINING GAP"));
   });
 
-  it("the first live iteration is briefed as a first playable", async () => {
+  it("the first live iteration is briefed as a first working version", async () => {
     const { rig } = await runOnce({ compare: "challenger" });
     const briefs = rig.server.requests
       .map((r) => r.body as { messages?: Array<{ role: string; content: unknown }> } | null)
-      .filter((b) => b?.messages?.some((m) => flattenMessageContent(m.content).includes("first playable")));
+      .filter((b) => b?.messages?.some((m) => flattenMessageContent(m.content).includes("first working version")));
     assert.ok(briefs.length >= 1, "iteration 1 must not be a tiny gap-close");
   });
 
@@ -960,7 +960,7 @@ describe("gauntlet: briefs and intake", () => {
                 arguments: { project: "rainy-night-city", file: "src/night.js", contents: "export const night = 1;\n" },
               },
             ],
-            text: "Building the first playable.",
+            text: "Building the first working version.",
           };
         }
         return { text: "Done." };

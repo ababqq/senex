@@ -68,9 +68,9 @@ describe("the words for a screen", () => {
     assert.equal(screenDoing({ deed: ScreenDeed.Load }), "Opening the project");
     assert.equal(screenDone({ deed: ScreenDeed.Press, keys: ["ArrowRight"] }), "Pressed →");
     assert.equal(screenDone({ deed: ScreenDeed.Click }), "Clicked");
-    assert.equal(screenDoing(undefined), "Playing", "a frame from before deeds had codes");
-    assert.equal(screenDone(undefined), "Played");
-    assert.equal(screenDoing({ deed: "fly" as ScreenDeed }), "Playing", "a deed this build does not know");
+    assert.equal(screenDoing(undefined), "Using", "a frame from before deeds had codes");
+    assert.equal(screenDone(undefined), "Used");
+    assert.equal(screenDoing({ deed: "fly" as ScreenDeed }), "Using", "a deed this build does not know");
   });
   it("reads keys the way a player does", () => {
     assert.equal(keysWords(["space"]), "Space");
