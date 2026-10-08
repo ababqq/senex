@@ -17,6 +17,7 @@ import { countImages, flattenMessageContent, newestFixtureBuild, type FakeReply 
 import { EngineError, type Engine } from "../../src/substrate/engines/types.ts";
 import { combineFacetVerdict, normalizeDefects } from "../../src/harness-seed/loop/judge.ts";
 import { buildBrief } from "../../src/harness-seed/loop/gauntlet.ts";
+import { SnapshotScope } from "../../src/shared/event-log.ts";
 
 const rigs: Rig[] = [];
 // Each scenario owns its rig. Keeping finished harnesses until file teardown leaves
@@ -237,7 +238,7 @@ describe("gauntlet: the incumbent rule", () => {
     // Losing a round is a verdict about the project, not the coder: the rollback must not drag
     // the harness back with it (one bad night of ties would erase every unjudged self-edit).
     for (const restore of restores) {
-      assert.equal((restore.data as { scope?: string }).scope, "project");
+      assert.equal((restore.data as { scope?: string }).scope, SnapshotScope.Project);
     }
   });
 

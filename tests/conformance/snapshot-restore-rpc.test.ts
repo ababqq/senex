@@ -10,6 +10,7 @@ import { execFile } from "node:child_process";
 import { readFile, realpath, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
+import { SnapshotScope } from "../../src/shared/event-log.ts";
 import { coreLite, type CoreLite } from "../helpers/core-lite.ts";
 import { tmpDir } from "../helpers/tmp.ts";
 
@@ -48,7 +49,7 @@ describe("snapshot.restore on a project", () => {
     assert.equal(typeof rescueId, "string", "workspace_restored names the rescue snapshot");
     const created = (await eventsOfType("snapshot_created")).find((d) => d.snapshot_id === rescueId);
     assert.ok(created, "the rescue snapshot is logged as snapshot_created");
-    assert.equal(created.scope, "project");
+    assert.equal(created.scope, SnapshotScope.Project);
     const record = lite.core.snapshotIndex.get(String(rescueId));
     assert.ok(record?.git.game, "the index knows the rescue commit");
     const { stdout } = await git("git", ["-C", dir, "show", `${record.git.game}:notes.txt`]);

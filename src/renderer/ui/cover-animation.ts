@@ -355,7 +355,7 @@ class CoverRenderer {
     if (canvas.width !== scale) {
       canvas.width = canvas.height = scale;
     }
-    const control = canvas.closest("[data-project]") ?? canvas.closest('button, [role="option"]') ?? canvas;
+    const control = canvas.closest("[data-project-row]") ?? canvas.closest('button, [role="option"]') ?? canvas;
     const entry: Entry = {
       canvas,
       context: canvas.getContext("2d"),

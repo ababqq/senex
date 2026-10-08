@@ -437,7 +437,7 @@ function ProjectRow({
   return (
     <div
       className="sidebar-project"
-      data-project={project.name}
+      data-project-row={project.name}
       data-active={active}
       data-busy={busy}
       data-menu-open={open}

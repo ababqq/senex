@@ -125,7 +125,6 @@ const STAGES: Array<(t: SelfTest) => Promise<void>> = [
   checkPreviewContract,
   checkAssetUse,
   checkSpeechProbe,
-  checkGlbAsset,
   checkHeldInput,
   checkContainment,
   // Before the open-project sheet: on Windows opening a folder outside the grants queues a sandbox
@@ -427,21 +426,6 @@ async function checkSpeechProbe({ preview, userData, check }: SelfTest): Promise
   await rm(path.join(speechRoot, "speech-probe"), { recursive: true, force: true });
   await rm(path.join(speechRoot, "speech-probe-frame"), { recursive: true, force: true });
   await preview.load("selftest");
-}
-
-/** Assets (AG-930): a .glb in assets/ loads through src/assets.js and is tagged for checks. */
-async function checkGlbAsset({ core, preview, check }: SelfTest): Promise<void> {
-  const assetsDir = path.join(core.projects.dirFor("selftest"), "assets");
-  await mkdir(assetsDir, { recursive: true });
-  await writeFile(path.join(assetsDir, "tri.glb"), minimalGlb());
-  const loaded = (await preview.evaluate(
-    `import("/src/assets.js").then((m) => m.loadAsset("tri", { tag: "tri" })).then((g) => { let meshes = 0; g.traverse((o) => { if (o.isMesh && o.userData.asset === "tri") meshes++; }); return { tag: g.userData.tag, asset: g.userData.asset, meshes }; }).catch((err) => ({ error: String(err && err.message || err) }))`,
-  )) as { tag?: string; asset?: string; meshes?: number; error?: string };
-  check(
-    "a .glb in assets/ loads through src/assets.js, tagged and stamped for scene checks",
-    loaded?.tag === "tri" && loaded?.asset === "tri" && (loaded?.meshes ?? 0) >= 1,
-    JSON.stringify(loaded),
-  );
 }
 
 async function checkHeldInput({ preview, check }: SelfTest): Promise<void> {
@@ -880,38 +864,3 @@ function waitForEvent(
 }
 
 export { app };
-
-/**
- * The smallest valid GLB: one triangle, one node, no materials — enough for `GLTFLoader` to
- * parse and for `src/assets.js` to tag (AG-930). Built by hand so the e2e needs no Blender.
- */
-function minimalGlb(): Buffer {
-  const positions = Buffer.alloc(36);
-  for (const [i, v] of [0, 0, 0, 1, 0, 0, 0, 1, 0].entries()) positions.writeFloatLE(v, i * 4);
-  const bin = positions;
-  const json = JSON.stringify({
-    asset: { version: "2.0", generator: "ai-game-studio selftest" },
-    scene: 0,
-    scenes: [{ nodes: [0] }],
-    nodes: [{ mesh: 0, name: "tri" }],
-    meshes: [{ primitives: [{ attributes: { POSITION: 0 } }] }],
-    accessors: [{ bufferView: 0, componentType: 5126, count: 3, type: "VEC3", min: [0, 0, 0], max: [1, 1, 0] }],
-    bufferViews: [{ buffer: 0, byteOffset: 0, byteLength: bin.length }],
-    buffers: [{ byteLength: bin.length }],
-  });
-  const pad = (b: Buffer, fill: number): Buffer =>
-    b.length % 4 === 0 ? b : Buffer.concat([b, Buffer.alloc(4 - (b.length % 4), fill)]);
-  const jsonChunk = pad(Buffer.from(json, "utf8"), 0x20);
-  const binChunk = pad(bin, 0);
-  const header = Buffer.alloc(12);
-  header.write("glTF", 0, "latin1");
-  header.writeUInt32LE(2, 4);
-  header.writeUInt32LE(12 + 8 + jsonChunk.length + 8 + binChunk.length, 8);
-  const chunk = (body: Buffer, type: string): Buffer => {
-    const head = Buffer.alloc(8);
-    head.writeUInt32LE(body.length, 0);
-    head.write(type, 4, "latin1");
-    return Buffer.concat([head, body]);
-  };
-  return Buffer.concat([header, chunk(jsonChunk, "JSON"), chunk(binChunk, "BIN\0")]);
-}

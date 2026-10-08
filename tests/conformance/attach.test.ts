@@ -38,21 +38,7 @@ import {
 } from "../../src/page/hook.ts";
 
 const DOC = "project://sweep/index.html";
-/** A page with the import map a three.js project writes for itself; the DOM template has none to rewrite. */
-const TEMPLATE = `<!doctype html>
-<meta charset="utf-8" />
-<script type="importmap">
-  {
-    "imports": {
-      "three/webgpu": "/vendor/three.webgpu.js",
-      "three/tsl": "/vendor/three.tsl.js",
-      "three": "/vendor/three.module.js",
-      "three/addons/": "/vendor/three/examples/jsm/",
-      "three/": "/vendor/three/"
-    }
-  }
-</script>
-<script type="module" src="/src/main.js"></script>`;
+const TEMPLATE = fs.readFileSync(path.resolve("src/project-template/index.html"), "utf8");
 const FIXTURES = path.resolve("tests/fixtures/pages");
 const page = (name: string) => fs.readFileSync(path.join(FIXTURES, name), "utf8");
 

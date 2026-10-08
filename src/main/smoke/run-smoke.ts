@@ -1565,7 +1565,7 @@ async function checkInterruptControls(buildSmoke: BuildSmoke): Promise<Interrupt
   check(
     "a building project's dot sits where its ⋯ appears",
     await waitFor(
-      `(() => { const row = document.querySelector('nav [data-project="${buildSmoke.project.name}"]'); const dot = row?.querySelector('.sidebar-project-status')?.getBoundingClientRect(), menu = row?.querySelector('.sidebar-project-menu')?.getBoundingClientRect(); return !!dot && !!menu && dot.width > 0 && Math.abs((dot.left + dot.width / 2) - (menu.left + menu.width / 2)) < 1 && Math.abs((dot.top + dot.height / 2) - (menu.top + menu.height / 2)) < 1 && !row.querySelector('.sidebar-pin'); })()`,
+      `(() => { const row = document.querySelector('nav [data-project-row="${buildSmoke.project.name}"]'); const dot = row?.querySelector('.sidebar-project-status')?.getBoundingClientRect(), menu = row?.querySelector('.sidebar-project-menu')?.getBoundingClientRect(); return !!dot && !!menu && dot.width > 0 && Math.abs((dot.left + dot.width / 2) - (menu.left + menu.width / 2)) < 1 && Math.abs((dot.top + dot.height / 2) - (menu.top + menu.height / 2)) < 1 && !row.querySelector('.sidebar-pin'); })()`,
     ),
   );
   pushUiEvent({ type: UiEvent.RunKeepawake, payload: { runId } });
@@ -2427,7 +2427,7 @@ async function checkProjectImage(buildSmoke: BuildSmoke): Promise<void> {
   // Exercise local image normalization and the typed persistence boundary. The native
   // picker itself remains a foreground manual gate; this uses an owned synthetic file.
   await wc.executeJavaScript(
-    `document.querySelector('nav [data-project="${project.name}"] .sidebar-project-menu')?.focus()`,
+    `document.querySelector('nav [data-project-row="${project.name}"] .sidebar-project-menu')?.focus()`,
   );
   wc.sendInputEvent({ type: "keyDown", keyCode: "Down" });
   wc.sendInputEvent({ type: "keyUp", keyCode: "Down" });
@@ -2454,7 +2454,7 @@ async function checkProjectImage(buildSmoke: BuildSmoke): Promise<void> {
   check(
     "project image save persists through IPC and closes the dialog",
     (await waitFor(
-      `!document.querySelector('[aria-label="Choose project image"]') && document.querySelector('nav [data-project="${project.name}"] img')?.naturalWidth===256`,
+      `!document.querySelector('[aria-label="Choose project image"]') && document.querySelector('nav [data-project-row="${project.name}"] img')?.naturalWidth===256`,
     )) && (await core.projects.presentation(project.name)).cover?.kind === "image",
     await wc.executeJavaScript(`document.querySelector('[role="dialog"] [role="alert"]')?.textContent ?? ''`),
   );

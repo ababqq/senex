@@ -73,7 +73,7 @@ function App() {
       <h1 style={{ fontSize: 16, marginBottom: 16 }}>Cover sphere fixture</h1>
       <div id="rows" style={{ height: 240, overflowY: "auto" }}>
         {list.map((cover, i) => (
-          <div key={i} data-project={`project-${i}`} style={{ display: "flex" }}>
+          <div key={i} data-project-row={`project-${i}`} style={{ display: "flex" }}>
             <button
               id={`row-${i}`}
               onClick={() => setActive(i)}

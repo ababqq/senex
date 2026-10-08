@@ -391,19 +391,6 @@ describe("a project's own shape", () => {
       /installStudio/,
       "the contract module is still in the folder",
     );
-    // A page of DOM has no renderer for the hook to read, so without the call it is not judged on
-    // anything it holds: installing the two lines is the base builder's first job.
-    const plain = await projects.validateAt(template);
-    assert.equal(plain.contract, "missing");
-    assert.equal(plain.reach, "none");
-    assert.ok(plain.problems.includes(NO_CONTRACT_PROBLEM), plain.problems.join("; "));
-
-    // A page that draws a 3D world carries its own map, and that map is what the serve layer
-    // points at the hook: the studio reads its scene, camera and renderer with nothing installed.
-    await writeFile(
-      path.join(template, "index.html"),
-      `<!doctype html><title>3D</title>\n<script type="importmap">{"imports":{"three":"/vendor/three.module.js"}}</script>\n<script type="module" src="/src/main.js"></script>\n`,
-    );
     const attached = await projects.validateAt(template);
     assert.equal(attached.contract, "attached");
     assert.equal(attached.reach, "import-map", "the page's own map is what the serve layer points at the hook");
