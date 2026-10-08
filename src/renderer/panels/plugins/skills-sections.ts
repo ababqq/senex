@@ -1,5 +1,5 @@
 /**
- * The Skills tab's sections, as data: Studio's own skills, this game's own, each provider's global
+ * The Skills tab's sections, as data: Studio's own skills, this project's own, each provider's global
  * skills and the plugins'. Pure, so what each row says is tested without React; `SkillsBrowse.tsx`
  * draws it.
  */
@@ -17,13 +17,13 @@ import { SKILLS_WORDS } from "../../words.ts";
 /** Each section's `data-skills-section` value. Read by smoke checks: never rename a value. */
 export const SkillsSection = {
   Studio: "studio",
-  Game: "game",
+  Project: "project",
   Provider: "provider",
   Plugins: "plugins",
 } as const;
 export type SkillsSection = (typeof SkillsSection)[keyof typeof SkillsSection];
 
-/** A skill shown on its own page: a plugin's, a provider's, this game's or one of Studio's own. */
+/** A skill shown on its own page: a plugin's, a provider's, this project's or one of Studio's own. */
 export interface ShownSkill {
   plugin: string;
   name: string;
@@ -33,7 +33,7 @@ export interface ShownSkill {
   summary?: string;
   /** A plugin's file skill: agents read its file on demand, and so does its page. */
   onDemand?: boolean;
-  /** Where it comes from, when not a plugin: a provider's name or this game. */
+  /** Where it comes from, when not a plugin: a provider's name or this project. */
   provider?: string;
 }
 
@@ -48,7 +48,7 @@ export interface SkillRow {
   key: string;
   name: string;
   line: string;
-  /** Beside the row: which builders load a game's skill. */
+  /** Beside the row: which builders load a project's skill. */
   tag?: string;
   /** A plugin skill's plugin is on. */
   enabled?: boolean;
@@ -87,12 +87,12 @@ export function studioSkillsSection(
   };
 }
 
-/** Which builders load a game's skill, as the row's tag says it. */
+/** Which builders load a project's skill, as the row's tag says it. */
 const engineWords = (skill: ProjectSkill): string => skill.engines.map(engineLabel).join(" · ");
 
-/** This game's own skills and commands, each naming the builders that load it from the folder. */
-export function gameSkillsSection(inventory: ProjectSkillInventory): SkillsSectionView {
-  const title = SKILLS_WORDS.gameTitle;
+/** This project's own skills and commands, each naming the builders that load it from the folder. */
+export function projectSkillsSection(inventory: ProjectSkillInventory): SkillsSectionView {
+  const title = SKILLS_WORDS.projectTitle;
   const rows = inventory.skills.map(
     (s): SkillRow => ({
       key: s.path,
@@ -109,11 +109,11 @@ export function gameSkillsSection(inventory: ProjectSkillInventory): SkillsSecti
     }),
   );
   return {
-    id: SkillsSection.Game,
+    id: SkillsSection.Project,
     title,
-    intro: SKILLS_WORDS.gameIntro,
+    intro: SKILLS_WORDS.projectIntro,
     rows,
-    empty: SKILLS_WORDS.gameEmpty,
+    empty: SKILLS_WORDS.projectEmpty,
     warnings: inventory.warnings,
   };
 }

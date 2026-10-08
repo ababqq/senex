@@ -1,11 +1,11 @@
 /**
- * Where home's next game is saved: a quiet chip under the composer naming the folder, and its
- * menu — the games folder, another folder the user picks, or a folder with a game they already
- * have (which the Open Game sheet takes over).
+ * Where home's next project is saved: a quiet chip under the composer naming the folder, and its
+ * menu — the projects folder, another folder the user picks, or a folder with a project they already
+ * have (which the Open Project sheet takes over).
  */
 import type { JSX } from "react";
 import { useState } from "react";
-import type { FolderInspection, GameLocation } from "../../shared/game-project.ts";
+import type { FolderInspection, ProjectLocation } from "../../shared/project-folder.ts";
 import { inspectPickedFolder } from "../open-folder.ts";
 import {
   DropdownMenu,
@@ -22,17 +22,17 @@ import { problemWords } from "../words.ts";
 
 /** The chip's words. */
 const MESSAGE = {
-  where: "Where this game is saved",
-  saveIn: "Save the new game in",
+  where: "Where this project is saved",
+  saveIn: "Save the new project in",
   another: "Another folder…",
   open: "Open a folder…",
-  openHint: "Keep working on a game you already have",
+  openHint: "Keep working on a project you already have",
 } as const;
 
-/** The menu's two places: the games folder, or the folder the user chose. */
-const Place = { Games: "games", Chosen: "chosen" } as const;
+/** The menu's two places: the projects folder, or the folder the user chose. */
+const Place = { Projects: "projects", Chosen: "chosen" } as const;
 
-/** The last part of a folder's label: `~/AI Games` → `AI Games`. */
+/** The last part of a folder's label: `~/AI Projects` → `AI Projects`. */
 const folderName = (pathLabel: string): string => pathLabel.split("/").filter(Boolean).at(-1) ?? pathLabel;
 
 /** One row's two lines: what it is, and a path (mono) or a few words saying more. */
@@ -54,13 +54,13 @@ export function HomeFolderChip({
   onInspect,
   onProblem,
 }: {
-  /** The games folder, as the UI shows it (`~/AI Games`). */
+  /** The projects folder, as the UI shows it (`~/AI Projects`). */
   rootLabel: string;
-  /** The folder chosen for the next game, or null for the games folder. */
-  location: GameLocation | null;
+  /** The folder chosen for the next project, or null for the projects folder. */
+  location: ProjectLocation | null;
   disabled?: boolean;
-  onLocation: (location: GameLocation | null) => void;
-  /** A folder with a game in it was picked and looked at: the Open Game sheet takes over. */
+  onLocation: (location: ProjectLocation | null) => void;
+  /** A folder with a project in it was picked and looked at: the Open Project sheet takes over. */
   onInspect: (inspection: FolderInspection) => void;
   onProblem: (words: string) => void;
 }): JSX.Element {
@@ -79,7 +79,7 @@ export function HomeFolderChip({
   };
   const chooseAnother = () =>
     ask(async () => {
-      const chosen = await window.studio.pickGameLocation();
+      const chosen = await window.studio.pickProjectLocation();
       if (chosen) onLocation(chosen);
     });
   const openFolder = () =>
@@ -105,8 +105,8 @@ export function HomeFolderChip({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" side="bottom" sideOffset={6} className="w-80">
         <DropdownMenuLabel>{MESSAGE.saveIn}</DropdownMenuLabel>
-        <DropdownMenuRadioGroup value={location ? Place.Chosen : Place.Games}>
-          <DropdownMenuRadioItem value={Place.Games} onSelect={() => onLocation(null)}>
+        <DropdownMenuRadioGroup value={location ? Place.Chosen : Place.Projects}>
+          <DropdownMenuRadioItem value={Place.Projects} onSelect={() => onLocation(null)}>
             <span className="flex min-w-0 items-center gap-2.5">
               <Icon name="folder" size={16} />
               <FolderLines title={folderName(rootLabel)} path={rootLabel} />

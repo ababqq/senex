@@ -1,6 +1,6 @@
 import { fixtureCodingCli } from "../helpers/external-cli.ts";
 /**
- * A game chat's own Claude session asks the person, the way Claude Code asks in a terminal.
+ * A project chat's own Claude session asks the person, the way Claude Code asks in a terminal.
  *
  * The Agent SDK's `query()` is injected, so what is proven here is our half of the contract:
  * the options a chat's session starts with (its mode, no sandbox, no blanket shell, deny rules
@@ -114,7 +114,7 @@ async function prompter(answer: PermissionReply | (() => Promise<PermissionReply
   const engine = await engineFor(fn);
   await engine.delegate({
     prompt: "fix the jump",
-    cwd: "/tmp/game-workspace",
+    cwd: "/tmp/project-workspace",
     permissions: chat({
       ask: async (request, signal) => {
         asked.push({ request, signal });
@@ -128,14 +128,14 @@ async function prompter(answer: PermissionReply | (() => Promise<PermissionReply
 it("project settings load only with an explicit host trust grant", async () => {
   const { fn, seen } = fakeQuery();
   const engine = await engineFor(fn);
-  await engine.delegate({ prompt: "build", cwd: "/tmp/game-workspace", trustedProjectSettings: true });
+  await engine.delegate({ prompt: "build", cwd: "/tmp/project-workspace", trustedProjectSettings: true });
   assert.deepEqual(seen[0]?.settingSources, ["project"]);
 });
 
 it("Claude file rules and unattended shells share the host's sensitive-read boundaries", async () => {
   const { fn, seen } = fakeQuery();
   const engine = await engineFor(fn);
-  await engine.delegate({ prompt: "build", cwd: "/tmp/game-workspace" });
+  await engine.delegate({ prompt: "build", cwd: "/tmp/project-workspace" });
   const settings = seen[0]?.settings as { permissions: { deny: string[] } };
   const sandbox = seen[0]?.sandbox as { filesystem: { denyRead: string[] } };
   for (const root of baseDenyRead()) {
@@ -155,12 +155,12 @@ const ask = (overrides: Record<string, unknown> = {}) => ({
 async function claudeHome() {
   const root = await tmpDir("claude-home-fence-");
   const home = path.join(root, "dot-claude");
-  const cwd = path.join(root, "AI Games", "pong");
+  const cwd = path.join(root, "AI Projects", "pong");
   await mkdir(cwd, { recursive: true });
   const own = [...new Set([cwd, await realpath(cwd)].map((dir) => claudeProjectDirName(dir)))];
   const first = own[0] ?? "";
   const others = [
-    "-Users-me-other-game",
+    "-Users-me-other-project",
     `${first}-2`,
     `${first}.old`,
     first.slice(0, -2),
@@ -174,17 +174,17 @@ async function claudeHome() {
   return { home, cwd, own, others: [...others, ".DS_Store"] };
 }
 
-/** Realistic project folder names: other games beside this one, builder worktrees, other people's folders, long cut ones. */
-function syntheticProjects(root: string, games: string): string[] {
+/** Realistic project folder names: other projects beside this one, builder worktrees, other people's folders, long cut ones. */
+function syntheticProjects(root: string, projects: string): string[] {
   const many = (count: number, dir: (i: number) => string) => Array.from({ length: count }, (_, i) => dir(i));
   const dirs = [
-    ...many(600, (i) => path.join(games, `game-${i}`)),
-    ...many(100, (i) => path.join(games, `pong-${i}`)),
-    ...many(100, (i) => path.join(games, `po${i}`)),
+    ...many(600, (i) => path.join(projects, `project-${i}`)),
+    ...many(100, (i) => path.join(projects, `pong-${i}`)),
+    ...many(100, (i) => path.join(projects, `po${i}`)),
     ...many(400, (i) => path.join(root, "scratch", "autopilot", `run-${i % 40}`, `builder-${i}`)),
     ...many(600, (i) => `/Users/person${i % 7}/Projects/app-${i}`),
-    ...many(200, (i) => path.join(games, "deep/".repeat(45), `game-${i}`)),
-    games,
+    ...many(200, (i) => path.join(projects, "deep/".repeat(45), `project-${i}`)),
+    projects,
   ];
   return [...new Set(dirs.map((dir) => claudeProjectDirName(dir)))];
 }
@@ -213,13 +213,13 @@ describe("a chat's own Claude session asks the person", () => {
       const engine = await engineFor(fn, [secrets, homes]);
       await engine.delegate({
         prompt: "fix the jump",
-        cwd: "/tmp/game-workspace",
-        extraReads: ["/tmp/stills", "/tmp/game-workspace/assets"],
-        denyReads: ["/tmp/sibling-game"],
+        cwd: "/tmp/project-workspace",
+        extraReads: ["/tmp/stills", "/tmp/project-workspace/assets"],
+        denyReads: ["/tmp/sibling-project"],
         permissions: chat({
           mode,
           allow: ["Bash(npm test *)", "WebFetch(domain:example.com)"],
-          directories: ["/Users/me/refs", "/tmp/stills", "/tmp/game-workspace/src", "/tmp/game-workspace"],
+          directories: ["/Users/me/refs", "/tmp/stills", "/tmp/project-workspace/src", "/tmp/project-workspace"],
           protectWrites: [path.join(root, "settings.json"), path.join(root, "runs")],
         }),
       });
@@ -256,7 +256,7 @@ describe("a chat's own Claude session asks the person", () => {
         ...fenced.flatMap((dir) => [`Read(/${dir}/**)`, `Edit(/${dir}/**)`]),
         `Edit(/${path.join(root, "settings.json")}/**)`,
         `Edit(/${path.join(root, "runs")}/**)`,
-        "Read(//tmp/sibling-game/**)",
+        "Read(//tmp/sibling-project/**)",
       ]);
       assert.equal(settings.showThinkingSummaries, true);
     }
@@ -285,7 +285,7 @@ describe("a chat's own Claude session asks the person", () => {
    * An unattended session never runs in Auto and carries none.
    */
   it("carries the studio's rules for Auto's classifier, built on Claude Code's own", async () => {
-    const cwd = `/Users/someone/AI Games/${"a-long-game-name-".repeat(6)}`;
+    const cwd = `/Users/someone/AI Projects/${"a-long-project-name-".repeat(6)}`;
     for (const mode of ["default", "auto"] as const) {
       const { fn, seen } = fakeQuery();
       await (await engineFor(fn)).delegate({ prompt: "fix the jump", cwd, permissions: chat({ mode }) });
@@ -299,21 +299,23 @@ describe("a chat's own Claude session asks the person", () => {
       assert.equal(autoMode.environment![0], "$defaults");
       assert.equal(autoMode.allow![0], "$defaults");
       assert.ok(
-        autoMode.environment!.some((entry) => entry.startsWith("**Game folder**") && entry.includes(path.resolve(cwd))),
-        "the game folder, and that it is checkpointed",
+        autoMode.environment!.some(
+          (entry) => entry.startsWith("**Project folder**") && entry.includes(path.resolve(cwd)),
+        ),
+        "the project folder, and that it is checkpointed",
       );
-      assert.ok(autoMode.allow!.some((entry) => entry.startsWith("Game Folder Work:")));
+      assert.ok(autoMode.allow!.some((entry) => entry.startsWith("Project Folder Work:")));
       assert.ok(JSON.stringify(autoMode).length <= AUTO_MODE_BUDGET, "small enough for one command-line argument");
     }
     const { fn, seen } = fakeQuery();
-    await (await engineFor(fn)).delegate({ prompt: "build the sky", cwd: "/tmp/game-workspace" });
+    await (await engineFor(fn)).delegate({ prompt: "build the sky", cwd: "/tmp/project-workspace" });
     assert.equal("autoMode" in (seen[0]!.settings as Options), false, "an unattended session never runs in Auto");
   });
 
   it("carries no allow key when nothing was saved", async () => {
     const { fn, seen } = fakeQuery();
     const engine = await engineFor(fn, ["/tmp/secrets"]);
-    await engine.delegate({ prompt: "hi", cwd: "/tmp/game-workspace", permissions: chat() });
+    await engine.delegate({ prompt: "hi", cwd: "/tmp/project-workspace", permissions: chat() });
     const fenced = [...new Set(["/tmp/secrets", ...credentialHomes(), ...baseDenyRead()])];
     assert.deepEqual((seen[0]!.settings as Options).permissions, {
       deny: fenced.flatMap((dir) => [`Read(/${dir}/**)`, `Edit(/${dir}/**)`]),
@@ -337,14 +339,14 @@ describe("a chat's own Claude session asks the person", () => {
       absoluteRulePath("C:\\Users\\me\\AppData\\Roaming\\Genex\\secrets", "win32"),
       "//c/Users/me/AppData/Roaming/Genex/secrets",
     );
-    assert.equal(absoluteRule("Read", "D:\\Games\\pong", "win32"), "Read(//d/Games/pong/**)");
+    assert.equal(absoluteRule("Read", "D:\\Projects\\pong", "win32"), "Read(//d/Projects/pong/**)");
     assert.equal(
-      absoluteRule("Edit", "C:\\Users\\me\\My Games (old)\\", "win32"),
-      "Edit(//c/Users/me/My Games \\\\\\(old\\\\\\)/**)",
+      absoluteRule("Edit", "C:\\Users\\me\\My Projects (old)\\", "win32"),
+      "Edit(//c/Users/me/My Projects \\\\\\(old\\\\\\)/**)",
     );
     // A network share keeps its two leading slashes after the rule's own, as the CLI writes it.
-    assert.equal(absoluteRulePath("\\\\server\\share\\games", "win32"), "///server/share/games");
-    assert.equal(absoluteRulePath("/Users/me/game", "darwin"), "//Users/me/game");
+    assert.equal(absoluteRulePath("\\\\server\\share\\projects", "win32"), "///server/share/projects");
+    assert.equal(absoluteRulePath("/Users/me/project", "darwin"), "//Users/me/project");
   });
 
   it("fences the folders around Claude Code's own home whole, never the home itself", async () => {
@@ -391,7 +393,7 @@ describe("a chat's own Claude session asks the person", () => {
   });
 
   it("names a project folder exactly as Claude Code does, a long one cut and hashed", () => {
-    assert.equal(claudeProjectDirName("/Users/me/AI Games/pong"), "-Users-me-AI-Games-pong");
+    assert.equal(claudeProjectDirName("/Users/me/AI Projects/pong"), "-Users-me-AI-Projects-pong");
     assert.equal(claudeProjectDirName("C:\\Users\\me\\Spiele\\über"), "C--Users-me-Spiele--ber");
     // Past 200 characters: the first 200, then Java's string hash of the whole path in base 36
     // (the CLI's own `gT`; the value below is what CLI 2.1.281 computes for this path).
@@ -418,7 +420,7 @@ describe("a chat's own Claude session asks the person", () => {
         absoluteRule("Edit", path.join(home, file)),
       ),
     ]);
-    for (const reachable of ["history.jsonl", "file-history", "projects/-Users-me-other-game", "plans"])
+    for (const reachable of ["history.jsonl", "file-history", "projects/-Users-me-other-project", "plans"])
       assert.ok(!ruleDenies(rules.deny ?? [], "Read", path.join(home, reachable)), `asks, not fenced: ${reachable}`);
   });
 
@@ -447,7 +449,7 @@ describe("a chat's own Claude session asks the person", () => {
       assert.ok(!denied(entry), `reachable: ${entry}`);
     assert.deepEqual(warnings, []);
     // Its own project not made yet: nothing of it to fence, and every other project still is.
-    const fresh = await homeFence({ home, cwd: path.join(path.dirname(cwd), "new-game"), warn: () => {} });
+    const fresh = await homeFence({ home, cwd: path.join(path.dirname(cwd), "new-project"), warn: () => {} });
     for (const name of [...own, ...others])
       assert.ok(ruleDenies(fresh, "Read", path.join(home, "projects", name)), `fenced for another folder: ${name}`);
     // A long working folder: its cut name counts with any hash, as the CLI looks it up; the cut
@@ -481,13 +483,13 @@ describe("a chat's own Claude session asks the person", () => {
     // characters through a .cmd shim. One rule per project folder once made 13,692 here.
     const root = await realpath(await tmpDir("claude-home-size-"));
     const home = path.join(root, "dot-claude");
-    const games = path.join(root, "games");
-    const cwd = path.join(games, "pong");
+    const projects = path.join(root, "projects");
+    const cwd = path.join(projects, "pong");
     await mkdir(cwd, { recursive: true });
     for (const entry of ["plans", "projects", "debug", "file-history", "statsig", "ide", "paste-cache"])
       await mkdir(path.join(home, entry), { recursive: true });
     await writeFile(path.join(home, ".credentials.json"), "{}");
-    const names = syntheticProjects(root, games);
+    const names = syntheticProjects(root, projects);
     assert.ok(names.length >= 2_000);
     await Promise.all([...names, claudeProjectDirName(cwd)].map((name) => mkdir(path.join(home, "projects", name))));
     const settingsJson = async (permissions?: DelegatePermissions) => {
@@ -561,7 +563,7 @@ describe("a chat's own Claude session asks the person", () => {
     });
   });
 
-  it("translates 'always' suggestions into grants, and keeps them in the session, never the game folder", async () => {
+  it("translates 'always' suggestions into grants, and keeps them in the session, never the project folder", async () => {
     const suggestions = [
       {
         type: "addRules",
@@ -636,7 +638,7 @@ describe("a chat's own Claude session asks the person", () => {
     const { fn, seen, modes } = fakeQuery(run, { control: true });
     await (await engineFor(fn)).delegate({
       prompt: "plan it",
-      cwd: "/tmp/game-workspace",
+      cwd: "/tmp/project-workspace",
       permissions: chat({ ask: async () => ({ decision: "approve_plan", mode: "auto" }) }),
     });
     const input = { plan: "1. Jump" };
@@ -720,7 +722,7 @@ describe("a chat's own Claude session asks the person", () => {
     const modes: string[] = [];
     const result = await engine.delegate({
       prompt: "hi",
-      cwd: "/tmp/game-workspace",
+      cwd: "/tmp/project-workspace",
       permissions: chat({ mode: "auto", onMode: (mode) => modes.push(mode) }),
     });
     assert.deepEqual(
@@ -734,7 +736,7 @@ describe("a chat's own Claude session asks the person", () => {
     const again = await engineFor(fakeQuery().fn);
     const ok = await again.delegate({
       prompt: "hi",
-      cwd: "/tmp/game-workspace",
+      cwd: "/tmp/project-workspace",
       permissions: chat({
         onMode: () => {
           throw new Error("host bug");
@@ -784,7 +786,7 @@ describe("a chat's own Claude session asks the person", () => {
     const { fn } = fakeQuery(stream, { control: true });
     await (await engineFor(fn)).delegate({
       prompt: "hi",
-      cwd: "/tmp/game-workspace",
+      cwd: "/tmp/project-workspace",
       permissions: chat({ onControl: (control) => events.push(control ? "control" : "released") }),
     });
     assert.deepEqual(events, ["control", "released"]);
@@ -796,7 +798,7 @@ describe("a chat's own Claude session asks the person", () => {
     const controls: Array<{ setMode(mode: string): Promise<void> } | null> = [];
     await engine.delegate({
       prompt: "hi",
-      cwd: "/tmp/game-workspace",
+      cwd: "/tmp/project-workspace",
       permissions: chat({ onControl: (control) => controls.push(control) }),
     });
     assert.equal(controls.length, 2);
@@ -809,7 +811,7 @@ describe("a chat's own Claude session asks the person", () => {
     const without: Array<{ setMode(mode: string): Promise<void> } | null> = [];
     await (await engineFor(plain.fn)).delegate({
       prompt: "hi",
-      cwd: "/tmp/game-workspace",
+      cwd: "/tmp/project-workspace",
       permissions: chat({ onControl: (control) => without.push(control) }),
     });
     await assert.rejects(() => without[0]!.setMode("plan"), /cannot change its permission mode/);
@@ -821,7 +823,7 @@ describe("a chat's own Claude session asks the person", () => {
       engineFor(failing.fn).then((e) =>
         e.delegate({
           prompt: "hi",
-          cwd: "/tmp/game-workspace",
+          cwd: "/tmp/project-workspace",
           permissions: chat({ onControl: (control) => ended.push(control) }),
         }),
       ),
@@ -841,12 +843,12 @@ describe("a chat's own Claude session asks the person", () => {
 describe("a build's lead asks from the chat's mode, and the host answers", () => {
   const leadRequest = (extra: Record<string, unknown> = {}) => ({
     prompt: "lead the night",
-    cwd: "/tmp/game-workspace",
+    cwd: "/tmp/project-workspace",
     readOnly: true,
     resume: "chat-session",
     extraReads: ["/tmp/studio-scratch/autopilot/run_lead"],
-    denyReads: ["/tmp/sibling-game"],
-    director: { runId: "run_lead", threadId: "t", project: "game", root: "/tmp/build", chatSession: true },
+    denyReads: ["/tmp/sibling-project"],
+    director: { runId: "run_lead", threadId: "t", project: "project", root: "/tmp/build", chatSession: true },
     liveTools: [],
     onLiveTool: async () => "",
     ...extra,
@@ -899,7 +901,7 @@ describe("a build's lead asks from the chat's mode, and the host answers", () =>
     const fenced = [
       absoluteRule("Edit", "/tmp/secrets"),
       absoluteRule("Edit", "/tmp/studio/settings.json"),
-      absoluteRule("Read", "/tmp/sibling-game"),
+      absoluteRule("Read", "/tmp/sibling-project"),
     ];
     for (const rule of fenced) assert.ok(rules.deny.includes(rule), `fenced: ${rule}`);
     // Everything else is its session as it was: where it sits, what it resumes, its tools.
@@ -938,7 +940,7 @@ describe("a build's lead asks from the chat's mode, and the host answers", () =>
     // settings) limit it now, as the chat's own session.
     for (const session of [auto, accepting, manual]) {
       const deny = permissionsOf(session).deny;
-      for (const dir of ["/tmp/game-workspace", "/tmp/studio-scratch/autopilot/run_lead"]) {
+      for (const dir of ["/tmp/project-workspace", "/tmp/studio-scratch/autopilot/run_lead"]) {
         const file = path.join(dir, "src", "main.js");
         assert.equal(
           ruleDenies(deny, "Edit", file),
@@ -948,7 +950,7 @@ describe("a build's lead asks from the chat's mode, and the host answers", () =>
       }
       assert.ok(ruleDenies(deny, "Edit", "/tmp/studio/settings.json"), "the studio's own files stay fenced");
     }
-    // The studio's rules for the classifier: a build session, never a read-only one, and no game
+    // The studio's rules for the classifier: a build session, never a read-only one, and no project
     // folder carve-out (its edits there are not checkpointed per message).
     const { autoMode } = auto.settings as { autoMode: Record<string, string[]> };
     assert.equal(autoMode.allow![0], "$defaults");
@@ -962,7 +964,7 @@ describe("a build's lead asks from the chat's mode, and the host answers", () =>
     // integration worktree it leads are the work, not a session overstepping workers' ground.
     assert.match(build, /A lead edits and commits in the run's integration worktree/);
     assert.equal(
-      autoMode.allow!.some((entry) => entry.startsWith("Game Folder Work:")),
+      autoMode.allow!.some((entry) => entry.startsWith("Project Folder Work:")),
       false,
     );
   });
@@ -1019,7 +1021,7 @@ describe("a build's lead asks from the chat's mode, and the host answers", () =>
 
   /**
    * Claude Code applies allow rules before it asks (review H1): a rule the person saved, or one in the
-   * game's own settings, let the lead act without the host. A PreToolUse hook runs ahead of every
+   * project's own settings, let the lead act without the host. A PreToolUse hook runs ahead of every
    * rule and in every mode, so the host screens each call there; reads and the studio's own tools
    * never wait on it.
    */
@@ -1104,7 +1106,7 @@ describe("a build's lead asks from the chat's mode, and the host answers", () =>
     const { fn, seen } = fakeQuery();
     await (await engineFor(fn)).delegate({
       prompt: "build the sky",
-      cwd: "/tmp/game-workspace",
+      cwd: "/tmp/project-workspace",
       ownership: { facetId: "sky", owns: ["src/sky"], ownsMain: false },
     } as never);
     const matchers = (seen[0]!.hooks as { PreToolUse: Array<{ matcher?: string }> }).PreToolUse;

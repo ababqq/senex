@@ -6,11 +6,11 @@ trainable: true
 
 <!-- SLOW_UPDATE -->
 Output JSON only, no prose around it:
-{"genres":["fps"],"game":{"kind":"<one of the kinds this ask names, or null>","playScript":null},"facets":[{"id":"kebab-slug","title":"…","intent":"…prose brief…","owns":["src/<slug>.js"],"identity":["ranked identity feature","…"],"cameras":["default","camX","eye:spawn"],"checks":[{"id":"kebab","kind":"scene|pixel|probe|demo|vision|play","weight":"identity|normal","hard":false,"…":"…"}],"craft":["flora.leaf-cards"],"milestones":[{"id":"kebab","what":"one structural step — what the game IS after it","check":{"kind":"scene","js":"count('house') >= 6"}}],"budgetShare":0.25}],"mainOwner":"kebab-slug","base":{"notes":"…","files":[{"path":"src/palette.js","purpose":"…"}]},"integrationNotes":"…","assumptions":["…"]}
+{"genres":["fps"],"app":{"kind":"<one of the kinds this ask names, or null>","playScript":null},"facets":[{"id":"kebab-slug","title":"…","intent":"…prose brief…","owns":["src/<slug>.js"],"identity":["ranked identity feature","…"],"cameras":["default","camX","eye:spawn"],"checks":[{"id":"kebab","kind":"scene|pixel|probe|demo|vision|play","weight":"identity|normal","hard":false,"…":"…"}],"craft":["flora.leaf-cards"],"milestones":[{"id":"kebab","what":"one structural step — what the project IS after it","check":{"kind":"scene","js":"count('house') >= 6"}}],"budgetShare":0.25}],"mainOwner":"kebab-slug","base":{"notes":"…","files":[{"path":"src/palette.js","purpose":"…"}]},"integrationNotes":"…","assumptions":["…"]}
 
 Rules that never change:
 - budgetShare values sum to 1.
-- `mainOwner` names exactly ONE facet id — the only facet allowed to edit the game's entry
+- `mainOwner` names exactly ONE facet id — the only facet allowed to edit the project's entry
   (`src/main.js`; a project with its own shape names its own, e.g. `src/main.ts`) and
   `src/studio.js`. Every other facet ships its work as its own module and one import line.
 - Every facet has an `intent` (the prose brief) AND `checks`: the contract the harness verifies
@@ -37,7 +37,7 @@ Rules that never change:
 - `weight:"identity"` marks the checks the facet exists for (2–4 of them). `hard:true` marks a
   check known to need a technique spike (planar mirror, volumetric fog, first-person effects).
 - `milestones` is the facet's ladder: 3–5 ORDERED structural steps, each one iteration's work,
-  each changing what the game IS (its extent, a system, a mechanic, where the player goes next,
+  each changing what the project IS (its extent, a system, a mechanic, where the player goes next,
   what the screen tells them) — never how it looks. Once the identity checks hold, the loop
   hands the builder the next unclimbed milestone as THE MOVE of the iteration, and a build that
   only polishes what already exists loses. The ladder must reach the whole intent: "three
@@ -50,13 +50,13 @@ Rules that never change:
 - Reuse ids and thresholds from the check catalogue below when they fit — never invent a second
   id for the same measurement. The catalogue is now small on purpose: five technical checks the
   harness keeps on every board, plus whatever the runs themselves learned, grouped under the
-  kind of game that learned it. A group learned on another kind of game is a hypothesis here,
+  kind of project that learned it. A group learned on another kind of project is a hypothesis here,
   not a group to take whole — take the entries that fit this ask and leave the rest.
 - `genres` names the catalogue groups that apply (fps, characters, arena, puzzle, …); what this
-  run's judge learns is filed under them for the next game of that kind. `game` declares what the
-  game IS — its `kind`, one of the names the ask lists. The kind already carries whether the game
+  run's judge learns is filed under them for the next project of that kind. `project` declares what the
+  project IS — its `kind`, one of the names the ask lists. The kind already carries whether the project
   has a HUD, mouse look and keyboard movement; add the booleans `hud`, `mouseLook`,
-  `keyboardMove` beside it ONLY where this game differs from its kind, and remember that `false`
+  `keyboardMove` beside it ONLY where this project differs from its kind, and remember that `false`
   is a declaration too — it takes that check off every board. The harness adds its own checks
   only for what is declared: `no-dom-ui` + `single-hud` when there is a HUD, `look-turns-camera`
   when the mouse looks, `keys-move-player` when keys move. Do not re-declare those ids. All UI goes through `__studio.hud`

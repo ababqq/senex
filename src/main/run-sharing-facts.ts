@@ -1,6 +1,6 @@
 /**
  * What a finished build measured, read from its events (§9.4, M5.3): the facts a field row is built
- * from. Two kinds of build end: a game chat's turn that delegated builds and launched nothing (a
+ * from. Two kinds of build end: a project chat's turn that delegated builds and launched nothing (a
  * chat-only build), and a run the chat launched (its `run_finished`). A turn that launched a run
  * makes no row of its own; the run's end does.
  *
@@ -55,7 +55,7 @@ export const FIELD_EVENT_NAMES: FieldEventNames = {
   previewReady: CustomEvent.PreviewReady,
 };
 
-/** One game chat's events and the chat's permission mode (its thread metadata), as the log holds them. */
+/** One project chat's events and the chat's permission mode (its thread metadata), as the log holds them. */
 export interface FinishedBuildEvents {
   events: readonly EventEnvelope[];
   permissionMode: unknown;
@@ -311,7 +311,7 @@ function turnEnding(turn: readonly EventEnvelope[]): EndedHow {
 }
 
 /**
- * The facts of a game chat's last turn when it was a chat-only build: it delegated at least one
+ * The facts of a project chat's last turn when it was a chat-only build: it delegated at least one
  * build and launched no run. Null for a turn that only answered, one that launched a run, and one
  * whose engine or model a row cannot name.
  */
@@ -429,7 +429,7 @@ export function runFacts(
   };
 }
 
-/** The log reads the facts need: a chat's record and events, and the threads of a game. */
+/** The log reads the facts need: a chat's record and events, and the threads of a project. */
 export type FactsStore = Pick<EventStore, "getRecord" | "listThreads" | "listEvents">;
 
 const metadataOf = (record: ConversationRecord): Payload => record.metadata ?? {};
@@ -446,8 +446,8 @@ function sinceTaken(events: readonly EventEnvelope[], messageId: string): readon
 }
 
 /**
- * The facts of a finished build, read from the log: the turn a game chat's handled message opened,
- * or a run found in the threads of its game. Null for the Studio's own chat, for a handled message
+ * The facts of a finished build, read from the log: the turn a project chat's handled message opened,
+ * or a run found in the threads of its project. Null for the Studio's own chat, for a handled message
  * that opened no turn (an earlier turn is never shared again), and for anything that was no build.
  */
 export async function readFinishedFacts(
@@ -457,13 +457,13 @@ export async function readFinishedFacts(
 ): Promise<FieldRunFacts | null> {
   if ("threadId" in ref) {
     const metadata = metadataOf(await store.getRecord(ref.threadId));
-    if (metadata.kind !== ThreadKind.Game) return null;
+    if (metadata.kind !== ThreadKind.Project) return null;
     const events = sinceTaken(await store.listEvents(ref.threadId), ref.messageId);
     return events && turnFacts({ events, permissionMode: metadata.permissionMode }, names);
   }
   const threads = (await store.listThreads()).filter((thread) => {
     const metadata = metadataOf(thread);
-    return metadata.kind === ThreadKind.Game && metadata.project === ref.project;
+    return metadata.kind === ThreadKind.Project && metadata.project === ref.project;
   });
   for (const thread of threads) {
     const source = { events: await store.listEvents(thread.id), permissionMode: metadataOf(thread).permissionMode };

@@ -215,7 +215,7 @@ describe("the run controls", () => {
         hours: 1,
         reference: { name: "ref", kind: "reference", frames: frames.slice(0, 1) },
       }),
-      { ok: false, error: 'A "beat a real game" run needs at least two screenshots of the reference.' },
+      { ok: false, error: 'A "beat a real project" run needs at least two screenshots of the reference.' },
     );
   });
 

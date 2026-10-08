@@ -85,7 +85,7 @@ describe("a night on two subscriptions", () => {
       { previewPoolMax: 2, createHeadlessPreview: async () => makeFakePreview() },
     );
     rigs.push(rig);
-    const project = await rig.core.games.scaffold("cross-smoke", { title: "Cross smoke" });
+    const project = await rig.core.projects.scaffold("cross-smoke", { title: "Cross smoke" });
     const seen: Array<{ engine: string; request: DelegateRequest }> = [];
     const results: Record<string, any> = {};
     let completes: Record<string, CompleteRequest[]> = {};
@@ -192,7 +192,7 @@ describe("a night on two subscriptions", () => {
       { previewPoolMax: 2, createHeadlessPreview: async () => makeFakePreview() },
     );
     rigs.push(rig);
-    const project = await rig.core.games.scaffold("cross-limit", { title: "Cross limit" });
+    const project = await rig.core.projects.scaffold("cross-limit", { title: "Cross limit" });
     const results: Record<string, any> = {};
     twoEngines(rig, async (engine, request) => {
       if (request.director) {

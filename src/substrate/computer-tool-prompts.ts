@@ -20,7 +20,7 @@ const WHOSE_BUILD: Record<ComputerToolRole, string> = {
 const RELOAD_LINE =
   " reload — rebuild and reload the window after you edit files (until you do, the window keeps running the build it last loaded).";
 
-/** The tool's description, for a role, a window size and the cameras the game names. */
+/** The tool's description, for a role, a window size and the cameras the project names. */
 export function computerToolDescription(options: {
   role: ComputerToolRole;
   view: { width: number; height: number };
@@ -38,25 +38,25 @@ export function computerToolDescription(options: {
     "scroll scroll_direction=up|down|left|right scroll_amount=<notches> [coordinate=x,y]. " +
     "type text=<literal text>. key text=<a key or +chord: w, i, Return, Escape, space, ctrl+s> [repeat=n]. hold_key text=w duration=<seconds> (walks, grinds). " +
     "wait duration=<seconds>. cursor_position. " +
-    `camera text=<name>: jump the view to a studio camera (eye:here is the player's eyes, default the game's own).${options.cameras} ` +
-    "state: the game's own __studio.state() numbers (a claim — a screenshot is the proof). console: errors since load." +
+    `camera text=<name>: jump the view to a studio camera (eye:here is the player's eyes, default the project's own).${options.cameras} ` +
+    "state: the project's own __studio.state() numbers (a claim — a screenshot is the proof). console: errors since load." +
     reload +
-    " screenshot, camera and zoom take surface=screen|canvas: screen is the whole page — a DOM menu, an HTML HUD, a loading screen — and canvas is only what the game draws. Leave it out and the studio picks. " +
+    " screenshot, camera and zoom take surface=screen|canvas: screen is the whole page — a DOM menu, an HTML HUD, a loading screen — and canvas is only what the project draws. Leave it out and the studio picks. " +
     `Coordinates are pixels of the last screenshot, origin top-left. ${clock} ` +
     "Menus, map pickers and mode switches are reached the way a player reaches them: click or press the key, then screenshot to see that you are where you think you are."
   );
 }
 
-/** The game's clock for a builder, a scout and the lead: it runs between actions. */
-const RUNNING_CLOCK_LINE = "The game keeps running between actions.";
+/** The project's clock for a builder, a scout and the lead: it runs between actions. */
+const RUNNING_CLOCK_LINE = "The project keeps running between actions.";
 /**
- * The game's clock for a playtester, who takes seconds to look and decide: it stands still between
+ * The project's clock for a playtester, who takes seconds to look and decide: it stands still between
  * moves, as a player's reflexes would have it (golden-boot-glory: one key press ran four match minutes).
  */
 const PACED_CLOCK_LINE =
-  "The game's clock stands still between your actions: it runs only while you press, hold, click or wait, so take your time to look.";
+  "The project's clock stands still between your actions: it runs only while you press, hold, click or wait, so take your time to look.";
 
-/** The known cameras, as the sentence the description carries (empty when the game names none). */
+/** The known cameras, as the sentence the description carries (empty when the project names none). */
 export function knownCamerasLine(cameras: string[]): string {
   return cameras.length ? ` Known cameras: ${cameras.join(", ")}.` : "";
 }
@@ -73,7 +73,7 @@ export const COMPUTER_PARAMETER_TEXT = {
   scroll_direction: "up, down, left or right",
   scroll_amount: "wheel notches, default 3",
   surface:
-    "surface=screen|canvas for screenshot, camera and zoom: screen is the whole page (DOM menus, an HTML HUD, a loader), canvas is only what the game draws; omit it and the studio picks",
+    "surface=screen|canvas for screenshot, camera and zoom: screen is the whole page (DOM menus, an HTML HUD, a loader), canvas is only what the project draws; omit it and the studio picks",
 } as const;
 
 /** What the model is told instead of an action, when its arguments cannot run. */
@@ -86,6 +86,6 @@ export const COMPUTER_ARG_PROBLEM = {
   scrollNeedsDirection: "scroll needs scroll_direction=up|down|left|right (and scroll_amount, default 3)",
   typeNeedsText: "type needs text=<what to type>",
   keyNeedsText: (action: string) => `${action} needs text=<key or combo, e.g. Return, Escape, ctrl+s, w>`,
-  cameraNeedsName: "camera needs text=<camera name> (eye:here is your own eyes; default is the game's camera)",
+  cameraNeedsName: "camera needs text=<camera name> (eye:here is your own eyes; default is the project's camera)",
   unknownSurface: (raw: string) => `surface "${raw}" is not screen or canvas — the studio picked the surface itself`,
 } as const;

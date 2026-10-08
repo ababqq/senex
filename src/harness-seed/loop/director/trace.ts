@@ -15,7 +15,7 @@ const MEASURED = new Set<string>([
   HostMethod.PreviewReady,
   HostMethod.PreviewScreenshot,
   HostMethod.PreviewAcquire,
-  HostMethod.GameValidate,
+  HostMethod.ProjectValidate,
   HostMethod.RunExec,
 ]);
 

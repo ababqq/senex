@@ -14,7 +14,7 @@ import type { ChatActivityPhase } from "./chat-activity.ts";
 import type { ChatRewind } from "./chat-rewind.ts";
 import type { PlanReviewRecord } from "./composer.ts";
 import type { ContextMeasurement } from "./context.ts";
-import type { AssetDeliveredPayload, PluginToolFinishedPayload, PluginToolStartedPayload } from "./game-assets.ts";
+import type { AssetDeliveredPayload, PluginToolFinishedPayload, PluginToolStartedPayload } from "./project-assets.ts";
 import type { PluginConsentEvent } from "./plugins.ts";
 import type { ToolPermissionEvent } from "./permissions.ts";
 import type { SteerDelivery } from "./message-queue.ts";
@@ -134,12 +134,12 @@ export const CustomEvent = {
   SessionActivity: "session_activity",
   ToolRegistryApplied: "tool_registry_applied",
   UserFeedback: "user_feedback",
-  // the studio itself: its harness, learning and games
+  // the studio itself: its harness, learning and projects
   BuildObservation: "build_observation",
   FixtureNoise: "fixture_noise",
-  GameArchived: "game_archived",
-  GameCoverCreated: "game_cover_created",
-  GamesMigrated: "games_migrated",
+  ProjectArchived: "game_archived",
+  ProjectCoverCreated: "game_cover_created",
+  ProjectsMigrated: "games_migrated",
   HarnessBooted: "harness_booted",
   HarnessDowngraded: "harness_downgraded",
   HarnessLayoutMigrated: "harness_layout_migrated",
@@ -369,7 +369,7 @@ export interface PlanReviewPayload extends RunScope {
   waitMinutes?: number;
   summary?: string;
   facets?: PlannedFacet[];
-  game?: { kind?: string | null } | null;
+  app?: { kind?: string | null } | null;
 }
 
 /** The chat's contractor session: what its next turn resumes, and the model it was opened on. */
@@ -525,7 +525,7 @@ export interface CustomEventMap {
   coordinator_message_steering: SteerPayload;
   coordinator_message_updated: CoordinatorPayload;
   delegation_incomplete: DelegationIncompletePayload;
-  /** A chat rewound to before a message (`shared/chat-rewind.ts`); `files`: game files put back, null when none were asked for. */
+  /** A chat rewound to before a message (`shared/chat-rewind.ts`); `files`: project files put back, null when none were asked for. */
   conversation_rewound: Partial<ChatRewind> & { files?: number | null };
   director_show: RunScope & { target?: string; root?: string };
   director_verdict: RunScope & { pass?: string; because?: string; decision?: { kept?: boolean | null } };

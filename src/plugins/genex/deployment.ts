@@ -59,7 +59,7 @@ async function exportFiles(root: string): Promise<DeploymentManifest["files"]> {
   return files.sort((a, b) => a.path.localeCompare(b.path));
 }
 
-/** Only the app-owned export is marked. The source game is never modified. */
+/** Only the app-owned export is marked. The source project is never modified. */
 export async function markDeployment(root: string, id: string): Promise<DeploymentManifest> {
   if (!/^[a-zA-Z0-9-]+$/.test(id)) throw new Error(MESSAGE.InvalidIdentity);
   await tagEntry(root, id);

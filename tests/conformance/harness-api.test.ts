@@ -102,13 +102,13 @@ test("malformed params for a path-bearing method are refused with a clear error 
   const harness = await pipe(PATH_BEARING);
   try {
     const refusals: Array<[string, unknown, string]> = [
-      ["game.read", { project: "pong", file: 42 }, "file"],
-      ["game.write", { project: "pong", contents: "x" }, "file"],
-      ["game.read", { file: "src/main.js" }, "project"],
+      ["project.read", { project: "pong", file: 42 }, "file"],
+      ["project.write", { project: "pong", contents: "x" }, "file"],
+      ["project.read", { file: "src/main.js" }, "project"],
       ["snapshot.removeWorktree", { project: "pong", path: { toString: "/" } }, "path"],
       ["snapshot.worktree", { project: "pong", name: 7 }, "name"],
       ["preview.load", { project: "pong", root: ["/etc"] }, "root"],
-      ["game.export", { project: "pong", target: 1 }, "target"],
+      ["project.export", { project: "pong", target: 1 }, "target"],
       ["run.exec", { command: "ls", cwd: false }, "cwd"],
       [
         "engine.delegate",
@@ -118,7 +118,7 @@ test("malformed params for a path-bearing method are refused with a clear error 
       ["engine.delegate", { project: "pong", prompt: "go", extraReads: ["/refs", 3] }, "extraReads.1"],
       ["preview.pair", { runId: "r1", left: { path: 9 }, right: {} }, "left.path"],
       ["run.artifact", { runId: "r1", name: null, base64: "" }, "name"],
-      ["game.scaffold", undefined, "params"],
+      ["project.scaffold", undefined, "params"],
     ];
     for (const [method, params, field] of refusals) {
       const answer = await harness.rpc(method, params);
@@ -149,8 +149,8 @@ test("a well-formed call reaches its handler with the params exactly as the harn
     // Shapes the seed sends today, including fields the schema does not check and the nulls a
     // handler reads as "not given".
     const accepted: Array<[string, unknown]> = [
-      ["game.read", { project: "pong", file: "NOTES.md" }],
-      ["game.export", { project: "pong", candidateId: "opt-1" }],
+      ["project.read", { project: "pong", file: "NOTES.md" }],
+      ["project.export", { project: "pong", candidateId: "opt-1" }],
       ["mcp.tools", { project: null }],
       ["snapshot.worktree", { project: "pong", commit: null, name: "integration", runId: "run-1" }],
       ["preview.load", { project: "pong", root: null, entry: "index.html", handle: "stage-1" }],
@@ -173,7 +173,7 @@ test("a well-formed call reaches its handler with the params exactly as the harn
           selfCapture: { project: "pong", root: "/scratch/w1", runId: "r1", facetId: "build", iteration: 1 },
         },
       ],
-      ["game.setCover", { project: "pong", threadId: "t1", family: "dunes", palette: "dusk", seed: 3 }],
+      ["project.setCover", { project: "pong", threadId: "t1", family: "dunes", palette: "dusk", seed: 3 }],
       // Not path-bearing: nothing is checked, whatever arrives.
       ["preview.state", 5],
       // Stop is never refused on its params.
@@ -193,9 +193,9 @@ test("a well-formed call reaches its handler with the params exactly as the harn
 });
 
 test("an unknown method is still answered as unknown, before any params check", async () => {
-  const harness = await pipe(["game.read"]);
+  const harness = await pipe(["project.read"]);
   try {
-    const answer = await harness.rpc("game.delete", { project: 1 });
+    const answer = await harness.rpc("project.delete", { project: 1 });
     assert.equal(answer.ok, false);
     assert.equal(answer.error?.name, "UnknownMethod");
   } finally {
@@ -226,17 +226,17 @@ void everySchemaAcceptsItsType;
 function typecheckOnly(api: HarnessHostHandlers): void {
   // Params and results come from the map.
   const url: Promise<string> = api["preview.load"]({ project: "pong" });
-  const tree: Promise<string[]> = api["game.tree"]({ project: "pong" });
+  const tree: Promise<string[]> = api["project.tree"]({ project: "pong" });
   void url;
   void tree;
-  // @ts-expect-error: game.read needs the file it reads
-  void api["game.read"]({ project: "pong" });
+  // @ts-expect-error: project.read needs the file it reads
+  void api["project.read"]({ project: "pong" });
   // @ts-expect-error: a folder is a string, never a number
   void api["snapshot.removeWorktree"]({ project: "pong", path: 1 });
   // @ts-expect-error: preview.load answers a URL, not a boolean
   const wrong: Promise<boolean> = api["preview.load"]({ project: "pong" });
   void wrong;
   // @ts-expect-error: no such method
-  void api["game.delete"];
+  void api["project.delete"];
 }
 void typecheckOnly;

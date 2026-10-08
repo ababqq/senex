@@ -1,7 +1,7 @@
 /**
  * The Genex app's eval lane (evals plan §5.3, lanes A and D): an isolated `--studio-smoke` launch
  * that reads an {@link EvalLaneSpec}, turns off the plugins it names, sends one brief through one
- * fresh game chat in the evaluated build's own default mode, answers typed questions with the
+ * fresh project chat in the evaluated build's own default mode, answers typed questions with the
  * shared sentence, waits until the chat is idle or the deadline rail takes the core stop path,
  * and writes an {@link EvalLaneReport}. No `electron` import: the rig drives {@link runEvalLane}
  * with a real core, and main opens and checks the launch ({@link openEvalLane}) before any core
@@ -110,8 +110,8 @@ export type EvalLaneCore = Pick<
   | "layout"
   | "options"
   | "store"
-  | "games"
-  | "createGameThread"
+  | "projects"
+  | "createProjectThread"
   | "setPermissionMode"
   | "sendUserMessage"
   | "answerPlan"
@@ -120,7 +120,7 @@ export type EvalLaneCore = Pick<
   | "activeBuilders"
 > & { plugins: EvalLanePlugins };
 
-/** A chat the core bound to a game folder (`UiEvent.ThreadBound`). */
+/** A chat the core bound to a project folder (`UiEvent.ThreadBound`). */
 export type ThreadBound = UiEventMap[typeof UiEvent.ThreadBound];
 
 /** What the lane cannot read from the core itself. */
@@ -128,8 +128,8 @@ export interface EvalLaneDeps {
   /** The coding CLIs' versions; unset reports none (a fixture lane). */
   cliVersions?: () => Promise<EvalLaneReport["cliVersions"]>;
   /**
-   * Call `listener` for each chat the core binds to a game folder; returns the unsubscribe. The
-   * lane digests the seeded game right then (`templateDigest`); unset, the report has none.
+   * Call `listener` for each chat the core binds to a project folder; returns the unsubscribe. The
+   * lane digests the seeded project right then (`templateDigest`); unset, the report has none.
    */
   onThreadBound?: (listener: (bound: ThreadBound) => void) => () => void;
 }
@@ -159,7 +159,7 @@ export interface OpenEvalLaneInput {
   /** The `--studio-eval-lane` file. */
   file: string;
   smoke: boolean;
-  /** A developer launch (`--studio-dev-launch`): its core would run on the dev profile and games. */
+  /** A developer launch (`--studio-dev-launch`): its core would run on the dev profile and projects. */
   devLaunch: boolean;
   /** `--studio-eval-fixture`: scripted engines whatever the spec says. */
   fixtureFlag: boolean;
@@ -167,8 +167,8 @@ export interface OpenEvalLaneInput {
   liveAllowed: boolean;
   /** The launch's actual data folder (`--userdata`). */
   userData: string;
-  /** `~/AI Games`, the normal profile's games. */
-  aiGames: string;
+  /** `~/AI Projects`, the normal profile's projects. */
+  aiProjects: string;
   /** The normal profile's userData. */
   defaultUserData: string;
 }
@@ -182,12 +182,12 @@ export type OpenedEvalLane =
  * Read, validate and check an eval launch before any core starts: a smoke launch only, never a
  * developer launch (its core runs on the dev profile, not the roots checked here), live
  * providers only with the explicit opt-in, never Bypass, and every root the run writes (its data
- * folder, the spec's userData and games, the report's folder) inside the spec's work root by real
- * path, never in `~/AI Games` or the normal profile. Creates nothing.
+ * folder, the spec's userData and projects, the report's folder) inside the spec's work root by real
+ * path, never in `~/AI Projects` or the normal profile. Creates nothing.
  */
 export async function openEvalLane(input: OpenEvalLaneInput): Promise<OpenedEvalLane> {
   if (!input.smoke) return refuse(EvalLaunchRefusal.NotSmoke, input.file);
-  // A developer launch's core writes to its dev profile and games, never the roots checked below.
+  // A developer launch's core writes to its dev profile and projects, never the roots checked below.
   if (input.devLaunch) return refuse(EvalLaunchRefusal.DevLaunch, input.file);
   let launch: EvalLaunch;
   try {
@@ -196,13 +196,13 @@ export async function openEvalLane(input: OpenEvalLaneInput): Promise<OpenedEval
     return refuse(EvalLaunchRefusal.InvalidSpec, errorMessage(error));
   }
   const spec = { ...launch.spec, fixture: launch.spec.fixture || input.fixtureFlag };
-  const roots = [input.userData, spec.userDataRoot, spec.gamesRoot, path.dirname(spec.reportPath)];
-  let real: { workRoot: string; roots: string[]; aiGames: string; defaultUserData: string };
+  const roots = [input.userData, spec.userDataRoot, spec.projectsRoot, path.dirname(spec.reportPath)];
+  let real: { workRoot: string; roots: string[]; aiProjects: string; defaultUserData: string };
   try {
     real = {
       workRoot: await realpathNearest(spec.workRoot),
       roots: await Promise.all(roots.map((root) => realpathNearest(root))),
-      aiGames: await realpathNearest(input.aiGames),
+      aiProjects: await realpathNearest(input.aiProjects),
       defaultUserData: await realpathNearest(input.defaultUserData),
     };
   } catch (error) {
@@ -217,10 +217,10 @@ export async function openEvalLane(input: OpenEvalLaneInput): Promise<OpenedEval
     ...real,
   });
   if (refusal) return refuse(refusal, spec.workRoot);
-  // The run uses the roots it was checked by: the core compares a game's real path with its games root.
-  const [, userDataRoot = spec.userDataRoot, gamesRoot = spec.gamesRoot, reportDir = ""] = real.roots;
+  // The run uses the roots it was checked by: the core compares a project's real path with its projects root.
+  const [, userDataRoot = spec.userDataRoot, projectsRoot = spec.projectsRoot, reportDir = ""] = real.roots;
   const reportPath = path.join(reportDir, path.basename(spec.reportPath));
-  const checked = { ...spec, workRoot: real.workRoot, userDataRoot, gamesRoot, reportPath };
+  const checked = { ...spec, workRoot: real.workRoot, userDataRoot, projectsRoot, reportPath };
   return { ok: true, launch: { spec: checked } };
 }
 
@@ -243,7 +243,7 @@ export interface EvalLaunchFacts {
   workRoot: string;
   /** Every folder the run writes. */
   roots: readonly string[];
-  aiGames: string;
+  aiProjects: string;
   defaultUserData: string;
 }
 
@@ -262,10 +262,10 @@ export function evalLaunchRefusal(facts: EvalLaunchFacts): EvalLaunchRefusal | n
   if (!facts.smoke) return EvalLaunchRefusal.NotSmoke;
   if (facts.live && !facts.liveAllowed) return EvalLaunchRefusal.LiveNotAllowed;
   if (facts.permissionMode === PermissionMode.Bypass) return EvalLaunchRefusal.BypassMode;
-  const protectedRoots = [facts.aiGames, facts.defaultUserData];
+  const protectedRoots = [facts.aiProjects, facts.defaultUserData];
   if (protectedRoots.some((root) => within(facts.workRoot, root))) return EvalLaunchRefusal.WorkRootTooBroad;
   for (const root of facts.roots) {
-    if (within(facts.aiGames, root)) return EvalLaunchRefusal.InsideAiGames;
+    if (within(facts.aiProjects, root)) return EvalLaunchRefusal.InsideAiProjects;
     if (within(facts.defaultUserData, root)) return EvalLaunchRefusal.DefaultUserData;
     if (!within(facts.workRoot, root)) return EvalLaunchRefusal.OutsideWorkRoot;
   }
@@ -378,7 +378,7 @@ export function parseEvalLaunch(value: unknown): EvalLaunch {
     answerPolicy: oneOf(value, "answerPolicy", AnswerPolicy),
     maxAnswers: count(value, "maxAnswers"),
     codexHostSkillSuppression: flag(value, "codexHostSkillSuppression"),
-    gamesRoot: absolute(value, "gamesRoot"),
+    projectsRoot: absolute(value, "projectsRoot"),
     userDataRoot: absolute(value, "userDataRoot"),
     workRoot: absolute(value, "workRoot"),
     homes: cliHomes(value),
@@ -393,19 +393,19 @@ export function parseEvalLaunch(value: unknown): EvalLaunch {
 // ── the core an eval launch runs ────────────────────────────────────────────────────────────
 
 /** The core options the launch's `launchCoreOptions` returns (evals plan §5.3). */
-export type EvalCoreOptions = Pick<StudioCoreOptions, "engines" | "gamesRoot" | "executionPolicy">;
+export type EvalCoreOptions = Pick<StudioCoreOptions, "engines" | "projectsRoot" | "executionPolicy">;
 
 /**
  * Real Claude Code and Codex engines (Codex with host skills suppressed when the spec asks, and
- * both CLIs pinned when it names them), or the scripted fixture engines; games in the spec's
+ * both CLIs pinned when it names them), or the scripted fixture engines; projects in the spec's
  * root, which is the only root a build may use; no background improvement.
  */
 export function evalCoreOptions(launch: EvalLaunch, userData: string): EvalCoreOptions {
   const { spec } = launch;
   return {
     engines: spec.fixture ? fixtureEngines() : evalEngines(launch, userData),
-    gamesRoot: spec.gamesRoot,
-    executionPolicy: { allowedProjectRoot: spec.gamesRoot, runBackgroundImprovement: false },
+    projectsRoot: spec.projectsRoot,
+    executionPolicy: { allowedProjectRoot: spec.projectsRoot, runBackgroundImprovement: false },
   };
 }
 
@@ -637,22 +637,22 @@ interface LaneRun {
   promptAt: number;
   answers: EvalLaneAnswer[];
   errors: EvalLaneError[];
-  /** The seeded game's digest, started the moment the chat was bound to it; null until then. */
+  /** The seeded project's digest, started the moment the chat was bound to it; null until then. */
   templateDigest: Promise<string | null> | null;
   /** Stop listening for the chat's binding. */
   unwatchSeed: () => void;
 }
 
 /**
- * Digest the game the moment the core binds this run's chat to it: the template as the app seeded
+ * Digest the project the moment the core binds this run's chat to it: the template as the app seeded
  * it, before the agent's first edit can land (the bind happens inside the scaffold call the agent
  * is still waiting on). Returns the unsubscribe.
  */
-function digestSeededGame(run: LaneRun, deps: EvalLaneDeps): () => void {
+function digestSeededProject(run: LaneRun, deps: EvalLaneDeps): () => void {
   if (!deps.onThreadBound) return () => {};
   return deps.onThreadBound((bound) => {
     if (bound.threadId !== run.threadId || run.templateDigest !== null) return;
-    run.templateDigest = workspaceDigest(run.core.games.dirFor(bound.project)).catch(() => null);
+    run.templateDigest = workspaceDigest(run.core.projects.dirFor(bound.project)).catch(() => null);
   });
 }
 
@@ -725,7 +725,7 @@ async function answerQuestions(run: LaneRun, log: LaneLog): Promise<boolean> {
   return answered;
 }
 
-/** Builders at work in any game right now. */
+/** Builders at work in any project right now. */
 function buildersAtWork(core: EvalLaneCore): number {
   return Object.values(core.activeBuilders()).reduce((sum, n) => sum + n, 0);
 }
@@ -793,11 +793,11 @@ async function permissionModeServed(core: EvalLaneCore, threadId: string, fallba
   return isPermissionMode(mode) ? mode : fallback;
 }
 
-/** The game folder the chat is bound to, or "" when it never got one. */
+/** The project folder the chat is bound to, or "" when it never got one. */
 async function projectDir(core: EvalLaneCore, threadId: string): Promise<string> {
   const record = await core.store.getRecord(threadId).catch(() => null);
   const project = (record?.metadata as { project?: unknown } | undefined)?.project;
-  return typeof project === "string" && project ? core.games.dirFor(project) : "";
+  return typeof project === "string" && project ? core.projects.dirFor(project) : "";
 }
 
 /** The report, from the run and its chat's final log. */
@@ -841,7 +841,7 @@ async function buildReport(run: LaneRun, endedHow: EndedHow, deps: EvalLaneDeps)
 }
 
 /**
- * Preflight, the spec's plugins turned off, a fresh game chat in the spec's permission mode (its
+ * Preflight, the spec's plugins turned off, a fresh project chat in the spec's permission mode (its
  * seeding watched), and the brief sent into it.
  */
 async function begin(run: LaneRun, deps: EvalLaneDeps): Promise<boolean> {
@@ -852,8 +852,8 @@ async function begin(run: LaneRun, deps: EvalLaneDeps): Promise<boolean> {
     return false;
   }
   try {
-    run.threadId = await run.core.createGameThread();
-    run.unwatchSeed = digestSeededGame(run, deps);
+    run.threadId = await run.core.createProjectThread();
+    run.unwatchSeed = digestSeededProject(run, deps);
     await run.core.setPermissionMode(run.threadId, run.spec.permissionMode);
     run.promptAt = run.clock.now();
     await run.core.sendUserMessage(`${run.spec.brief}\n\n${run.spec.suffix}`, sendOptions(run));

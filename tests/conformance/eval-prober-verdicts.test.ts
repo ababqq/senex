@@ -2,7 +2,7 @@
  * The prober's pure verdicts (`scripts/evals/prober/verdicts.ts`), replayed with no browser. Ported
  * from genex-demo's `prober/verdicts.test.ts` and its `test/{gate,loader-failures,renderer-defects,
  * pitch}.test.ts`, with hosted hostnames rewritten to `*.example.test`, the hosted-only rules dropped
- * (embed SDK markers, the demo template's optional probes) and `stayedOnGame` allowing no bounce.
+ * (embed SDK markers, the demo template's optional probes) and `stayedOnProject` allowing no bounce.
  * Every row here is a verdict that once mis-scored a run by a confident, wrong reading.
  */
 import assert from "node:assert/strict";
@@ -22,7 +22,7 @@ import {
   classifyFailure,
   demoteForFullscreen,
   demoteForLookInput,
-  demoteForNoGameplay,
+  demoteForNoInteraction,
   demoteForPointerLock,
   directionPairVerdict,
   EXPOSURE_SAMPLE,
@@ -30,7 +30,7 @@ import {
   enterableVerdict,
   evidenceScore,
   fullscreenBlocked,
-  gameplayReached,
+  interactionReached,
   gateFor,
   gatingRows,
   headingStepDeg,
@@ -62,29 +62,29 @@ import {
   restoreDragTargetY,
   selectExposureFrames,
   shouldDemoteForCamera,
-  stayedOnGame,
+  stayedOnProject,
   verbPixelExceededControl,
   worstResult,
   yawSweepDeg,
 } from "../../scripts/evals/prober/verdicts.ts";
 import { type ProbePhase, ProbeRow } from "../../scripts/evals/vocabulary.ts";
 
-const GAME = "https://quiet-village.example.test";
+const PROJECT = "https://quiet-village.example.test";
 const FIXTURES = path.resolve(import.meta.dirname, "../fixtures/evals/prober");
 const fixture = <T>(name: string): T => JSON.parse(fs.readFileSync(path.join(FIXTURES, name), "utf8")) as T;
 
 describe("classifyFailure", () => {
-  it("a same-origin 4xx or 5xx is the game's asset", () => {
-    assert.equal(classifyFailure(`${GAME}/assets/house.glb`, GAME).blame, "asset");
-    assert.equal(classifyFailure(`${GAME}/api/whatever`, GAME).blame, "asset", "same origin, any shape");
+  it("a same-origin 4xx or 5xx is the project's asset", () => {
+    assert.equal(classifyFailure(`${PROJECT}/assets/house.glb`, PROJECT).blame, "asset");
+    assert.equal(classifyFailure(`${PROJECT}/api/whatever`, PROJECT).blame, "asset", "same origin, any shape");
   });
 
   it("third-party: asset-shaped is blamed, non-asset is benign, telemetry and favicons are benign", () => {
-    assert.equal(classifyFailure("https://cdn.example.test/models/tree.glb", GAME).blame, "asset");
-    assert.equal(classifyFailure("https://api.example.test/api/embed/session", GAME).blame, "benign");
-    assert.equal(classifyFailure("https://o123.ingest.us.sentry.io/api/1/envelope/", GAME).blame, "benign");
-    assert.equal(classifyFailure(`${GAME}/favicon.ico`, GAME).blame, "benign");
-    assert.equal(classifyFailure("not a url", GAME).blame, "benign");
+    assert.equal(classifyFailure("https://cdn.example.test/models/tree.glb", PROJECT).blame, "asset");
+    assert.equal(classifyFailure("https://api.example.test/api/embed/session", PROJECT).blame, "benign");
+    assert.equal(classifyFailure("https://o123.ingest.us.sentry.io/api/1/envelope/", PROJECT).blame, "benign");
+    assert.equal(classifyFailure(`${PROJECT}/favicon.ico`, PROJECT).blame, "benign");
+    assert.equal(classifyFailure("not a url", PROJECT).blame, "benign");
   });
 
   it("a failed .ktx2 sibling is benign when its universal fallback loaded, and an asset failure otherwise", () => {
@@ -94,9 +94,9 @@ describe("classifyFailure", () => {
       "https://assets.example.test/generations/g1/model-glb",
     ]);
     const ok = new Set(["https://assets.example.test/generations/g1/model-glb@2048"]);
-    assert.equal(classifyFailure(ktx, GAME, ok).blame, "benign");
-    assert.equal(classifyFailure(ktx, GAME, new Set()).blame, "asset", "no fallback loaded: a missing asset");
-    assert.equal(classifyFailure(ktx, GAME).blame, "asset");
+    assert.equal(classifyFailure(ktx, PROJECT, ok).blame, "benign");
+    assert.equal(classifyFailure(ktx, PROJECT, new Set()).blame, "asset", "no fallback loaded: a missing asset");
+    assert.equal(classifyFailure(ktx, PROJECT).blame, "asset");
     assert.equal(ktx2FallbackUrls("https://x.example.test/y/model-glb@2048").length, 0);
   });
 });
@@ -115,16 +115,16 @@ describe("pickEvidenceSnapshot", () => {
     raf: { distinctFrames: score.raf ?? 0 },
   });
 
-  it("a foreign page out-scores the game on evidence and still loses on origin", () => {
-    const game = snap(`${GAME}/`, { canvases: 1, colors: 40, raf: 900 }, 12_000);
+  it("a foreign page out-scores the project on evidence and still loses on origin", () => {
+    const project = snap(`${PROJECT}/`, { canvases: 1, colors: 40, raf: 900 }, 12_000);
     const login = snap(
       "https://login.example.test/login?next=%2Fplay",
       { contexts: 1, canvases: 1, colors: 200, raf: 5000 },
       305_000,
     );
-    assert.ok(evidenceScore(login) > evidenceScore(game), "the premise: on evidence alone the foreign page wins");
-    const pick = pickEvidenceSnapshot([game, login], GAME);
-    assert.equal(pick.snapshot, game);
+    assert.ok(evidenceScore(login) > evidenceScore(project), "the premise: on evidence alone the foreign page wins");
+    const pick = pickEvidenceSnapshot([project, login], PROJECT);
+    assert.equal(pick.snapshot, project);
     assert.equal(pick.sameOrigin, 1);
     assert.equal(pick.foreign, 1);
     assert.match(pick.notes[0] ?? "", /1 of 2 page-state snapshot\(s\) were taken on a foreign origin/);
@@ -135,27 +135,27 @@ describe("pickEvidenceSnapshot", () => {
     );
   });
 
-  it("every snapshot foreign: falls back to the best of them and says the run left the game", () => {
+  it("every snapshot foreign: falls back to the best of them and says the run left the project", () => {
     const a = snap("https://auth.example.test/authorize", { raf: 10 }, 3_000);
     const b = snap("https://login.example.test/login", { contexts: 1, canvases: 1, colors: 200, raf: 5000 }, 300_000);
-    const pick = pickEvidenceSnapshot([a, b], GAME);
+    const pick = pickEvidenceSnapshot([a, b], PROJECT);
     assert.equal(pick.snapshot, b);
     assert.equal(pick.sameOrigin, 0);
     assert.equal(pick.foreign, 2);
-    assert.match(pick.notes[0] ?? "", /^every snapshot was taken on a foreign origin .* — the run left the game/);
+    assert.match(pick.notes[0] ?? "", /^every snapshot was taken on a foreign origin .* — the run left the project/);
     assert.match(pick.notes[0] ?? "", /contaminated/);
   });
 
   it("no foreign snapshot: the best by evidence, no notes; an unreadable href is never foreign", () => {
-    const early = snap(`${GAME}/`, { canvases: 1, colors: 10, raf: 100 });
-    const late = snap(`${GAME}/`, { contexts: 1, canvases: 1, colors: 60, raf: 4000 });
-    assert.deepEqual(pickEvidenceSnapshot([early, late], GAME).notes, []);
-    assert.equal(pickEvidenceSnapshot([early, late], GAME).snapshot, late);
+    const early = snap(`${PROJECT}/`, { canvases: 1, colors: 10, raf: 100 });
+    const late = snap(`${PROJECT}/`, { contexts: 1, canvases: 1, colors: 60, raf: 4000 });
+    assert.deepEqual(pickEvidenceSnapshot([early, late], PROJECT).notes, []);
+    assert.equal(pickEvidenceSnapshot([early, late], PROJECT).snapshot, late);
     const noHref = snap(null, { contexts: 1, canvases: 1, colors: 100, raf: 1000 });
-    assert.equal(pickEvidenceSnapshot([noHref, early], GAME).snapshot, noHref);
+    assert.equal(pickEvidenceSnapshot([noHref, early], PROJECT).snapshot, noHref);
     const login = snap("https://login.example.test/login", { contexts: 1, canvases: 1, colors: 200, raf: 5000 });
     assert.equal(pickEvidenceSnapshot([early, login], "").foreign, 0, "no origin to compare: nothing is foreign");
-    assert.deepEqual(pickEvidenceSnapshot([], GAME), { snapshot: null, notes: [], sameOrigin: 0, foreign: 0 });
+    assert.deepEqual(pickEvidenceSnapshot([], PROJECT), { snapshot: null, notes: [], sameOrigin: 0, foreign: 0 });
   });
 });
 
@@ -182,7 +182,7 @@ describe("pointer-lock and look-input demotions", () => {
     assert.deepEqual(demoteForPointerLock("unknown", blocked), { result: "unknown", why: null });
   });
 
-  it("a granted or shimmed lock, a game that never asked, and an absent record are never blocked", () => {
+  it("a granted or shimmed lock, a project that never asked, and an absent record are never blocked", () => {
     for (const state of [
       { requested: 3, grantedNatively: true, shimmed: false },
       { requested: 3, grantedNatively: false, shimmed: true },
@@ -319,7 +319,7 @@ describe("camera geometry", () => {
     assert.equal(cameraPitchDeg({ fx: 0, fy: -1, fz: 0 }), -90);
   });
 
-  it("pitch: a camera pinned at the ground reads as ruined; a game that started steep was not ruined by the probe", () => {
+  it("pitch: a camera pinned at the ground reads as ruined; a project that started steep was not ruined by the probe", () => {
     const got = cameraPitchDeg(aimed(-84.27)) ?? 0;
     assert.ok(Math.abs(got - -84.27) < 0.01);
     assert.ok(Math.abs(got) > PITCH_RUINED_DEG);
@@ -483,15 +483,15 @@ describe("judgeEvidence", () => {
     const base = { frames, firstRafPageMs: 11_250, firstRenderRunMs: 8_037, pageToRunOffsetMs: 3_562 };
     const stuck = judgeEvidence({
       ...base,
-      gameplayReached: { reached: false, why: 'the page still read "Loading 11/12"' },
+      interactionReached: { reached: false, why: 'the page still read "Loading 11/12"' },
     });
-    assert.match(stuck.reason ?? "", /gameplay was never reached/);
-    assert.equal(judgeEvidence({ ...base, gameplayReached: { reached: true, why: "entered" } }).sufficient, true);
+    assert.match(stuck.reason ?? "", /interaction was never reached/);
+    assert.equal(judgeEvidence({ ...base, interactionReached: { reached: true, why: "entered" } }).sufficient, true);
     assert.equal(judgeEvidence(base).sufficient, true, "absent gates nothing");
     const aimedDown = cameraSanity(Array.from({ length: 1200 }, () => ({ t: 0, fx: 0, fy: -0.995, fz: -0.1 })));
     assert.match(
       judgeEvidence({ ...base, cameraSanity: aimedDown }).reason ?? "",
-      /camera was not pointing at the game/,
+      /camera was not pointing at the project/,
     );
   });
 });
@@ -502,7 +502,15 @@ describe("chrome and focus guards", () => {
     for (const label of ["Sign in", "SIGN IN", "×", "✕", "x", "Log in", "Login", "Settings", "Credits", "Close"]) {
       assert.ok(deny.test(label), `must deny ${JSON.stringify(label)}`);
     }
-    for (const label of ["DEPLOY", "DEPLOY TO COMBAT", "PLAY THE HOLE", "Start", "Continue", "New game", "Jump in"]) {
+    for (const label of [
+      "DEPLOY",
+      "DEPLOY TO COMBAT",
+      "PLAY THE HOLE",
+      "Start",
+      "Continue",
+      "New project",
+      "Jump in",
+    ]) {
       assert.ok(!deny.test(label), `must allow ${JSON.stringify(label)}`);
     }
   });
@@ -537,17 +545,17 @@ describe("chrome and focus guards", () => {
   });
 });
 
-describe("stayedOnGame (no bounce allowed)", () => {
+describe("stayedOnProject (no bounce allowed)", () => {
   const nav = (atMs: number, url: string) => ({ atMs, url });
 
   it("a departure that never came back fails, and the detail lists where it went", () => {
-    const v = stayedOnGame({
+    const v = stayedOnProject({
       navigations: [
-        nav(300, `${GAME}/`),
+        nav(300, `${PROJECT}/`),
         nav(174_339, "https://login.example.test/authorize"),
         nav(175_575, "https://login.example.test/login"),
       ],
-      gameOrigin: GAME,
+      projectOrigin: PROJECT,
       foreignSnapshots: 0,
       sameOriginSnapshots: 3,
       endAtMs: 394_551,
@@ -562,9 +570,13 @@ describe("stayedOnGame (no bounce allowed)", () => {
   });
 
   it("even a short round trip off the origin fails: a local snapshot has no identity bounce", () => {
-    const v = stayedOnGame({
-      navigations: [nav(300, `${GAME}/`), nav(1245, "https://auth.example.test/authorize"), nav(3428, `${GAME}/?r=1`)],
-      gameOrigin: GAME,
+    const v = stayedOnProject({
+      navigations: [
+        nav(300, `${PROJECT}/`),
+        nav(1245, "https://auth.example.test/authorize"),
+        nav(3428, `${PROJECT}/?r=1`),
+      ],
+      projectOrigin: PROJECT,
       foreignSnapshots: 0,
       sameOriginSnapshots: 3,
       endAtMs: 900_000,
@@ -576,15 +588,20 @@ describe("stayedOnGame (no bounce allowed)", () => {
   });
 
   it("staying on the origin passes; a foreign snapshot fails alone; no origin or no navigation is unknown", () => {
-    const home = [nav(858, `${GAME}/index.html`)];
+    const home = [nav(858, `${PROJECT}/index.html`)];
     assert.equal(
-      stayedOnGame({ navigations: home, gameOrigin: GAME, foreignSnapshots: 0, sameOriginSnapshots: 3, endAtMs: 1 })
-        .result,
+      stayedOnProject({
+        navigations: home,
+        projectOrigin: PROJECT,
+        foreignSnapshots: 0,
+        sameOriginSnapshots: 3,
+        endAtMs: 1,
+      }).result,
       "pass",
     );
-    const snap = stayedOnGame({
+    const snap = stayedOnProject({
       navigations: home,
-      gameOrigin: GAME,
+      projectOrigin: PROJECT,
       foreignSnapshots: 1,
       sameOriginSnapshots: 2,
       endAtMs: 1,
@@ -592,30 +609,35 @@ describe("stayedOnGame (no bounce allowed)", () => {
     assert.equal(snap.result, "fail");
     assert.match(snap.detail, /1 of 3 page-state snapshot\(s\) were read off the origin/);
     assert.equal(
-      stayedOnGame({ navigations: home, gameOrigin: "", foreignSnapshots: 0, sameOriginSnapshots: 0, endAtMs: 1 })
+      stayedOnProject({ navigations: home, projectOrigin: "", foreignSnapshots: 0, sameOriginSnapshots: 0, endAtMs: 1 })
         .result,
       "unknown",
     );
     assert.equal(
-      stayedOnGame({ navigations: [], gameOrigin: GAME, foreignSnapshots: 0, sameOriginSnapshots: 0, endAtMs: 1 })
-        .result,
+      stayedOnProject({
+        navigations: [],
+        projectOrigin: PROJECT,
+        foreignSnapshots: 0,
+        sameOriginSnapshots: 0,
+        endAtMs: 1,
+      }).result,
       "unknown",
     );
   });
 
   it("an unreadable URL neither opens nor closes an excursion", () => {
-    const v = stayedOnGame({
-      navigations: [nav(300, `${GAME}/`), nav(1200, "https://login.example.test/login"), nav(2000, "")],
-      gameOrigin: GAME,
+    const v = stayedOnProject({
+      navigations: [nav(300, `${PROJECT}/`), nav(1200, "https://login.example.test/login"), nav(2000, "")],
+      projectOrigin: PROJECT,
       foreignSnapshots: 0,
       sameOriginSnapshots: 1,
       endAtMs: 90_000,
     });
-    assert.equal(v.result, "fail", "an unreadable URL is not a return to the game");
+    assert.equal(v.result, "fail", "an unreadable URL is not a return to the project");
     assert.equal(v.foreignNavigations, 1);
-    const only = stayedOnGame({
+    const only = stayedOnProject({
       navigations: [nav(300, "")],
-      gameOrigin: GAME,
+      projectOrigin: PROJECT,
       foreignSnapshots: 0,
       sameOriginSnapshots: 1,
       endAtMs: 90_000,
@@ -628,10 +650,10 @@ describe("chooseEvidenceFrame", () => {
   it("a cross-origin frame holding the largest canvas is REFUSED; reads stay on the top frame", () => {
     const choice = chooseEvidenceFrame(
       [
-        { url: `${GAME}/`, isTop: true, canvasArea: 0 },
+        { url: `${PROJECT}/`, isTop: true, canvasArea: 0 },
         { url: "https://ads.example.test/unit.html", isTop: false, canvasArea: 300 * 250 },
       ],
-      GAME,
+      PROJECT,
     );
     assert.deepEqual([choice.routed, choice.index, choice.sameOrigin], [false, null, false]);
     assert.match(choice.why, /CROSS-ORIGIN/);
@@ -640,31 +662,31 @@ describe("chooseEvidenceFrame", () => {
   it("a same-origin canvas frame is routed to only when the top frame has none; an origin-less frame stays eligible", () => {
     const routed = chooseEvidenceFrame(
       [
-        { url: `${GAME}/`, isTop: true, canvasArea: 0 },
-        { url: `${GAME}/game/`, isTop: false, canvasArea: 1280 * 720 },
-        { url: `${GAME}/minimap/`, isTop: false, canvasArea: 200 * 200 },
+        { url: `${PROJECT}/`, isTop: true, canvasArea: 0 },
+        { url: `${PROJECT}/project/`, isTop: false, canvasArea: 1280 * 720 },
+        { url: `${PROJECT}/minimap/`, isTop: false, canvasArea: 200 * 200 },
       ],
-      GAME,
+      PROJECT,
     );
     assert.deepEqual([routed.routed, routed.index, routed.sameOrigin], [true, 1, true]);
     const topWins = chooseEvidenceFrame(
       [
-        { url: `${GAME}/`, isTop: true, canvasArea: 640 * 480 },
-        { url: `${GAME}/game/`, isTop: false, canvasArea: 1280 * 720 },
+        { url: `${PROJECT}/`, isTop: true, canvasArea: 640 * 480 },
+        { url: `${PROJECT}/project/`, isTop: false, canvasArea: 1280 * 720 },
       ],
-      GAME,
+      PROJECT,
     );
     assert.deepEqual([topWins.routed, topWins.index], [false, 0]);
     const srcdoc = chooseEvidenceFrame(
       [
-        { url: `${GAME}/`, isTop: true, canvasArea: 0 },
+        { url: `${PROJECT}/`, isTop: true, canvasArea: 0 },
         { url: "about:srcdoc", isTop: false, canvasArea: 100 },
       ],
-      GAME,
+      PROJECT,
     );
     assert.deepEqual([srcdoc.routed, srcdoc.sameOrigin], [true, null]);
     assert.match(
-      chooseEvidenceFrame([{ url: `${GAME}/`, isTop: true, canvasArea: 0 }], GAME).why,
+      chooseEvidenceFrame([{ url: `${PROJECT}/`, isTop: true, canvasArea: 0 }], PROJECT).why,
       /no frame holds a canvas/,
     );
   });
@@ -776,19 +798,19 @@ describe("the entrance", () => {
     assert.match(v.why, /"Walk in" is covered by an invisible element/);
   });
 
-  it("gameplay is reached through a confirmed entrance or no door; a door never opened or a loader at the end is not", () => {
+  it("interaction is reached through a confirmed entrance or no door; a door never opened or a loader at the end is not", () => {
     const post = (o: Observation) => o.frames.filter((f) => POST_GESTURE_PHASES.has(f.phase)).length;
     assert.equal(
-      gameplayReached({ entrance: judgeEntrance(healthy.entrance), postGestureFrames: post(healthy) }).reached,
+      interactionReached({ entrance: judgeEntrance(healthy.entrance), postGestureFrames: post(healthy) }).reached,
       true,
     );
     assert.equal(
-      gameplayReached({ entrance: judgeEntrance(stuck.entrance), postGestureFrames: post(stuck) }).reached,
+      interactionReached({ entrance: judgeEntrance(stuck.entrance), postGestureFrames: post(stuck) }).reached,
       false,
     );
-    assert.equal(gameplayReached({ entrance: judgeEntrance(NO_DOOR), postGestureFrames: 12 }).reached, true);
-    assert.equal(gameplayReached({ entrance: judgeEntrance(NO_DOOR), postGestureFrames: 0 }).reached, false);
-    const loader = gameplayReached({
+    assert.equal(interactionReached({ entrance: judgeEntrance(NO_DOOR), postGestureFrames: 12 }).reached, true);
+    assert.equal(interactionReached({ entrance: judgeEntrance(NO_DOOR), postGestureFrames: 0 }).reached, false);
+    const loader = interactionReached({
       entrance: { confirmed: false, doorObserved: false, why: "no door" },
       postGestureFrames: 71,
       stillLoading: { phrase: "Raising the houses… 11/12", progress: true },
@@ -797,15 +819,15 @@ describe("the entrance", () => {
     assert.match(loader.why, /still read "Raising the houses… 11\/12" at the end/);
   });
 
-  it("demoteForNoGameplay only ever turns a fail into unknown", () => {
+  it("demoteForNoInteraction only ever turns a fail into unknown", () => {
     const notReached = { reached: false, why: "a loader" };
-    assert.equal(demoteForNoGameplay("fail", notReached).result, "unknown");
+    assert.equal(demoteForNoInteraction("fail", notReached).result, "unknown");
     assert.match(
-      demoteForNoGameplay("fail", notReached).why ?? "",
-      /must not be reported as a game that does not RESPOND/,
+      demoteForNoInteraction("fail", notReached).why ?? "",
+      /must not be reported as a project that does not RESPOND/,
     );
-    assert.equal(demoteForNoGameplay("pass", notReached).why, null);
-    assert.equal(demoteForNoGameplay("fail", { reached: true, why: "entered" }).result, "fail");
+    assert.equal(demoteForNoInteraction("pass", notReached).why, null);
+    assert.equal(demoteForNoInteraction("fail", { reached: true, why: "entered" }).result, "fail");
   });
 
   it("pageRan answers 'did not run' for an empty observation, and both measured shapes ran", () => {
@@ -880,7 +902,7 @@ describe("the entrance", () => {
     assert.equal(verbPixelExceededControl({ pixelDelta: 0.05, pixelControlMax: null, pixelControlSamples: 0 }), null);
   });
 
-  it("a screen names its keys; an in-game interact hint names none", () => {
+  it("a screen names its keys; an in-project interact hint names none", () => {
     assert.deepEqual(namedKeysIn("Esc resumes too"), ["Escape"]);
     assert.deepEqual(namedKeysIn("Press Enter or Space to begin"), ["Enter", "Space"]);
     assert.deepEqual(namedKeysIn("Press E to interact"), []);
@@ -900,7 +922,7 @@ describe("enterableVerdict", () => {
     fullscreen: { requested: false, granted: false },
   };
 
-  it("every move a player has, and the screen is still there: the game cannot be entered, a FAIL", () => {
+  it("every move a player has, and the screen is still there: the project cannot be entered, a FAIL", () => {
     const v = enterableVerdict({
       ...base,
       startControl: { found: "Esc resumes too", clicked: true, gone: false },
@@ -965,10 +987,10 @@ describe("console-line classifiers", () => {
   const REJECTED_DRAW =
     "[.WebGL-0x13400569000] GL_INVALID_OPERATION: glDrawElements: Mismatch between texture format and sampler type (signed/unsigned/float/shadow).";
 
-  it("loader failures are library-anchored: three.js and DOM wording, not a game's own prose", () => {
+  it("loader failures are library-anchored: three.js and DOM wording, not a project's own prose", () => {
     const lines = [
       "[world] a building failed TypeError: Failed to execute 'drawImage' on 'CanvasRenderingContext2D': The provided value is not of type '(...)'.",
-      "THREE.GLTFLoader: Couldn't load texture blob:https://game.example.test/3c1da18a",
+      "THREE.GLTFLoader: Couldn't load texture blob:https://project.example.test/3c1da18a",
       "THREE.KTX2Loader: Unable to load transcoder",
     ];
     for (const line of lines) assert.equal(isLoaderFailureLine(line), true, line);
@@ -1016,7 +1038,7 @@ describe("gates", () => {
     row(ProbeRow.L1NoErrors60s, "L1", "pass"),
     row(ProbeRow.L1Survives5min, "L1", survives, { gates }),
     row(ProbeRow.L1AssetsArrived, "L1", "pass"),
-    row(ProbeRow.L1StayedOnGame, "L1", "pass"),
+    row(ProbeRow.L1StayedOnProject, "L1", "pass"),
   ];
   const l2 = (input: Check["result"], ackGates: boolean): Check[] => [
     row(ProbeRow.L2Enterable, "L2", "pass"),
@@ -1025,7 +1047,7 @@ describe("gates", () => {
     row(ProbeRow.L3SpatiallyLegible, "L2", "unknown", { source: "judge" }),
   ];
 
-  it("a game that booted, entered and moved reads PASS when the unmeasurable rows do not gate", () => {
+  it("a project that booted, entered and moved reads PASS when the unmeasurable rows do not gate", () => {
     const g = gateFor([...l1("unknown", false), ...l2("pass", false)]);
     assert.deepEqual([g.l1, g.l2], ["pass", "pass"]);
     assert.equal(isScored(g), true);

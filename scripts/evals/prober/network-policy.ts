@@ -1,9 +1,9 @@
 /**
- * What a game under probe may reach (Rule 8: network is an explicit pin). The same rule as the
- * product's preview (`gameRequestAllowed` in `src/main/page-serve.ts`): the page's own grade server,
+ * What a project under probe may reach (Rule 8: network is an explicit pin). The same rule as the
+ * product's preview (`projectRequestAllowed` in `src/main/page-serve.ts`): the page's own grade server,
  * content it already holds (`data:`, `blob:`), and https reads of the public CDNs in
  * `PREVIEW_CDN_HOSTS`. Everything else is refused: other hosts, other loopback ports (an Ollama on
- * the operator's Mac), writes to a CDN, `file:` and WebSockets. So a game that only loads in the
+ * the operator's Mac), writes to a CDN, `file:` and WebSockets. So a project that only loads in the
  * eval because it reached a host the preview blocks does not pass there, and what an agent wrote
  * cannot be posted anywhere from the grading browser.
  */

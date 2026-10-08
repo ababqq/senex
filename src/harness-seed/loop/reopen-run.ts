@@ -167,7 +167,7 @@ export function reopenAsked(
 }
 
 /**
- * The working time a Loop gives a build, exactly as a launch gives it (tools/game-tools.ts
+ * The working time a Loop gives a build, exactly as a launch gives it (tools/project-tools.ts
  * `start_autopilot`, then chat-dispatch.ts `intakeBudgets`): its hours held to the run limits, or for
  * ∞ the day's ceiling, recorded as until satisfied — a goal to verify rather than a time to spend.
  */

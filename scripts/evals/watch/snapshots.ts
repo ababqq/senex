@@ -1,15 +1,15 @@
 /**
- * The snapshot watcher (§8.3, Rule 22, M1.4): what the game folder looked like while the run
+ * The snapshot watcher (§8.3, Rule 22, M1.4): what the project folder looked like while the run
  * went on, and exactly what it held when the run stopped.
  *
- * Every 30 s the watcher stats the game folder (never `node_modules` or `.git`, at any depth)
+ * Every 30 s the watcher stats the project folder (never `node_modules` or `.git`, at any depth)
  * and, when anything changed, clones it (`fs.cp` with `COPYFILE_FICLONE`, an APFS `clonefile`,
  * so a clone costs no space) into `<snapshotDir>/<seq>-<atMs>/`. A clone whose content digest
  * equals the previous one (a file touched, not changed) is dropped. At stop it takes a final
  * clone whatever changed and makes it read-only: that clone, never the live folder later, is
  * what "no build" is typed from and what the final probe grades. Each clone appends one line to
  * `index.jsonl` with its offset from the prompt, wall time and digest. Symlinks are copied as
- * links, so a clone never holds a file from outside the game.
+ * links, so a clone never holds a file from outside the project.
  *
  * The clock, the timer and the clone are injectable.
  */
@@ -37,7 +37,7 @@ export const SNAPSHOT_INTERVAL_MS = 30 * SECOND_MS;
 export const SNAPSHOT_INDEX_FILE = "index.jsonl";
 /** The final clone's folder name inside the snapshot folder. */
 export const FINAL_SNAPSHOT_NAME = "final";
-// The workspace digest and its walker are the app's too (the eval lane digests the seeded game).
+// The workspace digest and its walker are the app's too (the eval lane digests the seeded project).
 export { STUDIO_METADATA, workspaceDigest } from "../../../src/substrate/workspace-digest.ts";
 /** Source files whose lines count as `loc`. */
 const LOC_EXTENSIONS = new Set([
@@ -84,7 +84,7 @@ export type Every = (tick: () => void, ms: number) => () => void;
 
 /** What a watcher needs. */
 export interface SnapshotWatcherOptions {
-  gameRoot: string;
+  projectRoot: string;
   snapshotDir: string;
   /** When the prompt was sent, on the `now` clock. */
   startedAtMs: number;
@@ -95,7 +95,7 @@ export interface SnapshotWatcherOptions {
   every?: Every;
 }
 
-/** A running watcher over one game folder. */
+/** A running watcher over one project folder. */
 export interface SnapshotWatcher {
   /** Start ticking on the timer. */
   start(): void;
@@ -174,7 +174,7 @@ async function makeReadOnly(dir: string): Promise<void> {
   await chmod(dir, READ_ONLY_DIR);
 }
 
-/** Watch one game folder: change-driven clones every 30 s and a read-only final clone at stop. */
+/** Watch one project folder: change-driven clones every 30 s and a read-only final clone at stop. */
 export function createSnapshotWatcher(options: SnapshotWatcherOptions): SnapshotWatcher {
   const clone = options.clone ?? cloneTree;
   const every = options.every ?? everyInterval;
@@ -193,7 +193,7 @@ export function createSnapshotWatcher(options: SnapshotWatcherOptions): Snapshot
     const dir = path.join(options.snapshotDir, name);
     await mkdir(options.snapshotDir, { recursive: true });
     try {
-      await clone(options.gameRoot, dir);
+      await clone(options.projectRoot, dir);
     } catch (error) {
       await rm(dir, { recursive: true, force: true });
       throw error;
@@ -221,7 +221,7 @@ export function createSnapshotWatcher(options: SnapshotWatcherOptions): Snapshot
   /** One look: clone when the stat key moved; a failed clone keeps the old key, so the next tick retries. */
   async function look(): Promise<SnapshotIndexEntry | null> {
     const at = options.now();
-    const key = await statKey(options.gameRoot);
+    const key = await statKey(options.projectRoot);
     if (key === lastKey) return null;
     const name = `${String(taken.length).padStart(SEQ_DIGITS, "0")}-${at - options.startedAtMs}`;
     const entry = await capture(name, SnapshotKind.Periodic, at).catch(() => undefined);
@@ -313,7 +313,7 @@ export interface StopFacts {
 }
 
 /**
- * Why there is no build to grade (Rule 22), from the stop-time snapshot and, for a game with a
+ * Why there is no build to grade (Rule 22), from the stop-time snapshot and, for a project with a
  * build script and no output, the rebuild of its copy. `no-dist` stands until a rebuild of that
  * very snapshot produces a page.
  */

@@ -1,7 +1,7 @@
 /**
  * One facet's build⟳verify loop — HARNESS-REWORK.md §4 (the v2 policy layer).
  *
- * A facet is a slice of the game with its own typed spec (intent + checks), its own thread,
+ * A facet is a slice of the project with its own typed spec (intent + checks), its own thread,
  * and — when facets run in parallel — its own git worktree and pooled observation port.
  * Per iteration:
  *
@@ -22,8 +22,8 @@
  * Two isolation modes, chosen by the orchestrator:
  *  - worktree mode (parallel, delegated engines): edits land in `worktree`, wins are committed
  *    with plain git through `run.exec`, losses are retained on a ref then reset.
- *  - live mode (sequential, direct engines): edits land in the live game folder, wins and
- *    losses use game-scope snapshots exactly like the gauntlet.
+ *  - live mode (sequential, direct engines): edits land in the live project folder, wins and
+ *    losses use project-scope snapshots exactly like the gauntlet.
  */
 import { readFile } from "node:fs/promises";
 import path from "node:path";

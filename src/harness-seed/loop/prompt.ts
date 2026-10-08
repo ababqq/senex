@@ -4,7 +4,7 @@
  * The prompt is a *projection of the event log*, rebuilt from scratch every round. Nothing about
  * the conversation lives in memory, so the studio can be killed at any instant and resume with
  * exactly the same mind. What the system prompt stands on — identity, rules, skills, memory, the
- * game's notes and file list — is read once per turn (`readStanding`): a local model re-reads
+ * project's notes and file list — is read once per turn (`readStanding`): a local model re-reads
  * everything after the first changed token, so a fact remembered or a file written mid-turn made
  * the next round re-read the whole turn. The next turn reads them afresh.
  *
@@ -74,8 +74,8 @@ const CLAMP_MESSAGE_TOKENS = 2_000;
  * turn with "context cannot fit" (P04-F3); the log keeps the whole result.
  */
 const TOOL_RESULT_WINDOW_SHARE = 0.25;
-/** How much of a game's NOTES.md a prompt carries. */
-const GAME_NOTES_CHARS = 6_000;
+/** How much of a project's NOTES.md a prompt carries. */
+const PROJECT_NOTES_CHARS = 6_000;
 /** How many of the folder's files a prompt lists by name. */
 const LISTED_FILES = 80;
 
@@ -90,7 +90,7 @@ export function estimateMessagesTokens(messages: readonly Pick<Message, "content
   return total;
 }
 
-/** Identity, rules, skills, memory and the game's notes and files, as this turn starts. */
+/** Identity, rules, skills, memory and the project's notes and files, as this turn starts. */
 export async function readStanding(
   ctx: HarnessCtx,
   options: Pick<PromptOptions, "project" | "projectDir" | "extraReads">,
@@ -99,7 +99,7 @@ export async function readStanding(
   const identity = await readPromptFile(ctx, "prompts/identity.md");
   const rules = await readPromptFile(ctx, "prompts/operating-rules.md");
   const memory = (await ctx.call(HostMethod.ArtifactRead, { artifactId: "memory" }).catch(() => null)) ?? {};
-  const notes = options.project ? await readGameNotes(ctx, options.project) : null;
+  const notes = options.project ? await readProjectNotes(ctx, options.project) : null;
   const inventory = options.project ? await readProjectInventory(ctx, options.project, options) : null;
   return { skills, identity, rules, memory, notes, inventory };
 }
@@ -117,7 +117,7 @@ export async function materializePrompt(ctx: HarnessCtx, options: PromptOptions)
     rules,
     formatSkillIndex(skills),
     formatMemory(memory),
-    notes ? `## Notes for the game "${options.project}" (NOTES.md — keep it current)\n${notes}` : "",
+    notes ? `## Notes for the project "${options.project}" (NOTES.md — keep it current)\n${notes}` : "",
     inventory ?? "",
     toolNotes ? `## About your tools\n${toolNotes}` : "",
     options.extraSystem ?? "",
@@ -154,13 +154,13 @@ export async function materializePrompt(ctx: HarnessCtx, options: PromptOptions)
   };
 }
 
-/** The studio's living memory of a game, written by whoever built it last. */
-async function readGameNotes(ctx: HarnessCtx, project: string): Promise<string | null> {
+/** The studio's living memory of a project, written by whoever built it last. */
+async function readProjectNotes(ctx: HarnessCtx, project: string): Promise<string | null> {
   try {
-    const text = await ctx.call(HostMethod.GameRead, { project, file: "NOTES.md" });
+    const text = await ctx.call(HostMethod.ProjectRead, { project, file: "NOTES.md" });
     const body = typeof text === "string" ? text : ((text as { text?: string } | null)?.text ?? "");
     const trimmed = body.trim();
-    return trimmed.length > 0 ? trimmed.slice(0, GAME_NOTES_CHARS) : null;
+    return trimmed.length > 0 ? trimmed.slice(0, PROJECT_NOTES_CHARS) : null;
   } catch {
     return null;
   }
@@ -173,7 +173,7 @@ async function readProjectInventory(
   options: { projectDir?: string; extraReads?: unknown } = {},
 ): Promise<string | null> {
   try {
-    const files = await ctx.call(HostMethod.GameTree, { project });
+    const files = await ctx.call(HostMethod.ProjectTree, { project });
     const list = Array.isArray(files) ? files : [];
     const image = /\.(png|jpe?g|webp|gif)$/i;
     const lines = list
@@ -188,7 +188,7 @@ async function readProjectInventory(
     return [
       `## This project's folder`,
       dir
-        ? `You are working in \`${dir}\`. Relative paths resolve here. Do not \`cd\` elsewhere. Do not create another copy of this game. Do not search the rest of the disk for folders named \`references\`.`
+        ? `You are working in \`${dir}\`. Relative paths resolve here. Do not \`cd\` elsewhere. Do not create another copy of this project. Do not search the rest of the disk for folders named \`references\`.`
         : `These files live in the folder the user opened.`,
       extra.length
         ? `The user named stills outside this folder. Look at them with \`read_file\` using those absolute paths. Do not copy them into this project.\n${extraLines.join("\n")}`

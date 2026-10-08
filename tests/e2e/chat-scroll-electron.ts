@@ -14,29 +14,29 @@ import { blankRunPx, bundleModules, type Band, type CpuProfile, summarizeProfile
 const PAGE = process.env.STUDIO_CHAT_SCROLL_PAGE ?? "";
 const BUNDLE = process.env.STUDIO_CHAT_SCROLL_BUNDLE ?? "";
 const EVIDENCE = process.env.STUDIO_CHAT_SCROLL_EVIDENCE ?? "";
-/** The heavy stand-in game (`tests/fixtures/gpu-load.html`) and its draw calls per frame. */
-const GAME = process.env.STUDIO_CHAT_SCROLL_GAME ?? "";
+/** The heavy stand-in project (`tests/fixtures/gpu-load.html`) and its draw calls per frame. */
+const PROJECT = process.env.STUDIO_CHAT_SCROLL_PROJECT ?? "";
 /**
- * The stand-in game's load: its draw calls a frame keep the GPU process busy (the stadium game kept
+ * The stand-in project's load: its draw calls a frame keep the GPU process busy (the stadium project kept
  * its main thread 85% busy) and its fill pass keeps the GPU itself saturated, as a heavy scene does.
  */
-const GAME_LOAD = process.env.STUDIO_CHAT_SCROLL_GAME_LOAD ?? "draws=20000&fill=800";
+const PROJECT_LOAD = process.env.STUDIO_CHAT_SCROLL_PROJECT_LOAD ?? "draws=20000&fill=800";
 /** The chat column (the page keeps to it) and, beside it, Live's slot, as in a laptop-sized Genex window (CSS px). */
 const CHAT = { width: 640, height: 980 };
 const LIVE = { x: CHAT.width, y: 0, width: 900, height: CHAT.height };
 const WINDOW = { width: CHAT.width + LIVE.width, height: CHAT.height };
-/** Time for the game to warm up before the chat is flung beside it. */
-const GAME_WARMUP_MS = 1500;
+/** Time for the project to warm up before the chat is flung beside it. */
+const PROJECT_WARMUP_MS = 1500;
 /** Fling speeds, px/s: a brisk scroll and a hard trackpad flick. */
 const SPEEDS = [3000, 6000, 10_000] as const;
-/** The fast flings the gate counts beside a game, px/s. */
+/** The fast flings the gate counts beside a project, px/s. */
 const FAST_SPEEDS: readonly number[] = [6000, 10_000];
 /**
- * Beside the GPU-heavy stand-in game, at most this many frames of the fast flings may show a blank
+ * Beside the GPU-heavy stand-in project, at most this many frames of the fast flings may show a blank
  * block. Three runs each on an M2 Max: rows mounted just in time showed 36–48, rows mounted
- * screens ahead 3–12 (none at 6,000 px/s). Without a game no frame may.
+ * screens ahead 3–12 (none at 6,000 px/s). Without a project no frame may.
  */
-const BLANK_FRAMES_BESIDE_GAME = 20;
+const BLANK_FRAMES_BESIDE_PROJECT = 20;
 /** How far one long fling travels, px: about a dozen screens. */
 const FLING_PX = 12_000;
 /** One leg of the back-and-forth scroll, px, and how many times it turns. */
@@ -79,9 +79,9 @@ interface Shot {
 interface SceneResult {
   name: string;
   speed: number;
-  /** The GPU process's CPU while the scene ran (%), and the game's frames per second beside it. */
+  /** The GPU process's CPU while the scene ran (%), and the project's frames per second beside it. */
   gpuPercent: number;
-  gameFps: number | null;
+  projectFps: number | null;
   frames: number;
   painted: number;
   blankFrames: number;
@@ -161,14 +161,14 @@ function gpuPercent(): number {
   return Math.round((gpu?.cpu.percentCPUUsage ?? 0) * os.cpus().length);
 }
 
-/** The stand-in game's frame count, or null when no game runs beside the chat. */
-async function gameFrames(game: WebContents | null): Promise<number | null> {
-  return game ? ((await game.executeJavaScript("window.gpuLoad.frames")) as number) : null;
+/** The stand-in project's frame count, or null when no project runs beside the chat. */
+async function projectFrames(project: WebContents | null): Promise<number | null> {
+  return project ? ((await project.executeJavaScript("window.gpuLoad.frames")) as number) : null;
 }
 
 async function recorded(
   wc: WebContents,
-  game: WebContents | null,
+  project: WebContents | null,
   name: string,
   speed: number,
   act: (box: { x: number; y: number }) => Promise<void>,
@@ -186,15 +186,15 @@ async function recorded(
   await page(wc, "window.startSampling()");
   const before = await counters(wc);
   gpuPercent();
-  const gameBefore = await gameFrames(game);
+  const projectBefore = await projectFrames(project);
   const started = Date.now();
   await act(box);
   await sleep(TAIL_MS);
-  const gameAfter = await gameFrames(game);
-  const gameFps =
-    gameBefore === null || gameAfter === null
+  const projectAfter = await projectFrames(project);
+  const projectFps =
+    projectBefore === null || projectAfter === null
       ? null
-      : Math.round(((gameAfter - gameBefore) * 1000) / (Date.now() - started));
+      : Math.round(((projectAfter - projectBefore) * 1000) / (Date.now() - started));
   const gpu = gpuPercent();
   const cost = spent(before, await counters(wc));
   const { frames, longTasks } = await page<{ frames: PageFrame[]; longTasks: number[] }>(wc, "window.stopSampling()");
@@ -217,7 +217,7 @@ async function recorded(
     name,
     speed,
     gpuPercent: gpu,
-    gameFps,
+    projectFps,
     frames: frames.length,
     painted: shots.length,
     blankFrames: blanks.filter((blank) => blank.px >= BLANK_BLOCK_PX).length,
@@ -239,23 +239,23 @@ async function recorded(
   return result;
 }
 
-/** No blank block without a game; beside one, no more than `BLANK_FRAMES_BESIDE_GAME` over the fast flings. */
+/** No blank block without a project; beside one, no more than `BLANK_FRAMES_BESIDE_PROJECT` over the fast flings. */
 function gate(results: SceneResult[]): void {
-  for (const result of results.filter((scene) => scene.gameFps === null)) {
+  for (const result of results.filter((scene) => scene.projectFps === null)) {
     if (result.blankFrames) fail(`${result.name} @ ${result.speed}: a blank block was painted`, result.maxBlankPx);
     if (result.uncoveredFrames)
       fail(`${result.name} @ ${result.speed}: rows left the viewport uncovered`, result.maxUncoveredPx);
   }
-  const fast = results.filter((scene) => scene.gameFps !== null && FAST_SPEEDS.includes(scene.speed));
+  const fast = results.filter((scene) => scene.projectFps !== null && FAST_SPEEDS.includes(scene.speed));
   const blank = fast.reduce((sum, scene) => sum + scene.blankFrames + scene.uncoveredFrames, 0);
-  if (blank > BLANK_FRAMES_BESIDE_GAME)
-    fail("fast flings beside a game painted blank blocks", { frames: blank, allowed: BLANK_FRAMES_BESIDE_GAME });
+  if (blank > BLANK_FRAMES_BESIDE_PROJECT)
+    fail("fast flings beside a project painted blank blocks", { frames: blank, allowed: BLANK_FRAMES_BESIDE_PROJECT });
 }
 
 /** One line per scene, printed as it finishes. */
 function describe(result: SceneResult): void {
   console.log(
-    `${result.name} @ ${result.speed}px/s: GPU process ${result.gpuPercent}%${result.gameFps === null ? "" : `, game ${result.gameFps} fps`}; ${result.painted} painted, ${result.blankFrames} with a blank block (max ${result.maxBlankPx}px); ` +
+    `${result.name} @ ${result.speed}px/s: GPU process ${result.gpuPercent}%${result.projectFps === null ? "" : `, project ${result.projectFps} fps`}; ${result.painted} painted, ${result.blankFrames} with a blank block (max ${result.maxBlankPx}px); ` +
       `${result.frames} page frames, ${result.uncoveredFrames} uncovered (max ${result.maxUncoveredPx}px), ${result.mountedMax} rows mounted at most; ` +
       `scrolled ${result.travelPx}px, ${result.reversals} turns back, largest step ${result.maxStepPx}px; ` +
       `${result.longTasks} long tasks (${result.longTaskMs} ms), longest frame gap ${result.maxFrameGapMs} ms; ` +
@@ -264,14 +264,14 @@ function describe(result: SceneResult): void {
 }
 
 /** The three ways the reader scrolls: up through history never seen, back down, and to and fro. */
-async function scenes(wc: WebContents, game: WebContents | null, speed: number): Promise<SceneResult[]> {
-  const beside = game ? " beside a game" : "";
+async function scenes(wc: WebContents, project: WebContents | null, speed: number): Promise<SceneResult[]> {
+  const beside = project ? " beside a project" : "";
   await page(wc, "window.openChat()");
-  const up = await recorded(wc, game, `fresh fling up${beside}`, speed, (box) => fling(wc, box, FLING_PX, speed));
+  const up = await recorded(wc, project, `fresh fling up${beside}`, speed, (box) => fling(wc, box, FLING_PX, speed));
   await page(wc, "window.scrollToEdge('top')");
-  const down = await recorded(wc, game, `fling down${beside}`, speed, (box) => fling(wc, box, -FLING_PX, speed));
+  const down = await recorded(wc, project, `fling down${beside}`, speed, (box) => fling(wc, box, -FLING_PX, speed));
   await page(wc, "window.openChat()");
-  const shuttle = await recorded(wc, game, `back and forth${beside}`, speed, async (box) => {
+  const shuttle = await recorded(wc, project, `back and forth${beside}`, speed, async (box) => {
     for (let turn = 0; turn < SHUTTLE_TURNS; turn++) {
       await fling(wc, box, SHUTTLE_PX, speed);
       await fling(wc, box, -SHUTTLE_PX, speed);
@@ -279,7 +279,7 @@ async function scenes(wc: WebContents, game: WebContents | null, speed: number):
   });
   await page(wc, "window.openChat()");
   await page(wc, "window.startWork()");
-  const working = await recorded(wc, game, `while working${beside}`, speed, async (box) => {
+  const working = await recorded(wc, project, `while working${beside}`, speed, async (box) => {
     await fling(wc, box, FLING_PX / 2, speed);
     for (let turn = 0; turn < SHUTTLE_TURNS; turn++) {
       await fling(wc, box, -SHUTTLE_PX, speed);
@@ -310,15 +310,15 @@ async function profile(wc: WebContents): Promise<unknown> {
   return summarizeProfile(cpu, bundleModules(readFileSync(BUNDLE, "utf8")), bundle);
 }
 
-/** The stand-in game in Live's slot beside the chat, warmed up. */
-async function startGame(win: BrowserWindow): Promise<WebContents> {
+/** The stand-in project in Live's slot beside the chat, warmed up. */
+async function startProject(win: BrowserWindow): Promise<WebContents> {
   const view = new WebContentsView({
     webPreferences: { sandbox: true, contextIsolation: true, backgroundThrottling: false },
   });
   win.contentView.addChildView(view);
   view.setBounds(LIVE);
-  await view.webContents.loadURL(`file://${GAME}?${GAME_LOAD}`);
-  await sleep(GAME_WARMUP_MS);
+  await view.webContents.loadURL(`file://${PROJECT}?${PROJECT_LOAD}`);
+  await sleep(PROJECT_WARMUP_MS);
   return view.webContents;
 }
 
@@ -344,7 +344,7 @@ async function main(): Promise<void> {
     window: WINDOW,
     chatColumn: CHAT,
     blankBlockPx: BLANK_BLOCK_PX,
-    blankFramesBesideGame: BLANK_FRAMES_BESIDE_GAME,
+    blankFramesBesideProject: BLANK_FRAMES_BESIDE_PROJECT,
     build: process.env.STUDIO_CHAT_SCROLL_BUILD,
   };
   try {
@@ -354,12 +354,12 @@ async function main(): Promise<void> {
     await wc.debugger.sendCommand("Performance.enable");
     report.chat = await page(wc, "window.openChat()");
     const results: SceneResult[] = [];
-    // `STUDIO_CHAT_SCROLL_PASS=game` runs only the pass beside a game (a quicker look while iterating).
-    if (process.env.STUDIO_CHAT_SCROLL_PASS !== "game")
+    // `STUDIO_CHAT_SCROLL_PASS=project` runs only the pass beside a project (a quicker look while iterating).
+    if (process.env.STUDIO_CHAT_SCROLL_PASS !== "project")
       for (const speed of SPEEDS) results.push(...(await scenes(wc, null, speed)));
-    const game = await startGame(win);
-    for (const speed of SPEEDS) results.push(...(await scenes(wc, game, speed)));
-    report.game = { load: GAME_LOAD };
+    const project = await startProject(win);
+    for (const speed of SPEEDS) results.push(...(await scenes(wc, project, speed)));
+    report.project = { load: PROJECT_LOAD };
     report.scenes = results;
     gate(results);
     report.profile = await profile(wc);

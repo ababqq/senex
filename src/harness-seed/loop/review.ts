@@ -27,7 +27,7 @@ export interface Violation {
   gaming?: boolean;
 }
 
-/** The facet as review reads it: its id, its seam, and the entry files of this game's shape. */
+/** The facet as review reads it: its id, its seam, and the entry files of this project's shape. */
 export interface ReviewSpec {
   id: string;
   owns?: string[];
@@ -116,12 +116,12 @@ function globRegExp(pattern: string): RegExp {
 }
 
 /**
- * Files a facet may touch: its own module(s), its notes (`docs/notes/`, out of the game's own
+ * Files a facet may touch: its own module(s), its notes (`docs/notes/`, out of the project's own
  * root), and the wiring line. The same rule runs at edit time as an SDK PreToolUse hook
  * (`substrate/ownership.ts`, WP8) — keep the two in step;
  * `tests/conformance/harness-incidents.test.ts` checks that they agree.
  *
- * `spec.template === false` is a game the user brought (M4.6): no FACET WIRING pass-through on
+ * `spec.template === false` is a project the user brought (M4.6): no FACET WIRING pass-through on
  * the entry, no id-substring escape hatch, and a worker with no seam owns the repository minus
  * the entry, the contract and the page. Absent means the studio's template, so every caller
  * written before the flag existed keeps the behaviour it had.
@@ -133,7 +133,7 @@ export function allowedFile(file: string, spec: ReviewSpec, ownsMain: boolean): 
   const studio = spec.studio ?? DEFAULT_STUDIO;
   if (sharedFile(file, spec.id)) return true;
   // The contract's declaration and the compiler config belong to whoever owns the entry: a
-  // TypeScript game whose build is `tsc -b && vite build` cannot import ./studio.js until they
+  // TypeScript project whose build is `tsc -b && vite build` cannot import ./studio.js until they
   // agree, and the brief that tells the builder to fix that must not also forbid the edit.
   const entryOrConfig = isEntryFile(file, main, studio) || isTypeConfig(file);
   if (ownsMain && entryOrConfig) return true;
@@ -145,7 +145,7 @@ export function allowedFile(file: string, spec: ReviewSpec, ownsMain: boolean): 
   return !isEntryFile(file, main, studio);
 }
 
-/** Files every facet may touch: its notes, the game's notes, the studio's scratch and the assets. */
+/** Files every facet may touch: its notes, the project's notes, the studio's scratch and the assets. */
 function sharedFile(file: string, facetId: string): boolean {
   if (file === facetNotes(facetId) || file === "NOTES.md") return true;
   if (file.startsWith(".studio/")) return true;
@@ -218,9 +218,9 @@ function recordLine(entry: FileDiff, line: string, newLine: number): number {
 
 /**
  * The four rules the studio owns only inside its own template, as the model half words them.
- * A game the user brought already has its own randomness, its own clock and its own scene
+ * A project the user brought already has its own randomness, its own clock and its own scene
  * graph, and no FACET WIRING block at all: raising these on it tells a worker to break the
- * game it was sent to improve. The mechanical half is gated by `template` below; the model
+ * project it was sent to improve. The mechanical half is gated by `template` below; the model
  * half comes back as free text, so it is gated by matching what it said.
  */
 const TEMPLATE_ONLY_FINDING =
@@ -258,7 +258,7 @@ export function mechanicalReview(
     template = true,
   }: { ownsMain?: boolean; main?: string | null; studio?: string | null; template?: boolean } = {},
 ): Violation[] {
-  // The entry files this project's shape names — a game the user brought has its own.
+  // The entry files this project's shape names — a project the user brought has its own.
   const shaped: ReviewSpec = {
     ...spec,
     ...(main ? { main } : {}),
@@ -281,7 +281,7 @@ export function mechanicalReview(
   return violations;
 }
 
-/** Is this file game code (JavaScript or TypeScript)? */
+/** Is this file project code (JavaScript or TypeScript)? */
 function isSourceFile(file: string): boolean {
   return /\.(m?js|ts)$/.test(file);
 }
@@ -297,7 +297,7 @@ function templateFindings({ file, added, template }: FileReview): Violation[] {
         file,
         line,
         category: "determinism",
-        what: "Math.random() in game code — two builds cannot be compared on one seed",
+        what: "Math.random() in project code — two builds cannot be compared on one seed",
         fix: "use the rng passed into update() or a generator seeded in reset(seed)",
         source: "mechanical",
       });
@@ -307,7 +307,7 @@ function templateFindings({ file, added, template }: FileReview): Violation[] {
         file,
         line,
         category: "wall-clock",
-        what: "wall-clock time drives the game — judging is stepped, not clocked",
+        what: "wall-clock time drives the project — judging is stepped, not clocked",
         fix: "derive time from dt in update() / the frame counter",
         source: "mechanical",
       });
@@ -339,7 +339,7 @@ function writesEvidenceGlobal(text: string): boolean {
 }
 
 /**
- * The studio's own evidence globals, on any shape of game. They are installed behind
+ * The studio's own evidence globals, on any shape of project. They are installed behind
  * accessors that ignore a write (M4.9a), so this is a second belt and not the defence: a
  * build that assigns to one is telling the studio what it drew instead of drawing it, and
  * a night that reads its own numbers back is judging nothing.
@@ -352,8 +352,8 @@ function evidenceWrites({ file, added }: FileReview): Violation[] {
       file,
       line,
       category: "evidence",
-      what: "game code writes to one of the studio's own evidence globals — the frame, draw and capture counts the judge reads must be the page's own, not the build's",
-      fix: "delete the assignment; report what the game did through the contract (state(), inspect(), probes()) and let the studio count what it drew",
+      what: "project code writes to one of the studio's own evidence globals — the frame, draw and capture counts the judge reads must be the page's own, not the build's",
+      fix: "delete the assignment; report what the project did through the contract (state(), inspect(), probes()) and let the studio count what it drew",
       source: "mechanical",
     }));
 }
@@ -569,7 +569,7 @@ async function modelReview(
     const reviewed = await reviewDiff(ctx, { run, diff, spec: modelReviewSpec(spec, template, main), template });
     for (const v of reviewed.violations) {
       // The judge's rubric hard-codes the same four template rules, so a worker that followed
-      // the two-line ask would be told to undo it. They are dropped for a game that is not
+      // the two-line ask would be told to undo it. They are dropped for a project that is not
       // the template — the same rules the mechanical half above never ran.
       if (template === false && templateOnlyFinding(v)) continue;
       if (!violations.some((m) => m.file === v.file && m.what === v.what)) violations.push(v);
@@ -583,7 +583,7 @@ async function modelReview(
 
 /**
  * The model half reads `owns` as the seam it must judge against, and the judge prompt's
- * own fallback ("its own module under src/") is the template's world. A worker in a game
+ * own fallback ("its own module under src/") is the template's world. A worker in a project
  * the user brought is told what its seam really is instead.
  */
 function modelReviewSpec(spec: ReviewSpec, template: boolean, main: string | null): ReviewSpec {
@@ -591,7 +591,7 @@ function modelReviewSpec(spec: ReviewSpec, template: boolean, main: string | nul
   return {
     ...spec,
     owns: [
-      `every file of this game except its entry module (${main ?? spec.main ?? DEFAULT_MAIN}), the studio contract and index.html`,
+      `every file of this project except its entry module (${main ?? spec.main ?? DEFAULT_MAIN}), the studio contract and index.html`,
     ],
   };
 }

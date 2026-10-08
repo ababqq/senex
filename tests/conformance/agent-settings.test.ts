@@ -33,7 +33,7 @@ test("destructive and owner-data rules are denied; risky commands are never pre-
     "Bash(git reset --hard*)",
     "Bash(git clean*)",
     "Bash(rm -rf *)",
-    "Edit(~/AI Games/**)",
+    "Edit(~/AI Projects/**)",
     // The normal profile lives under Genex; the legacy folder stays denied while a copy fallback may keep it.
     "Read(~/Library/Application Support/Genex/**)",
     "Edit(~/Library/Application Support/Genex/**)",

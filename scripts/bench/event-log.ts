@@ -73,7 +73,7 @@ function* conversation(count: number, studio: boolean): Generator<{ data: EventD
         data: {
           type: EventKind.ToolRequested,
           tool_call_id: `call_${n}`,
-          request: { name: "read_file", arguments: { path: "src/game.js" } },
+          request: { name: "read_file", arguments: { path: "src/project.js" } },
         },
       },
       {
@@ -98,7 +98,7 @@ function* conversation(count: number, studio: boolean): Generator<{ data: EventD
           data: {
             type: EventKind.Custom,
             event_type: CustomEvent.RunStarted,
-            payload: { runId, project: "game", goal: prose(12, n), mode: "director" },
+            payload: { runId, project: "project", goal: prose(12, n), mode: "director" },
           },
         },
         {
@@ -106,7 +106,7 @@ function* conversation(count: number, studio: boolean): Generator<{ data: EventD
           data: {
             type: EventKind.Custom,
             event_type: CustomEvent.RunFinished,
-            payload: { runId, project: "game", victory: true },
+            payload: { runId, project: "project", victory: true },
           },
         },
       );
@@ -136,18 +136,18 @@ async function buildStore(root: string): Promise<{ threads: string[] }> {
   let clock = Date.parse("2026-01-01T00:00:00Z");
   const conversations = path.join(root, "agents", "studio", "conversations");
   const studioEvents = Math.round(TOTAL * STUDIO_SHARE);
-  const perGame = Math.floor((TOTAL - studioEvents) / (THREADS - 1));
+  const perProject = Math.floor((TOTAL - studioEvents) / (THREADS - 1));
   const threads: string[] = [];
   for (let t = 0; t < THREADS; t++) {
     const threadId = ids((clock += 1000));
     threads.push(threadId);
     const events = path.join(conversations, threadId, "events");
     await mkdir(events, { recursive: true });
-    const count = t === 0 ? studioEvents : perGame;
+    const count = t === 0 ? studioEvents : perProject;
     const writes: Promise<void>[] = [];
     let head: string | null = null;
     const created = {
-      data: { type: EventKind.ThreadCreated, title: t === 0 ? "Studio" : `Game ${t}` } as EventData,
+      data: { type: EventKind.ThreadCreated, title: t === 0 ? "Studio" : `Project ${t}` } as EventData,
       turn: null,
     };
     for (const { data, turn } of [created, ...conversation(count - 1, t === 0)]) {
@@ -165,7 +165,7 @@ async function buildStore(root: string): Promise<{ threads: string[] }> {
       if (writes.length >= 256) await Promise.all(writes.splice(0));
     }
     await Promise.all(writes);
-    const metadata = t === 0 ? { kind: ThreadKind.Studio } : { kind: ThreadKind.Game, project: `game-${t}` };
+    const metadata = t === 0 ? { kind: ThreadKind.Studio } : { kind: ThreadKind.Project, project: `project-${t}` };
     const now = new Date(clock).toISOString();
     await writeFile(
       path.join(conversations, threadId, "record.json"),
@@ -176,7 +176,7 @@ async function buildStore(root: string): Promise<{ threads: string[] }> {
           created_at: now,
           updated_at: now,
           latest_event_id: head,
-          title: t === 0 ? "Studio" : `Game ${t}`,
+          title: t === 0 ? "Studio" : `Project ${t}`,
           metadata,
         },
         null,

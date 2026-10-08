@@ -40,7 +40,7 @@ const MESSAGE = {
   alreadyBuilding: (project: string) =>
     `A build is already running for **${project}** — nothing new was started. Ask here about the one that is running, or stop it first.`,
   engineExport: (name: string | undefined) =>
-    `${name} was exported from a game engine, so the studio cannot edit or judge it — it can only open it, play it and take screenshots. Open the folder with the project's own scenes and scripts, and start the build there.`,
+    `${name} was exported from a project engine, so the studio cannot edit or judge it — it can only open it, play it and take screenshots. Open the folder with the project's own scenes and scripts, and start the build there.`,
   stoppedBeforeStart: "Stopped before the build started — nothing was built.",
   notReady: (name: string, missing: readonly string[]) =>
     `${name} is not ready for a run: ${missing.join("; ")}. Fix that first (a chat build can), then start again.`,
@@ -214,8 +214,8 @@ async function startReservedRun(
   // Whatever asked for this night — an interview, the run IPC, a resume — a folder the studio
   // can never build on refuses here as well, before a run is registered. Only the folder's own
   // impossibility counts at this point: what is merely missing is the launch path's question.
-  const games = await host.call(HostMethod.GameList, {}).catch(() => []);
-  const refused = nightRefusal(games.find((g) => g.name === action.run.project) ?? null, []);
+  const projects = await host.call(HostMethod.ProjectList, {}).catch(() => []);
+  const refused = nightRefusal(projects.find((g) => g.name === action.run.project) ?? null, []);
   if (refused) {
     await host.call(HostMethod.EventsAppend, {
       threadId,
@@ -421,6 +421,6 @@ export function nightRefusal(
 ): string | null {
   if (descriptor?.shape?.kind === "engine-export") return MESSAGE.engineExport(descriptor.name);
   const missing = (problems ?? []).filter((problem) => /is missing$/.test(problem));
-  if (missing.length) return MESSAGE.notReady(descriptor?.name ?? "this game", missing);
+  if (missing.length) return MESSAGE.notReady(descriptor?.name ?? "this project", missing);
   return null;
 }

@@ -1,5 +1,5 @@
 /**
- * The scripts the preview runs inside a game's page: probes that report what the page can do
+ * The scripts the preview runs inside a project's page: probes that report what the page can do
  * and saw (trusted input, the attach report, WebGL errors) and the page-side capture. Each is an
  * expression string for `webContents.executeJavaScript`.
  */
@@ -18,21 +18,21 @@ export const TRUSTED_PROBE = `(() => {
 })()`;
 
 /**
- * Is the game attached, and to what? Read off the hook, which knows what it wrapped and what it
- * has seen rendered — never off the game's own claim about itself. `contract` is `installed` when
- * a game assigned `window.__studio` (the facade keeps the object as `__game`), `attached` when
+ * Is the project attached, and to what? Read off the hook, which knows what it wrapped and what it
+ * has seen rendered — never off the project's own claim about itself. `contract` is `installed` when
+ * a project assigned `window.__studio` (the facade keeps the object as `__project`), `attached` when
  * the studio recognised a world in the frames the page drew, and `none` when neither is true.
  */
 export const ATTACH_PROBE = `(() => {
   const hook = window.__studioHook || null;
   const facade = window.__studio || null;
-  const game = facade && facade.__game ? facade.__game : null;
+  const project = facade && facade.__project ? facade.__project : null;
   const call = (fn) => { try { const v = fn(); return v === undefined ? null : v; } catch { return null; } };
   const world = hook && typeof hook.current === "function" ? call(() => hook.current()) : null;
   const s = hook && typeof hook.state === "function" ? call(() => hook.state()) : null;
   const name = (v) => { try { return v && v.constructor && v.constructor.name ? v.constructor.name : (v ? typeof v : null); } catch { return null; } };
   return {
-    contract: game ? "installed" : world ? "attached" : "none",
+    contract: project ? "installed" : world ? "attached" : "none",
     shim: Boolean(window.__studioClock),
     hook: Boolean(hook),
     renderer: name(world && world.renderer),
@@ -68,9 +68,9 @@ export interface PageCaptureInfo {
   kind?: string | null;
   /** How many pictures the shim's own capture has recorded — how a stale record is spotted. */
   count?: number;
-  /** Who took this picture: `shim` read the canvas itself, `game` answered with its own. */
-  provenance?: "shim" | "game";
-  /** The record describes some earlier picture: the game answered without going through the shim. */
+  /** Who took this picture: `shim` read the canvas itself, `project` answered with its own. */
+  provenance?: "shim" | "project";
+  /** The record describes some earlier picture: the project answered without going through the shim. */
   stale?: boolean;
 }
 
@@ -78,7 +78,7 @@ export interface PageCaptureInfo {
 export const PAGE_CAPTURE_TIMEOUT_MS = 1500;
 
 /**
- * Ask the page for the end of its own frame. `capture()` may be async (a WebGPU game awaits
+ * Ask the page for the end of its own frame. `capture()` may be async (a WebGPU project awaits
  * its render), so this awaits it; `captureInfo()` is plain data and comes back beside it, which
  * is how a shot's provenance reaches the stats a check reads.
  */
@@ -90,10 +90,10 @@ export const PAGE_CAPTURE = `(async () => {
     const s = window.__studio;
     if (!s || typeof s.capture !== "function") return null;
     /* Provenance, not the page's word for it. \`capture()\` and \`captureInfo()\` are both members
-       the facade delegates to the game, so a build could answer with a pre-baked picture and the
+       the facade delegates to the project, so a build could answer with a pre-baked picture and the
        draw count to go with it, and the record would be indistinguishable from a frame the shim
        read off the canvas. The shim's own capture counts the pictures IT took: if that count did
-       not move, this one came from the game and is labelled so. */
+       not move, this one came from the project and is labelled so. */
     const own = window.__studioCapture;
     const before = readInfo(own);
     const image = await s.capture();
@@ -101,8 +101,8 @@ export const PAGE_CAPTURE = `(async () => {
     const info = after || readInfo(s);
     if (info) {
       const fresh = Boolean(after && before && after.count !== before.count);
-      const supplied = !fresh || info.source === "game" || (Array.isArray(info.ladder) && info.ladder.indexOf("game") >= 0);
-      info.provenance = supplied ? "game" : "shim";
+      const supplied = !fresh || info.source === "project" || (Array.isArray(info.ladder) && info.ladder.indexOf("project") >= 0);
+      info.provenance = supplied ? "project" : "shim";
       if (!fresh) info.stale = true;
     }
     return { image: typeof image === "string" ? image : null, info: info };
@@ -146,7 +146,7 @@ export const GL_PROBE = `(() => {
   // Every WebGL context the page creates from here on, by canvas. The drain reads only these:
   // asking a canvas for "webgl2" CREATES a WebGL context on a canvas that has none yet, and a
   // WebGPU renderer that initialises a moment later then finds getContext("webgpu") null —
-  // every frame of a WebGPU game failed that way. Never probe a canvas blind.
+  // every frame of a WebGPU project failed that way. Never probe a canvas blind.
   const contexts = new WeakMap();
   const tracked = new Set();
   const origGetContext = HTMLCanvasElement.prototype.getContext;

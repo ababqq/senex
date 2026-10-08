@@ -2,7 +2,7 @@
  * File lists the person approved in Studio's own Publish dialog, each waiting for the one export it
  * approves. An export with exactly those files needs no second question; any other export, or one
  * that comes too late, is asked about in chat as before. Each approval is spent by the first
- * export of its plugin and game, matching or not, and withdrawn when the publish that carried it ends.
+ * export of its plugin and project, matching or not, and withdrawn when the publish that carried it ends.
  */
 import { MINUTE_MS } from "../../shared/duration.ts";
 import type { ExportReview } from "../../shared/plugins.ts";
@@ -20,7 +20,7 @@ const sameFiles = (a: readonly string[], b: readonly string[]): boolean =>
 
 const approvalKey = (pluginId: string, project: string): string => JSON.stringify([pluginId, project]);
 
-/** The approved lists, one per plugin and game. */
+/** The approved lists, one per plugin and project. */
 export class ExportApprovals {
   readonly #approved = new Map<string, { review: ExportReview; expires: number }>();
   readonly #now: () => number;

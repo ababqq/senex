@@ -1,10 +1,10 @@
 /**
  * Putting the camera back on the horizon after a gesture that may have pitched it. The directions
- * and ack drags go DOWN-and-right; never undone, they once left a drag-to-look game's camera aimed at
+ * and ack drags go DOWN-and-right; never undone, they once left a drag-to-look project's camera aimed at
  * the dirt for 79% of a run, and the judge scored a village on frames of its own floor.
  *
  * CLOSED-LOOP, not a blind inverse leg: drag sensitivity differs by an order of magnitude between
- * games, so the camera is read between attempts and the restore stops as soon as pitch is inside the
+ * projects, so the camera is read between attempts and the restore stops as soon as pitch is inside the
  * target. Every outcome is recorded, because a restore that silently failed is the defect it fixes.
  */
 import type { CameraSample } from "../instrument.ts";
@@ -16,7 +16,7 @@ export const PITCH_RESTORE_TARGET_DEG = 20;
 export const PITCH_RESTORE_ATTEMPTS = 3;
 /** The restore drag's length, as a share of the viewport height. */
 export const PITCH_RESTORE_DRAG_SHARE = 0.18;
-/** A pitch change under this is a drag the game did not read as look input. */
+/** A pitch change under this is a drag the project did not read as look input. */
 export const PITCH_UNMOVED_DEG = 0.5;
 /** How long the camera gets to settle after a restore drag. */
 export const PITCH_SETTLE_MS = 200;
@@ -73,7 +73,7 @@ export async function restoreCameraPitch(deps: PitchRestoreDeps): Promise<PitchR
     await deps.sleep(PITCH_SETTLE_MS);
     const now = pitchOf(await deps.readCamera());
     if (now === null) return { outcome: PitchRestore.NoReading, attempts: attempt, fromDeg: before, toDeg: null };
-    // No movement at all: this game does not read a drag as look input, so there is nothing to undo.
+    // No movement at all: this project does not read a drag as look input, so there is nothing to undo.
     if (Math.abs(now - pitch) < PITCH_UNMOVED_DEG) {
       return { outcome: PitchRestore.Unmoved, attempts: attempt, fromDeg: before, toDeg: now };
     }

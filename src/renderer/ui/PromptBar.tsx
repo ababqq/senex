@@ -121,17 +121,17 @@ const DEFAULT_PLACEHOLDER = "Write a message…";
  * rendering, so the composer is never remounted and its draft and pictures stay.
  */
 function useLoopSettings(props: PromptBarProps) {
-  const { conversationKey, coordinating = false, gameMode = true } = props;
+  const { conversationKey, coordinating = false, projectMode = true } = props;
   const [pick, setPick] = useState<{ thread?: string; setting: LoopSetting } | null>(null);
   const [reviewPlan, setReviewPlan] = useState<boolean>(readStoredReviewPlan);
   const setting = useMemo(
     () => (pick && pick.thread === conversationKey ? pick.setting : storedChatLoop(browserStorage(), conversationKey)),
     [pick, conversationKey],
   );
-  // A game chat keeps the Loop it opened with; the Studio chat and a keyless composer keep none.
+  // A project chat keeps the Loop it opened with; the Studio chat and a keyless composer keep none.
   useLayoutEffect(() => {
-    if (gameMode && conversationKey) pinChatLoop(browserStorage(), conversationKey);
-  }, [conversationKey, gameMode]);
+    if (projectMode && conversationKey) pinChatLoop(browserStorage(), conversationKey);
+  }, [conversationKey, projectMode]);
   useLayoutEffect(() => {
     setReviewPlan(false);
     removeKey(STORAGE_KEYS.autopilotReview);
@@ -153,7 +153,7 @@ type Mention = { query: string; start: number; end: number };
 
 /** @ at the caret opens Add as a mention list; the query is what follows it. */
 function useMention(
-  gameMode: boolean,
+  projectMode: boolean,
   draft: string,
   setDraft: (text: string) => void,
   inputRef: RefObject<HTMLTextAreaElement | null>,
@@ -162,7 +162,7 @@ function useMention(
   const [mentionOption, setMentionOption] = useState<string | null>(null);
   const mentionListId = useId();
   const findMention = (text: string, caret: number | null): Mention | null => {
-    if (!gameMode || caret === null) return null;
+    if (!projectMode || caret === null) return null;
     const match = /(^|\s)@([^\s@]*)$/.exec(text.slice(0, caret));
     if (!match) return null;
     const [, lead = "", query = ""] = match;
@@ -338,15 +338,18 @@ function SkippedFiles({ files, onDismiss }: { files: string[]; onDismiss: () => 
 /** The pictures going with the next message, each with its own remove button. */
 function FrameBoard({
   frames,
-  gameMode,
+  projectMode,
   onRemove,
 }: {
   frames: PickedFrame[];
-  gameMode: boolean;
+  projectMode: boolean;
   onRemove: (index: number) => void;
 }): JSX.Element {
   return (
-    <div className="flex flex-wrap gap-1.5 px-1 pt-1 pb-1.5" aria-label={gameMode ? "Mood board" : "Attached images"}>
+    <div
+      className="flex flex-wrap gap-1.5 px-1 pt-1 pb-1.5"
+      aria-label={projectMode ? "Mood board" : "Attached images"}
+    >
       {frames.map((frame, index) => (
         <div key={`${frame.label}-${index}`} className="group relative">
           <img
@@ -474,7 +477,7 @@ interface PromptBarProps {
   conversationKey?: string;
   /** The chat's build, when one belongs to it: Mode shows its own Loop while it runs or is paused. */
   build?: ComposerBuild | null;
-  gameMode?: boolean;
+  projectMode?: boolean;
   project?: string | null;
   contexts?: ContextUsage[];
   contextUsage?: ContextUsage | null;
@@ -524,9 +527,9 @@ function useComposerSend(
 ) {
   const ignoreStopUntil = useRef(0);
   const { draft, setDraft, loop, board, inputRef } = composer;
-  // A game composer with no AI model at all offers Connect AI model in the model's place; a send
+  // A project composer with no AI model at all offers Connect AI model in the model's place; a send
   // lights that up instead of going anywhere.
-  const noModel = (props.gameMode ?? true) && props.model.choices.length === 0;
+  const noModel = (props.projectMode ?? true) && props.model.choices.length === 0;
   const modelNudge = useModelNudge();
   const writable = !props.disabled && !props.busy && draft.trim().length > 0;
   const canSend = writable && !noModel;
@@ -553,7 +556,7 @@ function useComposerSend(
     // A failed send is already durable in the thread (main appends the error); catching here
     // only stops the same failure from surfacing twice as console noise.
     const extras = composerExtras({
-      gameMode: props.gameMode ?? true,
+      projectMode: props.projectMode ?? true,
       view: loop.view,
       reviewPlan: loop.reviewPlan,
       frames: sentFrames,
@@ -638,7 +641,7 @@ function PromptInput({
   );
 }
 
-/** The / command list in a game's composer; the Harness chat has none. */
+/** The / command list in a project's composer; the Harness chat has none. */
 function CommandList({
   props,
   commands,
@@ -650,7 +653,7 @@ function CommandList({
   anchor: RefObject<HTMLDivElement | null>;
   menuRef: RefObject<AddMenuHandle | null>;
 }): JSX.Element | null {
-  if (props.gameMode === false) return null;
+  if (props.projectMode === false) return null;
   return (
     <ComposerCommandMenu
       ref={menuRef}
@@ -706,7 +709,7 @@ function ImagePicker({
 }
 
 export function PromptBar(props: PromptBarProps): JSX.Element {
-  const { disabled = false, coordinating = false, gameMode = true } = props;
+  const { disabled = false, coordinating = false, projectMode = true } = props;
   const { draft, setDraft } = useDraft(props.value, props.onChange);
   const loop = useLoopSettings(props);
   const board = useBoardFrames(props.conversationKey);
@@ -717,7 +720,7 @@ export function PromptBar(props: PromptBarProps): JSX.Element {
   const commandMenuRef = useRef<AddMenuHandle>(null);
   const modelMenuRef = useRef<ModelMenuHandle>(null);
   usePromptHandle(props.ref, { inputRef, modelMenuRef, draft, setDraft });
-  const mentions = useMention(gameMode, draft, setDraft, inputRef);
+  const mentions = useMention(projectMode, draft, setDraft, inputRef);
   const commands = useComposerCommands(draft, setDraft);
   // A reply about the build is a note to it, delivered at once, not a message waiting in line.
   // Add's Plan mode asks for what to plan, as Codex's does, until the message goes.
@@ -730,7 +733,7 @@ export function PromptBar(props: PromptBarProps): JSX.Element {
   return (
     <div
       data-promptbar
-      data-studio-composer={!gameMode || undefined}
+      data-studio-composer={!projectMode || undefined}
       className="composer relative min-w-0"
       {...fileDropHandlers(disabled, board.addFiles)}
     >
@@ -747,7 +750,7 @@ export function PromptBar(props: PromptBarProps): JSX.Element {
         {board.frames.length > 0 ? (
           <FrameBoard
             frames={board.frames}
-            gameMode={gameMode}
+            projectMode={projectMode}
             onRemove={(index) => board.setFrames((current) => current.filter((_, i) => i !== index))}
           />
         ) : null}
@@ -758,7 +761,7 @@ export function PromptBar(props: PromptBarProps): JSX.Element {
           disabled={disabled}
           placeholder={placeholderNow}
           mentions={mentions}
-          commands={gameMode ? commands : null}
+          commands={projectMode ? commands : null}
           addMenuRef={addMenuRef}
           commandMenuRef={commandMenuRef}
           onEnter={composer.send}
@@ -768,7 +771,7 @@ export function PromptBar(props: PromptBarProps): JSX.Element {
         <ComposerToolbar
           model={props.model}
           permissions={props.permissions ?? null}
-          gameMode={gameMode}
+          projectMode={projectMode}
           disabled={disabled}
           coordinating={coordinating}
           project={props.project}
@@ -869,7 +872,7 @@ interface ComposerLimitsInput {
 interface ComposerToolbarProps {
   model: ComposerModelProps;
   permissions: ComposerPermissions | null;
-  gameMode: boolean;
+  projectMode: boolean;
   disabled: boolean;
   coordinating: boolean;
   project?: string | null;
@@ -888,21 +891,21 @@ interface ComposerToolbarProps {
 
 /** The composer's toolbar: Add (or attach), Mode, permissions, then the limits, the model, the effort and Send. */
 function ComposerToolbar(props: ComposerToolbarProps): JSX.Element {
-  const { gameMode, loop, permissions } = props;
+  const { projectMode, loop, permissions } = props;
   const { view } = loop;
   const toolbar = useRef<HTMLDivElement>(null);
   useToolbarFit(toolbar);
   return (
     <div ref={toolbar} className="flex min-w-0 items-center gap-1" data-composer-toolbar>
       <AttachControl {...props} />
-      {gameMode && (
+      {projectMode && (
         <ComposerModeMenu
           value={view.shown}
           onChange={view.editable ? loop.chooseLoop : undefined}
           disabled={props.coordinating || !view.editable}
         />
       )}
-      {gameMode && permissions && (
+      {projectMode && permissions && (
         <ComposerPermissionMenu
           mode={permissions.mode}
           onMode={permissions.onMode}
@@ -911,7 +914,7 @@ function ComposerToolbar(props: ComposerToolbarProps): JSX.Element {
           disabled={props.disabled}
         />
       )}
-      {gameMode && loop.planOn && <PlanModeOff onOff={() => loop.setReviewPlan(false)} disabled={props.disabled} />}
+      {projectMode && loop.planOn && <PlanModeOff onOff={() => loop.setReviewPlan(false)} disabled={props.disabled} />}
       {/* The flexible space: its margin takes back its own gap, so at no width it costs the name nothing. */}
       <div className="-ms-1 min-w-0 flex-1" />
       <ModelControls {...props} />
@@ -920,9 +923,9 @@ function ComposerToolbar(props: ComposerToolbarProps): JSX.Element {
   );
 }
 
-/** Add with its @ mention list in a game; a plain attach-images button in the Harness chat. */
+/** Add with its @ mention list in a project; a plain attach-images button in the Harness chat. */
 function AttachControl({
-  gameMode,
+  projectMode,
   project,
   disabled,
   loop,
@@ -931,7 +934,7 @@ function AttachControl({
   mentions,
   onPickImages,
 }: ComposerToolbarProps): JSX.Element {
-  if (gameMode) {
+  if (projectMode) {
     return (
       <ComposerAddMenu
         ref={addMenuRef}
@@ -963,10 +966,10 @@ function AttachControl({
   );
 }
 
-/** The limits, the model menu (with roles in a game) and the effort. */
+/** The limits, the model menu (with roles in a project) and the effort. */
 function ModelControls({
   model,
-  gameMode,
+  projectMode,
   disabled,
   loop,
   limits,
@@ -987,7 +990,7 @@ function ModelControls({
     />
   ) : null;
   // The Harness chat has one conversation model: the same menu, without roles.
-  if (!gameMode) {
+  if (!projectMode) {
     if (models.length === 0) return null;
     return (
       <>

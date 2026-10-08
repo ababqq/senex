@@ -1,7 +1,7 @@
 /**
  * Publish pressed in Studio's own Publish dialog. The dialog Studio draws says what publishing
  * does and then shows the exact files that would go online; publishing that list is the consent,
- * so no native dialog and no chat card ask again. Only for a game Studio may open, only through
+ * so no native dialog and no chat card ask again. Only for a project Studio may open, only through
  * the bundled Genex plugin while it is on, and only for the very files the person saw.
  */
 import assert from "node:assert/strict";
@@ -15,7 +15,7 @@ import { type ExportReview, type PluginBinding, PluginSourceKind } from "../../s
 import { UiEvent, type UiEventMap } from "../../src/shared/ui-events.ts";
 import { coreLite } from "../helpers/core-lite.ts";
 
-const GAME = "publish-me";
+const PROJECT = "publish-me";
 type Consent = UiEventMap[typeof UiEvent.PluginConsent];
 
 /** How long a test waits for the host to ask about a file list. */
@@ -23,7 +23,7 @@ const ASK_WAIT_MS = 5000;
 const ASK_POLL_MS = 20;
 
 /**
- * A real core with one game. Plugin actions are recorded instead of run, except that Genex's
+ * A real core with one project. Plugin actions are recorded instead of run, except that Genex's
  * publish stages the public copy inside the call, as its backend does.
  */
 async function dialogRig() {
@@ -35,12 +35,12 @@ async function dialogRig() {
       if (event.type === UiEvent.PluginConsent) consents.push(event.payload as Consent);
     },
   });
-  const game = await lite.core.games.scaffold(GAME);
+  const project = await lite.core.projects.scaffold(PROJECT);
   // A page with nothing to vendor, and a file the export leaves out, so both lists have something.
-  await writeFile(path.join(game.dir, "index.html"), "<!DOCTYPE html><title>Fixture</title><h1>Playable</h1>");
-  await writeFile(path.join(game.dir, "studio.json"), JSON.stringify({ exportFiles: ["index.html", ".env.local"] }));
-  await writeFile(path.join(game.dir, ".env.local"), "FIXTURE_SECRET=private");
-  const binding: PluginBinding = { project: GAME, directory: game.dir };
+  await writeFile(path.join(project.dir, "index.html"), "<!DOCTYPE html><title>Fixture</title><h1>Playable</h1>");
+  await writeFile(path.join(project.dir, "studio.json"), JSON.stringify({ exportFiles: ["index.html", ".env.local"] }));
+  await writeFile(path.join(project.dir, ".env.local"), "FIXTURE_SECRET=private");
+  const binding: PluginBinding = { project: PROJECT, directory: project.dir };
   let stages = 0;
   /** What the Genex backend does once its publish starts: the host stages the public copy. */
   const exportStage = () => {
@@ -63,13 +63,13 @@ async function dialogRig() {
     assert.ok(pending, "a card asked about the files");
     return pending;
   };
-  return { ...lite, game, calls, staged, consents, exportStage, asked };
+  return { ...lite, project, calls, staged, consents, exportStage, asked };
 }
 
-test("Publish first shows the files the game would upload, and starts nothing", async () => {
+test("Publish first shows the files the project would upload, and starts nothing", async () => {
   const rig = await dialogRig();
   try {
-    const review = await publishReview(rig.core, GAME);
+    const review = await publishReview(rig.core, PROJECT);
     assert.deepEqual(review, { included: ["index.html"], excluded: [".env.local"] });
     assert.deepEqual(review.included, [...review.included].sort());
     assert.deepEqual(rig.calls, [], "Genex is asked nothing");
@@ -79,17 +79,17 @@ test("Publish first shows the files the game would upload, and starts nothing", 
   }
 });
 
-test("publishing the shown files publishes the open game to the gallery, and they are not asked about again", async () => {
+test("publishing the shown files publishes the open project to the gallery, and they are not asked about again", async () => {
   const rig = await dialogRig();
   try {
-    const review = await publishReview(rig.core, GAME);
-    await publishFromDialog(rig.core, GAME, review);
+    const review = await publishReview(rig.core, PROJECT);
+    await publishFromDialog(rig.core, PROJECT, review);
     assert.deepEqual(rig.calls, [
       {
         id: "genex",
         name: "publish-gallery",
         args: {},
-        binding: { project: GAME, directory: rig.game.dir, threadId: undefined },
+        binding: { project: PROJECT, directory: rig.project.dir, threadId: undefined },
       },
     ]);
     assert.equal(rig.staged.length, 1, "Genex staged the public copy");
@@ -115,7 +115,7 @@ test("the name typed in the dialog reaches Genex as one clean line, and a blank 
       [undefined, {}],
     ];
     for (const [title, args] of titles) {
-      await publishFromDialog(rig.core, GAME, await publishReview(rig.core, GAME), title);
+      await publishFromDialog(rig.core, PROJECT, await publishReview(rig.core, PROJECT), title);
       assert.deepEqual(rig.calls.at(-1)?.args, args, JSON.stringify(title));
     }
   } finally {
@@ -126,9 +126,9 @@ test("the name typed in the dialog reaches Genex as one clean line, and a blank 
 test("files that changed since the dialog showed them are asked about in chat", async () => {
   const rig = await dialogRig();
   try {
-    const review = await publishReview(rig.core, GAME);
+    const review = await publishReview(rig.core, PROJECT);
     const seen = { included: review.included.filter((file) => file !== "index.html"), excluded: review.excluded };
-    const publishing = publishFromDialog(rig.core, GAME, seen);
+    const publishing = publishFromDialog(rig.core, PROJECT, seen);
     void publishing.catch(() => {});
     rig.core.resolveConsent((await rig.asked()).consentId, false);
     await assert.rejects(publishing, /declined/);
@@ -138,21 +138,21 @@ test("files that changed since the dialog showed them are asked about in chat", 
   }
 });
 
-test("Publish refuses anything but a game's name and a file list, and asks Genex nothing", async () => {
+test("Publish refuses anything but a project's name and a file list, and asks Genex nothing", async () => {
   const rig = await dialogRig();
   try {
-    const review = await publishReview(rig.core, GAME);
+    const review = await publishReview(rig.core, PROJECT);
     const projects: unknown[] = [
       undefined,
       null,
       "",
       42,
       {},
-      [GAME],
-      `../${GAME}`,
-      `${GAME}/../../etc`,
+      [PROJECT],
+      `../${PROJECT}`,
+      `${PROJECT}/../../etc`,
       "/etc",
-      `${GAME}\0`,
+      `${PROJECT}\0`,
     ];
     for (const project of projects) {
       await assert.rejects(publishReview(rig.core, project), Error, `review ${JSON.stringify(project)}`);
@@ -169,7 +169,7 @@ test("Publish refuses anything but a game's name and a file list, and asks Genex
       { included: ["index.html"], excluded: [null] },
     ];
     for (const files of reviews)
-      await assert.rejects(publishFromDialog(rig.core, GAME, files), Error, JSON.stringify(files));
+      await assert.rejects(publishFromDialog(rig.core, PROJECT, files), Error, JSON.stringify(files));
     assert.deepEqual(rig.calls, []);
     // Nothing above approved anything: the next export is still asked about.
     const staged = rig.exportStage();
@@ -184,7 +184,7 @@ test("Publish refuses anything but a game's name and a file list, and asks Genex
 test("Publish needs the bundled Genex plugin, on", async () => {
   const rig = await dialogRig();
   try {
-    const review = await publishReview(rig.core, GAME);
+    const review = await publishReview(rig.core, PROJECT);
     const installed = rig.core.plugins.list();
     assert.ok(installed.some((p) => p.manifest.id === "genex" && p.source === PluginSourceKind.Bundled));
     const unusable: Array<[string, (p: (typeof installed)[number]) => (typeof installed)[number] | null]> = [
@@ -200,8 +200,8 @@ test("Publish needs the bundled Genex plugin, on", async () => {
           const changed = change({ ...p, enabled: true, removed: false });
           return changed ? [changed] : [];
         });
-      await assert.rejects(publishReview(rig.core, GAME), /Genex/, `review, ${label}`);
-      await assert.rejects(publishFromDialog(rig.core, GAME, review), /Genex/, label);
+      await assert.rejects(publishReview(rig.core, PROJECT), /Genex/, `review, ${label}`);
+      await assert.rejects(publishFromDialog(rig.core, PROJECT, review), /Genex/, label);
     }
     assert.deepEqual(rig.calls, []);
   } finally {
@@ -209,17 +209,17 @@ test("Publish needs the bundled Genex plugin, on", async () => {
   }
 });
 
-test("an approved file list is spent once, by its own plugin and game, within its time", () => {
+test("an approved file list is spent once, by its own plugin and project, within its time", () => {
   let now = 0;
   const approvals = new ExportApprovals(() => now);
   const files: ExportReview = { included: ["index.html", "assets/a.png"], excluded: [".env"] };
   const reordered: ExportReview = { included: ["assets/a.png", "index.html"], excluded: [".env"] };
 
-  approvals.approve("genex", GAME, files);
-  assert.equal(approvals.take("other", GAME, files), false, "another plugin's export");
-  assert.equal(approvals.take("genex", "other-game", files), false, "another game's export");
-  assert.equal(approvals.take("genex", GAME, reordered), true, "the same files in any order");
-  assert.equal(approvals.take("genex", GAME, files), false, "spent");
+  approvals.approve("genex", PROJECT, files);
+  assert.equal(approvals.take("other", PROJECT, files), false, "another plugin's export");
+  assert.equal(approvals.take("genex", "other-project", files), false, "another project's export");
+  assert.equal(approvals.take("genex", PROJECT, reordered), true, "the same files in any order");
+  assert.equal(approvals.take("genex", PROJECT, files), false, "spent");
 
   const changes: Array<[string, ExportReview]> = [
     ["a file added", { included: [...files.included, "secret.txt"], excluded: [".env"] }],
@@ -227,16 +227,16 @@ test("an approved file list is spent once, by its own plugin and game, within it
     ["an exclusion gone", { included: files.included, excluded: [] }],
   ];
   for (const [label, exported] of changes) {
-    approvals.approve("genex", GAME, files);
-    assert.equal(approvals.take("genex", GAME, exported), false, label);
-    assert.equal(approvals.take("genex", GAME, files), false, `${label}: a mismatch spends the approval`);
+    approvals.approve("genex", PROJECT, files);
+    assert.equal(approvals.take("genex", PROJECT, exported), false, label);
+    assert.equal(approvals.take("genex", PROJECT, files), false, `${label}: a mismatch spends the approval`);
   }
 
-  approvals.approve("genex", GAME, files);
-  approvals.withdraw("genex", GAME);
-  assert.equal(approvals.take("genex", GAME, files), false, "withdrawn when its publish ended");
+  approvals.approve("genex", PROJECT, files);
+  approvals.withdraw("genex", PROJECT);
+  assert.equal(approvals.take("genex", PROJECT, files), false, "withdrawn when its publish ended");
 
-  approvals.approve("genex", GAME, files);
+  approvals.approve("genex", PROJECT, files);
   now += EXPORT_APPROVAL_TTL_MS + 1;
-  assert.equal(approvals.take("genex", GAME, files), false, "expired");
+  assert.equal(approvals.take("genex", PROJECT, files), false, "expired");
 });

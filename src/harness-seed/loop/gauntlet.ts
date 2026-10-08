@@ -120,16 +120,16 @@ export async function runGauntlet(ctx: HarnessCtx, options: GauntletOptions): Pr
 
   await announceRunStart(ctx, threadId, run, origin);
   // Ensure the project exists and is on screen before anything is judged.
-  await ctx.call(HostMethod.GameScaffold, { name: run.project as string, title: run.project });
+  await ctx.call(HostMethod.ProjectScaffold, { name: run.project as string, title: run.project });
   await ctx.call(HostMethod.PreviewLoad, { project: run.project });
 
   // A named bar without pixels is the hollow comparison the first run already suffered.
-  // Direction mode is allowed to run without frames; "beat a real game" is not.
+  // Direction mode is allowed to run without frames; "beat a real project" is not.
   if (lacksReferenceStills(run)) {
     stopWith(
       report,
       StopCode.NoReference,
-      "no reference screenshots — a beat-a-real-game run needs at least two stills of the bar",
+      "no reference screenshots — a beat-a-real-project run needs at least two stills of the bar",
     );
     if (beforeFinalPublication)
       await beforeFinalPublication({
@@ -187,7 +187,7 @@ async function announceRunStart(ctx: HarnessCtx, threadId: string, run: Run, ori
   });
 }
 
-/** A beat-a-real-game run with fewer than two stills of the bar. */
+/** A beat-a-real-project run with fewer than two stills of the bar. */
 function lacksReferenceStills(run: Run): boolean {
   if (run.reference?.kind !== ReferenceKind.Reference) return false;
   const frames = run.reference.frames?.filter((frame: AnyRecord | null) => frame?.data)?.length ?? 0;
@@ -434,7 +434,7 @@ async function lookAtChallenger(loop: GauntletLoop, round: GauntletRound): Promi
   loop.observationOutages = 0;
   round.challengerBroken = Boolean(round.buildFailed) || !round.evidence.ok;
   // Snapshot the attempt *before* the verdict so a losing challenger is still playable in
-  // the morning. Restore after a loss wipes the working tree; the stills alone are not a game.
+  // the morning. Restore after a loss wipes the working tree; the stills alone are not a project.
   round.attemptSnapshot = await snapshotAttempt(ctx, run, round.iteration);
   // Capture the incumbent's stills before a win overwrites the carried-forward evidence.
   round.incumbentShots = loggedShots(loop.incumbentEvidence?.shots);
@@ -487,12 +487,12 @@ async function holdForObservationOutage(loop: GauntletLoop, round: GauntletRound
   stopWith(
     report,
     StopCode.ObservationDown,
-    "the studio could not see the game to judge it, so it stopped instead of building blind — the last build is kept on disk",
+    "the studio could not see the project to judge it, so it stopped instead of building blind — the last build is kept on disk",
   );
   return RoundFlow.Stop;
 }
 
-/** A game-scope snapshot of the attempt, unhealthy until it wins; null when it could not be taken. */
+/** A project-scope snapshot of the attempt, unhealthy until it wins; null when it could not be taken. */
 async function snapshotAttempt(ctx: HarnessCtx, run: Run, iteration: number): Promise<AnyRecord | null> {
   try {
     return await ctx.call(HostMethod.SnapshotCreate, {
@@ -606,7 +606,7 @@ async function keepOrRestore(loop: GauntletLoop, round: GauntletRound): Promise<
   } else {
     // TIE / REGRESSION / BROKEN ⇒ KEEP INCUMBENT. Nothing is ever lost: the attempt stays in
     // the log and in git history, the working tree goes back to the best known version.
-    // Game scope only: losing a round is a verdict about the game, not about the coder —
+    // Project scope only: losing a round is a verdict about the project, not about the coder —
     // rewinding the harness with it would erase self-edits the round never judged. The run's
     // starting-point snapshot stays scope "both"; that one is the morning catastrophe anchor.
     await ctx.call(HostMethod.SnapshotRestore, {
@@ -697,7 +697,7 @@ async function recordIteration(loop: GauntletLoop, round: GauntletRound): Promis
 async function askThePanel(loop: GauntletLoop, round: GauntletRound): Promise<RoundFlow> {
   const { ctx, report, run } = loop;
   // ── exit on a blind win against the reference, never on a round count ──
-  // A "direction" run has no reference game to beat — convening a panel against a vibe would
+  // A "direction" run has no reference project to beat — convening a panel against a vibe would
   // be theater (and the first run spent 7 minutes per win on exactly that). It runs the clock.
   round.hasReference = run.reference?.kind !== ReferenceKind.Direction && Boolean(run.reference?.name);
   const cleanWin = round.challengerWon && !round.challengerBroken;

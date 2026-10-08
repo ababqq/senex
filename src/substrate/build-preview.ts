@@ -9,7 +9,7 @@ const MAX_CAPTURE_BYTES = 8 * 1024 * 1024;
 const PLAIN_SEGMENT = /^[a-z0-9_-]+$/i;
 /** A builder capture's file name: `c<sequence>_<camera>.jpg`. */
 const CAPTURE_FILE = /^c(\d+)_(.+)\.jpg$/;
-/** The camera a capture is taken with when the game names none; it wins a tie. */
+/** The camera a capture is taken with when the project names none; it wins a tie. */
 const DEFAULT_CAMERA = "default";
 /** Iteration folders are numbered to this many digits: `iter_007`. */
 const ITERATION_DIGITS = 3;

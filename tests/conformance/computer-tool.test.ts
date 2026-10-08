@@ -133,7 +133,7 @@ describe("computer tool — which surface a look photographs (M4.5)", () => {
     for (const word of ["screen", "page", "DOM", "window", "UI", "full-page"]) {
       assert.deepEqual(parseSurface(word), { surface: "screen", note: null }, word);
     }
-    for (const word of ["canvas", "webgl", "webgl2", "WebGPU", "gl", "game", "render"]) {
+    for (const word of ["canvas", "webgl", "webgl2", "WebGPU", "gl", "project", "render"]) {
       assert.deepEqual(parseSurface(word), { surface: "canvas", note: null }, word);
     }
     // Nothing asked, and "you choose" asked out loud, are the same answer.
@@ -225,7 +225,7 @@ describe("the requested state — setup and its probe", () => {
 });
 
 describe("computer tool — a playtester's clock (golden-boot-glory)", () => {
-  /** The computer on a fake window that records what reached the game, for one screen role. */
+  /** The computer on a fake window that records what reached the project, for one screen role. */
   async function playOn(role: "playtester" | "builder") {
     const { computerTools } = await import("../../src/main/core/computer-tools.ts");
     const { tmpDir } = await import("../helpers/tmp.ts");
@@ -263,13 +263,13 @@ describe("computer tool — a playtester's clock (golden-boot-glory)", () => {
     return { reached, prompt: String(tools.liveTools[0]?.description) };
   }
 
-  it("one key press ran four match minutes while the playtester looked: its game stands still between moves and runs only during them", async () => {
+  it("one key press ran four match minutes while the playtester looked: its project stands still between moves and runs only during them", async () => {
     const played = await playOn("playtester");
     assert.deepEqual(played.reached, ["pause", "start", "input", "pause", "start", "pause"]);
     assert.match(played.prompt, /stands still between your actions/);
   });
 
-  it("a builder's game keeps running between actions, as before", async () => {
+  it("a builder's project keeps running between actions, as before", async () => {
     const built = await playOn("builder");
     assert.deepEqual(built.reached, ["input"]);
     assert.match(built.prompt, /keeps running between actions/);

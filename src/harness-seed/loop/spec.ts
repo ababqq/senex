@@ -15,7 +15,7 @@
 import { readFile, writeFile, mkdir, rename, rm } from "node:fs/promises";
 import path from "node:path";
 import { dryRunChecks, parseExpr } from "./checks.ts";
-import { criticFor, inputProbesFor, isGameKind, normalizeGameTraits, wantsEyeCameras } from "./kinds.ts";
+import { criticFor, inputProbesFor, isAppKind, normalizeAppTraits, wantsEyeCameras } from "./kinds.ts";
 import { isRecord } from "./json.ts";
 import { hasText } from "./text.ts";
 import { DEFAULT_CAMERA } from "./cameras.ts";
@@ -178,9 +178,9 @@ export interface Catalogue {
 export type BoardOutcomes = Record<string, { pass?: boolean | null } | undefined>;
 
 // The kind table lives in one module (loop/kinds.ts) so nobody re-decides what a kind is. It
-// is re-exported here because the two callers that normalise a plan's game block — autopilot
+// is re-exported here because the two callers that normalise a plan's project block — autopilot
 // and the director — have always imported it from the spec module.
-export { normalizeGameTraits };
+export { normalizeAppTraits };
 
 /** What a check measures, which decides the fields it carries (see `Check`). Plans and boards keep it. */
 export const CheckKind = {
@@ -240,7 +240,7 @@ export const CHECK_KINDS: string[] = Object.values(CheckKind);
 const CHECK_GRAMMAR: Record<string, { shape: string; says: string; more?: string[] }> = {
   scene: {
     shape: `{"kind":"scene","js":"meshes('terrain').every(m => !m.material.transparent && m.material.depthWrite)"}`,
-    says: "JS over the game's scene graph. Objects are found by `obj.userData.tag`; name the tags the builder must use.",
+    says: "JS over the project's scene graph. Objects are found by `obj.userData.tag`; name the tags the builder must use.",
     more: [
       "Helpers in scope: scene, renderer, camera, state, player, objects(tag), meshes(tag),",
       "materials(tag), lights(), tags(), untagged(), count(tag), bbox(tag) → {min,max,size},",
@@ -270,7 +270,7 @@ const CHECK_GRAMMAR: Record<string, { shape: string; says: string; more?: string
     says: "over `__studio.state()` with dotted paths (bare, or under `state.`), early.<path>, delta(path), abs, min, max, len, has.",
     more: [
       "`needs` names up to four dotted paths the check cannot be judged without: a state that",
-      "lacks one reports the check unmeasured instead of failing a game that never had it.",
+      "lacks one reports the check unmeasured instead of failing a project that never had it.",
       'Add {"demo":"prop-run"} when the number is one a demo drives: the probe is then read from',
       "the state that demo left behind, and the demo cap can never drop it.",
     ],
@@ -336,7 +336,7 @@ export function expandCheckGrammar(text: unknown): string {
 
 /**
  * Normalise one milestone from planner JSON: `{ id, what, check? }`. `what` is the structural
- * change in a sentence (what the game IS afterwards, not how it looks); `check` is optional
+ * change in a sentence (what the project IS afterwards, not how it looks); `check` is optional
  * and, when present, a normal check that joins the board the iteration the milestone is the
  * move. Null for anything that is not a milestone.
  */
@@ -392,7 +392,7 @@ function checkBase(raw: AnyRecord, id: string, kind: string) {
       ? { fromRecipe: raw.fromRecipe.slice(0, CHECK_RECIPE_CHARS) }
       : {}),
     // A check the harness may leave unmeasured rather than failing when the thing it names
-    // is not there at all — a demo a game never registers is not the same as a demo that ran
+    // is not there at all — a demo a project never registers is not the same as a demo that ran
     // and went wrong.
     ...(raw.optional === true ? { optional: true } : {}),
   };
@@ -513,7 +513,7 @@ function doneEntry(raw: unknown, i: number): (DoneEntry & { check: Check }) | nu
   return { id: check.id, what, check };
 }
 
-/** Words that join two phrases without saying anything about the game. */
+/** Words that join two phrases without saying anything about the project. */
 const JOINING_WORDS = new Set([
   "and",
   "are",
@@ -872,7 +872,7 @@ export function renderMilestones(
  * Checks the loop itself puts on every plan (HARNESS-POSTMORTEM-SHOOTER.md §4.2–4.3). They
  * prove the two things the user notices first and no planner check ever covered: the screen
  * the user sees is the screen the judge sees (one HUD, drawn into the canvas, no DOM UI), and
- * a human's input reaches the game (the mouse turns the camera, the keys move the player).
+ * a human's input reaches the project (the mouse turns the camera, the keys move the player).
  * `origin: "harness"`; a planner re-ask cannot drop them and a builder cannot edit them.
  */
 export const HARNESS_CHECKS: Record<string, AnyRecord & { expr?: string; note: string; needs?: string[] }> = {
@@ -903,8 +903,8 @@ export const HARNESS_CHECKS: Record<string, AnyRecord & { expr?: string; note: s
     kind: CheckKind.Probe,
     weight: CheckWeight.Identity,
     origin: CheckOrigin.Harness,
-    // `abs(delta(path)) > 0` and not `delta(path) != 0`: an axis the game does not report reads
-    // undefined, and `undefined != 0` is true — the old body passed on a game with no player at
+    // `abs(delta(path)) > 0` and not `delta(path) != 0`: an axis the project does not report reads
+    // undefined, and `undefined != 0` is true — the old body passed on a project with no player at
     // all. `needs` names the same two paths, so a build whose player only exists after the play
     // script (a title screen) is reported unmeasured instead of green (checks.ts
     // needsNotReported compares needs against the paths delta() itself names).
@@ -933,7 +933,7 @@ function inputProbe(raw: unknown, fallbackId: string): { expr: string; note: str
   // `needs` is read off the expression the check actually carries, never inherited: a kind that
   // moves on x and y must not be asked for the template's x and z, and a check whose needs name
   // a path its own delta() does not can never report the early state missing (checks.ts
-  // needsNotReported) — which is how "this game has no player yet" once read as "the controls
+  // needsNotReported) — which is how "this project has no player yet" once read as "the controls
   // work". Only a check whose harness body declares needs gets them.
   const needs = body.needs ? deltaPathsIn(expr) : [];
   return { expr, note, ...(needs.length ? { needs } : {}) };
@@ -946,16 +946,16 @@ function deltaPathsIn(expr: unknown): string[] {
 }
 
 /**
- * The harness-owned checks a facet carries, conditional on what the plan says the game IS:
- * the screen checks on every facet of a game with a HUD (any facet can paint a second one),
+ * The harness-owned checks a facet carries, conditional on what the plan says the project IS:
+ * the screen checks on every facet of a project with a HUD (any facet can paint a second one),
  * the input checks on the facet that owns main.js and on the integration facet (they own the
- * player) when the game is mouse-looked / keyboard-moved. Existing ids are replaced by the
+ * player) when the project is mouse-looked / keyboard-moved. Existing ids are replaced by the
  * harness definition, never duplicated.
  *
- * Every trait is off until something declares it (loop/kinds.ts), so a game nobody described
+ * Every trait is off until something declares it (loop/kinds.ts), so a project nobody described
  * carries no harness check at all: the four checks describe the template's screen and the
- * template's controls, and a board game or a builder has neither. The two input checks read
- * the declared kind's own axes, so a top-down game is asked whether x, y or z moved and not
+ * template's controls, and a board project or a builder has neither. The two input checks read
+ * the declared kind's own axes, so a top-down project is asked whether x, y or z moved and not
  * whether the first-person controller's x or z did.
  */
 export function withHarnessChecks<S extends { checks?: Check[] }>(
@@ -963,15 +963,15 @@ export function withHarnessChecks<S extends { checks?: Check[] }>(
   {
     ownsMain = false,
     role = "facet",
-    game = null,
+    app: app = null,
     screen = true,
-  }: { ownsMain?: boolean; role?: string; game?: AnyRecord | null; screen?: boolean } = {},
+  }: { ownsMain?: boolean; role?: string; app?: AnyRecord | null; screen?: boolean } = {},
 ): S & { checks: Check[] } {
-  const traits = normalizeGameTraits(game);
+  const traits = normalizeAppTraits(app);
   const owner = ownsMain || role === "integration";
-  const probes = inputProbesFor(game) ?? {};
-  // `screen: false` — a game the user brought with its own UI (DOM menus, its own HUD) keeps
-  // it; the one-screen checks describe the template's screen, not this game's.
+  const probes = inputProbesFor(app) ?? {};
+  // `screen: false` — a project the user brought with its own UI (DOM menus, its own HUD) keeps
+  // it; the one-screen checks describe the template's screen, not this project's.
   const wanted = [
     ...(screen && traits.hud ? ["no-dom-ui", "single-hud"] : []),
     ...(owner && traits.mouseLook ? ["look-turns-camera"] : []),
@@ -993,7 +993,7 @@ export function withHarnessChecks<S extends { checks?: Check[] }>(
  * lessons and hiding one from the other would throw away most of what the runs know.
  */
 function kindFamily(kind: unknown): string | null {
-  if (!isGameKind(kind)) return null;
+  if (!isAppKind(kind)) return null;
   return `${criticFor({ kind })}/${wantsEyeCameras({ kind }) ? "eyes" : "flat"}`;
 }
 
@@ -1163,8 +1163,8 @@ export async function saveCatalogue(
 /**
  * Whether a catalogue entry has earned a place in the planner's prompt. What the seed itself
  * ships is no longer a hypothesis: since the craft opinions left for `library/recipes` the
- * catalogue holds only the five technical checks that say "this is a game and the harness can
- * see and drive it", and a game that keeps failing one of them has a defect, not a bad check.
+ * catalogue holds only the five technical checks that say "this is a project and the harness can
+ * see and drive it", and a project that keeps failing one of them has a defect, not a bad check.
  * Content the runs grew (origin judge / spike) is shown only once it has caught a defect at
  * least LEARNED_MIN_CATCHES times across LEARNED_MIN_RUNS runs — a one-run defect is not
  * knowledge. Everything else (a check a planner hand-wrote) is still voted out by use: shown
@@ -1190,16 +1190,16 @@ export function catalogueEntryEarned(entry: CatalogueEntry): boolean {
  */
 export function renderCatalogueForPlanner(
   catalogue: Pick<Catalogue, "checks"> | null | undefined,
-  options: number | { limit?: number; game?: AnyRecord | null; screen?: boolean } | null = {},
+  options: number | { limit?: number; app?: AnyRecord | null; screen?: boolean } | null = {},
 ): string {
   const {
     limit = CATALOGUE_LIMIT,
-    game = null,
+    app: app = null,
     screen = true,
-  }: { limit?: number; game?: AnyRecord | null; screen?: boolean } = typeof options === "number"
+  }: { limit?: number; app?: AnyRecord | null; screen?: boolean } = typeof options === "number"
     ? { limit: options }
     : (options ?? {});
-  const wantedFamily = kindFamily(game?.kind ?? null);
+  const wantedFamily = kindFamily(app?.kind ?? null);
   const all = Object.entries(catalogue?.checks ?? {}).filter(
     ([id, c]) => !HARNESS_CHECKS[id] && catalogueEntryEarned(c) && forFamily(c, wantedFamily),
   );
@@ -1214,16 +1214,16 @@ export function renderCatalogueForPlanner(
   for (const [pack, entries] of [...packs.entries()].sort()) {
     lines.push(
       "",
-      `### Learned on "${pack}" games — take what fits when the goal is one (a threshold another game taught is a hypothesis here, not a rule)`,
+      `### Learned on "${pack}" projects — take what fits when the goal is one (a threshold another project taught is a hypothesis here, not a rule)`,
       ...entries.slice(0, limit).map(catalogueLine),
     );
   }
-  lines.push("", ridingLine(game, screen));
+  lines.push("", ridingLine(app, screen));
   return lines.join("\n");
 }
 
 /**
- * What a night on another sort of game learned is not automatically knowledge about this one,
+ * What a night on another sort of project learned is not automatically knowledge about this one,
  * but the kind's name is too fine a gate: an entry recorded under exactly one FAMILY is offered
  * only to that family; one recorded under two families, or under none, is general.
  */
@@ -1275,19 +1275,20 @@ const learnedByRuns = (entry: { origin?: string }): boolean =>
   entry.origin === CheckOrigin.Judge || entry.origin === CheckOrigin.Spike;
 
 /**
- * What actually rides on THIS game's board, not the four ids the table happens to hold: a game
+ * What actually rides on THIS project's board, not the four ids the table happens to hold: a project
  * that declared nothing carries none of them, and telling the planner otherwise is the lie that
- * made every plan re-declare a HUD rule its game does not have.
+ * made every plan re-declare a HUD rule its project does not have.
  */
-function ridingLine(game: AnyRecord | null, screen: boolean): string {
-  const riding = withHarnessChecks({ id: "board", checks: [] as Check[] }, { ownsMain: true, game, screen }).checks.map(
-    (c) => c.id,
-  );
+function ridingLine(app: AnyRecord | null, screen: boolean): string {
+  const riding = withHarnessChecks(
+    { id: "board", checks: [] as Check[] },
+    { ownsMain: true, app: app, screen },
+  ).checks.map((c) => c.id);
   if (!riding.length)
-    return `No harness-owned checks ride on this game's board — declare hud, mouseLook or keyboardMove in game if it has them.`;
+    return `No harness-owned checks ride on this project's board — declare hud, mouseLook or keyboardMove in project if it has them.`;
   const screenRides = riding.includes("no-dom-ui") || riding.includes("single-hud");
   const inputRides = riding.includes("look-turns-camera") || riding.includes("keys-move-player");
-  return `Already on this game's board (harness-owned, do not re-declare): ${riding.join(", ")}.${screenRides ? " Every visible element is drawn into the canvas — no DOM UI, one HUD." : ""}${inputRides ? " The input checks ride on the facet that owns main." : ""}`;
+  return `Already on this project's board (harness-owned, do not re-declare): ${riding.join(", ")}.${screenRides ? " Every visible element is drawn into the canvas — no DOM UI, one HUD." : ""}${inputRides ? " The input checks ride on the facet that owns main." : ""}`;
 }
 
 /**
@@ -1317,7 +1318,7 @@ export function recordCatalogueOutcomes<C extends Pick<Catalogue, "checks">>(
 ): C {
   catalogue.checks ??= {};
   const { checks } = catalogue;
-  // The kind rides beside the genres so a later night knows what sort of game taught this.
+  // The kind rides beside the genres so a later night knows what sort of project taught this.
   const provenance = { runId, genres, kind: declaredKindOf(kind) };
   for (const check of spec?.checks ?? []) {
     if (!theCatalogues(check)) continue;
@@ -1329,7 +1330,7 @@ export function recordCatalogueOutcomes<C extends Pick<Catalogue, "checks">>(
   return catalogue;
 }
 
-/** The kind a plan declared, from its name or from its game block. */
+/** The kind a plan declared, from its name or from its project block. */
 function declaredKindOf(kind: string | { kind?: string } | null): string | null {
   if (typeof kind === "string") return kind;
   return typeof kind?.kind === "string" ? kind.kind : null;
@@ -1388,7 +1389,7 @@ function countOutcome(
   if (everFailed?.has?.(check.id) || pass === false) entry.catches = (entry.catches ?? 0) + 1;
 }
 
-/** Where a use came from: the run, the genres and the kind of game the plan declared, and when. */
+/** Where a use came from: the run, the genres and the kind of project the plan declared, and when. */
 function stampProvenance(
   entry: CatalogueEntry,
   { runId, genres, kind }: { runId: string | null; genres: unknown; kind: string | null },

@@ -1,4 +1,4 @@
-/** Everything the Builds tab draws, folded once from the run's graph, its recorded outcome and the game's assets. */
+/** Everything the Builds tab draws, folded once from the run's graph, its recorded outcome and the project's assets. */
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { SECOND_MS } from "../../../shared/duration.ts";
 import { workedMs } from "../../../shared/run-state.ts";
@@ -64,7 +64,7 @@ function nodeOfKind<T extends RunGraphModel["nodes"][number]>(graph: RunGraphMod
 function useBuildGraph(suppliedGraph: RunGraphModel, project: string | null) {
   const outcome = useDeferredValue(useSharedSnapshot(useRunSummary(project, suppliedGraph.runId)));
   const deferredGraph = useDeferredValue(suppliedGraph);
-  // The game's asset inventory, from the library store's one watch (shared with the Assets stage).
+  // The project's asset inventory, from the library store's one watch (shared with the Assets stage).
   useEffect(() => (project ? studio().library.watchAssets(project) : undefined), [project]);
   const assetInventory = useLibrary((s) => assetsOf(s, project).value);
   const restored = useMemo(() => (outcome?.graphEvents ? buildRunGraph(outcome.graphEvents) : null), [outcome]);

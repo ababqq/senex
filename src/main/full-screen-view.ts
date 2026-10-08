@@ -1,13 +1,18 @@
 /**
- * The game's full screen in the studio window (`game-full-screen.ts`): the window, Live's view and
- * the exit button, a small transparent view of the studio's own above the game. Nothing is put
- * into the game's page; the button's page has no preload and reaches main only through the one
+ * The project's full screen in the studio window (`project-full-screen.ts`): the window, Live's view and
+ * the exit button, a small transparent view of the studio's own above the project. Nothing is put
+ * into the project's page; the button's page has no preload and reaches main only through the one
  * `window.open` it is allowed, which is refused and read as "exit".
  */
 import { type BrowserWindow, WebContentsView } from "electron";
-import { EXIT_FULL_SCREEN_URL, exitButtonPage, gameFullScreen, type GameFullScreen } from "./game-full-screen.ts";
+import {
+  EXIT_FULL_SCREEN_URL,
+  exitButtonPage,
+  projectFullScreen,
+  type ProjectFullScreen,
+} from "./project-full-screen.ts";
 import type { PreviewBoundsRecord } from "./ipc/preview.ts";
-import type { GamePreview } from "./preview.ts";
+import type { ProjectPreview } from "./preview.ts";
 import type { StudioCore } from "./studio-core.ts";
 
 /** The exit button's page, loaded again each time it is shown so its words unfold again. */
@@ -16,7 +21,7 @@ const EXIT_PAGE_URL = `data:text/html;charset=utf-8,${encodeURIComponent(exitBut
 const TRANSPARENT = "#00000000";
 
 /** Build the full screen for `win` over Live's `view`; the slot comes back from what the page last measured. */
-export function wireGameFullScreen({
+export function wireProjectFullScreen({
   studio,
   win,
   view,
@@ -24,19 +29,19 @@ export function wireGameFullScreen({
 }: {
   studio: StudioCore;
   win: BrowserWindow;
-  view: GamePreview;
+  view: ProjectPreview;
   boundsSeen: PreviewBoundsRecord;
-}): GameFullScreen {
+}): ProjectFullScreen {
   const exitView = new WebContentsView({
     webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false },
   });
   exitView.setBackgroundColor(TRANSPARENT);
   exitView.setVisible(false);
-  // Added after the game's view, so it is drawn over it.
+  // Added after the project's view, so it is drawn over it.
   win.contentView.addChildView(exitView);
   let shown = false;
 
-  const screen = gameFullScreen({
+  const screen = projectFullScreen({
     window: {
       isFullScreen: () => win.isFullScreen(),
       setFullScreen: (on) => win.setFullScreen(on),
@@ -45,7 +50,7 @@ export function wireGameFullScreen({
         return { width, height };
       },
     },
-    game: {
+    project: {
       fill: (bounds) => view.fill(bounds),
       focus: () => view.view?.webContents.focus(),
     },

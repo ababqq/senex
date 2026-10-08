@@ -12,7 +12,7 @@
       "makeLock",
       "observationOnlyFailure",
       "parseSteeringBacklog",
-      "rollBackGame",
+      "rollBackProject",
       "runAutopilot",
       "schedule"
     ],
@@ -87,7 +87,7 @@
       "closeTheNight",
       "finish",
       "integrate",
-      "keepGameLessons",
+      "keepProjectLessons",
       "landIntegration",
       "landingClaim"
     ],
@@ -394,7 +394,7 @@
       "normalizeCheck",
       "normalizeDone",
       "normalizeFacetSpec",
-      "normalizeGameTraits",
+      "normalizeAppTraits",
       "normalizeMilestone",
       "normalizeMilestones",
       "recordCatalogueOutcomes",

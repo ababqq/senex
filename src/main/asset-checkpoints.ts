@@ -89,7 +89,7 @@ function hostGit(root: string): HostGit {
 async function pendingDeliveries(git: HostGit, root: string, latest: ReadonlyMap<string, string>): Promise<string[]> {
   const paths: string[] = [];
   for (const [relative, digest] of latest) {
-    // Already committed edits belong to the game; only pending deliveries need a checkpoint.
+    // Already committed edits belong to the project; only pending deliveries need a checkpoint.
     if (!(await git(["status", "--porcelain", "--", relative]))) continue;
     const file = await checkedFile(root, relative).catch(() => null);
     if (!file) continue;

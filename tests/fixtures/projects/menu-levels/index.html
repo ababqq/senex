@@ -1,0 +1,115 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>Two Rooms</title>
+<style>
+  html,
+  body {
+    margin: 0;
+    height: 100%;
+    background: #070a10;
+    color: #dbe4f2;
+    font: 14px/1.5 ui-sans-serif, system-ui, -apple-system, sans-serif;
+    overflow: hidden;
+  }
+  canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+  /* Every clickable element is placed in percentages of the viewport, so the same two clicks
+     walk this project from its title screen to a room at any window size. */
+  .screen {
+    position: fixed;
+    inset: 0;
+    background: rgba(7, 10, 16, 0.94);
+  }
+  .screen[hidden] {
+    display: none;
+  }
+  /* The level select is see-through: behind its two cards, the two rooms are rendered side by
+     side into one canvas, which is two scenes and two cameras in a single frame. */
+  #levels {
+    background: rgba(7, 10, 16, 0.55);
+  }
+  h1 {
+    position: absolute;
+    top: 14%;
+    left: 0;
+    right: 0;
+    margin: 0;
+    text-align: center;
+    font-size: 42px;
+    letter-spacing: 0.06em;
+  }
+  #start {
+    position: absolute;
+    left: 30%;
+    top: 55%;
+    width: 40%;
+    height: 12%;
+    font-size: 20px;
+    color: #071018;
+    background: #7fd0ff;
+    border: 0;
+    border-radius: 10px;
+    cursor: pointer;
+  }
+  .card {
+    position: absolute;
+    top: 35%;
+    width: 34%;
+    height: 30%;
+    display: grid;
+    place-content: center;
+    font-size: 18px;
+    color: #dbe4f2;
+    background: #16202e;
+    border: 1px solid #2b3b52;
+    border-radius: 12px;
+    cursor: pointer;
+  }
+  .card[data-level="1"] {
+    left: 8%;
+  }
+  .card[data-level="2"] {
+    left: 58%;
+  }
+  /* The HUD is DOM, not canvas: no canvas capture can see it, which is the point. */
+  #hud {
+    position: fixed;
+    top: 16px;
+    left: 16px;
+    padding: 8px 12px;
+    background: rgba(9, 14, 22, 0.72);
+    border: 1px solid #263449;
+    border-radius: 8px;
+    font: 13px/1.4 ui-monospace, SFMono-Regular, monospace;
+  }
+  #hud[hidden] {
+    display: none;
+  }
+</style>
+
+<script type="importmap">
+  {
+    "imports": {
+      "three": "/vendor/three.module.js",
+      "three/": "/vendor/three/"
+    }
+  }
+</script>
+
+<div id="title" class="screen">
+  <h1>TWO ROOMS</h1>
+  <button id="start">Start</button>
+</div>
+
+<div id="levels" class="screen" hidden>
+  <h1>Pick a room</h1>
+  <div class="card" data-level="1">Blue Room</div>
+  <div class="card" data-level="2">Amber Room</div>
+</div>
+
+<div id="hud" hidden>room <span id="hud-level">-</span> &middot; score <span id="hud-score">0</span></div>
+
+<script type="module" src="./src/main.js"></script>

@@ -50,7 +50,7 @@ export function validateProfile(checkout, id) {
  * profile a new account to the Keychain too.
  */
 function ownedRoots(owner) {
-  const roots = { electron: "electron", session: "session", core: "core", games: "games" };
+  const roots = { electron: "electron", session: "session", core: "core", projects: "projects" };
   if (owner.freshMachine !== true) return roots;
   return { ...roots, secureStorage: `secure-storage-${owner.ownerId}` };
 }

@@ -1,5 +1,5 @@
 /**
- * Edit-time ownership as the engine is handed it: field by field, so a game the user brought
+ * Edit-time ownership as the engine is handed it: field by field, so a project the user brought
  * never silently keeps the template's locks or its wiring rule.
  */
 import assert from "node:assert/strict";

@@ -33,7 +33,7 @@ export interface MorningNight {
 export const MorningAction = {
   /** pick a paused night up where it left off */
   Resume: "resume",
-  /** put the live game (the landed build) on the stage */
+  /** put the live project (the landed build) on the stage */
   Play: "play",
   /** load tonight's merged build from a copy */
   PlayBuild: "play-build",
@@ -48,7 +48,7 @@ export interface MorningWords {
   summary: string | null;
   /** what stands in the report's place when the night never wrote one */
   noReport: string | null;
-  /** one line the studio learned about this game tonight, or null when it learned nothing worth a line */
+  /** one line the studio learned about this project tonight, or null when it learned nothing worth a line */
   learned: string | null;
   actions: MorningAction[];
 }

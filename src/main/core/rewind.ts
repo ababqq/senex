@@ -1,7 +1,7 @@
 /**
- * Rewinding a game chat (`shared/chat-rewind.ts`): a message and everything after it leave the
+ * Rewinding a project chat (`shared/chat-rewind.ts`): a message and everything after it leave the
  * conversation (the log keeps them), the provider sessions that remember them are dropped, and,
- * when asked, the game files go back to the checkpoint taken before that message was answered
+ * when asked, the project files go back to the checkpoint taken before that message was answered
  * (`../chat-checkpoints.ts`). A build running in the chat is stopped first; its rows, and those of
  * every build started after the message, leave the conversation with it. This service also takes
  * those checkpoints as the queue starts and settles each message, holds sends and other changes to
@@ -44,7 +44,7 @@ import { toolchain } from "../../substrate/toolchain.ts";
 import { CheckpointPhase, ChatCheckpoints } from "../chat-checkpoints.ts";
 import type { CoreInternals, StudioCore } from "../studio-core.ts";
 
-/** How long a message's answer waits for the game checkpoint before going ahead without it. */
+/** How long a message's answer waits for the project checkpoint before going ahead without it. */
 const CHAT_CHECKPOINT_WAIT_MS = 30 * SECOND_MS;
 /** How long a rewind waits for the harness to take back the mood board; it never waits for more. */
 const REWIND_NOTICE_TIMEOUT_MS = 3 * SECOND_MS;
@@ -59,7 +59,7 @@ const REWIND_BUILD_STOP_POLL_MS = 250;
 const LOG_DETAIL_CHARS = 300;
 /** A queue message id the host accepts: the harness's own, or a composer bubble's. */
 const MESSAGE_ID = /^[\w-]{1,80}$/;
-/** A reference picture a message saved: one file directly in the game's `references/`. */
+/** A reference picture a message saved: one file directly in the project's `references/`. */
 const REFERENCE_FILE = /^references\/[^/]+$/;
 /** The artifacts a run coordinator keeps its session in, one per run. */
 const COORDINATOR_ARTIFACT_PREFIX = "coordinator_";
@@ -69,15 +69,15 @@ const MESSAGE = {
   WaitToSend: "Wait for the rewind to finish, then send it again.",
   AlreadyRewinding: "This chat is already rewinding.",
   NotInChat: "That message is not in this chat.",
-  OnlyGameChat: "Only a game chat can be rewound.",
+  OnlyProjectChat: "Only a project chat can be rewound.",
   Restarting: "Studio is restarting. Try again in a moment.",
   HeldNeedsQueue: "Remove the waiting messages first: this harness cannot take them back.",
   BuildStillStopping: "The build is still stopping. Try again in a moment.",
   checkpointLate: (messageId: string) =>
-    `[core] the game checkpoint before ${messageId} took too long; that message can rewind the chat, not its files`,
+    `[core] the project checkpoint before ${messageId} took too long; that message can rewind the chat, not its files`,
   checkpointFailed: (phase: CheckpointPhase, messageId: string, err: unknown) =>
-    `[core] no game checkpoint ${phase} ${messageId}: ${errorMessage(err).slice(0, LOG_DETAIL_CHARS)}`,
-  putBackFailed: (err: unknown) => `[core] rewind could not put the game files back: ${errorMessage(err)}`,
+    `[core] no project checkpoint ${phase} ${messageId}: ${errorMessage(err).slice(0, LOG_DETAIL_CHARS)}`,
+  putBackFailed: (err: unknown) => `[core] rewind could not put the project files back: ${errorMessage(err)}`,
   tidyFailed: (threadId: string, what: string, err: unknown) =>
     `[core] after rewinding ${threadId}, ${what} failed: ${errorMessage(err)}`,
   resumeFailed: (threadId: string, err: unknown) =>
@@ -113,7 +113,7 @@ interface RemainingAction {
   eventId: string;
   action: RewoundAction;
 }
-/** Game files a rewind put back, and the saved copy that undoes it. */
+/** Project files a rewind put back, and the saved copy that undoes it. */
 interface RestoredFiles {
   files: number;
   saved: string;
@@ -126,12 +126,12 @@ interface RewindRequest {
   meta: RewindMeta;
   rewinds: ChatRewind[];
   first: PlannedRewind;
-  /** The game folder, when the chat has one. */
+  /** The project folder, when the chat has one. */
   dir: string | null;
-  /** Put the game files back too. */
+  /** Put the project files back too. */
   files: boolean;
 }
-/** A rewind as asked for (`files`: the person asked for the game files too), before it is planned. */
+/** A rewind as asked for (`files`: the person asked for the project files too), before it is planned. */
 type AskedRewind = Omit<RewindRequest, "first" | "dir">;
 /** What a rewind withdrew, and the files it put back. */
 interface AppliedRewind {
@@ -149,7 +149,7 @@ function plannedOrThrow(plan: RewindPlan): PlannedRewind {
 const unavailable = (reason: FilesStay): RewindFiles => ({ state: "unavailable", reason });
 
 /**
- * Why the game files cannot follow the chat back, before any checkpoint is asked: the message
+ * Why the project files cannot follow the chat back, before any checkpoint is asked: the message
  * joined an answer under way (no checkpoint was taken just before it), a build after it landed,
  * or it has no queue record (the queue takes every checkpoint) or an id no checkpoint could name.
  */
@@ -193,7 +193,7 @@ function rewindResult(first: PlannedRewind, messageId: string, restored: Restore
   };
 }
 
-/** Reference pictures only withdrawn messages saved; the rest of the game still reads them. */
+/** Reference pictures only withdrawn messages saved; the rest of the project still reads them. */
 async function removeWithdrawnReferences(
   dir: string,
   withdrawn: readonly RewoundAction[],
@@ -220,7 +220,7 @@ export class ChatRewindService {
   readonly #sending = new Map<string, number>();
   /** The sends themselves, per chat: a Stop waits for them to reach the chat's queue. */
   readonly #inFlight = new Map<string, Set<Promise<void>>>();
-  /** Per chat, the game checkpoint its next answer waits for (bounded; it never fails the answer). */
+  /** Per chat, the project checkpoint its next answer waits for (bounded; it never fails the answer). */
   readonly #checkpointsBefore = new Map<string, Promise<void>>();
   #checkpoints?: ChatCheckpoints;
 
@@ -229,7 +229,7 @@ export class ChatRewindService {
     this.#x = x;
   }
 
-  /** The game folder before each chat message, for rewinding (`../chat-checkpoints.ts`). */
+  /** The project folder before each chat message, for rewinding (`../chat-checkpoints.ts`). */
   get checkpoints(): ChatCheckpoints {
     this.#checkpoints ??= new ChatCheckpoints(
       path.join(this.#core.layout.scratch, "chat-checkpoints"),
@@ -291,7 +291,7 @@ export class ChatRewindService {
 
   // ── checkpoints ──────────────────────────────────────────────────────────────────────────
   /**
-   * A message's processing starts the game checkpoint that its answer's `turn.begin` waits for;
+   * A message's processing starts the project checkpoint that its answer's `turn.begin` waits for;
    * its end records the folder after. Neither holds up the queue that wrote them.
    */
   checkpointQueueRecords(threadId: string, batch: readonly EventData[]): void {
@@ -312,7 +312,7 @@ export class ChatRewindService {
   }
 
   /**
-   * The game folder before a message's answer, or after it. Without a checkpoint the chat can
+   * The project folder before a message's answer, or after it. Without a checkpoint the chat can
    * still be rewound, only its files cannot, so this never delays an answer for long: one that
    * is not ready by the deadline is not kept, as the answer may already be changing the folder.
    */
@@ -338,8 +338,8 @@ export class ChatRewindService {
   async #takeCheckpoint(threadId: string, messageId: string, phase: CheckpointPhase, deadline: number): Promise<void> {
     const record = await this.#core.store.getRecord(threadId).catch(() => null);
     const meta = record?.metadata as RewindMeta;
-    if (meta?.kind !== ThreadKind.Game || !meta.project) return;
-    const dir = this.#core.games.dirFor(meta.project);
+    if (meta?.kind !== ThreadKind.Project || !meta.project) return;
+    const dir = this.#core.projects.dirFor(meta.project);
     if (
       !(await this.#core.assertProjectAllowed(dir).then(
         () => true,
@@ -394,7 +394,7 @@ export class ChatRewindService {
     return (this.#sending.get(threadId) ?? 0) > 0 || this.#x.planReviews.busy(threadId);
   }
 
-  /** Work in flight in this chat, or in its game's folder. */
+  /** Work in flight in this chat, or in its project's folder. */
   #chatBusy(threadId: string, project: string | null): boolean {
     const x = this.#x;
     return (
@@ -420,7 +420,7 @@ export class ChatRewindService {
    * meanwhile (its lead, its coordinator, its workers). Returns that build.
    */
   async #assertRewindable(threadId: string, meta: RewindMeta): Promise<string | null> {
-    if (meta?.kind !== ThreadKind.Game) throw new Error(MESSAGE.OnlyGameChat);
+    if (meta?.kind !== ThreadKind.Project) throw new Error(MESSAGE.OnlyProjectChat);
     if (this.#core.host.state !== HarnessState.Ready) throw new Error(MESSAGE.Restarting);
     const building = await this.#runningBuild(threadId);
     const answering = building ? this.#chatSending(threadId) : this.#chatBusy(threadId, meta.project ?? null);
@@ -459,7 +459,7 @@ export class ChatRewindService {
     return remaining.sort((a, b) => a.eventId.localeCompare(b.eventId));
   }
 
-  /** What rewinding to a message would do to the game's files, for the confirmation. */
+  /** What rewinding to a message would do to the project's files, for the confirmation. */
   async preview(threadId: string, eventId: string, messageId: string): Promise<RewindPreview> {
     const meta = await this.#meta(threadId);
     const building = await this.#assertRewindable(threadId, meta);
@@ -471,7 +471,7 @@ export class ChatRewindService {
     if (building || !plan.ok) return { files: unavailable(FilesStay.BuildRunning), stopsBuild };
     const stay = filesStay(plan);
     if (stay) return { files: unavailable(stay), stopsBuild };
-    const dir = this.#core.games.dirFor(meta.project);
+    const dir = this.#core.projects.dirFor(meta.project);
     await this.#core.assertProjectAllowed(dir);
     // Pictures the withdrawn messages saved are theirs, not changes made outside the chat.
     const ours = [...messageQueueState(rows).messages.values()].flatMap(
@@ -484,9 +484,9 @@ export class ChatRewindService {
   }
 
   /**
-   * Rewind a game chat to just before one of its messages: it and everything after it leave the
+   * Rewind a project chat to just before one of its messages: it and everything after it leave the
    * conversation (the log keeps them), the provider sessions that remember them are dropped, and,
-   * when asked, the game files go back to the checkpoint taken before that message was answered.
+   * when asked, the project files go back to the checkpoint taken before that message was answered.
    * Returns what the composer needs to offer the message again.
    */
   async rewind(
@@ -529,7 +529,7 @@ export class ChatRewindService {
     const { threadId, eventId, messageId, meta, rewinds, files } = asked;
     const first = plannedOrThrow(planRewind(await this.#rowsFrom(threadId, eventId), rewinds, messageId));
     await this.#holdFollowUps(threadId, first);
-    const dir = meta?.project ? this.#core.games.dirFor(meta.project) : null;
+    const dir = meta?.project ? this.#core.projects.dirFor(meta.project) : null;
     const target = first.rewind.messageId;
     let applied: AppliedRewind;
     try {
@@ -705,7 +705,7 @@ export class ChatRewindService {
     // The files went back; Live keeps what it shows until the person reloads it (`live.behind`).
     if (applied.restored && project) {
       void this.#x.previews.offerLive({ project, root: null }).catch(() => {});
-      this.#core.emit(UiEvent.GameChanged, { project });
+      this.#core.emit(UiEvent.ProjectChanged, { project });
     }
     this.#core.emit(UiEvent.ThreadUpdated, { threadId, project });
     this.#core.emit(UiEvent.ThreadRewound, { threadId });

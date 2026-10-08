@@ -1,13 +1,13 @@
 /**
- * Where the native game view paints. Live runs the game in a native view that main lays over the
+ * Where the native project view paints. Live runs the project in a native view that main lays over the
  * stage's slot (`panels/stage/native-bounds.ts`), above the whole page: no z-index lifts anything
  * over it, so what floats beside the stage (a tooltip) keeps off it instead. The slot carries
  * `data-native-view` while the view shows there.
  */
 
-/** The attribute the stage's slot carries while the native game view paints over it. */
+/** The attribute the stage's slot carries while the native project view paints over it. */
 export const NATIVE_VIEW_ATTRIBUTE = "data-native-view";
-/** How far what floats beside the native view keeps from its edge, so it never touches the game. */
+/** How far what floats beside the native view keeps from its edge, so it never touches the project. */
 const CLEARANCE_PX = 4;
 
 /** A rectangle in the page's pixels, as `getBoundingClientRect` gives it. */
@@ -27,7 +27,7 @@ export interface Viewport {
 /** How far from each edge of the window a floating box stays (a Radix `collisionPadding`). */
 export type EdgePadding = Partial<Record<"top" | "right" | "bottom" | "left", number>>;
 
-/** Where the native game view paints now, or null while it shows nowhere. */
+/** Where the native project view paints now, or null while it shows nowhere. */
 export function nativeViewBox(): Box | null {
   return document.querySelector(`[${NATIVE_VIEW_ATTRIBUTE}]`)?.getBoundingClientRect() ?? null;
 }

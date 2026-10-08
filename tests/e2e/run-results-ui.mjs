@@ -86,7 +86,7 @@ try{await win.loadFile(out+'/index.html');await js('document.fonts.ready');await
 check('inline model renders actual thumbnail',await js('document.querySelector("[data-chat-assets] img").naturalWidth>100'));
 await until('document.querySelector("[data-audio-strip] input[type=range]")');
 check('audio is one thin strip with a readable name',await js('(()=>{const r=document.querySelector("[data-audio-strip]");return document.querySelectorAll("[data-audio-strip]").length===1&&r.getBoundingClientRect().height<=44&&r.textContent.includes("Referee whistle one sharp short blast st")&&!r.textContent.includes("cmucttyj")})()'));
-check('files missing from the game folder are not shown',await js('!document.querySelector("[data-audio-results]").innerHTML.includes("missing")&&!document.querySelector("[data-audio-results]").textContent.includes("Preview unavailable")'));
+check('files missing from the project folder are not shown',await js('!document.querySelector("[data-audio-results]").innerHTML.includes("missing")&&!document.querySelector("[data-audio-results]").textContent.includes("Preview unavailable")'));
 check('waveform reflects the decoded sound',await js('[...document.querySelectorAll("[data-audio-strip] span[style]")].some(b=>parseFloat(b.style.height)>12)'));
 await pointer('[data-audio-strip] button[aria-label^=Play]',true);await until('document.querySelector("[data-audio-strip] button[aria-label^=Pause]")');
 check('audio plays in place',true);await pointer('[data-audio-strip] button[aria-label^=Pause]',true);await until('document.querySelector("[data-audio-strip] button[aria-label^=Play]")');

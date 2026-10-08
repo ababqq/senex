@@ -28,14 +28,14 @@ export const MESSAGE = {
 function closedWords(night: AfterNight): string {
   if (night.state === RunState.Paused)
     return `is PAUSED${night.stoppedBecause ? ` (${clip(night.stoppedBecause, CLIP_QUOTE)})` : ""}`;
-  if (night.landed === true) return "finished, and its build is in the game folder";
-  if (night.landed === false) return "finished; its build was not put in the game folder";
+  if (night.landed === true) return "finished, and its build is in the project folder";
+  if (night.landed === false) return "finished; its build was not put in the project folder";
   return "finished";
 }
 
 /** A finished night's change with Loop off (or no reopen granted): the session's own work. */
 const OWN_WORK =
-  "- Work the user asks for now, you do yourself, here in the game folder, like any change in this chat — no build starts for it.";
+  "- Work the user asks for now, you do yourself, here in the project folder, like any change in this chat — no build starts for it.";
 
 /**
  * The paused night's resume; a finished night's reopen when the turn grants it (Loop on,
@@ -62,10 +62,10 @@ export function afterNightNote(
 ): string {
   const goal = night.goal ? ` ("${clip(night.goal, CLIP_QUOTE)}")` : "";
   return [
-    `THE BUILD IS OVER: run ${night.runId}${goal} ${closedWords(night)}. You are this chat's own session, back in the game folder with your hands: the build no longer runs, and you may read and edit the game here as in any turn of this chat.`,
+    `THE BUILD IS OVER: run ${night.runId}${goal} ${closedWords(night)}. You are this chat's own session, back in the project folder with your hands: the build no longer runs, and you may read and edit the project here as in any turn of this chat.`,
     "- Answer a question yourself: a question never restarts the build or starts one.",
     ...workRules(night, engine, grant),
-    `- The run's controls: ${toolCall(engine, "run_status")} reads where it stands; ${toolCall(engine, "show_build")} opens a build in Live without changing the game folder (integration: what the run built; live: the game folder as it is), only when the user asks to see or play it: never to show your own edits, which the stage's Reload button offers by itself; ${toolCall(engine, "land_build")} puts what the run built into the game folder — it refuses while the folder has uncommitted edits: say so, and never discard them. After either, say what it answered: open in Live, on the right, or waiting behind Reload while the user watches Live.`,
-    "- Speak the user's terms: Live, Builds, the build, your game folder — never integration branch or worktree.",
+    `- The run's controls: ${toolCall(engine, "run_status")} reads where it stands; ${toolCall(engine, "show_build")} opens a build in Live without changing the project folder (integration: what the run built; live: the project folder as it is), only when the user asks to see or play it: never to show your own edits, which the stage's Reload button offers by itself; ${toolCall(engine, "land_build")} puts what the run built into the project folder — it refuses while the folder has uncommitted edits: say so, and never discard them. After either, say what it answered: open in Live, on the right, or waiting behind Reload while the user watches Live.`,
+    "- Speak the user's terms: Live, Builds, the build, your project folder — never integration branch or worktree.",
   ].join("\n");
 }

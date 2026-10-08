@@ -80,13 +80,13 @@ describe("eval static server", () => {
     await mkdir(path.join(root, "assets", "sub"), { recursive: true });
     await mkdir(vendor, { recursive: true });
     await mkdir(outside, { recursive: true });
-    await writeFile(path.join(root, "index.html"), "<!doctype html><title>game</title>");
+    await writeFile(path.join(root, "index.html"), "<!doctype html><title>project</title>");
     await writeFile(path.join(root, "assets", "sub", "index.html"), "nested index");
     await writeFile(path.join(root, "assets", "level.glb"), "glTF");
     await writeFile(path.join(root, "assets", "tex.ktx2"), "ktx2");
     await writeFile(path.join(root, "assets", "sound.ogg"), "ogg");
     await writeFile(path.join(root, "assets", "blob.unknownext"), "blob");
-    await writeFile(path.join(root, "game.wasm"), "wasm");
+    await writeFile(path.join(root, "project.wasm"), "wasm");
     await writeFile(path.join(root, "..hidden"), "dot-dot-named file");
     await writeFile(path.join(vendor, "three.webgpu.js"), "export const three = 1;");
     await writeFile(path.join(outside, "secret.txt"), SECRET);
@@ -114,12 +114,12 @@ describe("eval static server", () => {
     assert.equal((await rawGet(handle, "/assets/sub/")).body, "nested index");
   });
 
-  it("types every game asset format, and unknown ones as octet-stream", async () => {
+  it("types every project asset format, and unknown ones as octet-stream", async () => {
     const cases: Array<[string, string]> = [
       ["/assets/level.glb", MIME_TYPES[".glb"] ?? ""],
       ["/assets/tex.ktx2", MIME_TYPES[".ktx2"] ?? ""],
       ["/assets/sound.ogg", MIME_TYPES[".ogg"] ?? ""],
-      ["/game.wasm", "application/wasm"],
+      ["/project.wasm", "application/wasm"],
       ["/vendor/three.webgpu.js", MIME_TYPES[".js"] ?? ""],
       ["/assets/blob.unknownext", "application/octet-stream"],
     ];

@@ -2,7 +2,7 @@
  * A command a reply offered, the way a terminal-savvy chat shows it: Run and Copy as icons inside
  * the block, and once it runs, its output in a card under it. The agent cannot run what its
  * sandbox refuses; the user can, with one press, and the chat reports the result back to the agent
- * when the command ends (`use-command-results.ts`). The game's terminal dock holds the same session
+ * when the command ends (`use-command-results.ts`). The project's terminal dock holds the same session
  * for typing into it (a password prompt), opened from the card.
  */
 import { type JSX, useEffect, useLayoutEffect, useRef, useState } from "react";

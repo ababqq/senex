@@ -1,6 +1,6 @@
 /**
  * The Genex page's reading of the plugin's status: one account state, the credits Genex actually
- * reported, and each generation of the open game in plain words. Pure: the page draws these and
+ * reported, and each generation of the open project in plain words. Pure: the page draws these and
  * never works them out again.
  */
 import {
@@ -46,7 +46,7 @@ export type GenexAccountView =
       kind: typeof GenexAccountKind.Connected;
       identity: string | null;
       credits: CreditsView;
-      /** Credits this game has used, when the CLI's budget reported a number. */
+      /** Credits this project has used, when the CLI's budget reported a number. */
       spent: number | null;
       /** Asset kinds Genex cannot make right now. */
       paused: string[];
@@ -68,7 +68,7 @@ export function creditsOf(status: GenexStatus): CreditsView {
     : { kind: CreditsKind.Unknown };
 }
 
-/** The game's spend from the CLI's budget answer, only when it is a real number. */
+/** The project's spend from the CLI's budget answer, only when it is a real number. */
 export function spentOf(allowance: unknown): number | null {
   const spent = (allowance as { spent?: unknown } | null)?.spent;
   return typeof spent === "number" && Number.isFinite(spent) ? spent : null;
@@ -113,7 +113,7 @@ export const JobState = {
   Working: "working",
   Review: "review",
   Ready: "ready",
-  InGame: "in-game",
+  InProject: "in-project",
   Failed: "failed",
   Stopped: "stopped",
   Unsure: "unsure",
@@ -175,8 +175,8 @@ export interface GenexJobRow {
 
 function stateOf(job: GenexJob): JobState {
   const state = JOB_STATE[job.status] ?? JobState.Working;
-  const inGame = job.use?.stage === GenexUseStage.Integrated || job.use?.stage === GenexUseStage.Verified;
-  return state === JobState.Ready && inGame ? JobState.InGame : state;
+  const inProject = job.use?.stage === GenexUseStage.Integrated || job.use?.stage === GenexUseStage.Verified;
+  return state === JobState.Ready && inProject ? JobState.InProject : state;
 }
 
 function creditWords(job: GenexJob): string | null {
@@ -196,7 +196,7 @@ function candidatesOf(job: GenexJob, state: JobState): Array<number | null> {
 
 const fileName = (file: string | undefined): string | null => (file ? (file.split("/").pop() ?? file) : null);
 
-/** The game's generations, newest first. */
+/** The project's generations, newest first. */
 export function genexJobRows(jobs: readonly GenexJob[]): GenexJobRow[] {
   return [...jobs].reverse().map((job) => {
     const family = OPERATION[job.operation] ?? UNKNOWN_OPERATION;

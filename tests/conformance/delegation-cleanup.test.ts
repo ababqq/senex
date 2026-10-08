@@ -13,8 +13,8 @@ it("a plugin lease that fails to release still frees the folder for the next del
   try {
     const { core } = lite;
     const project = "cleanup";
-    await core.games.scaffold(project);
-    const threadId = await core.createGameThread(project);
+    await core.projects.scaffold(project);
+    const threadId = await core.createProjectThread(project);
     core.engines.register({
       id: "fixture-delegate",
       label: "Fixture",

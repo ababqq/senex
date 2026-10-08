@@ -81,8 +81,8 @@ test("import cycles are found through static runtime imports only, and the allow
     "src/typed-back.ts": "import { u } from './typed.ts'; export const t = u;",
     "src/lazy.ts": "import { back } from './lazy-back.ts'; export const lazy = back;",
     "src/lazy-back.ts": "export const back = () => import('./lazy.ts');",
-    "src/game-template/src/main.js": "import './studio.js';",
-    "src/game-template/src/studio.js": "import './main.js';",
+    "src/project-template/src/main.js": "import './studio.js';",
+    "src/project-template/src/studio.js": "import './main.js';",
   });
   assert.deepEqual(importCycles(root), [["src/a.ts", "src/b.ts", "src/c.ts"], ["src/self.ts"]]);
   assert.equal(checkCycles(root, none).errors.length, 2);

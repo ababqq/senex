@@ -1,13 +1,13 @@
-# Evaluating game judges
+# Evaluating project judges
 
 Protocol tests prove the mechanics of judging. They do not establish that a model agrees with
-people about game quality. Use this procedure before claiming a judge, prompt or learned
-instruction improves games. Keep captures, labels and reports in ignored evidence directories;
+people about project quality. Use this procedure before claiming a judge, prompt or learned
+instruction improves projects. Keep captures, labels and reports in ignored evidence directories;
 publish only an independently reviewed dataset with established redistribution rights.
 
 ## Fixed comparisons
 
-Use owned disposable games. Freeze each game's starting commit, seed, camera, viewport, device
+Use owned disposable projects. Freeze each project's starting commit, seed, camera, viewport, device
 pixel ratio, action sequence and evidence budget. Record the provider, model, prompt version,
 runtime context, permission mode, source revision and build identity. Change one variable per
 comparison. Start with these authored tasks; use the same inputs for every candidate:
@@ -47,7 +47,7 @@ broken or regressed builds, and requested-change satisfaction. Reversing A/B mus
 the semantic choice. Show each task's result alongside the aggregate; report unlabelled pairs
 as unlabelled. Include calls, tokens, recorded spend, latency, cancellations and failures.
 
-Run a candidate in shadow mode on the frozen set before letting its decisions change games or
+Run a candidate in shadow mode on the frozen set before letting its decisions change projects or
 automatically apply learning. Set acceptance thresholds and the campaign's budget before
 running it; retain the baseline and every failure. Wider acceptance needs fresh tasks and
 independent reviewers, not repeated tuning on the same examples. Keep automatic learning off

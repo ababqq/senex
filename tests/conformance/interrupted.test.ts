@@ -59,7 +59,7 @@ describe("every death leaves a durable trace", () => {
       threadId: child,
       originThreadId: child,
       runId: `run-${threadId}`,
-      prompt: "Publish this game?",
+      prompt: "Publish this project?",
       state,
       ...(state === "pending" ? { expiresAt: Date.now() + 60_000 } : { by: "user" as const }),
     });
@@ -249,7 +249,7 @@ it("boot persists interrupted Optimization and charges its active budget without
   await reborn.stop();
 });
 
-it("boot finishes an interrupted Optimization adoption from what the game folder kept", async () => {
+it("boot finishes an interrupted Optimization adoption from what the project folder kept", async () => {
   const { emptyOptimization } = await import("../../src/harness-seed/loop/optimization.ts");
   const revision = { snapshotId: null, commit: "c".repeat(40), tree: "t".repeat(40) };
   const scenarios = [

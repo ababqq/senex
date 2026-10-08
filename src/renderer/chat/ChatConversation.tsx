@@ -28,7 +28,7 @@ import type { ThreadTranscript } from "./use-thread-transcript.ts";
 import { UserMessage } from "./UserMessage.tsx";
 import { VirtualTranscript } from "./VirtualTranscript.tsx";
 
-/** The transcript's context: the chat's run, game and pictures, and what its cards and bubbles do. */
+/** The transcript's context: the chat's run, project and pictures, and what its cards and bubbles do. */
 function useTranscriptContext(parts: ChatParts): TranscriptContext {
   const latest = useRef(parts);
   latest.current = parts;

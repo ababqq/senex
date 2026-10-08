@@ -1,18 +1,18 @@
 /**
  * The studio's rules for Claude Code's Auto classifier: the settings key `autoMode`, which every
- * session that asks carries (a game chat's own session, a build's lead, the run's coordinator) and
+ * session that asks carries (a project chat's own session, a build's lead, the run's coordinator) and
  * which only Auto reads (and Plan, where it runs with Auto's semantics).
  *
- * Auto should let a person building a game have everything ordinary game work needs without a
+ * Auto should let a person building a project have everything ordinary project work needs without a
  * question, and keep stopping what is truly dangerous. Claude Code's own rules already do the
  * second; the studio only adds what the classifier cannot know from the transcript (the person's
- * own Mac, the person in the chat, the game folder's checkpoints) and narrows the built-in blocks
- * that everyday game work trips: each entry names the blocks it narrows and what stays blocked.
+ * own Mac, the person in the chat, the project folder's checkpoints) and narrows the built-in blocks
+ * that everyday project work trips: each entry names the blocks it narrows and what stays blocked.
  * The soft and hard blocks themselves stay as Claude Code ships them, so a CLI update's new
  * protections apply unchanged.
  *
  * The CLI reads `autoMode` only from user, flag (the SDK's `settings`) and managed settings, never
- * from a game's own `.claude` files; `"$defaults"` keeps its built-in entries in place (a list
+ * from a project's own `.claude` files; `"$defaults"` keeps its built-in entries in place (a list
  * without it replaces them). It sends the same rules to the server-side classifier.
  */
 
@@ -31,11 +31,11 @@ export interface AutoModeSeat {
   /** Its working folder, absolute. */
   cwd: string;
   /**
-   * True for the game chat's own session in its game folder, which the studio checkpoints before
+   * True for the project chat's own session in its project folder, which the studio checkpoints before
    * each message it answers (`main/chat-checkpoints.ts`) and the chat's Rewind restores. False for
    * a build's lead or the run's coordinator, whose edits are not checkpointed that way.
    */
-  gameFolder: boolean;
+  projectFolder: boolean;
 }
 
 /** The session's `autoMode` settings: environment facts and carve-outs, on top of Claude Code's own. */
@@ -43,25 +43,25 @@ export function autoModeRules(seat: AutoModeSeat): { environment: string[]; allo
   return {
     environment: [
       BUILT_IN,
-      seat.gameFolder
-        ? "**AI Game Studio**: A game chat on the person's own Mac, no sandbox. The person is in the chat, chose Auto, and expects ordinary game-development work done without asking."
-        : "**AI Game Studio**: A game chat on the person's own Mac, no sandbox. The person chose Auto and expects ordinary game-development work done without asking; while a build runs they may be away, and this session's prompts come from the studio's build loop, not from them.",
-      seat.gameFolder
-        ? `**Game folder**: ${seat.cwd}, the working directory and trusted repo, is the person's game. Before each message the studio checkpoints under refs/studio/ the files git does not ignore (not .env*, nested repos or files over 50 MB); Rewind restores them while HEAD stays put.`
-        : "**Build session**: This session leads or answers for a build of the person's game. A lead edits and commits in the run's integration worktree, the build's workers change the game in worktrees of their own, and the studio lands the work in the game folder; its own edits there are not checkpointed.",
-      "**Download sources**: Public package registries, CDNs, GitHub and font, sound or asset sites are ordinary download sources, not trusted destinations for the person's data (the game's own remote stays trusted).",
+      seat.projectFolder
+        ? "**AI Game Studio**: A project chat on the person's own Mac, no sandbox. The person is in the chat, chose Auto, and expects ordinary project-development work done without asking."
+        : "**AI Game Studio**: A project chat on the person's own Mac, no sandbox. The person chose Auto and expects ordinary project-development work done without asking; while a build runs they may be away, and this session's prompts come from the studio's build loop, not from them.",
+      seat.projectFolder
+        ? `**Project folder**: ${seat.cwd}, the working directory and trusted repo, is the person's project. Before each message the studio checkpoints under refs/studio/ the files git does not ignore (not .env*, nested repos or files over 50 MB); Rewind restores them while HEAD stays put.`
+        : "**Build session**: This session leads or answers for a build of the person's project. A lead edits and commits in the run's integration worktree, the build's workers change the project in worktrees of their own, and the studio lands the work in the project folder; its own edits there are not checkpointed.",
+      "**Download sources**: Public package registries, CDNs, GitHub and font, sound or asset sites are ordinary download sources, not trusted destinations for the person's data (the project's own remote stays trusted).",
     ],
     allow: [
       BUILT_IN,
-      ...(seat.gameFolder
+      ...(seat.projectFolder
         ? [
-            "Game Folder Work: Deleting, overwriting, moving or regenerating checkpointed files in the game folder, and its build output, caches or node_modules, is recoverable: not Irreversible Local Destruction. Not: other ignored files, git clean -x, .git, refs/studio, .git.studio-backup, .studio, .env*, nested repos, files over 50 MB, paths or symlinks leading outside.",
+            "Project Folder Work: Deleting, overwriting, moving or regenerating checkpointed files in the project folder, and its build output, caches or node_modules, is recoverable: not Irreversible Local Destruction. Not: other ignored files, git clean -x, .git, refs/studio, .git.studio-backup, .studio, .env*, nested repos, files over 50 MB, paths or symlinks leading outside.",
           ]
         : []),
-      "Game Toolchain: Installing and running well-known public packages, scaffolders, templates and headless browsers the game needs, declared or not, narrows Code from External and Untrusted Code Integration. Not: names picked only from fetched pages or tool output, curl|sh beyond Toolchain Bootstrap, sudo, obscure or look-alike names.",
-      "Game Test Servers: Dev servers, directory servers on 127.0.0.1, local game backends and headless browsers (GPU or WebGL flags included) on the game's local page, and stopping ones the agent started or the process listening on its dev port, narrow Expose Local Services, Create RCE Surface, Safety Bypass Flag and Interfere With Workloads. Not: directory servers on all interfaces or LAN binds the person did not ask for, code-running endpoints beyond loopback, public tunnels, the person's own browser profile, killing by bare name or other processes.",
-      "Person's Assets: Reading folders the person points to, looking in Downloads, Desktop, Pictures, Music or other games for an asset the person described, and copying those files into the game narrows Sensitive-Source Provenance and PII Data Handling. Not: wildcard or whole-folder sweeps of home folders, documents, scans, screenshots or keys the person did not point to, credential stores, keychains, browser profiles, .env values, the studio's folders, or sending any of it off the Mac.",
-      "Game Notes and Builds: Writing conventions into the game's own CLAUDE.md, AGENTS.md, NOTES and docs narrows Instruction Poisoning; production builds or packaging on this Mac are not deploys (narrows Production Deploy). Not: text that grants permissions or weakens checks, uploading a build.",
+      "Project Toolchain: Installing and running well-known public packages, scaffolders, templates and headless browsers the project needs, declared or not, narrows Code from External and Untrusted Code Integration. Not: names picked only from fetched pages or tool output, curl|sh beyond Toolchain Bootstrap, sudo, obscure or look-alike names.",
+      "Project Test Servers: Dev servers, directory servers on 127.0.0.1, local project backends and headless browsers (GPU or WebGL flags included) on the project's local page, and stopping ones the agent started or the process listening on its dev port, narrow Expose Local Services, Create RCE Surface, Safety Bypass Flag and Interfere With Workloads. Not: directory servers on all interfaces or LAN binds the person did not ask for, code-running endpoints beyond loopback, public tunnels, the person's own browser profile, killing by bare name or other processes.",
+      "Person's Assets: Reading folders the person points to, looking in Downloads, Desktop, Pictures, Music or other projects for an asset the person described, and copying those files into the project narrows Sensitive-Source Provenance and PII Data Handling. Not: wildcard or whole-folder sweeps of home folders, documents, scans, screenshots or keys the person did not point to, credential stores, keychains, browser profiles, .env values, the studio's folders, or sending any of it off the Mac.",
+      "Project Notes and Builds: Writing conventions into the project's own CLAUDE.md, AGENTS.md, NOTES and docs narrows Instruction Poisoning; production builds or packaging on this Mac are not deploys (narrows Production Deploy). Not: text that grants permissions or weakens checks, uploading a build.",
     ],
   };
 }

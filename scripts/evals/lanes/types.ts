@@ -68,7 +68,7 @@ export interface LaneRunRequest {
   workRoot: string;
   /**
    * Where the agent works: a fresh folder outside the evals home (`createLaneRoot`), or `workRoot`
-   * itself for a lane run on its own. Its project, games and profile go here; the scheduler moves
+   * itself for a lane run on its own. Its project, projects and profile go here; the scheduler moves
    * them into `workRoot` when the run ends.
    */
   laneRoot: string;

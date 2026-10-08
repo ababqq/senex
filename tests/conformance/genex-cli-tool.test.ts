@@ -1,9 +1,9 @@
 /**
  * `genex__cli` and `genex__cli-paid`: Studio runs its own pinned Genex CLI through the process
- * sandbox, in a run folder of its own with HOME at that folder, never in the game. The token only
+ * sandbox, in a run folder of its own with HOME at that folder, never in the project. The token only
  * ever travels on the child's stdin, the network opens for the Genex API alone, and the folder is
  * gone afterwards. Part one drives an injected sandbox; part two runs the real pinned CLI against a
- * local fixture API and proves the game, its parent and the real HOME are left byte-identical.
+ * local fixture API and proves the project, its parent and the real HOME are left byte-identical.
  */
 import assert from "node:assert/strict";
 import { lstat, mkdir, readdir, readFile, realpath, rm, stat, symlink, writeFile } from "node:fs/promises";
@@ -21,8 +21,8 @@ import {
 } from "../../src/main/core/genex-cli.ts";
 import { GenexCliRefusal } from "../../src/main/core/genex-cli-policy.ts";
 import { GenexPackageService } from "../../src/main/core/genex-package.ts";
-import { GameBuilds, REGISTRY_DOMAIN } from "../../src/main/game-build.ts";
-import { GENEX_GAME_PACKAGES } from "../../src/shared/genex.ts";
+import { ProjectBuilds, REGISTRY_DOMAIN } from "../../src/main/project-build.ts";
+import { GENEX_PROJECT_PACKAGES } from "../../src/shared/genex.ts";
 import { PluginHostTool } from "../../src/shared/plugins.ts";
 import { ProcessSandbox, type RunRequest, type RunResult } from "../../src/substrate/spawn.ts";
 import { type GenexFixtureApi, type GenexRequest, startGenexFixtureApi } from "../helpers/genex-fixture-api.ts";
@@ -44,17 +44,17 @@ const GIT_ENV = {
   GIT_CONFIG_SYSTEM: "/dev/null",
 };
 
-/** One Studio profile's folders: userData, resources, the Genex plugin's storage and a game. */
+/** One Studio profile's folders: userData, resources, the Genex plugin's storage and a project. */
 async function profile() {
   const root = await realpath(await tmpDir("genex-cli-"));
   const userData = path.join(root, "userData");
   const resources = path.join(root, "resources");
   const genexStorage = path.join(userData, "engine-homes", "genex");
-  const gamesRoot = path.join(root, "AI Games");
-  const game = path.join(gamesRoot, "space-race");
-  await mkdir(game, { recursive: true });
+  const projectsRoot = path.join(root, "AI Projects");
+  const project = path.join(projectsRoot, "space-race");
+  await mkdir(project, { recursive: true });
   await mkdir(resources, { recursive: true });
-  return { root, userData, resources, genexStorage, gamesRoot, game };
+  return { root, userData, resources, genexStorage, projectsRoot, project };
 }
 type Profile = Awaited<ReturnType<typeof profile>>;
 
@@ -105,11 +105,11 @@ function service(p: Profile, sandbox: { run: (r: RunRequest) => Promise<RunResul
     runsRoot: path.join(p.userData, "genex-cli"),
     resources: p.resources,
     genexStorage: p.genexStorage,
-    protectedWrites: () => [p.gamesRoot, p.game],
+    protectedWrites: () => [p.projectsRoot, p.project],
   });
 }
 
-const binding = (p: Profile) => ({ project: "space-race", directory: p.game, threadId: "t1" });
+const binding = (p: Profile) => ({ project: "space-race", directory: p.project, threadId: "t1" });
 
 describe("a Studio-run Genex CLI command, through an injected sandbox", () => {
   it("hands the token only to stdin, runs in its own folder with HOME there, and opens the Genex API alone", async () => {
@@ -122,13 +122,13 @@ describe("a Studio-run Genex CLI command, through an injected sandbox", () => {
     assert.ok(!Object.values(request.env ?? {}).some((v) => v.includes(TOKEN)), "nor in the environment");
     const runs = path.join(p.userData, "genex-cli");
     assert.ok(request.cwd.startsWith(`${runs}${path.sep}`), request.cwd);
-    assert.ok(!request.cwd.startsWith(p.gamesRoot), "never the game or the games root");
+    assert.ok(!request.cwd.startsWith(p.projectsRoot), "never the project or the projects root");
     assert.equal(home, path.dirname(request.cwd), "HOME is the run root, the work folder's parent");
     assert.equal(path.dirname(home ?? ""), runs);
     assert.deepEqual(request.policy?.allowedDomains, ["api.genex.games"]);
     assert.deepEqual(request.policy?.allowWrite, [home]);
-    assert.ok(request.policy?.denyWrite?.includes(p.gamesRoot));
-    assert.ok(request.policy?.denyWrite?.includes(p.game));
+    assert.ok(request.policy?.denyWrite?.includes(p.projectsRoot));
+    assert.ok(request.policy?.denyWrite?.includes(p.project));
     assert.equal(request.env?.NODE_USE_ENV_PROXY, "1");
     assert.equal(request.env?.STUDIO_GENEX_CREDENTIAL_FD, "0");
     assert.equal(request.env?.GENEX_NO_BROWSER, "1");
@@ -164,7 +164,7 @@ describe("a Studio-run Genex CLI command, through an injected sandbox", () => {
     const sandbox = fakeSandbox();
     const packages = new GenexPackageService({
       addPackages: async () => assert.fail("no install"),
-      gameDir: () => p.game,
+      projectDir: () => p.project,
       scratch: p.root,
     });
     const hook = genexHostTool({ cli: service(p, sandbox), packages });
@@ -235,67 +235,70 @@ describe("a Studio-run Genex CLI command, through an injected sandbox", () => {
   }
 });
 
-/** Two build games in a library, git repositories with a pnpm lockfile, and a scratch folder for worktrees. */
+/** Two build projects in a library, git repositories with a pnpm lockfile, and a scratch folder for worktrees. */
 async function packageLibrary() {
   const root = await realpath(await tmpDir("genex-package-"));
-  const gamesRoot = path.join(root, "AI Games");
+  const projectsRoot = path.join(root, "AI Projects");
   const scratch = path.join(root, "scratch");
   await mkdir(scratch, { recursive: true });
-  const games: Record<string, string> = {};
-  for (const name of ["space-race", "other-game"]) {
-    const dir = path.join(gamesRoot, name);
+  const projects: Record<string, string> = {};
+  for (const name of ["space-race", "other-project"]) {
+    const dir = path.join(projectsRoot, name);
     await mkdir(dir, { recursive: true });
     await writeFile(path.join(dir, "package.json"), `{"name":"${name}"}\n`);
     await writeFile(path.join(dir, "pnpm-lock.yaml"), "lockfileVersion: '9.0'\n");
     await exec("git", ["init", "-q", "-b", "main"], { cwd: dir, env: GIT_ENV });
     await exec("git", ["add", "-A"], { cwd: dir, env: GIT_ENV });
     await exec("git", ["commit", "-qm", "first"], { cwd: dir, env: GIT_ENV });
-    games[name] = dir;
+    projects[name] = dir;
   }
   const runner = fakeSandbox({ stdout: "" });
-  const builds = new GameBuilds({ root: path.join(scratch, "builds"), run: runner.run });
+  const builds = new ProjectBuilds({ root: path.join(scratch, "builds"), run: runner.run });
   const packages = new GenexPackageService({
     addPackages: (source, names) => builds.addPackages(source, names),
-    gameDir: (project) => {
-      const dir = games[project];
-      if (!dir) throw new Error(`unknown game ${project}`);
+    projectDir: (project) => {
+      const dir = projects[project];
+      if (!dir) throw new Error(`unknown project ${project}`);
       return dir;
     },
     scratch,
   });
-  return { root, gamesRoot, scratch, games, runner, packages };
+  return { root, projectsRoot, scratch, projects, runner, packages };
 }
 type Library = Awaited<ReturnType<typeof packageLibrary>>;
 
 /** Every package.json in the library, so a refusal can be proven to have changed none. */
 async function manifests(lib: Library): Promise<string[]> {
-  return Promise.all(Object.values(lib.games).map((dir) => readFile(path.join(dir, "package.json"), "utf8")));
+  return Promise.all(Object.values(lib.projects).map((dir) => readFile(path.join(dir, "package.json"), "utf8")));
 }
 
-describe("genex__package: a pinned Genex SDK install into the bound game", () => {
+describe("genex__package: a pinned Genex SDK install into the bound project", () => {
   it("adds the package at Studio's pin with the lockfile's manager, the npm registry alone opened", async () => {
     const lib = await packageLibrary();
-    const game = lib.games["space-race"] ?? "";
+    const project = lib.projects["space-race"] ?? "";
     const answer = await lib.packages.add(
       { package: "@genex-ai/multiplayer" },
-      { project: "space-race", directory: game },
+      { project: "space-race", directory: project },
     );
-    const pin = GENEX_GAME_PACKAGES["@genex-ai/multiplayer"];
+    const pin = GENEX_PROJECT_PACKAGES["@genex-ai/multiplayer"];
     const [call] = lib.runner.seen;
     assert.equal(
       call?.request.command,
-      `pnpm add --save-exact '@genex-ai/multiplayer@${pin}' '@genex-ai/embed-sdk@${GENEX_GAME_PACKAGES["@genex-ai/embed-sdk"]}'`,
+      `pnpm add --save-exact '@genex-ai/multiplayer@${pin}' '@genex-ai/embed-sdk@${GENEX_PROJECT_PACKAGES["@genex-ai/embed-sdk"]}'`,
     );
-    assert.equal(call?.request.cwd, game);
+    assert.equal(call?.request.cwd, project);
     assert.deepEqual(call?.request.policy?.allowedDomains, [REGISTRY_DOMAIN]);
     assert.deepEqual(answer, { package: "@genex-ai/multiplayer", version: pin, ok: true, lines: [] });
   });
 
-  it("adds into a Studio worktree of that game, where a Loop run builds", async () => {
+  it("adds into a Studio worktree of that project, where a Loop run builds", async () => {
     const lib = await packageLibrary();
     const worktree = path.join(lib.scratch, "autopilot", "run-1", "integration");
     await mkdir(path.dirname(worktree), { recursive: true });
-    await exec("git", ["worktree", "add", "-q", "--detach", worktree], { cwd: lib.games["space-race"], env: GIT_ENV });
+    await exec("git", ["worktree", "add", "-q", "--detach", worktree], {
+      cwd: lib.projects["space-race"],
+      env: GIT_ENV,
+    });
     await lib.packages.add({ package: "@genex-ai/embed-sdk" }, { project: "space-race", directory: worktree });
     assert.equal(lib.runner.seen[0]?.request.cwd, worktree);
   });
@@ -305,14 +308,14 @@ describe("genex__package: a pinned Genex SDK install into the bound game", () =>
   > = [
     [
       "left-pad",
-      async (lib) => ({ args: { package: "left-pad" }, directory: lib.games["space-race"] ?? "" }),
+      async (lib) => ({ args: { package: "left-pad" }, directory: lib.projects["space-race"] ?? "" }),
       /not a package/,
     ],
     [
       "a name with a command after it",
       async (lib) => ({
         args: { package: "@genex-ai/multiplayer; rm -rf ~" },
-        directory: lib.games["space-race"] ?? "",
+        directory: lib.projects["space-race"] ?? "",
       }),
       /not a package/,
     ],
@@ -320,80 +323,80 @@ describe("genex__package: a pinned Genex SDK install into the bound game", () =>
       "a version the agent picked",
       async (lib) => ({
         args: { package: "@genex-ai/multiplayer@latest && curl x" },
-        directory: lib.games["space-race"] ?? "",
+        directory: lib.projects["space-race"] ?? "",
       }),
       /not a package/,
     ],
     [
       "a path",
-      async (lib) => ({ args: { package: "../x" }, directory: lib.games["space-race"] ?? "" }),
+      async (lib) => ({ args: { package: "../x" }, directory: lib.projects["space-race"] ?? "" }),
       /not a package/,
     ],
     [
-      "a folder outside the games",
+      "a folder outside the projects",
       async (lib) => {
         const outside = path.join(lib.root, "elsewhere");
         await mkdir(outside, { recursive: true });
         await writeFile(path.join(outside, "package.json"), "{}\n");
         return { args: { package: "@genex-ai/multiplayer" }, directory: outside };
       },
-      /not bound to the game/,
+      /not bound to the project/,
     ],
     [
-      "a link inside the game that leads out of it",
+      "a link inside the project that leads out of it",
       async (lib) => {
         const outside = path.join(lib.root, "elsewhere");
         await mkdir(outside, { recursive: true });
         await writeFile(path.join(outside, "package.json"), "{}\n");
-        const link = path.join(lib.games["space-race"] ?? "", "linked");
+        const link = path.join(lib.projects["space-race"] ?? "", "linked");
         await symlink(outside, link);
         return { args: { package: "@genex-ai/multiplayer" }, directory: link };
       },
-      /not bound to the game/,
+      /not bound to the project/,
     ],
     [
-      "another game's folder",
-      async (lib) => ({ args: { package: "@genex-ai/multiplayer" }, directory: lib.games["other-game"] ?? "" }),
-      /not bound to the game/,
+      "another project's folder",
+      async (lib) => ({ args: { package: "@genex-ai/multiplayer" }, directory: lib.projects["other-project"] ?? "" }),
+      /not bound to the project/,
     ],
     [
-      "a scratch folder git does not know as this game's worktree",
+      "a scratch folder git does not know as this project's worktree",
       async (lib) => {
         const loose = path.join(lib.scratch, "autopilot", "run-2", "integration");
         await mkdir(loose, { recursive: true });
         await writeFile(path.join(loose, "package.json"), "{}\n");
         return { args: { package: "@genex-ai/multiplayer" }, directory: loose };
       },
-      /not bound to the game/,
+      /not bound to the project/,
     ],
     [
-      "a worktree of another game",
+      "a worktree of another project",
       async (lib) => {
         const worktree = path.join(lib.scratch, "autopilot", "run-3", "integration");
         await mkdir(path.dirname(worktree), { recursive: true });
         await exec("git", ["worktree", "add", "-q", "--detach", worktree], {
-          cwd: lib.games["other-game"],
+          cwd: lib.projects["other-project"],
           env: GIT_ENV,
         });
         return { args: { package: "@genex-ai/multiplayer" }, directory: worktree };
       },
-      /not bound to the game/,
+      /not bound to the project/,
     ],
     [
       "a project name that is a path",
       async (lib) => ({
         args: { package: "@genex-ai/multiplayer" },
-        directory: lib.games["space-race"] ?? "",
+        directory: lib.projects["space-race"] ?? "",
         project: "../space-race",
       }),
-      /not bound to the game/,
+      /not bound to the project/,
     ],
     [
-      "a template game with no package.json",
+      "a template project with no package.json",
       async (lib) => {
-        const game = lib.games["space-race"] ?? "";
-        await exec("git", ["rm", "-q", "package.json"], { cwd: game, env: GIT_ENV });
-        return { args: { package: "@genex-ai/embed-sdk" }, directory: game };
+        const project = lib.projects["space-race"] ?? "";
+        await exec("git", ["rm", "-q", "package.json"], { cwd: project, env: GIT_ENV });
+        return { args: { package: "@genex-ai/embed-sdk" }, directory: project };
       },
       /no package\.json/,
     ],
@@ -418,7 +421,7 @@ describe("genex__package: a pinned Genex SDK install into the bound game", () =>
       { package: "@genex-ai/multiplayer" },
       {
         project: "space-race",
-        directory: lib.games["space-race"] ?? "",
+        directory: lib.projects["space-race"] ?? "",
       },
     );
     assert.match(lib.runner.seen[0]?.request.command ?? "", /^pnpm add /);
@@ -440,12 +443,12 @@ describe("what the user is asked about a host tool call", () => {
       genexHostConsent("genex", PluginHostTool.GenexPackage, { package: "@genex-ai/multiplayer", version: "latest" }),
       {
         package: "@genex-ai/multiplayer, @genex-ai/embed-sdk",
-        version: `${GENEX_GAME_PACKAGES["@genex-ai/multiplayer"]}, ${GENEX_GAME_PACKAGES["@genex-ai/embed-sdk"]}`,
+        version: `${GENEX_PROJECT_PACKAGES["@genex-ai/multiplayer"]}, ${GENEX_PROJECT_PACKAGES["@genex-ai/embed-sdk"]}`,
       },
     );
     assert.deepEqual(genexHostConsent("genex", PluginHostTool.GenexPackage, { package: "@genex-ai/embed-sdk" }), {
       package: "@genex-ai/embed-sdk",
-      version: GENEX_GAME_PACKAGES["@genex-ai/embed-sdk"],
+      version: GENEX_PROJECT_PACKAGES["@genex-ai/embed-sdk"],
     });
   });
   it("refuses, before anyone is asked, a call the host would refuse", () => {
@@ -514,7 +517,7 @@ describe("the real pinned CLI, unsandboxed, against a fixture API", () => {
   });
   after(async () => api?.close());
 
-  it("runs doctor signed in and leaves the game, its parent and the real HOME byte-identical", {
+  it("runs doctor signed in and leaves the project, its parent and the real HOME byte-identical", {
     timeout: REAL_CLI_TIMEOUT_MS,
   }, async () => {
     const p = await profile();
@@ -526,15 +529,18 @@ describe("the real pinned CLI, unsandboxed, against a fixture API", () => {
       await realpath(path.join(repo, "node_modules/@genex-ai/cli-demo")),
       path.join(genex, "node_modules/@genex-ai/cli-demo"),
     );
-    // A game that looks like a Genex remix workspace, and a contract in its parent: exactly what
+    // A project that looks like a Genex remix workspace, and a contract in its parent: exactly what
     // the CLI's skill sync and contract healing rewrite when it runs in a folder.
-    await mkdir(path.join(p.game, ".genex"), { recursive: true });
-    await writeFile(path.join(p.game, ".genex/workspace.json"), '{"mode":"remix","version":1}\n');
-    await mkdir(path.join(p.game, ".claude/skills/genex-x"), { recursive: true });
-    await writeFile(path.join(p.game, ".claude/skills/genex-x/SKILL.md"), "---\nname: genex-x\n---\nold\n");
-    await writeFile(path.join(p.game, "package.json"), JSON.stringify({ name: "g", genex: { agentProfile: "remix" } }));
-    await writeFile(path.join(p.gamesRoot, "AGENTS.md"), "<!-- genex:contract -->\n");
-    const before = { games: await tree(p.gamesRoot), home: await homeFootprint() };
+    await mkdir(path.join(p.project, ".genex"), { recursive: true });
+    await writeFile(path.join(p.project, ".genex/workspace.json"), '{"mode":"remix","version":1}\n');
+    await mkdir(path.join(p.project, ".claude/skills/genex-x"), { recursive: true });
+    await writeFile(path.join(p.project, ".claude/skills/genex-x/SKILL.md"), "---\nname: genex-x\n---\nold\n");
+    await writeFile(
+      path.join(p.project, "package.json"),
+      JSON.stringify({ name: "g", genex: { agentProfile: "remix" } }),
+    );
+    await writeFile(path.join(p.projectsRoot, "AGENTS.md"), "<!-- genex:contract -->\n");
+    const before = { projects: await tree(p.projectsRoot), home: await homeFootprint() };
     const sandbox = await ProcessSandbox.create({
       writableRoots: [],
       scratchDir: path.join(p.root, "scratch"),
@@ -548,7 +554,7 @@ describe("the real pinned CLI, unsandboxed, against a fixture API", () => {
       runsRoot: path.join(p.userData, "genex-cli"),
       resources: p.resources,
       genexStorage: p.genexStorage,
-      protectedWrites: () => [p.gamesRoot, p.game],
+      protectedWrites: () => [p.projectsRoot, p.project],
       api: api.url,
     });
     const answer = (await cli.run({ command: "doctor" }, binding(p), { paid: false })) as {
@@ -560,7 +566,7 @@ describe("the real pinned CLI, unsandboxed, against a fixture API", () => {
       requests.some((r) => r.url === "/api/auth/get-session" && r.authorization === `Bearer ${TOKEN}`),
       "the token reached the API through stdin and the preload",
     );
-    assert.deepEqual(await tree(p.gamesRoot), before.games, "the game and its parent are untouched");
+    assert.deepEqual(await tree(p.projectsRoot), before.projects, "the project and its parent are untouched");
     assert.deepEqual(await homeFootprint(), before.home, "the real HOME is untouched");
     assert.deepEqual(await readdir(path.join(p.userData, "genex-cli")), [], "the run folder is gone");
   });
@@ -569,7 +575,7 @@ describe("the real pinned CLI, unsandboxed, against a fixture API", () => {
 it("package preflight refuses unsupported projects before approval and starts no installer", async () => {
   const { genexHostPreflight } = await import("../../src/main/core/genex-cli.ts");
   const lib = await packageLibrary();
-  const dir = lib.games["space-race"] ?? "";
+  const dir = lib.projects["space-race"] ?? "";
   const preflight = genexHostPreflight(lib.packages);
   const shown = await preflight(
     "genex",

@@ -19,8 +19,8 @@ const root = fileURLToPath(new URL("../..", import.meta.url));
 const show = process.argv.includes("--show");
 const keep = process.argv.includes("--keep");
 
-/** A small but real game: keeps the studio contract, adds its own probe. */
-const GAME_SOURCE = `import * as THREE from "three";
+/** A small but real project: keeps the studio contract, adds its own probe. */
+const PROJECT_SOURCE = `import * as THREE from "three";
 import { installStudio } from "./studio.js";
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -99,15 +99,15 @@ installStudio({
 `;
 
 /** Give authored smoke builds distinct state and pixels so a blind fixture can compare them. */
-const smokeGameSource = (revision) =>
-  GAME_SOURCE.replace("smokeRevision: 0", `smokeRevision: ${revision}`).replace(
+const smokeProjectSource = (revision) =>
+  PROJECT_SOURCE.replace("smokeRevision: 0", `smokeRevision: ${revision}`).replace(
     "0x080b14",
     `0x${(0x080b14 + revision * 0x010100).toString(16)}`,
   );
 
 const replies = [
   {
-    toolCalls: [{ id: "call_new", name: "new_game", arguments: { name: "selftest", title: "Self Test" } }],
+    toolCalls: [{ id: "call_new", name: "new_project", arguments: { name: "selftest", title: "Self Test" } }],
     text: "Creating the project.",
   },
   {
@@ -115,13 +115,13 @@ const replies = [
       {
         id: "call_write",
         name: "write_file",
-        arguments: { project: "selftest", file: "src/main.js", contents: GAME_SOURCE },
+        arguments: { project: "selftest", file: "src/main.js", contents: PROJECT_SOURCE },
       },
     ],
-    text: "Writing the game.",
+    text: "Writing the project.",
   },
   { toolCalls: [{ id: "call_reload", name: "reload_preview", arguments: {} }] },
-  { toolCalls: [{ id: "call_state", name: "game_state", arguments: {} }] },
+  { toolCalls: [{ id: "call_state", name: "project_state", arguments: {} }] },
   { text: "Done — a ring-flying prototype is running in the preview." },
 ];
 
@@ -163,7 +163,7 @@ const respond = (request) => {
           { id: "water", title: "Water", brief: "dark harbor water with slow swell", budgetShare: 0.5 },
           { id: "mist", title: "Mist", brief: "dawn mist and warm light", budgetShare: 0.5 },
         ],
-        game: { mouseLook: false, keyboardMove: false },
+        app: { mouseLook: false, keyboardMove: false },
         integrationNotes: "one shared palette",
         assumptions: ["chose a warm dawn palette — no reference colours given"],
       }),
@@ -180,7 +180,7 @@ const respond = (request) => {
             {
               id: "call_base",
               name: "write_file",
-              arguments: { project: "misty-harbor", file: "src/main.js", contents: smokeGameSource(10) },
+              arguments: { project: "misty-harbor", file: "src/main.js", contents: smokeProjectSource(10) },
             },
           ],
           text: "Build a playable baseline.",
@@ -255,7 +255,7 @@ const respond = (request) => {
     };
   }
 
-  // Autopilot facet builders: the proven game, once per facet, then done.
+  // Autopilot facet builders: the proven project, once per facet, then done.
   if (text.includes("You are building ONE FACET")) {
     facetBuilds++;
     if (facetBuilds % 2 === 1) {
@@ -264,7 +264,7 @@ const respond = (request) => {
           {
             id: `call_facet_${facetBuilds}`,
             name: "write_file",
-            arguments: { project: "misty-harbor", file: "src/main.js", contents: smokeGameSource(20 + facetBuilds) },
+            arguments: { project: "misty-harbor", file: "src/main.js", contents: smokeProjectSource(20 + facetBuilds) },
           },
         ],
         text: "Building this facet.",
@@ -282,7 +282,7 @@ const respond = (request) => {
           id: "call_loop",
           name: "start_unattended_run",
           arguments: {
-            goal: "a neon ring game over dark water",
+            goal: "a neon ring project over dark water",
             direction: "neon rings over dark water",
             project: "neon-rings",
           },
@@ -292,7 +292,7 @@ const respond = (request) => {
     };
   }
 
-  // Builder turns inside the run: the proven game, then done. Keyed on the brief's own opening
+  // Builder turns inside the run: the proven project, then done. Keyed on the brief's own opening
   // line (gauntlet or facet), not a loose phrase — "unattended run" alone once matched the
   // operating-rules prose that rides in every prompt.
   if (text.includes("You are in an unattended run (") || text.includes("You are building ONE FACET")) {
@@ -303,7 +303,7 @@ const respond = (request) => {
           {
             id: `call_build_${loopBuilds}`,
             name: "write_file",
-            arguments: { project: "neon-rings", file: "src/main.js", contents: smokeGameSource(loopBuilds) },
+            arguments: { project: "neon-rings", file: "src/main.js", contents: smokeProjectSource(loopBuilds) },
           },
         ],
         text: "Building the first playable.",

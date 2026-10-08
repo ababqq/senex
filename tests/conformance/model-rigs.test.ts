@@ -129,11 +129,11 @@ describe("clip names", () => {
   });
 });
 
-describe("the game folder's model headers", () => {
+describe("the project folder's model headers", () => {
   it("are read for the asked models, and nothing else is opened or written", async () => {
-    const { core, gamesRoot } = await coreLite({ gamesRoot: await realpath(await tmpDir("model-rigs-")) });
-    const game = await core.games.scaffold("keep", { title: "Keep" });
-    const folder = path.join(game.dir, "assets", "genex", "k1");
+    const { core, projectsRoot } = await coreLite({ projectsRoot: await realpath(await tmpDir("model-rigs-")) });
+    const project = await core.projects.scaffold("keep", { title: "Keep" });
+    const folder = path.join(project.dir, "assets", "genex", "k1");
     await mkdir(folder, { recursive: true });
     await writeFile(path.join(folder, "knight.glb"), glb(knightDoc));
     await writeFile(path.join(folder, "knight-walk.glb"), motionGlb("Walk", BONES));
@@ -143,8 +143,8 @@ describe("the game folder's model headers", () => {
     huge.writeUInt32LE(64 * 1024 * 1024, 12);
     await writeFile(path.join(folder, "huge-header.glb"), huge);
     await writeFile(path.join(folder, "cover.png"), "png");
-    await writeFile(path.join(gamesRoot, "outside.glb"), glb(knightDoc));
-    await symlink(path.join(gamesRoot, "outside.glb"), path.join(folder, "linked.glb"));
+    await writeFile(path.join(projectsRoot, "outside.glb"), glb(knightDoc));
+    await symlink(path.join(projectsRoot, "outside.glb"), path.join(folder, "linked.glb"));
 
     const rigs = await core.projectModelRigs({
       project: "keep",

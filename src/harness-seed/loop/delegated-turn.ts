@@ -1,5 +1,5 @@
 /**
- * Chat with a contractor engine selected: pick (or scaffold) the game workspace, hand the user's
+ * Chat with a contractor engine selected: pick (or scaffold) the project workspace, hand the user's
  * ask over as a brief, and log the whole thing exactly like a `delegate_to_contractor` tool call
  * so the transcript reads the same either way. With Loop on the same contractor may also ask a
  * question or launch a build, and what it records is executed here. After a night it led, the
@@ -19,7 +19,7 @@ import {
 import type { LaunchGrant } from "./launch-prompts.ts";
 // The launch tools double as a Loop chat's bridged tools (MCP for Claude, the bridge command for
 // Codex) — one definition, two transports.
-import { tools as launchToolset } from "../tools/game-tools.ts";
+import { tools as launchToolset } from "../tools/project-tools.ts";
 import { askUser, recordInterviewQuestion } from "./interview-question.ts";
 import { afterNightGrant, resumeAsked } from "./after-night.ts";
 import { afterNightNote } from "./after-night-prompts.ts";
@@ -30,7 +30,7 @@ import { EngineFailure, StopReason } from "./outage.ts";
 import { HostMethod } from "./host-methods.ts";
 import { StudioContract } from "./page-contract.ts";
 import { EventKind, RunEvent } from "./run-events.ts";
-import { clip, CLIP_BRIEF, CLIP_GAME_TITLE } from "./text.ts";
+import { clip, CLIP_BRIEF, CLIP_PROJECT_TITLE } from "./text.ts";
 import { SECOND_MS, sleep } from "./time.ts";
 import { recordFirstPreview } from "./first-preview.ts";
 import { canFallBack, runToolLoop } from "./tool-loop.ts";
@@ -90,7 +90,7 @@ function outageWords(engine: string, kind: string, detail: string | undefined): 
 
 /** What the chat is told. */
 const MESSAGE = {
-  bareAsk: "Hi! What should we make? Tell me about the game you have in mind — a sentence is enough to start.",
+  bareAsk: "Hi! What should we make? Tell me about the project you have in mind — a sentence is enough to start.",
   delegationFailed: "delegation failed",
   alreadyBuilding: (detail: string) =>
     `${detail}. Your message was not sent to it — send it again once the current build finishes.`,
@@ -114,12 +114,12 @@ const MESSAGE = {
     `The session ended early (${ending}) after asking to resume the build — resuming it anyway.`,
   reopenedAnyway: (ending: string) =>
     `The session ended early (${ending}) after asking to reopen the build — reopening it anyway.`,
-  loadFailed: (error: string) => `⚠ The game failed to load: ${error}`,
+  loadFailed: (error: string) => `⚠ The project failed to load: ${error}`,
   blackScreen: (reasons: readonly string[]) =>
-    `⚠ The game loads but ${reasons.join(" and ")} — say "fix the black screen" and I'll send the contractor back in.`,
+    `⚠ The project loads but ${reasons.join(" and ")} — say "fix the black screen" and I'll send the contractor back in.`,
   consoleErrors: (count: number) =>
     `⚠ The preview shows ${count} console error${count === 1 ? "" : "s"} — say "fix the console errors" and I'll send the contractor back in.`,
-  loadsClean: "The game loads clean in the preview.",
+  loadsClean: "The project loads clean in the preview.",
   done: "Done.",
   pickUp: " — send a message to pick up where it left off",
 } as const;
@@ -140,19 +140,19 @@ interface Handoff {
   compacted: string | null;
   hasPriorAsk: boolean;
   project: string;
-  descriptor: GameProject | null;
+  descriptor: Project | null;
   projectDir: string | null;
   scaffolded: boolean;
-  /** Nothing has been made in this game yet: a first message there is a blank page, not code to inspect. */
+  /** Nothing has been made in this project yet: a first message there is a blank page, not code to inspect. */
   fresh: boolean;
-  /** "folder AI Games/rift", never an absolute path — the last two segments say it all. */
+  /** "folder AI Projects/rift", never an absolute path — the last two segments say it all. */
   folderLabel: string;
   extraReads: string[];
   /** When the build was handed over: the start its first ready preview is timed from. */
   startedAt: number;
 }
 
-type GameProject = CallResult<"game.list">[number];
+type Project = CallResult<"project.list">[number];
 type DelegatedOptions = TurnOptions & { engine: string; engineLabel: string };
 
 /** The answer of a builder that never started: the user stopped the turn while it prepared. */
@@ -193,14 +193,14 @@ export async function runDelegatedTurn(ctx: HarnessCtx, options: DelegatedOption
   await bookmarkSession(ctx, options, handoff.project, result);
   // Stop must not launch a recorded build or start a new preview health pass.
   if (result.stopReason === StopReason.Stopped) {
-    ctx.notify("game.changed", { project: handoff.project });
+    ctx.notify("project.changed", { project: handoff.project });
     await sayInTurn(ctx, turnId, MESSAGE.stopped);
     return { stopped: TurnStop.Aborted, round: 0, engine };
   }
   const change = await folderChange(ctx, handoff.project, before);
-  // Anything at all refreshes the chat's view of the game; a read-only setup or status turn
+  // Anything at all refreshes the chat's view of the project; a read-only setup or status turn
   // changed nothing and keeps the current preview.
-  if (change.any) ctx.notify("game.changed", { project: handoff.project });
+  if (change.any) ctx.notify("project.changed", { project: handoff.project });
   return finishTurn(ctx, options, handoff, `${callId}_intake`, result, change);
 }
 
@@ -240,24 +240,24 @@ async function finishTurn(
 const UNKNOWN_STAMPS: ContentStamps = Object.freeze({ all: null, source: null });
 
 /**
- * The folder's two stamps from one walk: everything, and the game's sources without docs/ and
+ * The folder's two stamps from one walk: everything, and the project's sources without docs/ and
  * Markdown. A host that predates `split` answers the full stamp as a string, which keeps the old
  * behaviour: it stands for both.
  */
 async function contentStamps(ctx: HarnessCtx, project: string): Promise<ContentStamps> {
-  const stamps = await ctx.call(HostMethod.GameContentStamp, { project, split: true }).catch(() => null);
+  const stamps = await ctx.call(HostMethod.ProjectContentStamp, { project, split: true }).catch(() => null);
   if (stamps && typeof stamps === "object") return stamps;
   return { all: stamps ?? null, source: stamps ?? null };
 }
 
-/** What a turn changed in its folder: anything at all, and the game's sources. Unknown is a change. */
+/** What a turn changed in its folder: anything at all, and the project's sources. Unknown is a change. */
 interface FolderChange {
   any: boolean;
   source: boolean;
 }
 
 /**
- * Only game sources are worth loading in the preview: a research-and-plan turn on a fresh
+ * Only project sources are worth loading in the preview: a research-and-plan turn on a fresh
  * scaffold once earned a "black canvas" warning, and a failed build in the learning log, for an
  * empty scene it never touched.
  */
@@ -275,7 +275,7 @@ type ChatReading = Omit<
   "project" | "descriptor" | "projectDir" | "scaffolded" | "fresh" | "folderLabel" | "extraReads" | "startedAt"
 > & {
   project: string | null;
-  games: GameProject[];
+  projects: Project[];
 };
 
 async function readChat(ctx: HarnessCtx, options: DelegatedOptions): Promise<ChatReading> {
@@ -296,7 +296,7 @@ async function readChat(ctx: HarnessCtx, options: DelegatedOptions): Promise<Cha
   const reopening = reopens(options.afterNight, commission);
   const launchTool = launchToolFor(options, reopening);
   // This chat's contractor session, if any — follow-ups resume it instead of starting a new
-  // mind that only sees the last line ("keep going" with no idea what the game is). Only the
+  // mind that only sees the last line ("keep going" with no idea what the project is). Only the
   // chat's latest goes on: one another model answered after missed those turns (chat-continuity.ts).
   const events = await ctx.call(HostMethod.EventsList, { threadId });
   const latest = lastContractorSession(events);
@@ -305,9 +305,9 @@ async function readChat(ctx: HarnessCtx, options: DelegatedOptions): Promise<Cha
   const asked = endedByCompaction(events, options.resume) ? null : options.resume;
   const resume = asked || prior?.sessionId || null;
   // Which workspace gets the brief: THIS chat's folder, never the preview and never "the
-  // newest game". Those two fallbacks were how a follow-up quietly wandered into a sibling.
-  const games = await ctx.call(HostMethod.GameList);
-  const project = resolveChatProject(options, games) ?? priorProject(latest, games);
+  // newest project". Those two fallbacks were how a follow-up quietly wandered into a sibling.
+  const projects = await ctx.call(HostMethod.ProjectList);
+  const project = resolveChatProject(options, projects) ?? priorProject(latest, projects);
   // A prior real ask means this chat is mid-conversation, whatever happened to its session.
   const hasPriorAsk = messages.some((m) => m.role === "user" && m.content?.trim() && m.content.trim() !== ask);
   // A fresh session mid-conversation is briefed with a summary when its brief cannot carry it.
@@ -315,7 +315,7 @@ async function readChat(ctx: HarnessCtx, options: DelegatedOptions): Promise<Cha
     resume || !hasPriorAsk
       ? compactedSummary(events)
       : await briefSummary(ctx, { threadId, engine, model: options.model, events });
-  return { ask, messages, commission, launchTool, reopening, resume, compacted, hasPriorAsk, project, games };
+  return { ask, messages, commission, launchTool, reopening, resume, compacted, hasPriorAsk, project, projects };
 }
 
 /**
@@ -337,16 +337,16 @@ function launchToolName(options: DelegatedOptions): string | null {
 }
 
 /** The folder the chat's last contractor session worked in, while it still exists. */
-function priorProject(prior: { project?: string } | null, games: readonly GameProject[]): string | null {
+function priorProject(prior: { project?: string } | null, projects: readonly Project[]): string | null {
   const project = prior?.project;
-  if (!project || !games.some((g) => g.name === project)) return null;
+  if (!project || !projects.some((g) => g.name === project)) return null;
   return project;
 }
 
 /**
  * A contractor session costs minutes and cannot ask anything back — the brief is one-way.
  * A tiny ask ("hi") in a genuinely fresh chat is never a brief: answer, don't build. But a
- * chat bound to a game, or one with an ask already behind it, is mid-iteration — "add fog"
+ * chat bound to a project, or one with an ask already behind it, is mid-iteration — "add fog"
  * there is an instruction, and deflecting it stalled every short follow-up.
  */
 function isBareAskInFreshChat(chat: ChatReading): boolean {
@@ -358,12 +358,12 @@ function isBareAskInFreshChat(chat: ChatReading): boolean {
 
 /** The folder the brief goes to: the chat's own, or a new one named from the ask. */
 async function placeHandoff(ctx: HarnessCtx, options: DelegatedOptions, chat: ChatReading): Promise<Handoff> {
-  const { games, ...reading } = chat;
+  const { projects, ...reading } = chat;
   const extraReads = Array.isArray(options.extraReads) ? options.extraReads : [];
   if (chat.project) {
     // The folder's own descriptor, not just its path: a chat build is briefed about the shape it
     // is working in, the way every run brief already is (autopilot.ts, director.ts).
-    const descriptor = games.find((g) => g.name === chat.project) ?? null;
+    const descriptor = projects.find((g) => g.name === chat.project) ?? null;
     const projectDir = descriptor?.dir ?? null;
     return {
       ...reading,
@@ -371,7 +371,7 @@ async function placeHandoff(ctx: HarnessCtx, options: DelegatedOptions, chat: Ch
       descriptor,
       projectDir,
       scaffolded: false,
-      fresh: await isFreshGame(ctx, chat, descriptor),
+      fresh: await isFreshProject(ctx, chat, descriptor),
       folderLabel: folderLabel(projectDir, chat.project),
       extraReads,
       startedAt: Date.now(),
@@ -379,11 +379,11 @@ async function placeHandoff(ctx: HarnessCtx, options: DelegatedOptions, chat: Ch
   }
   const base = nameFromAsk(chat.ask);
   let name = base;
-  for (let n = 2; games.some((g) => g.name === name); n++) name = `${base}-${n}`;
-  // threadId rides along so an unbound "new game" chat becomes this project's chat.
-  const created = await ctx.call(HostMethod.GameScaffold, {
+  for (let n = 2; projects.some((g) => g.name === name); n++) name = `${base}-${n}`;
+  // threadId rides along so an unbound "new project" chat becomes this project's chat.
+  const created = await ctx.call(HostMethod.ProjectScaffold, {
     name,
-    title: chat.ask.slice(0, CLIP_GAME_TITLE) || name,
+    title: chat.ask.slice(0, CLIP_PROJECT_TITLE) || name,
     threadId: options.threadId,
   });
   const project = created.name as string;
@@ -401,11 +401,11 @@ async function placeHandoff(ctx: HarnessCtx, options: DelegatedOptions, chat: Ch
 }
 
 /**
- * Has nothing been made in this game yet? Asked only of a chat's first message, and only of the
- * studio's own template: a game the studio just made is its one commit with nothing changed since.
+ * Has nothing been made in this project yet? Asked only of a chat's first message, and only of the
+ * studio's own template: a project the studio just made is its one commit with nothing changed since.
  * A look that fails says no, and the brief continues from the code as it always did.
  */
-async function isFreshGame(ctx: HarnessCtx, chat: ChatReading, descriptor: GameProject | null): Promise<boolean> {
+async function isFreshProject(ctx: HarnessCtx, chat: ChatReading, descriptor: Project | null): Promise<boolean> {
   const firstMessage = !chat.hasPriorAsk && !chat.resume && !chat.compacted;
   if (!firstMessage || !descriptor || descriptor.shape?.own) return false;
   const where = { project: descriptor.name };
@@ -419,7 +419,7 @@ async function isFreshGame(ctx: HarnessCtx, chat: ChatReading, descriptor: GameP
   }
 }
 
-/** "folder AI Games/rift", never an absolute path — the last two segments say it all. */
+/** "folder AI Projects/rift", never an absolute path — the last two segments say it all. */
 function folderLabel(projectDir: string | null | undefined, project: string): string {
   return projectDir ? projectDir.split("/").slice(-2).join("/") : project;
 }
@@ -486,16 +486,16 @@ function launchGrant(handoff: Handoff): LaunchGrant | null {
 }
 
 /**
- * A game the user brought that never loads the studio contract cannot be judged by anyone
+ * A project the user brought that never loads the studio contract cannot be judged by anyone
  * (M2.6): the night's first step wires it in, and a chat build is the faster way to the same
- * place, so its brief says so before the ask. Only for a folder that is somebody's own game
+ * place, so its brief says so before the ask. Only for a folder that is somebody's own project
  * — the studio's template already has it — and only when a brief is actually written: a
  * resumed session keeps the context it already has.
  */
 async function contractMissing(ctx: HarnessCtx, handoff: Handoff): Promise<boolean> {
-  const briefForBuiltGame = !handoff.resume && handoff.descriptor?.built === true;
-  if (!briefForBuiltGame) return false;
-  const readiness = await ctx.call(HostMethod.GameValidate, { project: handoff.project }).catch(() => null);
+  const briefForBuiltProject = !handoff.resume && handoff.descriptor?.built === true;
+  if (!briefForBuiltProject) return false;
+  const readiness = await ctx.call(HostMethod.ProjectValidate, { project: handoff.project }).catch(() => null);
   return readiness?.contract === StudioContract.Missing;
 }
 
@@ -515,7 +515,7 @@ function handoffText(options: DelegatedOptions, handoff: Handoff): string {
   if (handoff.launchTool) {
     if (resume)
       return `${who} continues in **${project}** — same session, its context restored. Loop is on, so it may start a build.`;
-    return `${where} — ${who} answers or changes the game itself; Loop is on, so it starts a build when the ask needs one.`;
+    return `${where} — ${who} answers or changes the project itself; Loop is on, so it starts a build when the ask needs one.`;
   }
   if (resume) return `Resuming the contractor in ${where} — same chat, its context restored.`;
   return [
@@ -995,7 +995,7 @@ interface PreviewCheck {
   readyAt: number | null;
 }
 
-/** A turn that changed no game source is not looked at. */
+/** A turn that changed no project source is not looked at. */
 const NOTHING_SEEN: PreviewCheck = Object.freeze({
   health: null,
   consoleErrors: 0,
@@ -1005,7 +1005,7 @@ const NOTHING_SEEN: PreviewCheck = Object.freeze({
 });
 
 /**
- * USE the studio's own senses: load the game and see whether it actually runs, instead of
+ * USE the studio's own senses: load the project and see whether it actually runs, instead of
  * taking the contractor's word for it (the first build shipped with zero verification), and
  * record what was seen.
  */
@@ -1031,7 +1031,7 @@ async function lookAtBuild(
 }
 
 /**
- * A finished chat turn: if it changed the game's sources, look at it in the preview and record
+ * A finished chat turn: if it changed the project's sources, look at it in the preview and record
  * what was seen, then report back in the chat. A turn that wrote only docs/ or Markdown (a plan,
  * research notes) and a read-only setup or status turn are not fed into the build accounting:
  * the preview would show the unrelated blank starter or error state.
@@ -1068,7 +1068,7 @@ async function reportBuild(
 }
 
 /**
- * Load the game in the preview, wait for it to say it is up, and read its status, console and
+ * Load the project in the preview, wait for it to say it is up, and read its status, console and
  * pixels. Headless: nothing seen.
  */
 async function checkPreview(ctx: HarnessCtx, project: string): Promise<PreviewCheck> {
@@ -1182,7 +1182,7 @@ function observationRecord(observation: BuildObservation) {
 function buildSummary(result: DelegateResult): string {
   if (result.ok) return result.summary?.trim() || MESSAGE.done;
   const pickUp = result.sessionId ? MESSAGE.pickUp : "";
-  if (result.stopReason === StopReason.Stopped) return `Stopped. Finished edits are kept in your game${pickUp}.`;
+  if (result.stopReason === StopReason.Stopped) return `Stopped. Finished edits are kept in your project${pickUp}.`;
   const said = result.summary?.trim() ? `\n\n${result.summary.trim()}` : "";
-  return `The build stopped early (${result.errorText ?? result.stopReason ?? StopReason.Error}). Its work so far is kept in your game${pickUp}.${said}`;
+  return `The build stopped early (${result.errorText ?? result.stopReason ?? StopReason.Error}). Its work so far is kept in your project${pickUp}.${said}`;
 }

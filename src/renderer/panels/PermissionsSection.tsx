@@ -1,7 +1,7 @@
 /**
  * Settings → Permissions: the mode new chats start in, then what Claude does without asking, by
- * action: one row per saved "always allow" rule, however many games hold it, opening to those
- * games. A view of what the host keeps; each chat still picks its own mode in the composer.
+ * action: one row per saved "always allow" rule, however many projects hold it, opening to those
+ * projects. A view of what the host keeps; each chat still picks its own mode in the composer.
  */
 import { type JSX, useEffect, useRef, useState } from "react";
 import {
@@ -21,7 +21,7 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu.tsx";
-import { GameAvatar } from "../ui/GameAvatar.tsx";
+import { ProjectAvatar } from "../ui/ProjectAvatar.tsx";
 import { Icon } from "../ui/icons.tsx";
 import { Pending } from "../ui/Pending.tsx";
 import { usePermissionSettings } from "../use-permission-settings.ts";
@@ -31,25 +31,25 @@ import { plural } from "../../shared/skill-words.ts";
 /** The section's own words. */
 const WORDS = {
   loading: "Loading…",
-  everyGame: "In every game",
+  everyProject: "In every project",
   startsIn: "New chats start in",
   allowed: "Always allowed",
-  about: "What Claude does without asking. Choosing Always allow in a chat adds an action here, for that game.",
+  about: "What Claude does without asking. Choosing Always allow in a chat adds an action here, for that project.",
   none: "Nothing yet. Choosing Always allow in a chat adds an action here.",
-  count: (actions: number, games: number) => `${plural(actions, "action")} · ${plural(games, "game")}`,
+  count: (actions: number, projects: number) => `${plural(actions, "action")} · ${plural(projects, "project")}`,
   where: (action: AllowedAction) =>
-    action.games.length === 1 ? (action.games[0]?.title ?? "") : plural(action.games.length, "game"),
+    action.projects.length === 1 ? (action.projects[0]?.title ?? "") : plural(action.projects.length, "project"),
   stop: (action: AllowedAction, words: string) =>
-    action.games.length === 1
+    action.projects.length === 1
       ? `Stop allowing: ${words}`
-      : `Stop allowing in all ${action.games.length} games: ${words}`,
+      : `Stop allowing in all ${action.projects.length} projects: ${words}`,
   stopIn: (title: string) => `Stop allowing in ${title}`,
 } as const;
 
 /** The modes a new chat may start in, in the composer's order. */
 const STARTING_MODES = PERMISSION_MODES.filter((mode) => STEADY_PERMISSION_MODES.has(mode));
 
-/** "In every game": the mode new chats start in, picked from a short menu. */
+/** "In every project": the mode new chats start in, picked from a short menu. */
 function StartingMode({
   mode,
   busy,
@@ -60,8 +60,8 @@ function StartingMode({
   onPick: (mode: PermissionMode) => void;
 }): JSX.Element {
   return (
-    <section aria-label={WORDS.everyGame} className="settings-card">
-      <h3 className="settings-card-title">{WORDS.everyGame}</h3>
+    <section aria-label={WORDS.everyProject} className="settings-card">
+      <h3 className="settings-card-title">{WORDS.everyProject}</h3>
       <div className="mt-3 flex items-center justify-between gap-3">
         <span className="text-sm text-ink-3">{WORDS.startsIn}</span>
         <DropdownMenu>
@@ -100,7 +100,7 @@ function ActionRow({
   onForget: (rule: string, projects: string[]) => void;
 }): JSX.Element {
   const [open, setOpen] = useState(false);
-  const covers = useLibrary((s) => s.games);
+  const covers = useLibrary((s) => s.projects);
   const words = permissionRuleWords(action.rule);
   const stopAll = WORDS.stop(action, words);
   return (
@@ -134,7 +134,7 @@ function ActionRow({
           onClick={() =>
             onForget(
               action.rule,
-              action.games.map((game) => game.project),
+              action.projects.map((project) => project.project),
             )
           }
         >
@@ -143,22 +143,22 @@ function ActionRow({
       </div>
       {open && (
         <ul className="ps-6 pe-1 pb-1.5">
-          {action.games.map((game) => (
-            <li key={game.project} className="flex min-h-9 items-center gap-2.5 border-t border-line">
-              <GameAvatar
-                cover={covers.find((known) => known.name === game.project)?.cover}
-                gameKey={game.project}
+          {action.projects.map((project) => (
+            <li key={project.project} className="flex min-h-9 items-center gap-2.5 border-t border-line">
+              <ProjectAvatar
+                cover={covers.find((known) => known.name === project.project)?.cover}
+                projectKey={project.project}
                 className="size-4"
               />
-              <span className="min-w-0 flex-1 truncate text-ink-2">{game.title}</span>
+              <span className="min-w-0 flex-1 truncate text-ink-2">{project.title}</span>
               <Button
-                data-forget-rule-game
+                data-forget-rule-project
                 variant="ghost"
                 size="icon-sm"
-                aria-label={WORDS.stopIn(game.title)}
-                title={WORDS.stopIn(game.title)}
+                aria-label={WORDS.stopIn(project.title)}
+                title={WORDS.stopIn(project.title)}
                 disabled={busy}
-                onClick={() => onForget(action.rule, [game.project])}
+                onClick={() => onForget(action.rule, [project.project])}
               >
                 <Icon name="trash" />
               </Button>
@@ -181,7 +181,7 @@ function AllowedActions({
   onForget: (rule: string, projects: string[]) => void;
 }): JSX.Element {
   const actions = allowedActions(settings.rules);
-  const games = settings.rules.filter((game) => game.rules.length > 0).length;
+  const projects = settings.rules.filter((project) => project.rules.length > 0).length;
   return (
     <>
       <div className="mt-2 flex flex-col gap-1">
@@ -189,7 +189,7 @@ function AllowedActions({
         <div className="flex items-baseline justify-between gap-3">
           <p className="max-w-[460px] text-ink-3">{actions.length ? WORDS.about : WORDS.none}</p>
           {actions.length > 0 && (
-            <span className="shrink-0 font-mono text-micro text-ink-3">{WORDS.count(actions.length, games)}</span>
+            <span className="shrink-0 font-mono text-micro text-ink-3">{WORDS.count(actions.length, projects)}</span>
           )}
         </div>
       </div>
@@ -234,7 +234,7 @@ export function PermissionsSection(): JSX.Element {
       setBusy(false);
     }
   };
-  // One game at a time: each answer is the whole view, so the last is the one that holds.
+  // One project at a time: each answer is the whole view, so the last is the one that holds.
   const forget = (rule: string, projects: string[]) => {
     const at = allowedActions(settings?.rules ?? []).findIndex((action) => action.rule === rule);
     void change(

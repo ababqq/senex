@@ -38,7 +38,7 @@ import { BootReason, DispatchActionType } from "../../shared/protocol.ts";
 import { RUN_START_EVENTS } from "../../shared/run-state.ts";
 import { SECOND_MS } from "../../shared/duration.ts";
 import { UiEvent } from "../../shared/ui-events.ts";
-import { RetainedState } from "../../substrate/game-candidate.ts";
+import { RetainedState } from "../../substrate/project-candidate.ts";
 
 /** Words the recovery writes into the logs the user reads, and the errors it throws at them. */
 const MESSAGE = {
@@ -510,7 +510,7 @@ export class RecoveryService {
     await this.#core.store.appendEvents(threadId, [customEventData(CustomEvent.OptimizationUpdated, { ...result })]);
   }
 
-  /** An adoption the app died inside: what the game folder now holds decides how it ended. */
+  /** An adoption the app died inside: what the project folder now holds decides how it ended. */
   async #recoverAdoption(cp: OptimizationCheckpointV1, result: OptimizationResultV1): Promise<void> {
     if (!cp.adoptionIntent || !cp.baseline) return;
     const recovered = await this.#core.candidates
@@ -643,7 +643,7 @@ export class RecoveryService {
       await this.#core.append([customEventData(CustomEvent.HarnessReseeded, { reason })]);
       return;
     }
-    await this.keepingGameLessons(() => this.#core.snapshots.restore(target));
+    await this.keepingProjectLessons(() => this.#core.snapshots.restore(target));
     await this.#core.reconcileSeedManifest();
     await this.#core.append([
       { type: EventKind.WorkspaceRestored, snapshot_id: target.snapshot_id, reason, scope: SnapshotScope.Harness },
@@ -704,13 +704,13 @@ export class RecoveryService {
   }
 
   /**
-   * What the nights learned about each game (`library/games`, the ledger and its lessons) is
+   * What the nights learned about each project (`library/projects`, the ledger and its lessons) is
    * history, not a self-change: rewinding the harness's code must not take it back. It is set
    * aside before a restore and put back after, newer files winning.
    */
-  async keepingGameLessons<T>(restore: () => Promise<T>): Promise<T> {
+  async keepingProjectLessons<T>(restore: () => Promise<T>): Promise<T> {
     const dir = path.join(this.#core.layout.harnessWs, "library", "games");
-    const aside = path.join(this.#core.layout.scratch, "game-lessons", shortId("keep"));
+    const aside = path.join(this.#core.layout.scratch, "project-lessons", shortId("keep"));
     const kept = await cp(dir, aside, { recursive: true }).then(
       () => true,
       () => false,
@@ -721,7 +721,7 @@ export class RecoveryService {
       if (kept) {
         await cp(aside, dir, { recursive: true, force: true }).catch((err: Error) =>
           this.#core.options.onLog?.(
-            `[core] could not put the game lessons back after a restore: ${err.message}`,
+            `[core] could not put the project lessons back after a restore: ${err.message}`,
             "stderr",
           ),
         );
@@ -738,10 +738,10 @@ export class RecoveryService {
     const record = this.#core.snapshotIndex.get(snapshotId);
     if (!record) throw new Error(MESSAGE.snapshotGone);
     if (this.#x.selfImprovement.workInFlight()) throw new Error(MESSAGE.buildInFlight);
-    const rescue = await this.keepingGameLessons(() => this.#core.snapshots.restore(record));
+    const rescue = await this.keepingProjectLessons(() => this.#core.snapshots.restore(record));
     // A manual rollback rewinds the harness exactly like the watchdog does — skipping the
     // reconcile here would pin every rewound seed file as an agent edit at the next boot.
-    if (record.scope !== SnapshotScope.Game) await this.#core.reconcileSeedManifest();
+    if (record.scope !== SnapshotScope.Project) await this.#core.reconcileSeedManifest();
     await this.#core.append([
       ...(rescue ? [this.snapshotCreated(rescue)] : []),
       {
@@ -964,14 +964,14 @@ export class RecoveryService {
     options: { harnessHealthy?: false } = {},
   ): Promise<SnapshotRecord> {
     if (project) {
-      await this.#core.assertProjectAllowed(this.#core.games.dirFor(project));
-      this.#core.snapshots.register({ name: project, dir: this.#core.games.dirFor(project) });
+      await this.#core.assertProjectAllowed(this.#core.projects.dirFor(project));
+      this.#core.snapshots.register({ name: project, dir: this.#core.projects.dirFor(project) });
       await this.#core.snapshots.init();
     }
     const record = await this.#core.snapshots.snapshot({
       scope,
       reason,
-      ...(project ? { gameWorkspace: project } : {}),
+      ...(project ? { projectWorkspace: project } : {}),
       ...(healthy !== undefined ? { healthy } : {}),
     });
     if (options.harnessHealthy === false && record.git.harness) record.harness_healthy = false;

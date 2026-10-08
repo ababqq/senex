@@ -1,6 +1,6 @@
 /**
  * The snapshot watcher (`scripts/evals/watch/snapshots.ts`, §8.3, Rule 22, M1.4): it clones a
- * game folder only when it changed, never node_modules or .git, never through a symlink; it takes
+ * project folder only when it changed, never node_modules or .git, never through a symlink; it takes
  * a read-only final clone at stop; it writes one index line per clone; and the stop-time
  * snapshot types "no build" (`template-untouched`, `no-entry`, `no-dist`, `build-failed`).
  * The clock and the timer are fakes; folders are temp folders.
@@ -49,20 +49,20 @@ async function unlock(dir: string): Promise<void> {
 
 async function setup(prefix: string) {
   const base = await tmpDir(prefix);
-  const game = path.join(base, "game");
+  const project = path.join(base, "project");
   const snapshots = path.join(base, "snapshots");
-  await files(game, { "index.html": "<title>t</title>", "src/main.js.txt": "one\ntwo\n" });
+  await files(project, { "index.html": "<title>t</title>", "src/main.js.txt": "one\ntwo\n" });
   closeBeforeCleanup(() => unlock(snapshots));
-  return { base, game, snapshots };
+  return { base, project, snapshots };
 }
 
 describe("snapshot watcher", () => {
   it("clones on change only, excluding node_modules and .git, and indexes each clone", async () => {
-    const { game, snapshots } = await setup("eval-snap-change-");
-    await files(game, { "node_modules/x/a.txt": "dep", ".git/HEAD": "ref", "src/node_modules/y.txt": "nested" });
+    const { project, snapshots } = await setup("eval-snap-change-");
+    await files(project, { "node_modules/x/a.txt": "dep", ".git/HEAD": "ref", "src/node_modules/y.txt": "nested" });
     const time = clock();
     const watcher = createSnapshotWatcher({
-      gameRoot: game,
+      projectRoot: project,
       snapshotDir: snapshots,
       startedAtMs: START_MS,
       now: time.now,
@@ -79,7 +79,7 @@ describe("snapshot watcher", () => {
     time.advance(SNAPSHOT_INTERVAL_MS);
     assert.equal(await watcher.tick(), null, "an unchanged folder is not cloned again");
 
-    await writeFile(path.join(game, "index.html"), "<title>changed</title>");
+    await writeFile(path.join(project, "index.html"), "<title>changed</title>");
     time.advance(SNAPSHOT_INTERVAL_MS);
     const second = await watcher.tick();
     assert.ok(second);
@@ -95,28 +95,28 @@ describe("snapshot watcher", () => {
   });
 
   it("drops a clone whose contents did not change (a touched file)", async () => {
-    const { game, snapshots } = await setup("eval-snap-touch-");
+    const { project, snapshots } = await setup("eval-snap-touch-");
     const time = clock();
     const watcher = createSnapshotWatcher({
-      gameRoot: game,
+      projectRoot: project,
       snapshotDir: snapshots,
       startedAtMs: START_MS,
       now: time.now,
     });
     await watcher.tick();
     const later = new Date(Date.now() + 60_000);
-    await utimes(path.join(game, "index.html"), later, later);
+    await utimes(path.join(project, "index.html"), later, later);
     assert.equal(await watcher.tick(), null);
     const clones = (await readdir(snapshots)).filter((name) => name !== SNAPSHOT_INDEX_FILE);
     assert.equal(clones.length, 1);
   });
 
   it("copies a symlink as a link, never the outside file it points at", async () => {
-    const { base, game, snapshots } = await setup("eval-snap-link-");
+    const { base, project, snapshots } = await setup("eval-snap-link-");
     await files(base, { "outside/secret.txt": "outside-sentinel" });
-    await symlink(path.join(base, "outside"), path.join(game, "escape"));
+    await symlink(path.join(base, "outside"), path.join(project, "escape"));
     const watcher = createSnapshotWatcher({
-      gameRoot: game,
+      projectRoot: project,
       snapshotDir: snapshots,
       startedAtMs: START_MS,
       now: clock().now,
@@ -128,10 +128,10 @@ describe("snapshot watcher", () => {
   });
 
   it("retries after a clone that failed, leaving no partial folder", async () => {
-    const { game, snapshots } = await setup("eval-snap-fail-");
+    const { project, snapshots } = await setup("eval-snap-fail-");
     let calls = 0;
     const watcher = createSnapshotWatcher({
-      gameRoot: game,
+      projectRoot: project,
       snapshotDir: snapshots,
       startedAtMs: START_MS,
       now: clock().now,
@@ -151,11 +151,11 @@ describe("snapshot watcher", () => {
   });
 
   it("ticks on the injected timer every 30 s and stops with a read-only final clone", async () => {
-    const { game, snapshots } = await setup("eval-snap-final-");
+    const { project, snapshots } = await setup("eval-snap-final-");
     const time = clock();
     const timers: Array<{ ms: number; cancelled: boolean; fire: () => void }> = [];
     const watcher = createSnapshotWatcher({
-      gameRoot: game,
+      projectRoot: project,
       snapshotDir: snapshots,
       startedAtMs: START_MS,
       now: time.now,
@@ -229,7 +229,7 @@ describe("stop-time no-build reasons", () => {
     const templateDigest = await workspaceDigest(base);
     await files(base, { "studio.json": "{}" });
     assert.equal((await snapshotFacts(base, { templateDigest })).noBuild, NoBuild.TemplateUntouched);
-    await files(base, { "src/main.js": "the agent's game" });
+    await files(base, { "src/main.js": "the agent's project" });
     assert.equal((await snapshotFacts(base, { templateDigest })).noBuild, null);
   });
 

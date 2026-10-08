@@ -10,7 +10,7 @@ const FRAME_INTERVAL_MS = 16;
 /** Worker frames come a little apart, so each reads as its own moment on the trail. */
 const WORKER_FRAME_INTERVAL_MS = 250;
 const RUN_ID = "performance-run";
-const PROJECT = "fixture-game";
+const PROJECT = "fixture-project";
 
 /** The fixed fixture stimulus needs only append and preview pushes; it cannot call arbitrary tools. */
 export interface GraphFixtureHost {

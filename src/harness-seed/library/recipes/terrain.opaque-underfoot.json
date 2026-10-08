@@ -29,7 +29,7 @@
   "port": "The ground/terrain facet owns makeTerrain() and bury() (the substrate and its drifts are one material system); tag the walkable mesh \"terrain\" and any marsh plane \"water\", never both on one object, and register a player-eye camera on walkable ground so the floor is in every iteration’s evidence.",
   "evidence": [
     {
-      "source": "skills/game-contract.md (deployed, 1 Sep 2026)",
+      "source": "skills/project-contract.md (deployed, 1 Sep 2026)",
       "note": "the judge must see what the player sees: a milky semi-transparent floor at the feet was invisible in every registered camera; add a player-eye camera pitched 25–30° down"
     },
     {

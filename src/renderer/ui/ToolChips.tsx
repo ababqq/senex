@@ -27,11 +27,11 @@ export interface ToolChipRow {
 }
 const icons: Record<ToolIcon, IconName> = {
   think: "harness",
-  write: "new-game",
+  write: "new-project",
   run: "play",
   read: "plan",
   see: "image",
-  game: "box",
+  project: "box",
 };
 const labels: Record<ToolState, string> = {
   [ToolState.Running]: "Running",

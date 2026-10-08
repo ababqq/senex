@@ -1,6 +1,6 @@
 /**
  * The scout and the requested state (computer use, 2026-09-07) — born from run_mtq96bu1z3x0, where six facets
- * built and judged the wrong map for two hours because nothing had opened the game first:
+ * built and judged the wrong map for two hours because nothing had opened the project first:
  *
  *  1. the scout's answer is normalised into a setup the studio can replay and a builder count
  *     the planner must respect;
@@ -96,18 +96,18 @@ describe("the scout's report", () => {
     const run = { runId: "r", project: "skate", goal: "refine the MACBA map", engine: "codex" };
     const scouted = await runScout(
       ctx as never,
-      { threadId: "t", run, profile: { maxParallel: 6, delegated: true }, projectDir: "/games/skate" } as never,
+      { threadId: "t", run, profile: { maxParallel: 6, delegated: true }, projectDir: "/projects/skate" } as never,
     );
     assert.ok(scouted.report);
     assert.equal((scouted.report as any).workers.count, 1);
     const delegation = calls.find((c) => c.method === "engine.delegate")!;
     assert.equal(delegation.readOnly, true);
-    assert.equal(delegation.cwd, "/games/skate");
+    assert.equal(delegation.cwd, "/projects/skate");
     assert.equal((delegation.playtest as { role: string }).role, "scout");
     // A direct engine skips the scout; a failing engine leaves a note, not a crash.
     const direct = await runScout(
       ctx as never,
-      { threadId: "t", run, profile: { maxParallel: 1, delegated: false }, projectDir: "/games/skate" } as never,
+      { threadId: "t", run, profile: { maxParallel: 1, delegated: false }, projectDir: "/projects/skate" } as never,
     );
     assert.equal(direct.report, null);
     assert.equal(direct.skipped, "direct engine");
@@ -119,7 +119,7 @@ describe("the scout's report", () => {
     };
     const failed = await runScout(
       failing as never,
-      { threadId: "t", run, profile: { maxParallel: 6, delegated: true }, projectDir: "/games/skate" } as never,
+      { threadId: "t", run, profile: { maxParallel: 6, delegated: true }, projectDir: "/projects/skate" } as never,
     );
     assert.equal(failed.report, null);
     assert.match(failed.skipped!, /the scout failed: boom/);
@@ -163,7 +163,7 @@ describe("the planner respects the scout", () => {
     );
     assert.match(ask, /SCOUT REPORT/);
     assert.equal(plan.facets.length, 1, "one builder means one facet");
-    assert.equal(plan.facets[0].id, "whole-game");
+    assert.equal(plan.facets[0].id, "whole-project");
     assert.equal(plan.facets[0].intent, "refine the MACBA map");
     assert.deepEqual(
       plan.facets[0].checks.map((c: { id: string }) => c.id),
@@ -171,7 +171,7 @@ describe("the planner respects the scout", () => {
       "every check survives the fold",
     );
     assert.deepEqual(plan.facets[0].owns, ["src/plaza.js", "src/museum.js", "src/perimeter.js"]);
-    assert.equal(plan.mainOwner, "whole-game");
+    assert.equal(plan.mainOwner, "whole-project");
   });
 
   it("keeps the largest shares when the ceiling is above one", () => {
@@ -263,7 +263,7 @@ describe("every look replays the setup", () => {
     assert.ok(firstInput === -1 || firstInput > seed, "no input before the seed without a setup");
   });
 
-  it("runs a demo setup and reports a demo the game does not have", async () => {
+  it("runs a demo setup and reports a demo the project does not have", async () => {
     const { ctx, calls } = stubCtx({ version: 1, mode: { museum: true } });
     const result = await applySetup(ctx as never, {
       demo: "open-macba",
@@ -317,9 +317,9 @@ describe("the requested state is on the board", () => {
   });
 });
 
-// ── what kind of game the scout drove ──────────────────────────────────────────────────────
+// ── what kind of project the scout drove ──────────────────────────────────────────────────────
 
-describe("the scout says what kind of game it just drove", () => {
+describe("the scout says what kind of project it just drove", () => {
   it("keeps a validated kind, a normalised play script and a gesture", () => {
     const report = normalizeScoutReport({
       ...REPORT,
@@ -330,14 +330,14 @@ describe("the scout says what kind of game it just drove", () => {
       ],
     }) as any;
     assert.equal(report.kind, "static-board");
-    // The studio owns the clock and the evidence: a plan may not step or pause the game.
+    // The studio owns the clock and the evidence: a plan may not step or pause the project.
     assert.deepEqual(report.play, [{ type: "click", x: 0.5, y: 0.5 }]);
     assert.equal(
       (normalizeScoutReport({ ...REPORT, kind: "roguelike" }) as any).kind,
       null,
       "an unknown kind is no kind",
     );
-    // A scout that answered only "this is a side-on game" told the planner something no other
+    // A scout that answered only "this is a side-on project" told the planner something no other
     // source knows; the discard guard must not throw it away.
     assert.equal((normalizeScoutReport({ kind: "side-2d" }) as any)?.kind, "side-2d");
     assert.deepEqual(
@@ -364,7 +364,7 @@ describe("the scout says what kind of game it just drove", () => {
       run: { runId: "r", project: "p", goal: "a chess board" },
       profile: { maxParallel: 1, delegated: true },
     } as never);
-    assert.match(brief, /WHAT KIND OF GAME IS THIS/);
+    assert.match(brief, /WHAT KIND OF PROJECT IS THIS/);
     for (const kind of ["first-person", "top-down", "static-board", "free-camera"])
       assert.ok(brief.includes(kind), kind);
     assert.match(brief, /"gesture": true/);

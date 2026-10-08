@@ -1,7 +1,7 @@
 /**
  * The window's first screen: index.html's #app-loader, the Genex G with a light passing over it,
  * there before the app's bundle runs. It stays until the first real screen is drawn under it (the
- * studio with its games and the open chat, the welcome, the sandbox setup, or a failure with its
+ * studio with its projects and the open chat, the welcome, the sandbox setup, or a failure with its
  * Retry), then fades once and leaves the page. Nothing brings it back: later waits are each
  * area's own (`ui/Pending.tsx`).
  */

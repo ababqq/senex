@@ -20,7 +20,7 @@ import { cliVersion, requireCodingCli, resolveCodingCli, invalidateCodingCli } f
  * instruction files the contractor reads (`CLAUDE.md`, skills), not the contractor itself. The
  * contractor is environment; the briefing layer is self.
  */
-import { allowedFile, ownershipReason, relativeGamePath, specOf } from "../ownership.ts";
+import { allowedFile, ownershipReason, relativeProjectPath, specOf } from "../ownership.ts";
 import { mkdir, readdir, rm, stat } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -325,7 +325,7 @@ function twentyFourHour(hours: number, meridiem: string | undefined): number {
  * 1353 of them (1.3 GB) under the engine home. One stable, empty directory fixes both: the
  * prefix is identical across sessions, and there is one transcript directory to sweep.
  *
- * It stays a *fresh* session — one turn, no resume, no tools, no game folder — because that is
+ * It stays a *fresh* session — one turn, no resume, no tools, no project folder — because that is
  * what makes a verdict blind. Sharing a working directory is not sharing a context.
  */
 export const JUDGE_CWD = path.join(os.tmpdir(), "studio-judge-sessions");
@@ -453,7 +453,7 @@ export class ClaudeCodeEngine implements Engine {
   /** A CLI that reports message lifecycles folds a pushed message in at its next tool result (claude-steer.ts). */
   readonly steersMidTurn = true;
   /**
-   * A game chat's own session asks the person mid-turn (`DelegateRequest.permissions`), and so do a
+   * A project chat's own session asks the person mid-turn (`DelegateRequest.permissions`), and so do a
    * build's lead and the run's coordinator, in the chat's mode (`leadAsks`).
    */
   readonly permissionPrompts = true;
@@ -730,7 +730,7 @@ export class ClaudeCodeEngine implements Engine {
       if (login.source === LoginSource.None) return null;
       const installation = await this.#resolveCli(EngineId.ClaudeCode, this.#executable, undefined, false);
       const query = await this.#query();
-      // The judges' empty directory: nothing of a game is in reach, and the OS may have swept it.
+      // The judges' empty directory: nothing of a project is in reach, and the OS may have swept it.
       await mkdir(this.judgeCwd, { recursive: true });
       const controller = new AbortController();
       let release = (): void => {};
@@ -903,7 +903,7 @@ export class ClaudeCodeEngine implements Engine {
   }
 
   /**
-   * Isolated one-shot for the critic. Not a second builder: no tools, no game folder, no
+   * Isolated one-shot for the critic. Not a second builder: no tools, no project folder, no
    * resume of the contractor session, still no `SendMessage`/`ListAgents`. The stills go in
    * as image blocks so this is the same "look at the pictures" path the local judge uses.
    */
@@ -1138,7 +1138,7 @@ export class ClaudeCodeEngine implements Engine {
       // up with 111 tools and started messaging the user's other sessions), and an unattended
       // session's shell commands run inside Claude Code's own sandbox, confined to the
       // workspace. That is also what lets Bash be auto-allowed, so it can actually run `node`
-      // and verify games — the first build shipped completely untested because every command
+      // and verify projects — the first build shipped completely untested because every command
       // was denied. A chat's own session asks instead, so it runs where the person would.
       // Project configuration can execute hooks; only host-stored folder trust enables it.
       settingSources: request.trustedProjectSettings === true ? ["project"] : [],
@@ -1152,7 +1152,7 @@ export class ClaudeCodeEngine implements Engine {
       strictMcpConfig: true,
       allowedTools: allowedToolsFor(request, interviewTools),
       disallowedTools: disallowedToolsFor(request),
-      // No sandbox key at all for a session that asks: Claude Code's default, which a game's own
+      // No sandbox key at all for a session that asks: Claude Code's default, which a project's own
       // project settings may still turn on. Every command it runs was asked about first.
       ...(asks ? {} : { sandbox: unattendedSandbox(request, protectedPaths) }),
       ...(directories.length ? { additionalDirectories: directories } : {}),
@@ -1216,10 +1216,10 @@ export class ClaudeCodeEngine implements Engine {
       settings: {
         ...(request.preferences ? await this.preferenceSettings(request.model, request.preferences) : {}),
         ...(Object.keys(rules).length ? { permissions: rules } : {}),
-        // The chat's own session works in its game folder (the host checked), checkpointed before
+        // The chat's own session works in its project folder (the host checked), checkpointed before
         // each message; a lead or the coordinator answers for a build.
         ...(asksOf(request)
-          ? { autoMode: autoModeRules({ cwd: path.resolve(request.cwd), gameFolder: Boolean(request.permissions) }) }
+          ? { autoMode: autoModeRules({ cwd: path.resolve(request.cwd), projectFolder: Boolean(request.permissions) }) }
           : {}),
         // Current models return thinking blocks empty unless a summary is asked for; the chat
         // shows the summary under a collapsed "Thinking details". Display only.
@@ -1886,7 +1886,7 @@ function compactSummaryText(raw: string | null): string {
 /**
  * The tools the session may call without asking. A bare "Bash" entry auto-approves the whole
  * tool. For an UNATTENDED session it has to be blanket: headless permission evaluation splits
- * compound commands into subcommands and denies them piecemeal, so `cd game && node --check
+ * compound commands into subcommands and denies them piecemeal, so `cd project && node --check
  * main.js` died even with the sandbox's auto-allow on. Safe only together with the sandbox shape — allowUnsandboxedCommands:
  * false makes the CLI ignore dangerouslyDisableSandbox entirely, so the blanket allow can never
  * step outside the sandbox. One authority: no parallel permissions.allow rules. A read-only
@@ -1911,7 +1911,7 @@ function allowedToolsFor(request: DelegateRequest, interviewTools: StudioToolSpe
  * Research is part of the work: the chat, a director and its builders may search and read the
  * web, and so may a read-only lead or coordinator the person may talk to (`leadAsks`), the chat's
  * main agent. Another read-only session answers from what it was handed, and a
- * performance-optimization candidate (an isolated copy of the game) is measured against its
+ * performance-optimization candidate (an isolated copy of the project) is measured against its
  * baseline alone.
  */
 function researches(request: DelegateRequest): boolean {
@@ -1943,7 +1943,7 @@ function asksOf(request: DelegateRequest): DelegateAsks | undefined {
 /**
  * How the session is permitted. An unattended contractor edits inside a git-snapshotted
  * workspace, where every edit is recoverable, which is what makes acceptEdits defensible there. A
- * game chat's own session asks the person instead, in the mode they chose; a build's lead or the
+ * project chat's own session asks the person instead, in the mode they chose; a build's lead or the
  * run's coordinator asks from its chat's Auto, Accept edits or Bypass, or from Manual, and the host
  * answers (claude-permissions.ts). The picker switches either mid-turn.
  */
@@ -2030,7 +2030,7 @@ type ToolAnswer = {
   isError?: boolean;
 };
 
-/** `checkpoint`: the contractor says the game just became worth seeing; the chat shows the note. */
+/** `checkpoint`: the contractor says the project just became worth seeing; the chat shows the note. */
 function checkpointTool(kit: McpKit, onEvent: DelegateRequest["onEvent"]) {
   const { tool, z } = kit;
   return tool(
@@ -2189,7 +2189,7 @@ export function ownershipHook(ownership: NonNullable<DelegateRequest["ownership"
       (v): v is string => typeof v === "string" && v.length > 0,
     );
     for (const target of targets) {
-      const rel = relativeGamePath(target, cwd);
+      const rel = relativeProjectPath(target, cwd);
       if (rel === null) continue;
       if (rel === ".." || rel.startsWith("../"))
         return preToolDeny(`${target} is outside the workspace — this facet edits only its own files under ${cwd}.`);
@@ -2326,8 +2326,8 @@ function compactSystemMessage(message: Record<string, unknown>): Record<string, 
 
 /**
  * The one argument a human scans for — the file, the command, the pattern — clipped short.
- * Paths are shown relative to the game's workspace: the person reading the trace thinks in
- * "src/enemies.js", not in `/Users/…/Application Support/…/games/hi/src/enemies.js`.
+ * Paths are shown relative to the project's workspace: the person reading the trace thinks in
+ * "src/enemies.js", not in `/Users/…/Application Support/…/projects/hi/src/enemies.js`.
  */
 function summariseToolInput(input: unknown, cwd?: string): string {
   if (!input || typeof input !== "object") return "";

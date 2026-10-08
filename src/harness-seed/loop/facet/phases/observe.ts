@@ -61,7 +61,7 @@ async function gatherOnce(loop: FacetLoop, round: FacetRound): Promise<AnyRecord
       motion: legacy ? 0 : MOTION_FRAMES,
       audio: !legacy,
       // Every demo a check names runs; the integration facet — the only judgeable build of
-      // the merged game — runs all of them.
+      // the merged project — runs all of them.
       requiredDemos: demosNamedByChecks(spec.checks),
       ...(role === FacetRole.Integration ? { maxDemos: Infinity } : {}),
       setup: facetSetup,

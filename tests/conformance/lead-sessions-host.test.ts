@@ -88,7 +88,7 @@ function initOf(events: readonly EventEnvelope[], sessionId: string): Record<str
 
 /**
  * A worktree of `project` under the run's own folder in scratch, as a night's integration worktree
- * is — and, unless `recorded: false`, the run's start on the record of the game's own chat, as the
+ * is — and, unless `recorded: false`, the run's start on the record of the project's own chat, as the
  * harness writes it when a run begins (`run_registered`).
  */
 async function runWorktree(
@@ -105,30 +105,38 @@ async function runWorktree(
   return dir;
 }
 
-/** A run's start on the record of `game`'s chat. */
-async function recordRun(core: CoreLite["core"], game: string, runId: string) {
-  const threadId = await core.threadForGame(game);
+/** A run's start on the record of `project`'s chat. */
+async function recordRun(core: CoreLite["core"], projectName: string, runId: string) {
+  const threadId = await core.threadForProject(projectName);
   await core.append(
-    [{ type: "custom", event_type: "run_registered", payload: { runId, project: game, mode: "director" } }],
+    [{ type: "custom", event_type: "run_registered", payload: { runId, project: projectName, mode: "director" } }],
     threadId,
   );
 }
 
-/** A lead's delegation fields: read-only in the game folder, leading `root` of `runId`. */
-function leadGrant(threadId: string, game: string, runId: string, root: string, chatSession = true) {
+/** A lead's delegation fields: read-only in the project folder, leading `root` of `runId`. */
+function leadGrant(threadId: string, projectName: string, runId: string, root: string, chatSession = true) {
   return {
     readOnly: true,
-    director: { runId, threadId, project: game, root, setup: null, tools: [], ...(chatSession ? { chatSession } : {}) },
+    director: {
+      runId,
+      threadId,
+      project: projectName,
+      root,
+      setup: null,
+      tools: [],
+      ...(chatSession ? { chatSession } : {}),
+    },
   };
 }
 
-/** A game with its chat, and a delegation into it that returns once the session's init is logged. */
-async function gameChat({ withPreview = false }: { withPreview?: boolean } = {}) {
-  // The games root by its real path, as the rig does: on macOS the temp folder is reached through
-  // the /var → /private/var link, and landing refuses a game whose path is not its real one.
+/** A project with its chat, and a delegation into it that returns once the session's init is logged. */
+async function projectChat({ withPreview = false }: { withPreview?: boolean } = {}) {
+  // The projects root by its real path, as the rig does: on macOS the temp folder is reached through
+  // the /var → /private/var link, and landing refuses a project whose path is not its real one.
   // Landing also shows the build in Live, so a test that lands brings a (fake) preview.
   const lite = await coreLite({
-    gamesRoot: await realpath(await tmpDir("lead-sessions-games-")),
+    projectsRoot: await realpath(await tmpDir("lead-sessions-projects-")),
     ...(withPreview ? { preview: makeFakePreview() } : {}),
   });
   lites.push(lite);
@@ -136,8 +144,8 @@ async function gameChat({ withPreview = false }: { withPreview?: boolean } = {})
   let next = { sessionId: "", ending: ANSWERED };
   const seen: DelegateRequest[] = [];
   core.engines.register(sessionEngine(() => next, seen) as never);
-  const project = await core.games.scaffold("lead-sessions");
-  const threadId = await core.threadForGame(project.name);
+  const project = await core.projects.scaffold("lead-sessions");
+  const threadId = await core.threadForProject(project.name);
   const api = core.api() as unknown as Api;
   /** Delegate one turn; a turn meant to answer must, and a failing one hands back its error. */
   const delegate = async (sessionId: string, extra: Record<string, unknown>, ending: Ending = ANSWERED) => {
@@ -170,14 +178,14 @@ async function gameChat({ withPreview = false }: { withPreview?: boolean } = {})
 
 describe("a run's sessions never take the chat's bookmark", () => {
   it("records the chat's own sessions and none of a run's, in the record or in the harness's view", async () => {
-    const { project, threadId, delegate, bookmark, harnessSession } = await gameChat();
-    const game = project.name;
+    const { project, threadId, delegate, bookmark, harnessSession } = await projectChat();
+    const projectName = project.name;
     const root = project.dir;
 
     await delegate("chat-1", {});
     assert.equal(await bookmark(), "chat-1", "a chat turn is the chat's session");
-    // A chat build with eyes: a capture grant for the game folder, no run.
-    await delegate("chat-2", { selfCapture: { project: game, root, label: game } });
+    // A chat build with eyes: a capture grant for the project folder, no run.
+    await delegate("chat-2", { selfCapture: { project: projectName, root, label: projectName } });
     assert.equal(await bookmark(), "chat-2", "a chat build with a window is still the chat's session");
     assert.equal(await harnessSession(), "chat-2");
 
@@ -185,19 +193,21 @@ describe("a run's sessions never take the chat's bookmark", () => {
       {
         label: "the director",
         sessionId: "director-1",
-        extra: { director: { runId: "run_x", threadId, project: game, root, setup: null, tools: [] } },
+        extra: { director: { runId: "run_x", threadId, project: projectName, root, setup: null, tools: [] } },
       },
       {
         label: "a run's builder",
         sessionId: "builder-1",
-        extra: { selfCapture: { project: game, root, runId: "run_x", facetId: "prep", iteration: 0, label: "prep" } },
+        extra: {
+          selfCapture: { project: projectName, root, runId: "run_x", facetId: "prep", iteration: 0, label: "prep" },
+        },
       },
       {
         label: "the scout",
         sessionId: "scout-1",
         extra: {
           playtest: {
-            project: game,
+            project: projectName,
             root,
             runId: "run_x",
             facetId: "scout",
@@ -229,7 +239,7 @@ describe("a run's sessions never take the chat's bookmark", () => {
 
 describe("a wrap-up asked after Resume is written again", () => {
   it("records one ask per session of the run, and none while it is paused", async () => {
-    const { core, threadId } = await gameChat();
+    const { core, threadId } = await projectChat();
     const runId = "run_w";
     const record = (event_type: string, payload: Record<string, unknown>) =>
       core.append([{ type: "custom", event_type, payload }], threadId);
@@ -271,7 +281,7 @@ function activityOf(events: readonly EventEnvelope[], sessionId: string) {
 
 describe("a director's turn says it ended", () => {
   it("closes each turn with completed, interrupted or failed, and says nothing about the run", async () => {
-    const { core, project, threadId, delegate } = await gameChat();
+    const { core, project, threadId, delegate } = await projectChat();
     const director = {
       director: { runId: "run_x", threadId, project: project.name, root: project.dir, setup: null, tools: [] },
     };
@@ -302,7 +312,7 @@ describe("a director's turn says it ended", () => {
   });
 
   it("leaves a chat turn and a run's builder to end the way they always have", async () => {
-    const { core, project, threadId, delegate } = await gameChat();
+    const { core, project, threadId, delegate } = await projectChat();
     await delegate("chat-turn", {});
     await delegate("builder-turn", {
       selfCapture: { project: project.name, root: project.dir, runId: "run_x", facetId: "b", iteration: 0 },
@@ -318,26 +328,30 @@ describe("a director's turn says it ended", () => {
 });
 
 /**
- * One session: a waking night's lead is its chat's own session. It sits in the game folder (no
+ * One session: a waking night's lead is its chat's own session. It sits in the project folder (no
  * `cwd`), reads the run's integration worktree it leads (the grant's `root`) and writes nothing;
  * when it says it is the chat's (`chatSession`), the session it answers with is the chat's bookmark.
  */
 describe("a lead that is its chat's own session", () => {
-  it("is honoured in the game folder for its run's worktree, and moves the chat's bookmark only when it is the chat's", async () => {
-    const { core, project, threadId, delegate, bookmark, seen } = await gameChat();
-    const game = project.name;
+  it("is honoured in the project folder for its run's worktree, and moves the chat's bookmark only when it is the chat's", async () => {
+    const { core, project, threadId, delegate, bookmark, seen } = await projectChat();
+    const projectName = project.name;
     await delegate("chat-1", {});
     const worktree = { path: await runWorktree(core, project, "run_one") };
     const real = await realpath(worktree.path);
     const lead = (sessionId: string, chatSession: boolean) =>
       delegate(sessionId, {
         chatTurn: { messageId: "run_one" },
-        ...leadGrant(threadId, game, "run_one", worktree.path, chatSession),
+        ...leadGrant(threadId, projectName, "run_one", worktree.path, chatSession),
       });
 
     await lead("chat-1", true);
     const honoured = seen.at(-1)!;
-    assert.equal(honoured.director?.root, real, "the grant is honoured in the game folder, on the real path checked");
+    assert.equal(
+      honoured.director?.root,
+      real,
+      "the grant is honoured in the project folder, on the real path checked",
+    );
     assert.equal(path.resolve(honoured.cwd), path.resolve(project.dir), "where the session sits");
     assert.equal(honoured.readOnly, true, "and writes nothing");
     assert.ok(
@@ -360,7 +374,7 @@ describe("a lead that is its chat's own session", () => {
   });
 
   it("hands the window, the capture and the reads the real worktree it checked, never the name it was sent", async () => {
-    const { core, project, threadId, delegate, seen } = await gameChat();
+    const { core, project, threadId, delegate, seen } = await projectChat();
     const worktree = await runWorktree(core, project, "run_one");
     // A name for the worktree under the run's own folder: a link the harness's processes could repoint.
     const alias = path.join(path.dirname(worktree), "alias");
@@ -373,43 +387,43 @@ describe("a lead that is its chat's own session", () => {
     assert.ok(!(request.extraReads ?? []).includes(alias), "never the link");
   });
 
-  it("drops the grant for a root that is not this game's worktree of that run, and records no bookmark", async () => {
-    const { core, project, threadId, delegate, bookmark, seen } = await gameChat();
-    const game = project.name;
+  it("drops the grant for a root that is not this project's worktree of that run, and records no bookmark", async () => {
+    const { core, project, threadId, delegate, bookmark, seen } = await projectChat();
+    const projectName = project.name;
     await delegate("chat-1", {});
     const ours = { path: await runWorktree(core, project, "run_one") };
-    const other = await core.games.scaffold("lead-sessions-other");
+    const other = await core.projects.scaffold("lead-sessions-other");
     const theirs = { path: await runWorktree(core, other, "run_two") };
-    // A worktree of this game planted in the other game's run (`snapshot.worktree` names any run id).
+    // A worktree of this project planted in the other project's run (`snapshot.worktree` names any run id).
     const planted = await runWorktree(core, project, "run_two", { name: "planted", recorded: false });
-    // A run of this game whose folder is a link to another run's folder.
+    // A run of this project whose folder is a link to another run's folder.
     const autopilot = path.join(core.layout.scratch, "autopilot");
     await symlink(path.join(autopilot, "run_one"), path.join(autopilot, "run_link"));
-    await recordRun(core, game, "run_link");
-    // Links under this game's own run folder to places that are not a worktree of that run.
+    await recordRun(core, projectName, "run_link");
+    // Links under this project's own run folder to places that are not a worktree of that run.
     await symlink(theirs.path, path.join(autopilot, "run_one", "to-theirs"));
     await symlink(project.dir, path.join(autopilot, "run_one", "to-live"));
-    // A worktree of this game under a run nobody started.
+    // A worktree of this project under a run nobody started.
     const unrecorded = await runWorktree(core, project, "run_ghost", { recorded: false });
     const hostile: Array<{ label: string; runId: string; root: string; extra?: Record<string, unknown> }> = [
-      { label: "the game folder of another game", runId: "run_one", root: other.dir },
-      { label: "another game's worktree under a run", runId: "run_two", root: theirs.path },
-      { label: "this game's worktree named under another run", runId: "run_other", root: ours.path },
+      { label: "the project folder of another project", runId: "run_one", root: other.dir },
+      { label: "another project's worktree under a run", runId: "run_two", root: theirs.path },
+      { label: "this project's worktree named under another run", runId: "run_other", root: ours.path },
       { label: "a run id that climbs out", runId: "../../..", root: ours.path },
       { label: "a lead that sits in a build worktree", runId: "run_one", root: project.dir, extra: { cwd: ours.path } },
-      { label: "this game's worktree planted under another game's run", runId: "run_two", root: planted },
+      { label: "this project's worktree planted under another project's run", runId: "run_two", root: planted },
       {
         label: "a run folder that is a link to another run's",
         runId: "run_link",
         root: path.join(autopilot, "run_link", "integration"),
       },
       {
-        label: "a link in the run's folder to another game's worktree",
+        label: "a link in the run's folder to another project's worktree",
         runId: "run_one",
         root: path.join(autopilot, "run_one", "to-theirs"),
       },
       {
-        label: "a link in the run's folder to the game folder",
+        label: "a link in the run's folder to the project folder",
         runId: "run_one",
         root: path.join(autopilot, "run_one", "to-live"),
       },
@@ -419,7 +433,7 @@ describe("a lead that is its chat's own session", () => {
     const seenGrants: Array<{ label: string; director: unknown; look: boolean; reads: string[]; bookmark: unknown }> =
       [];
     for (const [n, { label, runId, root, extra }] of hostile.entries()) {
-      await delegate(`hostile-${n}`, { ...leadGrant(threadId, game, runId, root), ...extra });
+      await delegate(`hostile-${n}`, { ...leadGrant(threadId, projectName, runId, root), ...extra });
       const request = seen.at(-1)!;
       seenGrants.push({
         label,
@@ -436,8 +450,8 @@ describe("a lead that is its chat's own session", () => {
     );
   });
 
-  it("holds no lock on the game folder: its lock is on the build it leads", async () => {
-    const { core, project, threadId, api } = await gameChat();
+  it("holds no lock on the project folder: its lock is on the build it leads", async () => {
+    const { core, project, threadId, api } = await projectChat();
     const worktree = await runWorktree(core, project, "run_lock");
     let release = () => {};
     const held = new Promise<void>((resolve) => {
@@ -474,7 +488,7 @@ describe("a lead that is its chat's own session", () => {
     assert.deepEqual(
       { listed: listed.map((d) => d.cwd), chat, second },
       { listed: [await realpath(worktree)], chat: "answered", second: "folder_busy" },
-      "a chat turn in the game folder goes on while the lead's turn runs; a second lead of that build waits its turn",
+      "a chat turn in the project folder goes on while the lead's turn runs; a second lead of that build waits its turn",
     );
   });
 });
@@ -483,7 +497,7 @@ describe("a lead that is its chat's own session", () => {
 const git = async (cwd: string, args: string[]): Promise<string> => (await gitFile(args, { cwd })).stdout.trim();
 
 /**
- * A night of this game's chat that is over: its run's worktree holds one commit the game folder
+ * A night of this project's chat that is over: its run's worktree holds one commit the project folder
  * does not have (what the run built), and the close on the chat's record names it, unlanded.
  */
 async function closedNight(core: CoreLite["core"], project: { name: string; dir: string }, runId: string) {
@@ -493,7 +507,7 @@ async function closedNight(core: CoreLite["core"], project: { name: string; dir:
   await git(worktree, ["add", "-A"]);
   await git(worktree, ["-c", "user.name=fixture", "-c", "user.email=fixture@example.com", "commit", "-m", "the sky"]);
   const built = await git(worktree, ["rev-parse", "HEAD"]);
-  const threadId = await core.threadForGame(project.name);
+  const threadId = await core.threadForProject(project.name);
   await core.append(
     [
       {
@@ -508,7 +522,7 @@ async function closedNight(core: CoreLite["core"], project: { name: string; dir:
 }
 
 /**
- * The same agent after the build: once a lead's night is over, the chat's own session — in the game
+ * The same agent after the build: once a lead's night is over, the chat's own session — in the project
  * folder, its hands back — keeps the run's controls (`runControls`), answered by the host as the
  * coordinator's tools are. Nothing else is given them, and a control never reaches another run.
  */
@@ -534,8 +548,8 @@ describe("the chat's own session after a lead's night", () => {
     return { engine, answers };
   }
 
-  it("answers run_status, show_build and land_build for the session asking, whose own hold on the game folder is no contractor building there", async () => {
-    const { core, api, project, threadId } = await gameChat({ withPreview: true });
+  it("answers run_status, show_build and land_build for the session asking, whose own hold on the project folder is no contractor building there", async () => {
+    const { core, api, project, threadId } = await projectChat({ withPreview: true });
     const built = await closedNight(core, project, "run_after");
     const seen: DelegateRequest[] = [];
     const { engine, answers } = controlsEngine(
@@ -557,7 +571,7 @@ describe("the chat's own session after a lead's night", () => {
     const status = JSON.parse(answers.run_status!) as { run: { state: string }; activeWorkers: unknown[] };
     assert.equal(status.run.state, "finished");
     assert.deepEqual(status.activeWorkers, [], "the session asking is not one of the run's workers");
-    assert.match(answers.land_build!, /Landed [0-9a-f]{10} in the game folder \(merged\)/, answers.land_build);
+    assert.match(answers.land_build!, /Landed [0-9a-f]{10} in the project folder \(merged\)/, answers.land_build);
     assert.equal(await readFile(path.join(project.dir, "src", "sky.js"), "utf8"), "export const sky = 'dusk';\n");
     assert.equal(
       await git(project.dir, ["merge-base", "--is-ancestor", built, "HEAD"]).then(
@@ -567,7 +581,7 @@ describe("the chat's own session after a lead's night", () => {
       "in",
     );
 
-    // A game folder with edits of its own is refused, as Make it live always refused it.
+    // A project folder with edits of its own is refused, as Make it live always refused it.
     const head = await git(project.dir, ["rev-parse", "HEAD"]);
     await writeFile(path.join(project.dir, "src", "sky.js"), "export const sky = 'pink';\n");
     await ask({ runControls: { runId: "run_after", messageId: "m2" } });
@@ -577,7 +591,7 @@ describe("the chat's own session after a lead's night", () => {
   });
 
   it("gives them to nothing but the chat's own session, and a control never reaches another run", async () => {
-    const { core, api, project, threadId } = await gameChat();
+    const { core, api, project, threadId } = await projectChat();
     const worktree = await runWorktree(core, project, "run_other");
     await closedNight(core, project, "run_after");
     const head = await git(project.dir, ["rev-parse", "HEAD"]);
@@ -622,7 +636,7 @@ describe("the chat's own session after a lead's night", () => {
       runControls: { runId: "run_other", messageId: "m2" },
     });
     assert.match(answers.land_build!, /^refused: The run changed/, answers.land_build);
-    assert.equal(await git(project.dir, ["rev-parse", "HEAD"]), head, "the game folder is where it was");
+    assert.equal(await git(project.dir, ["rev-parse", "HEAD"]), head, "the project folder is where it was");
   });
 });
 
@@ -631,15 +645,15 @@ const CLOSED =
   "This chat was closed, so nobody can approve this and it was not allowed. Do not retry it; say in your reply what you needed.";
 
 /**
- * A game chat whose engine asks (`permissionPrompts`), with a night of its run under way: its lead
- * leads the integration worktree from the game folder. The fake session asks the host once, when a
+ * A project chat whose engine asks (`permissionPrompts`), with a night of its run under way: its lead
+ * leads the integration worktree from the project folder. The fake session asks the host once, when a
  * test gives it a question, and keeps the answer.
  */
 async function leadChat({ leadAskTimeoutMs }: { leadAskTimeoutMs?: number } = {}) {
   /** What the host told the Studio UI, in order. */
   const uiEvents: Array<{ type: string }> = [];
   const lite = await coreLite({
-    gamesRoot: await realpath(await tmpDir("lead-asks-games-")),
+    projectsRoot: await realpath(await tmpDir("lead-asks-projects-")),
     ...(leadAskTimeoutMs ? { leadAskTimeoutMs } : {}),
     onUiEvent: (event) => uiEvents.push(event),
   });
@@ -665,18 +679,18 @@ async function leadChat({ leadAskTimeoutMs }: { leadAskTimeoutMs?: number } = {}
       return { ok: true, engine: ENGINE, sessionId: "lead", turns: 1, usage: {}, summary: "" };
     },
   } as never);
-  const project = await core.games.scaffold("lead-asks");
-  const game = project.name;
-  const threadId = await core.threadForGame(game);
+  const project = await core.projects.scaffold("lead-asks");
+  const projectName = project.name;
+  const threadId = await core.threadForProject(projectName);
   const api = core.api() as unknown as Api;
   const runId = "run_live";
   const worktree = await runWorktree(core, project, runId);
   const delegate = (extra: Record<string, unknown>, thread = threadId) =>
-    api["engine.delegate"]!({ engine: ENGINE, prompt: "go", project: game, threadId: thread, ...extra });
+    api["engine.delegate"]!({ engine: ENGINE, prompt: "go", project: projectName, threadId: thread, ...extra });
   /** The night's lead answering its chat, as a waking lead is briefed. */
   const leadBrief = (thread = threadId, run = runId) => ({
     chatTurn: { messageId: run },
-    ...leadGrant(thread, game, run, worktree),
+    ...leadGrant(thread, projectName, run, worktree),
   });
   const rows = async (): Promise<ToolPermissionEvent[]> =>
     (await core.store.listEvents(threadId)).flatMap((event) => {
@@ -743,7 +757,7 @@ async function leadChat({ leadAskTimeoutMs }: { leadAskTimeoutMs?: number } = {}
     core,
     api,
     project,
-    game,
+    projectName,
     threadId,
     runId,
     worktree,
@@ -771,13 +785,14 @@ async function leadChat({ leadAskTimeoutMs }: { leadAskTimeoutMs?: number } = {}
  */
 describe("a build's lead and the run's coordinator ask the person they answer", () => {
   it("hands a way to ask only to the lead answering its chat and the coordinator of its run", async () => {
-    const { core, api, game, threadId, worktree, runId, seen, delegate, leadBrief, personSays } = await leadChat();
+    const { core, api, projectName, threadId, worktree, runId, seen, delegate, leadBrief, personSays } =
+      await leadChat();
     const said = await personSays();
-    const other = await core.games.scaffold("lead-asks-other");
-    const otherChat = await core.threadForGame(other.name);
+    const other = await core.projects.scaffold("lead-asks-other");
+    const otherChat = await core.threadForProject(other.name);
     const secondChat = await core.store.createThread({
       title: "Second chat",
-      metadata: { kind: "game", project: game },
+      metadata: { kind: "game", project: projectName },
     });
     const forged = String(await api["thread.create"]!({ title: "x" }));
     const cases: Array<{ label: string; extra: Record<string, unknown>; thread?: string; asks: boolean }> = [
@@ -792,17 +807,20 @@ describe("a build's lead and the run's coordinator ask the person they answer", 
         extra: { coordinator: { runId, messageId: "m" }, readOnly: true, timeoutMs: 300_000 },
         asks: false,
       },
-      { label: "a lead not answering its chat", extra: leadGrant(threadId, game, runId, worktree), asks: false },
+      { label: "a lead not answering its chat", extra: leadGrant(threadId, projectName, runId, worktree), asks: false },
       {
         label: "a director with its own hands",
-        extra: { cwd: worktree, director: { runId, threadId, project: game, root: worktree, setup: null, tools: [] } },
+        extra: {
+          cwd: worktree,
+          director: { runId, threadId, project: projectName, root: worktree, setup: null, tools: [] },
+        },
         asks: false,
       },
       {
         label: "a run's builder",
         extra: {
           cwd: worktree,
-          selfCapture: { project: game, root: worktree, runId, facetId: "sky", label: "sky" },
+          selfCapture: { project: projectName, root: worktree, runId, facetId: "sky", label: "sky" },
           timeoutMs: 60_000,
         },
         asks: false,
@@ -816,7 +834,7 @@ describe("a build's lead and the run's coordinator ask the person they answer", 
         label: "a playtester",
         extra: {
           playtest: {
-            project: game,
+            project: projectName,
             root: worktree,
             runId,
             facetId: "p",
@@ -834,9 +852,14 @@ describe("a build's lead and the run's coordinator ask the person they answer", 
         extra: { coordinator: { runId: "run_elsewhere", messageId: "m" }, readOnly: true },
         asks: false,
       },
-      { label: "the lead in another chat of its game", extra: leadBrief(secondChat), thread: secondChat, asks: false },
+      {
+        label: "the lead in another chat of its project",
+        extra: leadBrief(secondChat),
+        thread: secondChat,
+        asks: false,
+      },
       { label: "the lead in a thread the harness made", extra: leadBrief(forged), thread: forged, asks: false },
-      { label: "the lead in another game's chat", extra: leadBrief(otherChat), thread: otherChat, asks: false },
+      { label: "the lead in another project's chat", extra: leadBrief(otherChat), thread: otherChat, asks: false },
     ];
     const handed: Array<{ label: string; asks: boolean; permissions: boolean; reachesMac: boolean }> = [];
     for (const { label, extra, thread } of cases) {
@@ -889,7 +912,7 @@ describe("a build's lead and the run's coordinator ask the person they answer", 
   it("answers for the person's mode: Bypass, Accept edits, Plan, Manual and Auto", async () => {
     const { core, project, threadId, asking, personSays, handToLead } = await leadChat();
     await handToLead(await personSays());
-    const inGame = { tool: "Edit", input: { file_path: path.join(project.dir, "src", "main.js") } };
+    const inProject = { tool: "Edit", input: { file_path: path.join(project.dir, "src", "main.js") } };
     const command = { tool: "Bash", input: { command: "ls ~/Downloads" } };
     const settled = async (ask: typeof command, answer: { decision: "allow" } | { decision: "deny" }) => {
       const { card, done } = await asking(ask, undefined, { waitForCard: true });
@@ -913,15 +936,15 @@ describe("a build's lead and the run's coordinator ask the person they answer", 
       "moved to Bypass: allowed",
     );
 
-    // Flipped (owner, 2026-09-29; was review M2): the lead's edit in the game folder was refused
+    // Flipped (owner, 2026-09-29; was review M2): the lead's edit in the project folder was refused
     // in every mode. What Claude Code asks about it is the person's to answer now, like any call.
     await core.setPermissionMode(threadId, "acceptEdits");
-    const edited = await settled(inGame as never, { decision: "allow" });
-    assert.deepEqual(edited.answer, { decision: "allow" }, "an edit in the game asks like any other");
+    const edited = await settled(inProject as never, { decision: "allow" });
+    assert.deepEqual(edited.answer, { decision: "allow" }, "an edit in the project asks like any other");
     const outside = await settled({ tool: "Write", input: { file_path: "/Users/me/Desktop/notes.txt" } } as never, {
       decision: "allow",
     });
-    assert.deepEqual(outside.answer, { decision: "allow" }, "an edit outside the game asks");
+    assert.deepEqual(outside.answer, { decision: "allow" }, "an edit outside the project asks");
     const accepted = await settled(command, { decision: "allow" });
     assert.deepEqual(accepted.answer, { decision: "allow" }, "a command asks in Accept edits");
     assert.deepEqual(
@@ -999,13 +1022,13 @@ describe("a build's lead and the run's coordinator ask the person they answer", 
       );
     }
     await core.setPermissionMode(threadId, "auto");
-    // Flipped (owner, 2026-09-29; was review M2): an edit in the game folder was refused here.
-    const game = { tool: "Edit", input: { file_path: path.join(project.dir, "src", "main.js") } };
-    assert.equal(await auto.screen(game), null, "an edit in the game is the classifier's, as any call");
+    // Flipped (owner, 2026-09-29; was review M2): an edit in the project folder was refused here.
+    const projectName = { tool: "Edit", input: { file_path: path.join(project.dir, "src", "main.js") } };
+    assert.equal(await auto.screen(projectName), null, "an edit in the project is the classifier's, as any call");
   });
 
-  it("keeps what 'always' grants for the game and the chat, never a mode", async () => {
-    const { core, threadId, asking, personSays, handToLead, seen, delegate, leadBrief, game } = await leadChat();
+  it("keeps what 'always' grants for the project and the chat, never a mode", async () => {
+    const { core, threadId, asking, personSays, handToLead, seen, delegate, leadBrief, projectName } = await leadChat();
     await core.setPermissionMode(threadId, "default");
     await handToLead(await personSays());
     const always: PermissionAsk["always"] = [
@@ -1022,9 +1045,11 @@ describe("a build's lead and the run's coordinator ask the person they answer", 
     assert.equal((await core.store.getRecord(threadId)).metadata?.permissionMode, "default", "the mode stands");
     await delegate(leadBrief());
     const next = seen.at(-1)!.leadAsks!;
-    assert.deepEqual(next.allow, ["Bash(ls *)"], "the game's rule stands for its next turn");
+    assert.deepEqual(next.allow, ["Bash(ls *)"], "the project's rule stands for its next turn");
     assert.deepEqual(next.directories, ["/Users/me/Desktop"], "and the chat's folder");
-    assert.deepEqual((await core.permissionSettings()).rules.find((r) => r.project === game)?.rules, ["Bash(ls *)"]);
+    assert.deepEqual((await core.permissionSettings()).rules.find((r) => r.project === projectName)?.rules, [
+      "Bash(ls *)",
+    ]);
   });
 
   it("withdraws a card nobody answered in time, in its own words", async () => {
@@ -1309,7 +1334,7 @@ describe("the picker switches a lead's running session", () => {
   // An answer on the chat's own card moved the chat's mode (a plan approved, "always" with a mode)
   // and the lead's session stayed in the mode it ran in.
   it("follows a mode the chat takes from its own session's card: a plan approved, 'always' with a mode", async () => {
-    const { core, game, project, threadId, delegate, leadBrief, whileRunning, rows } = await leadChat();
+    const { core, projectName, project, threadId, delegate, leadBrief, whileRunning, rows } = await leadChat();
     await core.setPermissionMode(threadId, "plan");
     const lead = heldSession();
     whileRunning(lead.run);
@@ -1318,7 +1343,7 @@ describe("the picker switches a lead's running session", () => {
     /** The chat's own session asks, and the person answers the card with `answer`. */
     const answered = async (ask: Omit<PermissionAsk, "toolUseId">, answer: Record<string, unknown>) => {
       const known = new Set((await rows()).map((row) => row.requestId));
-      const asking = core.askToolPermission(game, threadId, { toolUseId: "tu", ...ask });
+      const asking = core.askToolPermission(projectName, threadId, { toolUseId: "tu", ...ask });
       let card: ToolPermissionEvent | undefined;
       for (let waited = 0; !card && waited < 200; waited++) {
         card = (await rows()).find((row) => !known.has(row.requestId));
@@ -1425,7 +1450,7 @@ const CONNECTOR_TOOL = {
   parameters: { type: "object", properties: {} },
   inputSchema: { type: "object", properties: {} },
 };
-const PLUGIN_GUIDANCE = "[PLUGINS] fixture__deliver delivers an asset into the game.";
+const PLUGIN_GUIDANCE = "[PLUGINS] fixture__deliver delivers an asset into the project.";
 const CONNECTOR_GUIDANCE = "[CONNECTORS] notes__* looks up the person's notes.";
 
 /** One call a plugin or connector tool answered, with the binding the host gave it. */
@@ -1473,16 +1498,16 @@ const offered = (request: DelegateRequest) =>
     .filter((name) => name === PLUGIN_TOOL.name || name === CONNECTOR_TOOL.name);
 
 /**
- * A lead's brief is `readOnly`: the harness's mark of a director seated in its game's folder
+ * A lead's brief is `readOnly`: the harness's mark of a director seated in its project's folder
  * (`#leadRoot`), from when a lead wrote nothing. Host tools went only to a session that was not
  * read-only, so the lead, the chat's own session resumed to lead its build, lost the plugins,
  * connectors and cover the chat's own session has, with their guidance still in its transcript.
  * The host's own finding of the seat decides now, and the lead's plugins act on the build it leads,
- * where a director's do: what they deliver reaches the game when the night lands.
+ * where a director's do: what they deliver reaches the project when the night lands.
  */
 describe("a lead has the chat's own session's plugins and connectors, on the build it leads", () => {
   it("offers them with their guidance, its plugins bound to the worktree it leads, whether or not it asks", async () => {
-    const { core, threadId, game, runId, worktree, delegate, leadBrief, whileRunning, seen } = await leadChat();
+    const { core, threadId, projectName, runId, worktree, delegate, leadBrief, whileRunning, seen } = await leadChat();
     const { calls } = standInHostTools(core);
     const heard: unknown[] = [];
     whileRunning(async (request) => {
@@ -1492,7 +1517,7 @@ describe("a lead has the chat's own session's plugins and connectors, on the bui
     const built = await realpath(worktree);
     for (const [label, brief, asks] of [
       ["the lead answering its chat", leadBrief(), true],
-      ["a lead nobody answers through", leadGrant(threadId, game, runId, worktree), false],
+      ["a lead nobody answers through", leadGrant(threadId, projectName, runId, worktree), false],
     ] as const) {
       calls.length = 0;
       heard.length = 0;
@@ -1502,21 +1527,21 @@ describe("a lead has the chat's own session's plugins and connectors, on the bui
       assert.deepEqual(offered(request), [PLUGIN_TOOL.name, CONNECTOR_TOOL.name], `${label}: offered`);
       assert.ok(request.prompt.includes(PLUGIN_GUIDANCE), `${label}: the plugins' guidance`);
       assert.ok(request.prompt.includes(CONNECTOR_GUIDANCE), `${label}: the connectors' guidance`);
-      // It sits in the game folder: told its plugins work on the build, whose path its brief never names.
+      // It sits in the project folder: told its plugins work on the build, whose path its brief never names.
       assert.ok(request.prompt.includes(leadToolsNote()), `${label}: told where its plugins work`);
       assert.equal(request.prompt.includes(built), false, `${label}: never the build's path`);
       assert.deepEqual(heard, ["delivered", "found"], `${label}: answered`);
       const [plugin, connector] = calls;
       assert.deepEqual(
         [plugin?.tool, plugin?.binding.project, plugin?.binding.directory, plugin?.binding.threadId],
-        [PLUGIN_TOOL.name, game, built, threadId],
-        `${label}: its plugin acts on the build it leads, never the live game folder it sits in`,
+        [PLUGIN_TOOL.name, projectName, built, threadId],
+        `${label}: its plugin acts on the build it leads, never the live project folder it sits in`,
       );
-      // A connector answers for the game (a root it shares is the game's, as for every session).
+      // A connector answers for the project (a root it shares is the project's, as for every session).
       assert.deepEqual(
         [connector?.tool, connector?.binding.project, connector?.binding.threadId],
-        [CONNECTOR_TOOL.name, game, threadId],
-        `${label}: its connector answers for its game and chat`,
+        [CONNECTOR_TOOL.name, projectName, threadId],
+        `${label}: its connector answers for its project and chat`,
       );
     }
     // Its line in the chat and the build card read as the build's between parts, however long the
@@ -1530,16 +1555,16 @@ describe("a lead has the chat's own session's plugins and connectors, on the bui
   });
 
   it("still gives none to a read-only session that leads nothing, the playtester or the coordinator", async () => {
-    const { core, threadId, game, runId, worktree, delegate, personSays, seen } = await leadChat();
+    const { core, threadId, projectName, runId, worktree, delegate, personSays, seen } = await leadChat();
     standInHostTools(core);
     const said = await personSays();
     const cases: Array<[string, Record<string, unknown>]> = [
-      ["a read-only session in the game folder", { readOnly: true }],
+      ["a read-only session in the project folder", { readOnly: true }],
       [
         "a playtester",
         {
           playtest: {
-            project: game,
+            project: projectName,
             root: worktree,
             runId,
             facetId: "p",
@@ -1553,8 +1578,8 @@ describe("a lead has the chat's own session's plugins and connectors, on the bui
       ],
       ["the run's coordinator", { coordinator: { runId, messageId: said }, readOnly: true, timeoutMs: 300_000 }],
       [
-        "a lead's grant for a worktree that is not this game's run's",
-        leadGrant(threadId, game, runId, await tmpDir("lead-not-a-worktree-")),
+        "a lead's grant for a worktree that is not this project's run's",
+        leadGrant(threadId, projectName, runId, await tmpDir("lead-not-a-worktree-")),
       ],
     ];
     for (const [label, brief] of cases) {
@@ -1770,10 +1795,10 @@ type ToolHook = (
  * session started in, and leaves every other call to the session's rules.
  */
 describe("a lead's calls follow the chat's mode and the rules that stand, whoever talks to it", () => {
-  it("lets a saved rule and the game's own settings stand while the person is away, with no card", async () => {
+  it("lets a saved rule and the project's own settings stand while the person is away, with no card", async () => {
     const { core, project, threadId, delegate, leadBrief, asking, personSays, handToLead, heard } = await leadChat();
     await core.setPermissionMode(threadId, "default");
-    // The person once said "always" to the lead's `ls`: a rule saved for the game.
+    // The person once said "always" to the lead's `ls`: a rule saved for the project.
     const earlier = await personSays();
     await handToLead(earlier);
     const always: PermissionAsk["always"] = [{ kind: "rule", rule: "Bash(ls *)", scope: "game" }];
@@ -1830,7 +1855,7 @@ describe("a lead's calls follow the chat's mode and the rules that stand, whoeve
     assert.deepEqual(await turn([ls, read, fetch, edit]), [{}, {}, {}, {}], "nobody in the chat: its rules stand");
     const session = options.at(-1)!;
     assert.deepEqual((session.settings as { permissions: { allow: string[] } }).permissions.allow, ["Bash(ls *)"]);
-    assert.deepEqual(session.settingSources, [], "the game's settings require an explicit folder trust grant");
+    assert.deepEqual(session.settingSources, [], "the project's settings require an explicit folder trust grant");
     const cards = (await core.store.listEvents(threadId))
       .slice(rowsBefore)
       .filter((event) => customRecord(event.data)?.event_type === "tool_permission");
@@ -1843,22 +1868,22 @@ describe("a lead's calls follow the chat's mode and the rules that stand, whoeve
 });
 
 /**
- * The lead sits in the game folder the person plays, while its builders change the game in their
+ * The lead sits in the project folder the person plays, while its builders change the project in their
  * own worktrees and the night lands their work there. Flipped (owner, 2026-09-29; was review M2):
  * its own edit tools were refused that folder in every mode. The chat's mode decides them now, as
- * every other call, and the lead's prompt still leaves the game's changes to its builders.
+ * every other call, and the lead's prompt still leaves the project's changes to its builders.
  */
-describe("a lead's edit in the game folder is the chat's mode's to decide", () => {
+describe("a lead's edit in the project folder is the chat's mode's to decide", () => {
   it("leaves an edit there to the mode it started in, however the path is spelt", async () => {
     const { core, project, worktree, threadId, delegate, leadBrief, seen } = await leadChat();
-    const game = project.dir;
+    const projectName = project.dir;
     const outside = await tmpDir("lead-outside-");
-    await symlink(game, path.join(outside, "into-game"));
+    await symlink(projectName, path.join(outside, "into-project"));
     const calls: ScreenedCall[] = [
-      { tool: "Edit", input: { file_path: path.join(game, "src", "main.js") } },
+      { tool: "Edit", input: { file_path: path.join(projectName, "src", "main.js") } },
       { tool: "Write", input: { file_path: "src/relative.js" } },
-      { tool: "Edit", input: { file_path: path.join(outside, "into-game", "src", "main.js") } },
-      { tool: "Write", input: { file_path: path.join(game, ".git", "hooks", "pre-commit") } },
+      { tool: "Edit", input: { file_path: path.join(outside, "into-project", "src", "main.js") } },
+      { tool: "Write", input: { file_path: path.join(projectName, ".git", "hooks", "pre-commit") } },
       { tool: "Write", input: { file_path: path.join(worktree, "src", "sky.js") } },
       { tool: "Bash", input: { command: "rm -rf dist" } },
     ];
@@ -1870,7 +1895,7 @@ describe("a lead's edit in the game folder is the chat's mode's to decide", () =
     }
   });
 
-  it("leaves the coordinator's edit in the game folder to the mode too", async () => {
+  it("leaves the coordinator's edit in the project folder to the mode too", async () => {
     const { core, project, runId, threadId, delegate, seen, personSays, queue } = await leadChat();
     await core.setPermissionMode(threadId, "bypassPermissions");
     const message = await personSays();
@@ -1883,23 +1908,23 @@ describe("a lead's edit in the game folder is the chat's mode's to decide", () =
     assert.equal(await coordinator.screen({ tool: "Bash", input: { command: "ls ~/Desktop" } }), null);
   });
 
-  it("reaches what the chat's own session reaches: no deny list for the person's other games", async () => {
-    const { core, worktree, runId, game, delegate, leadBrief, seen } = await leadChat();
-    const other = await core.games.scaffold("lead-asks-sibling");
+  it("reaches what the chat's own session reaches: no deny list for the person's other projects", async () => {
+    const { core, worktree, runId, projectName, delegate, leadBrief, seen } = await leadChat();
+    const other = await core.projects.scaffold("lead-asks-sibling");
     await delegate(leadBrief());
     assert.ok(seen.at(-1)!.leadAsks, "the lead asks");
     assert.equal(
       (seen.at(-1)!.denyReads ?? []).some((dir) => dir === other.dir),
       false,
-      "another of the person's games is the mode's to decide",
+      "another of the person's projects is the mode's to decide",
     );
     await delegate({
       cwd: worktree,
-      selfCapture: { project: game, root: worktree, runId, facetId: "sky", label: "sky" },
+      selfCapture: { project: projectName, root: worktree, runId, facetId: "sky", label: "sky" },
       timeoutMs: 60_000,
     });
     assert.equal(seen.at(-1)!.leadAsks, undefined, "a builder is unattended");
-    assert.ok(seen.at(-1)!.denyReads?.includes(other.dir), "and still never reads another game");
+    assert.ok(seen.at(-1)!.denyReads?.includes(other.dir), "and still never reads another project");
   });
 
   // The harness names `extraReads` freely, and a folder read is a folder Accept edits (and Auto,
@@ -1925,7 +1950,7 @@ describe("a lead's edit in the game folder is the chat's mode's to decide", () =
     const coordinator = await reads({ coordinator: { runId, messageId: said }, readOnly: true, timeoutMs: 300_000 });
     for (const dir of hostile)
       assert.equal(coordinator.includes(path.resolve(dir)), false, `the coordinator never reads ${dir}`);
-    assert.ok(coordinator.includes(path.resolve(project.dir)), "the coordinator reads its game");
+    assert.ok(coordinator.includes(path.resolve(project.dir)), "the coordinator reads its project");
   });
 });
 
@@ -1997,11 +2022,14 @@ describe("a lead builds with its own hands in the build it leads", () => {
   });
 
   it("gets no opening for a worktree of a run its chat never started", async () => {
-    const { core, project, threadId, game, seen, delegate, personSays } = await leadChat();
-    // A worktree of this game under scratch, but of a run the game's chat never started.
+    const { core, project, threadId, projectName, seen, delegate, personSays } = await leadChat();
+    // A worktree of this project under scratch, but of a run the project's chat never started.
     const stranger = await runWorktree(core, project, "run_stranger", { recorded: false });
     await personSays();
-    await delegate({ chatTurn: { messageId: "run_stranger" }, ...leadGrant(threadId, game, "run_stranger", stranger) });
+    await delegate({
+      chatTurn: { messageId: "run_stranger" },
+      ...leadGrant(threadId, projectName, "run_stranger", stranger),
+    });
     const asks = seen.at(-1)?.leadAsks;
     const opened = asks ? !asks.protectWrites.some((fence) => isInside(fence, stranger)) : false;
     assert.equal(opened, false, "a worktree of a run this chat did not start stays fenced, or the lead is not seated");

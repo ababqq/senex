@@ -25,8 +25,8 @@ import { toEntries } from "../../src/renderer/chat-entries.ts";
 import { stringVocabularies, vocabularyValues } from "../helpers/vocabulary-scan.ts";
 
 const SRC = path.resolve(import.meta.dirname, "../../src");
-// Code shipped into the games themselves: its records are the game's, not the studio's.
-const NOT_STUDIO = new Set(["game-template", "page", "node_modules"]);
+// Code shipped into the projects themselves: its records are the project's, not the studio's.
+const NOT_STUDIO = new Set(["project-template", "page", "node_modules"]);
 
 async function studioSources(): Promise<string[]> {
   const entries = await readdir(SRC, { recursive: true, withFileTypes: true });

@@ -20,11 +20,11 @@ export function studioRpc(core: StudioCore, x: CoreInternals) {
   } satisfies Partial<HarnessHostHandlers>;
 }
 
-/** The studio as a session sees it: settings, games, recent activity and the proposals awaiting review. */
+/** The studio as a session sees it: settings, projects, recent activity and the proposals awaiting review. */
 async function studioContext(core: StudioCore, x: CoreInternals) {
   return {
     settings: core.settings,
-    games: (await core.games.list()).map((game) => ({ name: game.name, title: game.title })),
+    projects: (await core.projects.list()).map((project) => ({ name: project.name, title: project.title })),
     recentActivity: (await core.activityItems()).slice(0, STUDIO_CONTEXT_ACTIVITY_LIMIT).map((item) => ({
       ...item,
       title: item.title.slice(0, CONTEXT_TITLE_CHARS),

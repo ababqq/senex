@@ -99,7 +99,7 @@ test("NO LOCK: the events go out as a real drag — down, moves with the button 
 });
 
 test("LOCKED: byte-for-byte the shape that already works — no press, no button, frozen coordinates", () => {
-  // Under a real lock Chromium freezes clientX/clientY and the game reads
+  // Under a real lock Chromium freezes clientX/clientY and the project reads
   // movementX with no button held. This is the path measured delivering 158°
   // of sweep on the bare village, and it must not move.
   const page = fakePage({ locked: true });

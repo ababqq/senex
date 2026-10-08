@@ -174,7 +174,7 @@ import {
   allowedFile as hookAllowedFile,
   ownMatches as hookOwnMatches,
   ownershipReason,
-  relativeGamePath,
+  relativeProjectPath,
 } from "../../src/substrate/ownership.ts";
 import { ownershipHook } from "../../src/substrate/engines/claude-code.ts";
 import { ctxRecorder } from "../helpers/ctx-recorder.ts";
@@ -246,7 +246,7 @@ describe("readiness judge incidents", () => {
     const state = { score: 3 };
     for (const expr of [
       "state.lives != 0",
-      "!state.gameOver",
+      "!state.projectOver",
       "state.phase == undefined",
       "state.won || score > 1",
       "!(state.lives > 0) || score >= 3",
@@ -720,23 +720,23 @@ describe("harness incidents", () => {
       `water.js was never reverted on sky: ${JSON.stringify(enforced)}`,
     );
     const merges = customEvents(events, "integration_merge").filter((m) => m.facetId === "sky" && m.conflict === true);
-    const gameDirDebug = path.join(rig.core.layout.gamesRoot, "mergeworld");
+    const projectDirDebug = path.join(rig.core.layout.projectsRoot, "mergeworld");
     const debugLog = (
-      await gitFile(["-C", gameDirDebug, "log", "--all", "--format=%h %s", "--", "src/palette.js"]).catch(() => ({
+      await gitFile(["-C", projectDirDebug, "log", "--all", "--format=%h %s", "--", "src/palette.js"]).catch(() => ({
         stdout: "?",
       }))
     ).stdout;
     const debugPalette = (
-      await gitFile(["-C", gameDirDebug, "show", "HEAD:src/palette.js"]).catch(() => ({ stdout: "?" }))
+      await gitFile(["-C", projectDirDebug, "show", "HEAD:src/palette.js"]).catch(() => ({ stdout: "?" }))
     ).stdout;
     assert.ok(
       merges.length >= 1,
       `sky's worktree merge conflicted on palette.js, as designed — merges: ${JSON.stringify(customEvents(events, "integration_merge").map((m) => [m.facetId, m.conflict, m.stage ?? "worktree", m.union ?? null]))}; sky: ${JSON.stringify(skyIterations.map((i) => [i.iteration, i.verdictSource, i.winner]))}; builds ${JSON.stringify(builds)}; palette log:\n${debugLog}\nHEAD palette: ${debugPalette}`,
     );
-    const gameDir = path.join(rig.core.layout.gamesRoot, "mergeworld");
+    const projectDir = path.join(rig.core.layout.projectsRoot, "mergeworld");
     const { stdout: branches } = await gitFile([
       "-C",
-      gameDir,
+      projectDir,
       "for-each-ref",
       "--format=%(refname:short)",
       "refs/heads/",
@@ -744,15 +744,15 @@ describe("harness incidents", () => {
     // Every sky commit made after the manual merge still carries water.js.
     const skyHeads = branches.split("\n").filter((b) => /^attempt\/sky\//.test(b));
     for (const branch of skyHeads) {
-      const { stdout: tree } = await gitFile(["-C", gameDir, "ls-tree", "--name-only", "-r", branch]);
+      const { stdout: tree } = await gitFile(["-C", projectDir, "ls-tree", "--name-only", "-r", branch]);
       if (
         tree.includes("src/palette.js") &&
-        /palette = "water/.test((await gitFile(["-C", gameDir, "show", `${branch}:src/palette.js`])).stdout)
+        /palette = "water/.test((await gitFile(["-C", projectDir, "show", `${branch}:src/palette.js`])).stdout)
       ) {
         assert.ok(tree.includes("src/water.js"), `${branch} kept water.js after taking water's palette`);
       }
     }
-    const { stdout: landed } = await gitFile(["-C", gameDir, "ls-tree", "--name-only", "-r", "HEAD"]);
+    const { stdout: landed } = await gitFile(["-C", projectDir, "ls-tree", "--name-only", "-r", "HEAD"]);
     assert.ok(
       landed.includes("src/water.js") && landed.includes("src/sky.js"),
       `the landed build has both modules: ${landed}`,
@@ -801,8 +801,8 @@ describe("harness incidents", () => {
       merges.some((m) => m.union === true && m.conflict === false),
       `a wiring-block conflict was union-merged: ${JSON.stringify(merges.map((m) => [m.facetId, m.conflict, m.union]))}`,
     );
-    const gameDir = path.join(rig.core.layout.gamesRoot, "wireworld");
-    const landed = await readFile(path.join(gameDir, "src", "main.js"), "utf8");
+    const projectDir = path.join(rig.core.layout.projectsRoot, "wireworld");
+    const landed = await readFile(path.join(projectDir, "src", "main.js"), "utf8");
     assert.match(landed, /initwater\(\)/);
     assert.match(landed, /initsky\(\)/);
     assert.doesNotMatch(landed, /^(<{7}|={7}|>{7})/m);
@@ -1020,7 +1020,7 @@ describe("harness incidents", () => {
     assert.equal(sniffImage(Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47]), Buffer.alloc(16)]))?.ext, ".png");
     const rig = await startRig();
     rigs.push(rig);
-    await apiOf(rig)["game.scaffold"]!({ name: "stillworld", title: "Stills" });
+    await apiOf(rig)["project.scaffold"]!({ name: "stillworld", title: "Stills" });
     const saved = await rig.core.saveReferenceFrames("stillworld", [
       { label: "image-psd-102", mimeType: "image/jpeg", data: AVIF_BYTES.toString("base64") },
       { label: "dock", mimeType: "image/jpeg", data: JPEG_BYTES.toString("base64") },
@@ -1031,10 +1031,13 @@ describe("harness incidents", () => {
       rig.logs.some((line) => /reference skipped: image-psd-102 is AVIF/.test(line)),
       `the log says why: ${rig.logs.filter((l) => /reference/.test(l)).join(" | ")}`,
     );
-    // game.read refuses the renamed file rather than declaring it a JPEG.
-    const refDir = path.join(rig.core.layout.gamesRoot, "stillworld", "references");
+    // project.read refuses the renamed file rather than declaring it a JPEG.
+    const refDir = path.join(rig.core.layout.projectsRoot, "stillworld", "references");
     await writeFile(path.join(refDir, "renamed.jpg"), AVIF_BYTES);
-    await assert.rejects(apiOf(rig)["game.read"]!({ project: "stillworld", file: "references/renamed.jpg" }), /AVIF/);
+    await assert.rejects(
+      apiOf(rig)["project.read"]!({ project: "stillworld", file: "references/renamed.jpg" }),
+      /AVIF/,
+    );
     const listed = await rig.core.referenceStills("stillworld");
     assert.deepEqual(
       listed.frames.map((f) => f.label),
@@ -1047,8 +1050,8 @@ describe("harness incidents", () => {
   it("6b. D3 stills: a run with an empty board loads references/ from disk, and the first brief carries them as images", async () => {
     const rig = await startRig();
     rigs.push(rig);
-    await apiOf(rig)["game.scaffold"]!({ name: "refworld", title: "Refs" });
-    const refDir = path.join(rig.core.layout.gamesRoot, "refworld", "references");
+    await apiOf(rig)["project.scaffold"]!({ name: "refworld", title: "Refs" });
+    const refDir = path.join(rig.core.layout.projectsRoot, "refworld", "references");
     await mkdir(refDir, { recursive: true });
     await writeFile(path.join(refDir, "dock.jpg"), JPEG_BYTES);
     await writeFile(path.join(refDir, "strider.jpg"), JPEG_BYTES);
@@ -1577,7 +1580,7 @@ describe("harness incidents", () => {
     assert.equal(
       (await call("/w/marsh/docs/notes/NOTES.water.md")).decision,
       undefined,
-      "a builder's notes live in docs/notes/, out of the game's root",
+      "a builder's notes live in docs/notes/, out of the project's root",
     );
     assert.equal((await call("/w/marsh/src/studio.js")).decision, "block");
     assert.equal((await call("/elsewhere/x.js")).decision, "block");
@@ -1591,7 +1594,7 @@ describe("harness incidents", () => {
       ).decision,
       undefined,
     );
-    assert.equal(relativeGamePath("./src/a.js", "/w/marsh"), "src/a.js");
+    assert.equal(relativeProjectPath("./src/a.js", "/w/marsh"), "src/a.js");
     const cases: Array<[string, boolean]> = [
       ["src/water.js", false],
       ["src/sky.js", false],
@@ -1614,12 +1617,12 @@ describe("harness incidents", () => {
   });
 
   /**
-   * M4.6 — the same rule, in the game the user brought. `allowedFile` exists twice on purpose
+   * M4.6 — the same rule, in the project the user brought. `allowedFile` exists twice on purpose
    * (the hook reads one copy, the reviewer and the monitor read the other), so every new case
    * is driven through BOTH imports here: a rule that drifts between them is a worker refused an
    * edit at write time and told at review time that the edit was fine.
    */
-  it("M4.6: the seam — globs, and the four allowedFile changes for a game that is not the template", () => {
+  it("M4.6: the seam — globs, and the four allowedFile changes for a project that is not the template", () => {
     const agree = (file: string, spec: Record<string, unknown>, ownsMain: boolean, expected: boolean, why: string) => {
       assert.equal(hookAllowedFile(file, spec as never, ownsMain), expected, `hook: ${file} — ${why}`);
       assert.equal(reviewAllowedFile(file, spec as never, ownsMain), expected, `reviewer: ${file} — ${why}`);
@@ -1646,7 +1649,7 @@ describe("harness incidents", () => {
       assert.equal(reviewOwnMatches(file, own), expected, `reviewer: ${file} vs ${own}`);
     }
 
-    // (b) the FACET WIRING pass-through is the template's. A game the user brought has no such
+    // (b) the FACET WIRING pass-through is the template's. A project the user brought has no such
     // block, so a worker that does not own the entry does not get to open it — and an ABSENT
     // flag still means the template, which is what every caller written before M4.6 sends.
     const own = { id: "hud", owns: ["app/hud.tsx"], main: "src/main.ts" };
@@ -1662,7 +1665,7 @@ describe("harness incidents", () => {
     agree("src/scoreboard.ts", { ...core, template: false }, false, false, '"score" contains "core" — not a seam');
 
     // (d) the empty-owns fallback. `src/` for the template; everything but the entry, the
-    // contract, its declaration and the page for a game of its own, whose code is not under src/.
+    // contract, its declaration and the page for a project of its own, whose code is not under src/.
     const noSeam = { id: "w", owns: [], main: "src/main.ts", studio: "src/studio.js" };
     agree("app/hud.tsx", { ...noSeam, template: false }, false, true, "the user's own layout");
     agree("app/hud.tsx", noSeam, false, false, "the template's fallback is src/ only");
@@ -1688,7 +1691,7 @@ describe("harness incidents", () => {
     );
   });
 
-  it("M4.6: the union merge and the mechanical reviewer both stand down for a game that is not the template", async () => {
+  it("M4.6: the union merge and the mechanical reviewer both stand down for a project that is not the template", async () => {
     // `git merge-file --union` keeps both sides of every hunk: on an entry with no wiring block
     // it doubles the whole module and the result reads clean.
     const markerless = verifyWiringMerge('import { boot } from "./boot.js";\nboot();\n');
@@ -1706,9 +1709,9 @@ describe("harness incidents", () => {
     assert.equal(commands.length, 1, "with a wiring block it asks git what is unmerged, as before");
 
     // The four template rules, and the two contract rules that are nobody's option.
-    const spec = { id: "game", owns: ["src/game.ts"], checks: [] };
+    const spec = { id: "project", owns: ["src/project.ts"], checks: [] };
     const diff = [
-      "+++ b/src/game.ts",
+      "+++ b/src/project.ts",
       "@@ -1,0 +1,5 @@",
       "+const jitter = Math.random();",
       "+const now = Date.now();",
@@ -1722,7 +1725,7 @@ describe("harness incidents", () => {
     assert.deepEqual(
       mechanicalReview(diff, spec, { ownsMain: true, template: false }),
       [],
-      "the user's own randomness and clock are the game",
+      "the user's own randomness and clock are the project",
     );
 
     const removed = [
@@ -2805,7 +2808,7 @@ describe("harness incidents", () => {
     type Obj = any;
     const threeName = "three";
     const THREE = (await import(threeName)) as Record<string, Obj>;
-    const foliageName = "../../src/game-template/src/foliage.js";
+    const foliageName = "../../src/project-template/src/foliage.js";
     const foliage = (await import(foliageName)) as {
       makeTree: (o: Record<string, unknown>) => Obj;
       makeBush: (o: Record<string, unknown>) => Obj;
@@ -2941,8 +2944,8 @@ describe("the modeller in the loop (AG-930)", () => {
         return { sessionId: "ses" };
       },
     });
-    await rig.core.games.scaffold("snapshot-world");
-    const threadId = await rig.core.createGameThread("snapshot-world");
+    await rig.core.projects.scaffold("snapshot-world");
+    const threadId = await rig.core.createProjectThread("snapshot-world");
     // The disable lands in the one await every builder's preparation makes: the connectors' tool lists.
     const mcp = rig.core.mcp;
     const toolsFor = mcp.toolsFor.bind(mcp);
@@ -2977,8 +2980,8 @@ describe("the modeller in the loop (AG-930)", () => {
     };
     registerFakeEngine(rig, hooks);
     registerFakeEngine(rig, hooks, "fake-other");
-    await rig.core.games.scaffold("withdrawn-world");
-    const threadId = await rig.core.createGameThread("withdrawn-world");
+    await rig.core.projects.scaffold("withdrawn-world");
+    const threadId = await rig.core.createProjectThread("withdrawn-world");
     const delegate = async (engine: string, resume?: string) => {
       await apiOf(rig)["engine.delegate"]!({
         engine,
@@ -3022,8 +3025,8 @@ describe("the modeller in the loop (AG-930)", () => {
         return { sessionId: request.resume ?? "ses" };
       },
     });
-    await rig.core.games.scaffold("withdrawn-retry");
-    const threadId = await rig.core.createGameThread("withdrawn-retry");
+    await rig.core.projects.scaffold("withdrawn-retry");
+    const threadId = await rig.core.createProjectThread("withdrawn-retry");
     const delegate = (resume?: string) =>
       apiOf(rig)["engine.delegate"]!({
         engine: "fake-delegate",
@@ -3058,8 +3061,8 @@ describe("the modeller in the loop (AG-930)", () => {
         return { sessionId: request.resume ?? `ses${sessions}` };
       },
     });
-    await rig.core.games.scaffold("withdrawn-interleaved");
-    const threadId = await rig.core.createGameThread("withdrawn-interleaved");
+    await rig.core.projects.scaffold("withdrawn-interleaved");
+    const threadId = await rig.core.createProjectThread("withdrawn-interleaved");
     const delegate = (resume?: string) =>
       apiOf(rig)["engine.delegate"]!({
         engine: "fake-delegate",
@@ -3229,7 +3232,7 @@ describe("the loop dies in the middle of the night (M3.9)", () => {
       { previewPoolMax: 2, createHeadlessPreview: async () => makeFakePreview() },
     );
     rigs.push(rig);
-    const project = await rig.core.games.scaffold("crash-night", { title: "Crash night" });
+    const project = await rig.core.projects.scaffold("crash-night", { title: "Crash night" });
     const aborts = { lead: 0, builder: 0 };
     const letBuilderGo: Array<() => void> = [];
     registerFakeEngine(rig, {
@@ -3326,11 +3329,11 @@ describe("the loop dies in the middle of the night (M3.9)", () => {
     );
 
     // The reborn loop owes the night an ending where the user is looking.
-    const threadId = await rig.core.threadForGame(project.name);
+    const threadId = await rig.core.threadForProject(project.name);
     await until(
       async () =>
         customEvents(await rig.core.store.listEvents(threadId), "autopilot_paused").some((e) => e.runId === runId),
-      "the paused card in the game's own chat",
+      "the paused card in the project's own chat",
       120_000,
     );
     const inThread = await rig.core.store.listEvents(threadId);
@@ -3343,7 +3346,7 @@ describe("the loop dies in the middle of the night (M3.9)", () => {
     assert.equal(
       customEvents(main, "run_finished").filter((e) => e.runId === runId).length,
       0,
-      "the ending is in the game's chat, not the studio's",
+      "the ending is in the project's chat, not the studio's",
     );
     // Paused, not dead: what makes the card's Resume real is the journal it can pick up from.
     const journal = (await rig.core.store.readArtifact(threadId, `autopilot_${runId}`)) as { phase?: string } | null;
@@ -3368,8 +3371,8 @@ describe("the loop dies in the middle of the night (M3.9)", () => {
   it("a run this incarnation of the loop never started can still be stopped: the builders are reached by the project its start event names", async () => {
     const rig = await startRig();
     rigs.push(rig);
-    const project = await rig.core.games.scaffold("stop-after-restart", { title: "Stop after restart" });
-    const threadId = await rig.core.threadForGame(project.name);
+    const project = await rig.core.projects.scaffold("stop-after-restart", { title: "Stop after restart" });
+    const threadId = await rig.core.threadForProject(project.name);
     const runId = "run_orphaned";
     // The night as the previous incarnation left it, and as the reborn loop's own repair closed it.
     await rig.core.store.appendEvents(threadId, [
@@ -3456,7 +3459,7 @@ describe("a night the loop died in, resumed (the full journal)", () => {
       { previewPoolMax: 3, createHeadlessPreview: async () => makeFakePreview() },
     );
     rigs.push(rig);
-    const project = await rig.core.games.scaffold("resume-night", { title: "Resume night" });
+    const project = await rig.core.projects.scaffold("resume-night", { title: "Resume night" });
     const lead: DelegateRequest[] = [];
     let resumed = false;
     let resumedTurnAt = 0;
@@ -3512,7 +3515,7 @@ describe("a night the loop died in, resumed (the full journal)", () => {
         budgets: { wallClockMs: BUDGET_MS },
       } as never)
       .catch(() => {});
-    const threadId = await rig.core.threadForGame(project.name);
+    const threadId = await rig.core.threadForProject(project.name);
     const journal = async () =>
       ((await rig.core.store.readArtifact(threadId, `autopilot_${runId}`).catch(() => null)) ?? null) as Record<
         string,
@@ -3588,7 +3591,7 @@ describe("a rollback the snapshot engine refused (R1)", () => {
    * branch), and the report still said "rolled back" while the losing build stayed live.
    */
   it("R1. a refused rollback is reported as not rolled back, with the engine's reason", async () => {
-    const { rollBackGame } = await import("../../src/harness-seed/loop/autopilot.ts");
+    const { rollBackProject } = await import("../../src/harness-seed/loop/autopilot.ts");
     const { ctxRecorder } = await import("../helpers/ctx-recorder.ts");
     const refused = ctxRecorder({
       handlers: {
@@ -3598,7 +3601,7 @@ describe("a rollback the snapshot engine refused (R1)", () => {
       },
     });
     const run = { runId: "run_r1", project: "pong" };
-    const outcome = await rollBackGame(refused.ctx, { run, snapshot: { snapshot_id: "snap_1" }, reason: "lost" });
+    const outcome = await rollBackProject(refused.ctx, { run, snapshot: { snapshot_id: "snap_1" }, reason: "lost" });
     assert.equal(outcome.rolledBack, false);
     assert.match(String(outcome.refusal), /did not make/);
     assert.deepEqual(refused.paramsOf("snapshot.restore")[0], {
@@ -3608,10 +3611,13 @@ describe("a rollback the snapshot engine refused (R1)", () => {
       reason: "lost",
     });
     const accepted = ctxRecorder({ handlers: { "snapshot.restore": () => null } });
-    assert.deepEqual(await rollBackGame(accepted.ctx, { run, snapshot: { snapshot_id: "snap_1" }, reason: "lost" }), {
-      rolledBack: true,
-      refusal: null,
-    });
+    assert.deepEqual(
+      await rollBackProject(accepted.ctx, { run, snapshot: { snapshot_id: "snap_1" }, reason: "lost" }),
+      {
+        rolledBack: true,
+        refusal: null,
+      },
+    );
   });
 });
 
@@ -3770,7 +3776,7 @@ describe("the lead's later turns (wake loop)", () => {
       { previewPoolMax: 2, createHeadlessPreview: async () => makeFakePreview() },
     );
     rigs.push(rig);
-    const project = await rig.core.games.scaffold(name, { title: name });
+    const project = await rig.core.projects.scaffold(name, { title: name });
     const turns: DelegateRequest[] = [];
     registerFakeEngine(rig, {
       complete: () => null,
@@ -4060,8 +4066,8 @@ describe("the wake loop, reviewed", () => {
       { previewPoolMax: 2, createHeadlessPreview: async () => makeFakePreview() },
     );
     rigs.push(rig);
-    const project = await rig.core.games.scaffold("late-finish", { title: "late-finish" });
-    const thread = await rig.core.threadForGame(project.name);
+    const project = await rig.core.projects.scaffold("late-finish", { title: "late-finish" });
+    const thread = await rig.core.threadForProject(project.name);
     const runId = rig.core.newRunId();
     const turns: DelegateRequest[] = [];
     const played: DelegateRequest[] = [];
@@ -4661,7 +4667,7 @@ describe("live chat during a build, reviewed", () => {
  * One session, reviewed: holes a lead would have fallen into — a conflict worker committing the
  * markers it left, changes no worker made stopping every merge for good, a first turn crashing the
  * night because the lead's lock was still held — and, once the lead was limited only by the chat's
- * permission mode, what its own commands leave in the game folder at the landing.
+ * permission mode, what its own commands leave in the project folder at the landing.
  */
 describe("one session, reviewed", () => {
   /** A ctx whose `run.exec` runs the command here, in the folder it names — real git, no host. */
@@ -4766,7 +4772,7 @@ describe("one session, reviewed", () => {
       note: (text: string) => notes.push(text),
     };
     assert.equal(await setAsideStrays(night as never, "label"), null, "a clean worktree has nothing to set aside");
-    // A game that builds in place: a file it generated, and one it rewrote.
+    // A project that builds in place: a file it generated, and one it rewrote.
     await writeFile(path.join(dir, "built.txt"), "made by a build\n");
     await writeFile(path.join(dir, "src", "sign.js"), "export const sign = 'rebuilt';\n");
     const setAside = await setAsideStrays(night as never, "label");
@@ -4820,7 +4826,7 @@ describe("one session, reviewed", () => {
       },
     );
     rigs.push(rig);
-    const project = await rig.core.games.scaffold(name, { title: name });
+    const project = await rig.core.projects.scaffold(name, { title: name });
     const results: Record<string, any> = {};
     let turns = 0;
     registerFakeEngine(rig, {
@@ -4887,9 +4893,9 @@ describe("one session, reviewed", () => {
   }
   const gitIn = async (cwd: string, args: string[]) => (await gitFile(args, { cwd })).stdout.trim();
 
-  it("OS5. the lead's own file in the game folder stops the landing: the close names it and blames nobody, never 'changes of your own'", async () => {
-    const { project, runId, results, finished } = await leadClose("os5-lead-in-game", async (request) => {
-      // The lead, whose cwd is the game folder, wrote the file its builder also adds.
+  it("OS5. the lead's own file in the project folder stops the landing: the close names it and blames nobody, never 'changes of your own'", async () => {
+    const { project, runId, results, finished } = await leadClose("os5-lead-in-project", async (request) => {
+      // The lead, whose cwd is the project folder, wrote the file its builder also adds.
       await writeFile(path.join(request.cwd, "src", "sky.js"), "export const sky = 'what the lead tried';\n");
     });
     assert.equal(finished.landed, false, String(finished.stoppedBecause));
@@ -4897,12 +4903,12 @@ describe("one session, reviewed", () => {
     assert.doesNotMatch(results.finished, /of your own/, results.finished);
     assert.match(
       results.finished,
-      /git would not land this build over what is uncommitted in the game folder — src\/sky\.js\. No worker did this/,
+      /git would not land this build over what is uncommitted in the project folder — src\/sky\.js\. No worker did this/,
     );
     assert.match(results.finished, /leave it as it is/, "never an invitation to clear the folder");
     const close = (finished.verdicts as Array<{ pass: string; because: string }>).find((v) => v.pass === "close")!;
     assert.doesNotMatch(close.because, /of (?:your|its) own/, close.because);
-    // The sentence is kept in the game's lessons and read by the next night's lead: no order in it.
+    // The sentence is kept in the project's lessons and read by the next night's lead: no order in it.
     assert.match(close.because, /left beside it, waiting for Make it live\.$/);
     // Nothing forced: the file as the lead left it, and the build on its ref for Make it live.
     assert.equal(await gitIn(project.dir, ["status", "--porcelain"]), "?? src/sky.js");
@@ -4923,13 +4929,13 @@ describe("one session, reviewed", () => {
     assert.equal(beside.finished.landed, true, beside.results.finished);
     assert.match(
       beside.results.finished,
-      /is live in the game folder \([^)]*\) — the game folder still has uncommitted changes the landing left as they were — test-results\/; they are not part of this build — tell the user, and leave them as they are/,
+      /is live in the project folder \([^)]*\) — the project folder still has uncommitted changes the landing left as they were — test-results\/; they are not part of this build — tell the user, and leave them as they are/,
     );
     assert.equal(await gitIn(beside.project.dir, ["status", "--porcelain"]), "?? test-results/");
   });
 
   /**
-   * A game folder at `base` and a build that adds src/sky.js, and the landing (`landIntegration`)
+   * A project folder at `base` and a build that adds src/sky.js, and the landing (`landIntegration`)
    * over a night of real git in them: the close's own look and head are not the question here.
    */
   async function landingOver(prepare: (git: (...a: string[]) => Promise<string>, dir: string) => Promise<void>) {
@@ -4940,7 +4946,7 @@ describe("one session, reviewed", () => {
     await git("config", "user.email", "t@t");
     await git("config", "user.name", "t");
     await mkdir(path.join(dir, "src"), { recursive: true });
-    await writeFile(path.join(dir, "README.md"), "a game\n");
+    await writeFile(path.join(dir, "README.md"), "a project\n");
     await writeFile(path.join(dir, "src", "sign.js"), "export const sign = 'none';\n");
     await git("add", "-A");
     await git("commit", "-qm", "base");
@@ -4979,13 +4985,13 @@ describe("one session, reviewed", () => {
     return { landed, git, dir, head, notes, report };
   }
 
-  it("OS6. the landing tells uncommitted changes in the game folder from commits that conflict or a hook that refuses, and never undoes a merge of the user's own under way", async () => {
+  it("OS6. the landing tells uncommitted changes in the project folder from commits that conflict or a hook that refuses, and never undoes a merge of the user's own under way", async () => {
     // Only a stray the build does not touch: it lands, and the stray is named, left as it was.
     const clean = await landingOver(async (_git, dir) => {
       await writeFile(path.join(dir, "notes.txt"), "mine\n");
     });
     assert.equal(clean.landed.ok, true, clean.landed.reason);
-    assert.deepEqual(clean.landed.leftInGame, ["notes.txt"]);
+    assert.deepEqual(clean.landed.leftInProject, ["notes.txt"]);
     assert.equal(await clean.git("status", "--porcelain"), "?? notes.txt");
     assert.match(clean.notes.join("\n"), /still has uncommitted changes the landing left as they were — notes\.txt/);
 
@@ -5018,13 +5024,13 @@ describe("one session, reviewed", () => {
     // A merge of the user's own under way, its conflict resolved and staged: never merged into, never aborted.
     const underWay = await landingOver(async (git, dir) => {
       await git("checkout", "-qb", "theirs");
-      await writeFile(path.join(dir, "README.md"), "a game, theirs\n");
+      await writeFile(path.join(dir, "README.md"), "a project, theirs\n");
       await git("commit", "-qam", "theirs");
       await git("checkout", "-q", "main");
-      await writeFile(path.join(dir, "README.md"), "a game, mine\n");
+      await writeFile(path.join(dir, "README.md"), "a project, mine\n");
       await git("commit", "-qam", "mine");
       await git("merge", "-q", "theirs").catch(() => {});
-      await writeFile(path.join(dir, "README.md"), "a game, ours\n");
+      await writeFile(path.join(dir, "README.md"), "a project, ours\n");
       await git("add", "README.md");
     });
     assert.equal(underWay.landed.why, "uncommitted-changes", underWay.landed.reason);
@@ -5032,15 +5038,15 @@ describe("one session, reviewed", () => {
     assert.doesNotMatch(underWay.landed.reason, /of your own/);
     assert.ok(await underWay.git("rev-parse", "-q", "--verify", "MERGE_HEAD"), "their merge is still under way");
     assert.equal(await underWay.git("diff", "--cached", "--name-only"), "README.md", "its resolution still staged");
-    assert.equal(await readFile(path.join(underWay.dir, "README.md"), "utf8"), "a game, ours\n");
+    assert.equal(await readFile(path.join(underWay.dir, "README.md"), "utf8"), "a project, ours\n");
 
     // The same merge resolved to their own side: nothing for git status to show, and still under way.
     const ours = await landingOver(async (git, dir) => {
       await git("checkout", "-qb", "theirs");
-      await writeFile(path.join(dir, "README.md"), "a game, theirs\n");
+      await writeFile(path.join(dir, "README.md"), "a project, theirs\n");
       await git("commit", "-qam", "theirs");
       await git("checkout", "-q", "main");
-      await writeFile(path.join(dir, "README.md"), "a game, mine\n");
+      await writeFile(path.join(dir, "README.md"), "a project, mine\n");
       await git("commit", "-qam", "mine");
       await git("merge", "-q", "theirs").catch(() => {});
       await git("checkout", "--ours", "README.md");
@@ -5060,7 +5066,7 @@ describe("the Loop's time limit", () => {
    * a user who picked 24 h.
    */
   it("L1. ∞ Loop is recorded as until satisfied, not as a 24-hour cap", async () => {
-    const { tools } = await import("../../src/harness-seed/tools/game-tools.ts");
+    const { tools } = await import("../../src/harness-seed/tools/project-tools.ts");
     const { intakeBudgets } = await import("../../src/harness-seed/loop/chat-dispatch.ts");
     const { ctxRecorder } = await import("../helpers/ctx-recorder.ts");
     const startAutopilot = tools.find((tool) => tool.name === "start_autopilot");
@@ -5168,7 +5174,7 @@ describe("a run started again after a close of its own", () => {
 
   /**
    * Start the run again, as a resume, on a host that keeps `log` and lists it from a cursor as the
-   * host does. The engine is session-capable, so the night is a director's; no game has its name,
+   * host does. The engine is session-capable, so the night is a director's; no project has its name,
    * so the night cannot ready its folder and throws. Answers the run's ctx and what the app was told.
    */
   async function startAgain(
@@ -5183,7 +5189,7 @@ describe("a run started again after a close of its own", () => {
       [HostMethod.EventsList]: (params) =>
         params?.after ? log.slice(log.findIndex((entry) => entry.id === params.after) + 1) : [...log],
       [HostMethod.EngineDescribe]: () => [{ id: "codex", kind: "delegated" }],
-      [HostMethod.GameList]: () => [],
+      [HostMethod.ProjectList]: () => [],
       ...hostAnswers,
     };
     const failed: unknown[] = [];
@@ -5541,7 +5547,7 @@ describe("a Loop message after a finished build the run's coordinator answers fo
   /**
    * A chat whose build finished under a lead of its own, on a host that keeps the log and the journal.
    * The coordinator, when asked, continues the build as the host's continue_build records it; any
-   * other session is a builder. Once the chat's turn has ended no game has the build's name, so a
+   * other session is a builder. Once the chat's turn has ended no project has the build's name, so a
    * night started again throws before it builds and closes.
    */
   function coordinatedChat(
@@ -5588,7 +5594,7 @@ describe("a Loop message after a finished build the run's coordinator answers fo
         store.turnOver = true;
       },
       [HostMethod.EventsMessages]: () => [],
-      [HostMethod.GameList]: () => (store.turnOver ? [] : [{ name: "plaza", title: "Plaza" }]),
+      [HostMethod.ProjectList]: () => (store.turnOver ? [] : [{ name: "plaza", title: "Plaza" }]),
       [HostMethod.EngineDelegate]: (params) => {
         if (!params.coordinator) {
           asked.builders.push(params);
@@ -5891,7 +5897,7 @@ describe("a finished build reopened, and the outcomes it must verify", () => {
  */
 describe("a quick fix after a finished Loop build (golden-boot-glory)", () => {
   const grant = { hours: 3, frameCount: 2, project: "golden-boot-glory", launchTool: "start_autopilot" };
-  const finished = { runId: "run_gb", state: "finished", goal: "a soccer game", landed: true, reopenable: true };
+  const finished = { runId: "run_gb", state: "finished", goal: "a soccer project", landed: true, reopenable: true };
 
   it("GB1. Loop permits a build but never orders one: a contained change after a finished build is the session's own edit, and only more work reopens it", async () => {
     const { afterNightNote } = await import("../../src/harness-seed/loop/after-night-prompts.ts");
@@ -5927,7 +5933,7 @@ describe("a quick fix after a finished Loop build (golden-boot-glory)", () => {
     const spent = { wallClockMs: 3 * HOUR_MS, completionPolicy: CompletionPolicy.Duration, review: false };
     const budgets = reopenBudgets(spent, 3);
     assert.deepEqual(budgets, { review: false, wallClockMs: 3 * HOUR_MS, completionPolicy: CompletionPolicy.Goal });
-    const run = reopenedRun({ runId: "run_gb", goal: "a soccer game", budgets: spent } as never, budgets, null);
+    const run = reopenedRun({ runId: "run_gb", goal: "a soccer project", budgets: spent } as never, budgets, null);
     const now = Date.parse("2026-10-02T15:48:00Z");
     assert.equal(
       timedWorkRemaining(run as never, now + 3 * HOUR_MS, now),
@@ -5986,7 +5992,7 @@ describe("a quick fix after a finished Loop build (golden-boot-glory)", () => {
     const { workingGoal } = await import("../../src/harness-seed/loop/goal-prompts.ts");
     const { withAsk } = await import("../../src/harness-seed/loop/reopen-run.ts");
     const { finalJudgeQuestion } = await import("../../src/harness-seed/loop/director/close-prompts.ts");
-    const commission = `Make a soccer game: a realistic 11v11 broadcast match. ${"Both teams hold a formation shape. ".repeat(12)}Presentation is a TV broadcast with an active-player indicator ring and name.`;
+    const commission = `Make a soccer project: a realistic 11v11 broadcast match. ${"Both teams hold a formation shape. ".repeat(12)}Presentation is a TV broadcast with an active-player indicator ring and name.`;
     const ask = "Remove both floating name plates: the active player's and the pass target's.";
     const run = { goal: commission, asks: withAsk({ goal: commission }, ask) };
 
@@ -6005,7 +6011,7 @@ describe("a quick fix after a finished Loop build (golden-boot-glory)", () => {
     const { nightReport } = await import("../../src/harness-seed/loop/director/setup.ts");
     const { recordNight } = await import("../../src/harness-seed/loop/director/journal.ts");
     const { keptNewRounds } = await import("../../src/harness-seed/loop/run-dispatch.ts");
-    const run = { runId: "run_gb", project: "golden-boot-glory", goal: "a soccer game", reference: { name: "FC" } };
+    const run = { runId: "run_gb", project: "golden-boot-glory", goal: "a soccer project", reference: { name: "FC" } };
     const earlier = {
       workers: { audio: { id: "audio" }, hud: { id: "hud" } },
       iterations: [{ facetId: "audio" }, { facetId: "hud" }],
@@ -6098,25 +6104,25 @@ describe("the reviewers and the playtester of a broadcast match (golden-boot-glo
 });
 
 /**
- * ask-first: the write-less interviewer that commissioned a build used to ask what the game is and
+ * ask-first: the write-less interviewer that commissioned a build used to ask what the project is and
  * how it should look before it launched (usually one question). The Loop chat that replaced it asked
- * only whether a build was wanted, so a bare pitch — "make me a game, quickly" — became a build in a
+ * only whether a build was wanted, so a bare pitch — "make me a project, quickly" — became a build in a
  * style nobody chose.
  */
-describe("a pitch that says neither what the game is nor how it looks (ask-first)", () => {
+describe("a pitch that says neither what the project is nor how it looks (ask-first)", () => {
   /** The rule every Loop briefing carries, whichever engine reads it. */
   const assertAsksFirst = (brief: string, label: string) => {
-    assert.match(brief, /know what the game is/i, `${label}: what the game is`);
+    assert.match(brief, /know what the project is/i, `${label}: what the project is`);
     assert.match(brief, /how it should look/i, `${label}: how it looks`);
     assert.match(brief, /even when the user asks for speed/i, `${label}: a hurry does not skip the question`);
     assert.match(
       brief,
       /a quick build is still a build/i,
-      `${label}: a hurry does not turn a new game into a chat edit`,
+      `${label}: a hurry does not turn a new project into a chat edit`,
     );
   };
 
-  it("ask-first. a Loop chat given a pitch in a hurry is told to ask what the game is and how it looks before it builds", async () => {
+  it("ask-first. a Loop chat given a pitch in a hurry is told to ask what the project is and how it looks before it builds", async () => {
     const rig = await startRig({ replies: [] });
     rigs.push(rig);
     const requests: DelegateRequest[] = [];
@@ -6132,7 +6138,7 @@ describe("a pitch that says neither what the game is nor how it looks (ask-first
         return { ok: true, engine: "vendor", sessionId: "loop-pitch", turns: 1, usage: {}, summary: "On it." };
       },
     });
-    await rig.core.sendUserMessage("Make me a game, quickly.", { engine: "vendor", autopilot: { hours: 1 } });
+    await rig.core.sendUserMessage("Make me a project, quickly.", { engine: "vendor", autopilot: { hours: 1 } });
     await waitForLog(rig.core, (log) => log.some((e) => e.data.type === "turn_ended"), 30_000, "turn");
 
     assert.equal(requests.length, 1);
@@ -6215,8 +6221,8 @@ describe("the final judge when the user is in a hurry", () => {
     );
     rigs.push(rig);
     asScene(rig.preview);
-    const project = await rig.core.games.scaffold(name, { title: name });
-    const thread = await rig.core.threadForGame(project.name);
+    const project = await rig.core.projects.scaffold(name, { title: name });
+    const thread = await rig.core.threadForProject(project.name);
     const runId = rig.core.newRunId();
     const asked: string[] = [];
     const results: Record<string, string> = {};
@@ -6282,7 +6288,7 @@ describe("the final judge when the user is in a hurry", () => {
     return { asked, events, finished, judgedLanding, project, results };
   }
 
-  it("hurry-1. a game the user had, finished in a hurry without the lead judging it: the close judges what it makes live against that game", async () => {
+  it("hurry-1. a project the user had, finished in a hurry without the lead judging it: the close judges what it makes live against that project", async () => {
     const { asked, finished, judgedLanding, results } = await hurriedNight("hurry-existing");
 
     assert.equal(finished.landed, true, `${finished.stoppedBecause} | ${results.finished}`);
@@ -6290,13 +6296,13 @@ describe("the final judge when the user is in a hurry", () => {
     assert.equal(judgedLanding[0].seen.pick, "challenger", JSON.stringify(judgedLanding[0]));
     assert.ok(
       asked.some((text) => text.includes("BUILD A") && text.includes("BUILD B")),
-      "a blind comparison with the game the user had",
+      "a blind comparison with the project the user had",
     );
     assert.equal(finished.landingResult.how, LandingHow.JudgePick, JSON.stringify(finished.landingResult));
     assert.match(results.finished, /a judge preferred it/, "the lead hears the judge's word before it sums up");
   });
 
-  it("hurry-2. a new game finished in a hurry: the close asks a judge whether the build does what was asked, and the card says what it answered", async () => {
+  it("hurry-2. a new project finished in a hurry: the close asks a judge whether the build does what was asked, and the card says what it answered", async () => {
     const { finished, judgedLanding, results } = await hurriedNight("hurry-scratch", { fromScratch: true });
 
     assert.equal(finished.landed, true, `${finished.stoppedBecause} | ${results.finished}`);
@@ -6309,7 +6315,7 @@ describe("the final judge when the user is in a hurry", () => {
     assert.match(results.finished, /a judge found it does what you asked/);
   });
 
-  it("hurry-3. a new game whose judge gave no usable answer: the card does not say the judge found it wanting", async () => {
+  it("hurry-3. a new project whose judge gave no usable answer: the card does not say the judge found it wanting", async () => {
     const { finished, judgedLanding, results } = await hurriedNight("hurry-unsure", {
       fromScratch: true,
       judge: (text) => (text.includes("QUESTION:") ? "sorry, I cannot tell from one picture" : null),
@@ -6356,7 +6362,7 @@ describe("a reply cut off by its output limit (P04-V1)", () => {
           message: {
             role: "assistant",
             content: cut ? "Writing the whole file" : "Done in smaller steps.",
-            ...(cut ? { tool_calls: [{ id: "cut-1", name: "list_games", arguments: {} }] } : {}),
+            ...(cut ? { tool_calls: [{ id: "cut-1", name: "list_projects", arguments: {} }] } : {}),
           },
           usage: {},
           stopReason: cut ? "length" : "stop",
@@ -6365,7 +6371,7 @@ describe("a reply cut off by its output limit (P04-V1)", () => {
         };
       },
     });
-    await rig.core.sendUserMessage("rewrite the game", { engine: "fake-direct" });
+    await rig.core.sendUserMessage("rewrite the project", { engine: "fake-direct" });
     const log = await waitForLog(rig.core, (l) => l.some((e) => e.data.type === "turn_ended"), 30_000, "turn_ended");
 
     const toolEvents = log.filter((e) => e.data.type === "tool_requested" || e.data.type === "tool_result");
@@ -6377,7 +6383,7 @@ describe("a reply cut off by its output limit (P04-V1)", () => {
     const userSaid = log.flatMap((e) =>
       e.data.type === "messages" ? e.data.messages.filter((m) => m.role === "user").map((m) => m.content) : [],
     );
-    assert.deepEqual(userSaid, ["rewrite the game"], "the note is Studio's, never put in the user's mouth");
+    assert.deepEqual(userSaid, ["rewrite the project"], "the note is Studio's, never put in the user's mouth");
   });
 });
 
@@ -6436,7 +6442,7 @@ describe("a turn's round limit (P04-F10)", () => {
           message: {
             role: "assistant",
             content: "",
-            tool_calls: [{ id: `c${Math.random()}`, name: "list_games", arguments: {} }],
+            tool_calls: [{ id: `c${Math.random()}`, name: "list_projects", arguments: {} }],
           },
           usage: {},
         }),
@@ -6470,7 +6476,9 @@ describe("a failed tool call on the local engine (P04-F10)", () => {
         id: "01d",
         data: {
           type: "messages",
-          messages: [{ role: "assistant", content: "", tool_calls: [{ id: "c2", name: "list_games", arguments: {} }] }],
+          messages: [
+            { role: "assistant", content: "", tool_calls: [{ id: "c2", name: "list_projects", arguments: {} }] },
+          ],
         },
       },
       { id: "01e", data: { type: "tool_result", tool_call_id: "c2", result: { ok: true, content: "none" } } },
@@ -6495,14 +6503,14 @@ describe("two starts of a night on one chat at once (P07-F1)", () => {
   it("reserves the chat for the first; the second is refused, not started beside it", async () => {
     const { handleRunStart } = await import("../../src/harness-seed/loop/run-dispatch.ts");
     const appended: Array<Record<string, any>> = [];
-    let gameLists = 0;
+    let projectLists = 0;
     const host = {
       workspace: "/nonexistent",
       notify: () => {},
       call: async (method: string, params?: { batch?: Array<Record<string, any>> }): Promise<unknown> => {
         if (method === HostMethod.EventsAppend) appended.push(...(params?.batch ?? []));
-        if (method !== HostMethod.GameList) return null;
-        gameLists++;
+        if (method !== HostMethod.ProjectList) return null;
+        projectLists++;
         // A folder no night can build on: each start that gets this far ends here, cleanly.
         return [{ name: "plaza", shape: { kind: "engine-export" } }];
       },
@@ -6525,7 +6533,7 @@ describe("two starts of a night on one chat at once (P07-F1)", () => {
 
     await Promise.all([start("run-a"), start("run-b")]);
 
-    assert.equal(gameLists, 1, "only one night got past the reservation");
+    assert.equal(projectLists, 1, "only one night got past the reservation");
     const blocked = appended.filter((data) => data.event_type === "run_start_blocked").map((data) => data.payload);
     assert.ok(
       blocked.some((payload) => payload.requestedRunId === "run-b" && payload.runId === "run-a"),
@@ -6631,13 +6639,18 @@ describe("a steer read twice at once (P09-F10)", () => {
 });
 
 describe("a gamed check, as the model reviewer marks it (P11-F9)", () => {
-  it("counts a finding as gaming by the reviewer's own flag, never by the word 'game' in it", async () => {
+  it("counts a finding as gaming by the reviewer's own flag, never by the word 'project' in it", async () => {
     const { reviewDiff } = await import("../../src/harness-seed/loop/judge.ts");
     const { gamedChecks } = await import("../../src/harness-seed/loop/facet/phases/review.ts");
     const reply = JSON.stringify({
       violations: [
-        // Honest findings that happen to say "game": a game about games trips a word match.
-        { file: "src/jump.js", line: 3, what: "jump_height is tuned in the game's config, not here", fix: "move it" },
+        // Honest findings that happen to say "project": a project about projects trips a word match.
+        {
+          file: "src/jump.js",
+          line: 3,
+          what: "jump_height is tuned in the project's config, not here",
+          fix: "move it",
+        },
         { file: "src/jump.js", line: 9, what: "jump_lands reports landed: true without a raycast", gaming: true },
       ],
       summary: "one forced probe",
@@ -6764,8 +6777,8 @@ describe("an Autopilot night whose landing conflicts (P13-F1)", () => {
   it("ends at the failed landing: the user's folder is neither judged as the night's build nor rolled back", async () => {
     const rig = await startRig();
     rigs.push(rig);
-    const project = await rig.core.games.scaffold("landclash");
-    const live = rig.core.games.dirFor(project.name);
+    const project = await rig.core.projects.scaffold("landclash");
+    const live = rig.core.projects.dirFor(project.name);
     const plan = twoFacetPlan();
     let userCommitted = false;
     const USER_WATER = "export const water = 'the user\\'s own marsh';\n";
@@ -6777,7 +6790,7 @@ describe("an Autopilot night whose landing conflicts (P13-F1)", () => {
         if (/YOUR FACET: Water|facet "Water"/.test(request.prompt)) {
           await writeFile(path.join(cwd, "src", "water.js"), "export const water = 'the night\\'s marsh';\n");
           if (!userCommitted) {
-            // Meanwhile the user commits their own evening of work on the same file in the game folder.
+            // Meanwhile the user commits their own evening of work on the same file in the project folder.
             userCommitted = true;
             await writeFile(path.join(live, "src", "water.js"), USER_WATER);
             await gitFile(["-C", live, "add", "-A"]);
@@ -6812,7 +6825,7 @@ describe("Stop on a one-facet Autopilot night (P13-V1)", () => {
   it("pauses the night where it was: no finalization is journaled for Resume to skip ahead to", async () => {
     const rig = await startRig();
     rigs.push(rig);
-    const project = await rig.core.games.scaffold("onefacetstop");
+    const project = await rig.core.projects.scaffold("onefacetstop");
     const plan = { ...twoFacetPlan(), facets: [twoFacetPlan().facets[0]] };
     let stopped = false;
     registerFakeEngine(rig, {
@@ -6822,14 +6835,14 @@ describe("Stop on a one-facet Autopilot night (P13-V1)", () => {
         if (!stopped) {
           stopped = true;
           // The user presses Stop while the first build works.
-          await rig.core.stopThread(await rig.core.threadForGame(project.name));
+          await rig.core.stopThread(await rig.core.threadForProject(project.name));
           return { ok: false, stopReason: "stopped", errorText: "stopped by you", sessionId: "ses_one" };
         }
         return { sessionId: "ses_one" };
       },
     });
     const { runId } = await runAutopilot(rig, project.name);
-    const threadId = await rig.core.threadForGame(project.name);
+    const threadId = await rig.core.threadForProject(project.name);
     const journal = (await rig.core.store.readArtifact(threadId, `autopilot_${runId}`)) as Record<
       string,
       unknown
@@ -6844,7 +6857,7 @@ describe("Stop during the integration facet (P13-V2)", () => {
   it("pauses the night, instead of judging it and closing it as done", async () => {
     const rig = await startRig();
     rigs.push(rig);
-    const project = await rig.core.games.scaffold("integrationstop");
+    const project = await rig.core.projects.scaffold("integrationstop");
     const plan = twoFacetPlan();
     let stopped = false;
     registerFakeEngine(rig, {
@@ -6865,7 +6878,7 @@ describe("Stop during the integration facet (P13-V2)", () => {
         if (!stopped && /YOUR FACET: Integration/.test(request.prompt)) {
           stopped = true;
           // The user presses Stop while the integration facet builds.
-          await rig.core.stopThread(await rig.core.threadForGame(project.name));
+          await rig.core.stopThread(await rig.core.threadForProject(project.name));
           return { ok: false, stopReason: "stopped", errorText: "stopped by you", sessionId: "ses_integration" };
         }
         return null;
@@ -6873,7 +6886,7 @@ describe("Stop during the integration facet (P13-V2)", () => {
     });
     const { runId, events } = await runAutopilot(rig, project.name);
     assert.ok(stopped, "the integration facet was reached and stopped");
-    const threadId = await rig.core.threadForGame(project.name);
+    const threadId = await rig.core.threadForProject(project.name);
     const journal = (await rig.core.store.readArtifact(threadId, `autopilot_${runId}`)) as Record<
       string,
       unknown
@@ -7399,11 +7412,11 @@ describe("what the build itself wrote, as a judge reads it (P11-F4)", () => {
 describe("the chat's main agent asked to read the owner's Downloads (2026-09-30)", () => {
   // Flipped (owner, 2026-10-01): every brief said "Stay inside this workspace. Do not list or read
   // sibling folders", and the chat's own session, in Auto, refused to read the owner's Downloads
-  // without trying. Where the game's work goes is the brief's to say; what it may reach is its
+  // without trying. Where the project's work goes is the brief's to say; what it may reach is its
   // permissions'.
-  it("keeps the game's work in its folder without forbidding the rest of the Mac", async () => {
+  it("keeps the project's work in its folder without forbidding the rest of the Mac", async () => {
     const { buildContractorBrief } = await import("../../src/harness-seed/loop/chat-session.ts");
-    const folderLabel = "AI Games/blame";
+    const folderLabel = "AI Projects/blame";
     const messages = [
       { role: "user", content: "Make Blame!" },
       { role: "user", content: "What is in my Downloads?" },
@@ -7414,7 +7427,7 @@ describe("the chat's main agent asked to read the owner's Downloads (2026-09-30)
       resumed: buildContractorBrief({ ask: "What is in my Downloads?", messages, resume: true, folderLabel }),
     };
     for (const [label, brief] of Object.entries(briefs)) {
-      assert.match(brief, /`AI Games\/blame`/, `${label}: names the game's folder`);
+      assert.match(brief, /`AI Projects\/blame`/, `${label}: names the project's folder`);
       assert.doesNotMatch(
         brief,
         /stay inside|do not (list|search|read|explore)[^.]*(folder|project)/i,
@@ -7764,20 +7777,20 @@ describe("what the golden-goal night's lead was told about its workers (2026-10-
 });
 
 describe("a worker of its own for the UI and HUD (owner, 2026-10-02)", () => {
-  it("GGR-13. a HUD part in a soccer game was reviewed as a place ('a woodpile at a door'): a worker started with critic=screen is reviewed as a screen", async () => {
+  it("GGR-13. a HUD part in a soccer project was reviewed as a place ('a woodpile at a door'): a worker started with critic=screen is reviewed as a screen", async () => {
     const { compileWorkerSpec } = await import("../../src/harness-seed/loop/director/rules.ts");
     const { partCritic } = await import("../../src/harness-seed/loop/facet/state.ts");
-    const game = { kind: "top-down" };
+    const app = { kind: "top-down" };
     const hud = compileWorkerSpec({
       id: "hud",
       brief: "the broadcast scoreboard, the title and result screens, the shot-power bar",
       kind: "top-down",
       critic: "screen",
     });
-    assert.equal(partCritic(hud.spec, game), "screen", "the readability critic reviews the HUD");
+    assert.equal(partCritic(hud.spec, app), "screen", "the readability critic reviews the HUD");
     const stadium = compileWorkerSpec({ id: "stadium", brief: "a floodlit stadium", kind: "top-down" });
-    assert.equal(partCritic(stadium.spec, game), "place", "a part with no critic of its own keeps its kind's");
-    assert.equal(partCritic({ ...stadium.spec, critic: "noir" }, game), "place", "an unknown critic is no critic");
+    assert.equal(partCritic(stadium.spec, app), "place", "a part with no critic of its own keeps its kind's");
+    assert.equal(partCritic({ ...stadium.spec, critic: "noir" }, app), "place", "an unknown critic is no critic");
   });
 });
 
@@ -7993,14 +8006,14 @@ describe("suggestions that reached the Harness page as plain text or not at all 
 });
 
 /**
- * A new game from home, first message "Hello" (2026-10-04): the game was named "Hello World
+ * A new project from home, first message "Hello" (2026-10-04): the project was named "Hello World
  * Adventure", and the reply was seven tool steps, one failed, and a report that the workspace was
  * still empty, its renderer and inspection hooks set up, with a question card about what to make.
  * The brief had said "Continue from the existing code in this workspace" and nothing about how to
  * answer small talk.
  */
-describe("a Hello in a brand-new game (2026-10-04)", () => {
-  it("HG-1. a greeting in a game the studio just made is briefed as a blank page, talking like a person first", async () => {
+describe("a Hello in a brand-new project (2026-10-04)", () => {
+  it("HG-1. a greeting in a project the studio just made is briefed as a blank page, talking like a person first", async () => {
     const { runDelegatedTurn } = await import("../../src/harness-seed/loop/delegated-turn.ts");
     const { ctxRecorder } = await import("../helpers/ctx-recorder.ts");
     const prompts: string[] = [];
@@ -8010,8 +8023,8 @@ describe("a Hello in a brand-new game (2026-10-04)", () => {
       handlers: {
         "events.messages": () => [{ role: "user", content: "Hello" }],
         "events.list": () => [],
-        "game.list": () => [{ name: "untitled-game", title: "Untitled game", dir: "/g/untitled-game" }],
-        "game.contentStamp": () => ({ all: "same", source: "same" }),
+        "project.list": () => [{ name: "untitled-project", title: "Untitled project", dir: "/g/untitled-project" }],
+        "project.contentStamp": () => ({ all: "same", source: "same" }),
         "run.exec": (params) => ({
           code: 0,
           stdout: String(params.command).includes("rev-list") ? "1\n" : "",
@@ -8029,7 +8042,7 @@ describe("a Hello in a brand-new game (2026-10-04)", () => {
       text: "Hello",
       engine: "claude-code",
       engineLabel: "Claude Code",
-      project: "untitled-game",
+      project: "untitled-project",
     });
     const brief = prompts[0] ?? "";
     assert.doesNotMatch(brief, /Continue from the existing code/);

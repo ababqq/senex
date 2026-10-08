@@ -1,5 +1,5 @@
 /**
- * Test-owned production ChatPanel holding a long game chat (a hundred and more turns of reports,
+ * Test-owned production ChatPanel holding a long project chat (a hundred and more turns of reports,
  * lists, code and tool work), for scrolling it fast. The runner flings the scroller with real
  * input; the page samples, in every frame it draws, how much of the viewport the transcript left
  * empty. No engine, account or network.
@@ -48,7 +48,7 @@ const SENTENCES = [
   "Player idle animations shift weight from foot to foot instead of freezing between passes.",
   "The crowd noise swells as the ball nears either box and drops after a wide shot.",
   "No errors appeared in the console while I played two full halves.",
-  "I told the gameplay builder to move its shot-aiming hint off the mini-map.",
+  "I told the interaction builder to move its shot-aiming hint off the mini-map.",
 ];
 const FILES = ["src/camera.js", "src/scoreboard.js", "src/stadium.js", "src/players.js", "src/referee.js", "src/hud.css"];
 const TOOLS = ["Read", "Edit", "Bash", "Grep"];
@@ -72,7 +72,7 @@ function report(turn: number): string {
     );
   if (turn % 7 === 4)
     parts.push("| Part | State |\n| --- | --- |\n| Scoreboard | merged |\n| Camera | merged |\n| Stadium | building |");
-  parts.push(`Still working: ${pick(["gameplay balance", "shot outcomes", "the referee", "the stadium's final minutes"], turn)}.`);
+  parts.push(`Still working: ${pick(["interaction balance", "shot outcomes", "the referee", "the stadium's final minutes"], turn)}.`);
   return parts.join("\n\n");
 }
 
@@ -130,14 +130,14 @@ const props: ChatPanelProps = {
   stateEvents: [],
   history: { hasMore: false, paging: false, loadEarlier: async () => {} },
   engines: [claude],
-  games: [],
+  projects: [],
   activeThread: {
     id: THREAD,
     agent_id: "studio",
     created_at: DATE,
     updated_at: DATE,
     latest_event_id: null,
-    metadata: { kind: ThreadKind.Game, project: PROJECT },
+    metadata: { kind: ThreadKind.Project, project: PROJECT },
   },
   status: IDLE,
   busySince: null,

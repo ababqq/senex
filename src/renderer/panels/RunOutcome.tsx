@@ -17,7 +17,7 @@ const hasNewBuild = (summary: RunSummary): boolean => Boolean(summary.head) && s
 
 /**
  * The chat card's one name for the build. A stopped build's card says so in its own line, next to
- * Resume; this card only names the build. A finished run whose merged build did not reach the game
+ * Resume; this card only names the build. A finished run whose merged build did not reach the project
  * is not "no new build": it is not live yet.
  */
 function chatOutcomeTitle(summary: RunSummary): string {
@@ -244,7 +244,7 @@ export function OutcomeDetails({ summary }: { summary: RunSummary }): JSX.Elemen
           : "another project or no recorded preview"}
         {summary.preview?.error ? ` — ${summary.preview.error}` : ""}
       </p>
-      {summary.learning && <p>Studio learning: {summary.learning} — separate from game execution.</p>}
+      {summary.learning && <p>Studio learning: {summary.learning} — separate from project execution.</p>}
     </div>
   );
 }

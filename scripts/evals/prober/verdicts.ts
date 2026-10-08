@@ -2,19 +2,19 @@
  * The pure verdict helpers the prober applies to what it observed, kept out of the browser driver so
  * each can be replayed against a fixture with no browser. Ported from genex-demo's
  * `prober/verdicts.ts`; hosted-only rules (the embed SDK's markers and identity bounce, the demo
- * template's optional capability probes) are dropped, and `stayedOnGame` allows no bounce at all.
+ * template's optional capability probes) are dropped, and `stayedOnProject` allows no bounce at all.
  *
  * Every export exists because a run was MIS-SCORED by a confident, plausible, wrong reading:
  * - `CHROME_DENY_SOURCE` and the click guard: a random soak click landed on "Sign in" and the
- *   document left the game.
- * - `pickEvidenceSnapshot`: a foreign page's animated background out-scored the game's own state.
+ *   document left the project.
+ * - `pickEvidenceSnapshot`: a foreign page's animated background out-scored the project's own state.
  * - `classifyFailure`: benign failures (favicons, beacons, a `.ktx2` probe whose fallback loaded)
  *   failed `l1.assets_arrived`.
  * - `shouldDemoteForCamera`: "no camera seen" on a context the hook could not read is blindness.
- * - `demoteForPointerLock` / `lookInputVerdict` / `demoteForFullscreen` / `demoteForNoGameplay`: a
- *   game the probe could not ENTER must not be reported as a game that does not RESPOND.
- * - `judgeEvidence`: a judge handed frames of a loading card scored the game 0/9.
- * - `pageRan`, `selectExposureFrames`, `gameplayReached`: rows that answered confidently on an
+ * - `demoteForPointerLock` / `lookInputVerdict` / `demoteForFullscreen` / `demoteForNoInteraction`: a
+ *   project the probe could not ENTER must not be reported as a project that does not RESPOND.
+ * - `judgeEvidence`: a judge handed frames of a loading card scored the project 0/9.
+ * - `pageRan`, `selectExposureFrames`, `interactionReached`: rows that answered confidently on an
  *   empty observation.
  * - `judgeEntrance`: which door the probe walked through, from signals that can witness it, and
  *   NEVER from a pixel change (a Space that makes the player jump changes pixels too).
@@ -41,7 +41,7 @@ export const CHROME_DENY_SOURCE = CHROME_DENY.source;
 export type ProbeSnapshot = Record<string, unknown>;
 
 /**
- * How much of a GAME a snapshot saw. Audio contexts outrank canvases outrank mirror colours outrank
+ * How much of a PROJECT a snapshot saw. Audio contexts outrank canvases outrank mirror colours outrank
  * rAF frames. Origin is deliberately NOT in here: it is a filter applied first, never a weight a loud
  * enough foreign page could outscore.
  */
@@ -72,10 +72,10 @@ export function snapshotOrigin(snap: ProbeSnapshot): string | null {
   return typeof snap.href === "string" ? originOf(snap.href) : null;
 }
 
-/** The snapshot picked as the game's page state, and what was excluded. */
+/** The snapshot picked as the project's page state, and what was excluded. */
 export interface EvidencePick {
   readonly snapshot: ProbeSnapshot | null;
-  /** Caveats for the scorecard's notes. Empty when every snapshot was on the game's origin. */
+  /** Caveats for the scorecard's notes. Empty when every snapshot was on the project's origin. */
   readonly notes: readonly string[];
   readonly sameOrigin: number;
   readonly foreign: number;
@@ -97,15 +97,15 @@ function describeSnapshot(t: TaggedSnapshot): string {
 }
 
 /**
- * Pick the snapshot that saw the GAME: same-origin snapshots only, best evidence score among them. A
+ * Pick the snapshot that saw the PROJECT: same-origin snapshots only, best evidence score among them. A
  * snapshot whose origin cannot be read stays eligible (it cannot be proven foreign). When every
  * snapshot is foreign the pick falls back to the best of them and SAYS SO.
  */
-export function pickEvidenceSnapshot(snapshots: ReadonlyArray<ProbeSnapshot>, gameOrigin: string): EvidencePick {
+export function pickEvidenceSnapshot(snapshots: ReadonlyArray<ProbeSnapshot>, projectOrigin: string): EvidencePick {
   if (snapshots.length === 0) return { snapshot: null, notes: [], sameOrigin: 0, foreign: 0 };
   const tagged = snapshots.map((snap, i) => ({ snap, i, origin: snapshotOrigin(snap) }));
-  // With no game origin to compare against nothing can be called foreign.
-  const foreign = gameOrigin ? tagged.filter((t) => t.origin !== null && t.origin !== gameOrigin) : [];
+  // With no project origin to compare against nothing can be called foreign.
+  const foreign = projectOrigin ? tagged.filter((t) => t.origin !== null && t.origin !== projectOrigin) : [];
   const eligible = tagged.filter((t) => !foreign.includes(t));
   if (foreign.length === 0) {
     return { snapshot: bestSnapshot(eligible).snap, notes: [], sameOrigin: eligible.length, foreign: 0 };
@@ -115,7 +115,7 @@ export function pickEvidenceSnapshot(snapshots: ReadonlyArray<ProbeSnapshot>, ga
     return {
       snapshot: bestSnapshot(eligible).snap,
       notes: [
-        `${foreign.length} of ${snapshots.length} page-state snapshot(s) were taken on a foreign origin (${listed}) — the document had left the game's origin ${gameOrigin} when they were read, so they were excluded from the page-state readout.`,
+        `${foreign.length} of ${snapshots.length} page-state snapshot(s) were taken on a foreign origin (${listed}) — the document had left the project's origin ${projectOrigin} when they were read, so they were excluded from the page-state readout.`,
       ],
       sameOrigin: eligible.length,
       foreign: foreign.length,
@@ -125,7 +125,7 @@ export function pickEvidenceSnapshot(snapshots: ReadonlyArray<ProbeSnapshot>, ga
   return {
     snapshot: bestSnapshot(foreign).snap,
     notes: [
-      `every snapshot was taken on a foreign origin (${origins}) — the run left the game. Page-side state is read from the best of them (${listed}) and describes THAT page, not the game; treat every page-state check on this scorecard as contaminated.`,
+      `every snapshot was taken on a foreign origin (${origins}) — the run left the project. Page-side state is read from the best of them (${listed}) and describes THAT page, not the project; treat every page-state check on this scorecard as contaminated.`,
     ],
     sameOrigin: 0,
     foreign: foreign.length,
@@ -141,9 +141,9 @@ export const FailureBlameKind = {
 } as const;
 export type FailureBlameKind = (typeof FailureBlameKind)[keyof typeof FailureBlameKind];
 
-/** URLs whose failure says nothing about the game's assets. */
+/** URLs whose failure says nothing about the project's assets. */
 export const BENIGN_URL = [/\/favicon\.ico$/i, /apple-touch-icon/i, /\/robots\.txt$/i, /\.map$/i, /\/sw\.js$/i];
-/** Third-party telemetry, not game content: these abort or rate-limit routinely. */
+/** Third-party telemetry, not project content: these abort or rate-limit routinely. */
 export const TELEMETRY_URL = [
   /\/cdn-cgi\/rum/i,
   /\/monitoring(\?|$)/i,
@@ -151,7 +151,7 @@ export const TELEMETRY_URL = [
   /posthog/i,
   /google-analytics|googletagmanager/i,
 ];
-/** An asset-shaped URL: blamed on the game wherever it was served from. */
+/** An asset-shaped URL: blamed on the project wherever it was served from. */
 export const ASSET_EXT =
   /\.(glb|gltf|bin|ktx2|basis|png|jpe?g|webp|avif|hdr|exr|vrm|fbx|obj|mp3|ogg|wav|m4a|webm|json|js|css|woff2?|ttf|svg)(\?|$)/i;
 
@@ -181,7 +181,7 @@ const benign = (why: string): FailureBlame => ({ blame: FailureBlameKind.Benign,
 const asset = (why: string): FailureBlame => ({ blame: FailureBlameKind.Asset, why });
 
 /**
- * A failed request is the GAME's problem when it is same-origin with the game, or asset-shaped
+ * A failed request is the PROJECT's problem when it is same-origin with the project, or asset-shaped
  * wherever it came from. Everything else is recorded and ignored.
  */
 export function classifyFailure(url: string, pageOrigin: string, succeeded?: ReadonlySet<string>): FailureBlame {
@@ -190,7 +190,7 @@ export function classifyFailure(url: string, pageOrigin: string, succeeded?: Rea
   if (succeeded && ktx2FallbackUrls(url).some((u) => succeeded.has(u))) return benign(KTX2_FALLBACK_WHY);
   const origin = originOf(url);
   if (origin === null) return benign("unparseable url");
-  if (origin === pageOrigin) return asset("same origin as the game");
+  if (origin === pageOrigin) return asset("same origin as the project");
   if (ASSET_EXT.test(url)) return asset("asset-shaped url on another origin");
   return benign("third-party non-asset request");
 }
@@ -209,7 +209,7 @@ export interface CameraDemotionState {
  * Should a passing boot be demoted to "no 3D scene was ever drawn"? Only when the hook was in a
  * position to see one: a WebGL context existed, the instrument hooked a context's `uniformMatrix4fv`,
  * a program declared `viewMatrix`, and still no view matrix was uploaded. With `hooks` or `viewLocs`
- * at zero, "no camera seen" is the hook's blindness, not the game's silence.
+ * at zero, "no camera seen" is the hook's blindness, not the project's silence.
  */
 export function shouldDemoteForCamera(state: CameraDemotionState): boolean {
   const hooks = state.camera?.hooks ?? 0;
@@ -251,7 +251,7 @@ export type PointerLockState =
   | undefined;
 
 /**
- * Did the probe get stuck OUTSIDE a click-to-lock door? True only when the game ASKED for pointer lock
+ * Did the probe get stuck OUTSIDE a click-to-lock door? True only when the project ASKED for pointer lock
  * and neither the browser nor the shim gave it one. An absent record reads as "not blocked": absence
  * of the measurement is not evidence that it failed.
  */
@@ -262,13 +262,13 @@ export function pointerLockBlocked(state: PointerLockState): boolean {
 
 /** Why a fail behind an unopened pointer-lock door is unknown. */
 export const POINTER_LOCK_BLOCKED_WHY =
-  "The game asked for pointer lock and never got one — not from the browser, and not from the probe's fallback shim — so every input after that door landed on a menu the probe could not leave. A game we could not ENTER must not be reported as a game that does not RESPOND.";
+  "The project asked for pointer lock and never got one — not from the browser, and not from the probe's fallback shim — so every input after that door landed on a menu the probe could not leave. A project we could not ENTER must not be reported as a project that does not RESPOND.";
 
 /** A demotion that moved nothing. */
 const unchanged = (result: CheckResult): Demotion => ({ result, why: null });
 
 /**
- * Demote a check that only failed because the probe never got into the game. A `fail` becomes
+ * Demote a check that only failed because the probe never got into the project. A `fail` becomes
  * `unknown`; nothing else moves. It never rescues a fail into a pass.
  */
 export function demoteForPointerLock(result: CheckResult, state: PointerLockState): Demotion {
@@ -293,13 +293,13 @@ export interface CameraYawSample {
 /**
  * How far the heading must have swept INSIDE the mouse windows, after the synthetic lock engaged,
  * before the probe's mouse deltas count as DELIVERED. A heading read off a frozen camera moves by
- * float noise only; a mouse-look game turns by tens of degrees on the probe's drag.
+ * float noise only; a mouse-look project turns by tens of degrees on the probe's drag.
  */
 export const MIN_LOOK_YAW_DEG = 5;
 
-/** Did the look input reach the game behind a shimmed lock? */
+/** Did the look input reach the project behind a shimmed lock? */
 export interface LookInputVerdict {
-  /** Only a SHIMMED entry is measured: the game asked, the browser refused, the shim let the probe in. */
+  /** Only a SHIMMED entry is measured: the project asked, the browser refused, the shim let the probe in. */
   readonly applicable: boolean;
   /** `true` swept past the floor; `false` measured and under it; `null` nothing observed. */
   readonly delivered: boolean | null;
@@ -332,7 +332,7 @@ function lookDoor(state: NonNullable<PointerLockState>, requested: number): stri
   const engaged =
     typeof state.engagedAtMs === "number" && Number.isFinite(state.engagedAtMs) ? state.engagedAtMs : null;
   const at = engaged === null ? "" : ` at ${Math.round(engaged)}ms of page time`;
-  return `The game asked for pointer lock ${requested} time(s), the browser refused, and the probe entered through its synthetic lock${at}`;
+  return `The project asked for pointer lock ${requested} time(s), the browser refused, and the probe entered through its synthetic lock${at}`;
 }
 
 function lookUndelivered(door: string, look: LookRecord, span: string): string {
@@ -340,12 +340,12 @@ function lookUndelivered(door: string, look: LookRecord, span: string): string {
     look.mouseStepsUnattributable > 0
       ? ` ${look.mouseStepsUnattributable} step(s) followed a move but spanned more than the window and were not attributed — a sampler slower than ${look.windowMs}ms cannot say what inside a step was the mouse.`
       : "";
-  return `${door} — and across the ${look.headings} readable heading(s) in the ${look.samples} camera sample(s) flushed after it${span} the heading swept ${look.sweepDeg.toFixed(1)}° in total but only ${look.mouseSweepDeg.toFixed(1)}° inside the ${look.windowMs}ms windows following the mouse deltas delivered while locked (${look.mouseSteps} attributed step(s)), under the ${MIN_LOOK_YAW_DEG}° that would show those deltas reached the game's look.${unattributable} The synthetic lock opened the door; nothing shows the mouse walked through it. This row is unknown.`;
+  return `${door} — and across the ${look.headings} readable heading(s) in the ${look.samples} camera sample(s) flushed after it${span} the heading swept ${look.sweepDeg.toFixed(1)}° in total but only ${look.mouseSweepDeg.toFixed(1)}° inside the ${look.windowMs}ms windows following the mouse deltas delivered while locked (${look.mouseSteps} attributed step(s)), under the ${MIN_LOOK_YAW_DEG}° that would show those deltas reached the project's look.${unattributable} The synthetic lock opened the door; nothing shows the mouse walked through it. This row is unknown.`;
 }
 
 /**
- * DID THE LOOK INPUT REACH THE GAME? Keyed on what was DELIVERED, never on what the shim did. The
- * heading also moves on A/D turns, a follow camera and the game's own pans, so `delivered` reads the
+ * DID THE LOOK INPUT REACH THE PROJECT? Keyed on what was DELIVERED, never on what the shim did. The
+ * heading also moves on A/D turns, a follow camera and the project's own pans, so `delivered` reads the
  * mouse-attributed sweep; the total sweep is context. Absence demotes too.
  */
 export function lookInputVerdict(state: PointerLockState): LookInputVerdict {
@@ -357,7 +357,7 @@ export function lookInputVerdict(state: PointerLockState): LookInputVerdict {
     return {
       ...LOOK_NOT_APPLICABLE,
       applicable: true,
-      why: `${door} — but this instrument kept no post-lock heading record, so whether the mouse deltas the probe sent ever reached the game's look is UNOBSERVED. ${UNKNOWN_BEHIND_DOOR}`,
+      why: `${door} — but this instrument kept no post-lock heading record, so whether the mouse deltas the probe sent ever reached the project's look is UNOBSERVED. ${UNKNOWN_BEHIND_DOOR}`,
     };
   }
   const span =
@@ -376,7 +376,7 @@ export function lookInputVerdict(state: PointerLockState): LookInputVerdict {
       delivered: null,
       yawSweepDeg: null,
       mouseYawSweepDeg: null,
-      why: `${door} — but of the ${look.samples} camera sample(s) flushed after the lock engaged${span} only ${look.headings} carried a readable ground heading, and a sweep needs two, so whether the mouse deltas the probe sent ever reached the game's look is UNOBSERVED. ${UNKNOWN_BEHIND_DOOR}`,
+      why: `${door} — but of the ${look.samples} camera sample(s) flushed after the lock engaged${span} only ${look.headings} carried a readable ground heading, and a sweep needs two, so whether the mouse deltas the probe sent ever reached the project's look is UNOBSERVED. ${UNKNOWN_BEHIND_DOOR}`,
     };
   }
   const sweeps = { yawSweepDeg: look.sweepDeg, mouseYawSweepDeg: look.mouseSweepDeg };
@@ -397,27 +397,27 @@ export function demoteForLookInput(result: CheckResult, verdict: LookInputVerdic
 /* ------------------------------------------------- console-line classifiers */
 
 /**
- * Console lines that mean AN ASSET ARRIVED AND THE GAME COULD NOT USE IT. Library-anchored, never game
+ * Console lines that mean AN ASSET ARRIVED AND THE PROJECT COULD NOT USE IT. Library-anchored, never project
  * prose: three.js's loader wording and the DOM's `drawImage` refusal mean the same thing in every
- * game. A game that logs nothing reports zero, so this can only fail on POSITIVE evidence.
+ * project. A project that logs nothing reports zero, so this can only fail on POSITIVE evidence.
  */
 const LOADER_FAILURE_PATTERNS: ReadonlyArray<RegExp> = [
   /THREE\.\w+:\s*(Couldn't|Could not|Unable to)\s+load/i,
   /Failed to execute 'drawImage' on 'CanvasRenderingContext2D'/i,
 ];
 
-/** Whether one console line reports an asset the game could not use. */
+/** Whether one console line reports an asset the project could not use. */
 export function isLoaderFailureLine(text: string): boolean {
   return LOADER_FAILURE_PATTERNS.some((re) => re.test(text));
 }
 
-/** How many console lines report an asset the game could not use. */
+/** How many console lines report an asset the project could not use. */
 export function loaderFailureCount(entries: ReadonlyArray<{ readonly text?: unknown }>): number {
   return entries.filter((e) => typeof e.text === "string" && isLoaderFailureLine(e.text)).length;
 }
 
 /**
- * Console lines that mean THE RENDERER REFUSED TO DRAW, or the game called an API three.js removed:
+ * Console lines that mean THE RENDERER REFUSED TO DRAW, or the project called an API three.js removed:
  * the bug class `no_errors_60s` cannot see, because both arrive at `warn` level. Library/driver
  * anchored: three's "has been removed/deprecated" wording and ANGLE's `GL_INVALID_OPERATION: glDraw*`.
  */
@@ -500,7 +500,7 @@ export function restoreDragTargetY(cy: number, dragPx: number, pitchDeg: number)
 
 /**
  * Whether a gesture left the camera aimed somewhere a player would not leave it. An unreadable pitch
- * is never a ruin, and a game that STARTED steep (top-down, isometric) was not ruined by the gesture.
+ * is never a ruin, and a project that STARTED steep (top-down, isometric) was not ruined by the gesture.
  */
 export function pitchRuined(
   before: CameraYawSample | null | undefined,
@@ -605,7 +605,7 @@ export function cameraSanity(
 /**
  * A SIGN DISAGREEMENT IS A VERDICT ONLY WHEN BOTH READINGS ARE STRONG: three times the 2-column
  * admission floor, on a 160-wide correlation grid. The bar is raised for `fail` and not for `pass`
- * because a false fail publishes "this game's controls are broken" about a working game.
+ * because a false fail publishes "this project's controls are broken" about a working project.
  */
 export const MIN_FAIL_MOTION_COLUMNS = 6;
 
@@ -644,7 +644,7 @@ export function directionPairVerdict(
   if (weakest >= minFailColumns) return { verdict: CheckResult.Fail, why: `${a} vs ${b}` };
   return {
     verdict: CheckResult.Unknown,
-    why: `${a} vs ${b} — they point the wrong way relative to each other, but the weaker reading is only ${weakest} column(s), under the ${minFailColumns} a sign must clear before it convicts a game. Not established.`,
+    why: `${a} vs ${b} — they point the wrong way relative to each other, but the weaker reading is only ${weakest} column(s), under the ${minFailColumns} a sign must clear before it convicts a project. Not established.`,
   };
 }
 
@@ -706,7 +706,7 @@ export interface JudgeEvidenceInput {
   /** RUN ms minus PAGE ms for the document the rAF came from, or `null` when unmeasured. */
   readonly pageToRunOffsetMs: number | null;
   /** When present and not reached, the judge is withheld whatever the frame counts say. */
-  readonly gameplayReached?: { readonly reached: boolean; readonly why: string } | null;
+  readonly interactionReached?: { readonly reached: boolean; readonly why: string } | null;
   /** Only `withhold` refuses; a `note` gates nothing. */
   readonly cameraSanity?: { readonly severity: CameraSeverity; readonly why: string | null } | null;
   /** The page-side mirror's first non-degenerate read, PAGE-clock ms. Reason text only. */
@@ -731,7 +731,7 @@ export const MIN_JUDGE_FRAMES = 3;
 
 /**
  * The phases after the entrance gesture: a frame here was taken after the probe had done everything
- * it does to enter the game. The quick probe's input bursts count; its entrance frames do not.
+ * it does to enter the project. The quick probe's input bursts count; its entrance frames do not.
  */
 export const POST_GESTURE_PHASES: ReadonlySet<ProbePhase> = new Set([
   ProbePhase.Directions,
@@ -744,21 +744,21 @@ export const POST_GESTURE_PHASES: ReadonlySet<ProbePhase> = new Set([
 
 const insufficient = (reason: string): JudgeEvidenceVerdict => ({ sufficient: false, reason, by: null });
 
-/** Clause 0: the frames exist, show the game, and were not all taken before anything drew. */
+/** Clause 0: the frames exist, show the project, and were not all taken before anything drew. */
 function evidencePreconditions(input: JudgeEvidenceInput, pageFrames: EvidenceFrameLike[], elementNote: string) {
   if (pageFrames.length < MIN_JUDGE_FRAMES) {
     return insufficient(
       `only ${pageFrames.length} page frame(s) were captured${elementNote}, below the ${MIN_JUDGE_FRAMES} a judge needs to see anything change — the trace ended before it became evidence.`,
     );
   }
-  if (input.gameplayReached?.reached === false) {
+  if (input.interactionReached?.reached === false) {
     return insufficient(
-      `gameplay was never reached — ${input.gameplayReached.why}. Every one of the ${pageFrames.length} page frame(s) is of the screen the probe was stuck on, and a verdict from them would describe that screen rather than the game.`,
+      `interaction was never reached — ${input.interactionReached.why}. Every one of the ${pageFrames.length} page frame(s) is of the screen the probe was stuck on, and a verdict from them would describe that screen rather than the project.`,
     );
   }
   if (input.cameraSanity?.severity === CameraSeverity.Withhold) {
     return insufficient(
-      `the camera was not pointing at the game — ${input.cameraSanity.why}. All ${pageFrames.length} page frame(s) come from that window, so a verdict from them would describe what the camera was aimed at rather than the build.`,
+      `the camera was not pointing at the project — ${input.cameraSanity.why}. All ${pageFrames.length} page frame(s) come from that window, so a verdict from them would describe what the camera was aimed at rather than the build.`,
     );
   }
   const last = Math.max(...pageFrames.map((f) => f.atMs));
@@ -773,7 +773,7 @@ function evidencePreconditions(input: JudgeEvidenceInput, pageFrames: EvidenceFr
 /** The refusal when neither clause cleared the floor, naming both counts. */
 function evidenceRefusal(
   input: JudgeEvidenceInput,
-  counts: { afterRaf: number; gameplay: number; total: number },
+  counts: { afterRaf: number; interaction: number; total: number },
   elementNote: string,
 ): string {
   const offset = input.pageToRunOffsetMs;
@@ -786,7 +786,7 @@ function evidenceRefusal(
   const phaseSentence =
     witnessed === null
       ? "no capture ever witnessed a non-degenerate draw, so the phase clause has no first draw to count from"
-      : `${counts.gameplay} page frame(s) were taken in a post-gesture phase after the first witnessed draw at ${Math.round(witnessed)}ms of run time`;
+      : `${counts.interaction} page frame(s) were taken in a post-gesture phase after the first witnessed draw at ${Math.round(witnessed)}ms of run time`;
   const asides: string[] = [];
   if (typeof input.mirrorFirstDrawPageMs === "number") {
     asides.push(
@@ -797,11 +797,11 @@ function evidenceRefusal(
     asides.push(`the first camera sample landed at ${Math.round(input.firstCameraSamplePageMs)}ms of page time`);
   }
   const aside = asides.length ? ` For the reader: ${asides.join("; ")} — neither figure gates.` : "";
-  return `${clockSentence}, and ${phaseSentence}${elementNote} — both below the ${MIN_JUDGE_FRAMES}-frame floor, so the trace is of a page that had not started drawing, and a verdict from it would describe the loading screen rather than the game.${aside}`;
+  return `${clockSentence}, and ${phaseSentence}${elementNote} — both below the ${MIN_JUDGE_FRAMES}-frame floor, so the trace is of a page that had not started drawing, and a verdict from it would describe the loading screen rather than the project.${aside}`;
 }
 
 /**
- * WAS THE GAME EVER PHOTOGRAPHED IN MOTION? One question only: do the captured frames OVERLAP the
+ * WAS THE PROJECT EVER PHOTOGRAPHED IN MOTION? One question only: do the captured frames OVERLAP the
  * period in which the page was drawing? Never a quality signal. Two independent routes to
  * "sufficient", each an observation: the CLOCK clause (≥3 page frames after the first rAF, compared
  * in one clock; it can pass only with a MEASURED offset) and the PHASE clause (≥3 page frames after
@@ -825,14 +825,14 @@ export function judgeEvidence(input: JudgeEvidenceInput): JudgeEvidenceVerdict {
   const witnessed = input.firstRenderRunMs;
   const postGesture = (f: EvidenceFrameLike) =>
     witnessed !== null && f.atMs > witnessed && f.phase !== undefined && POST_GESTURE_PHASES.has(f.phase);
-  const gameplay = pageFrames.filter(postGesture).length;
-  if (gameplay >= MIN_JUDGE_FRAMES) return { sufficient: true, reason: null, by: JudgeEvidenceClause.Phase };
+  const interaction = pageFrames.filter(postGesture).length;
+  if (interaction >= MIN_JUDGE_FRAMES) return { sufficient: true, reason: null, by: JudgeEvidenceClause.Phase };
   if (input.firstRafPageMs === null) {
     return insufficient(
-      `the page never scheduled an animation frame, so there was no drawing period for the frames to overlap, and ${gameplay} page frame(s) were taken in a post-gesture phase after a witnessed draw, below the ${MIN_JUDGE_FRAMES}-frame floor. Whether that is a broken game or a static one is the machine floor's question, not the judge's.`,
+      `the page never scheduled an animation frame, so there was no drawing period for the frames to overlap, and ${interaction} page frame(s) were taken in a post-gesture phase after a witnessed draw, below the ${MIN_JUDGE_FRAMES}-frame floor. Whether that is a broken project or a static one is the machine floor's question, not the judge's.`,
     );
   }
-  return insufficient(evidenceRefusal(input, { afterRaf, gameplay, total: pageFrames.length }, elementNote));
+  return insufficient(evidenceRefusal(input, { afterRaf, interaction, total: pageFrames.length }, elementNote));
 }
 
 /* ---------------------------------------------------------- click guard text */
@@ -894,7 +894,7 @@ const ACTIVATABLE_ROLES = new Set([
 
 /**
  * WHY A KEY MUST NOT BE SENT with focus where it is, or `null` when it may. Enter on a focused button
- * IS a click, and Space on the game's own start button restarts it mid-measurement. A link, a form
+ * IS a click, and Space on the project's own start button restarts it mid-measurement. A link, a form
  * control, an activatable ARIA role, an editable region or an `<iframe>` other than the evidence frame
  * refuses; the canvas, the body and a plain focused container do not. The caller blurs once and asks
  * again; a refusal after that is counted and the key is not sent.
@@ -918,7 +918,7 @@ export function keyFocusRefusal(focus: FocusDescription | null): string | null {
   return null;
 }
 
-/* ------------------------------------------------------------ stayed on game */
+/* ------------------------------------------------------------ stayed on project */
 
 /** One main-frame navigation, run-clock ms. */
 export interface NavigationRecord {
@@ -926,8 +926,8 @@ export interface NavigationRecord {
   readonly url: string;
 }
 
-/** One stretch the document spent off the game's origin. */
-export interface OffGameExcursion {
+/** One stretch the document spent off the project's origin. */
+export interface OffProjectExcursion {
   readonly fromMs: number;
   /** When a same-origin navigation ended it; the run's end when it never did. */
   readonly toMs: number;
@@ -937,10 +937,10 @@ export interface OffGameExcursion {
   readonly urls: readonly string[];
 }
 
-/** What `stayedOnGame` reads. */
-export interface StayedOnGameInput {
+/** What `stayedOnProject` reads. */
+export interface StayedOnProjectInput {
   readonly navigations: ReadonlyArray<NavigationRecord>;
-  readonly gameOrigin: string;
+  readonly projectOrigin: string;
   /** `pickEvidenceSnapshot(...).foreign`: snapshots read while off the origin. */
   readonly foreignSnapshots: number;
   readonly sameOriginSnapshots: number;
@@ -948,31 +948,31 @@ export interface StayedOnGameInput {
   readonly endAtMs: number;
 }
 
-/** `l1.stayed_on_game`'s verdict and the excursions behind it. */
-export interface StayedOnGameVerdict {
+/** `l1.stayed_on_project`'s verdict and the excursions behind it. */
+export interface StayedOnProjectVerdict {
   readonly result: CheckResult;
   readonly detail: string;
-  readonly excursions: readonly OffGameExcursion[];
+  readonly excursions: readonly OffProjectExcursion[];
   readonly foreignNavigations: number;
 }
 
 /**
- * How long the document may spend off the game's origin and still pass. Zero: a local snapshot served
+ * How long the document may spend off the project's origin and still pass. Zero: a local snapshot served
  * from `127.0.0.1` has no identity bounce (the hosted embed SDK's round trip is not ported), so any
- * stretch off the origin is the run leaving the game.
+ * stretch off the origin is the run leaving the project.
  */
-export const OFF_GAME_ALLOWANCE_MS = 0;
+export const OFF_PROJECT_ALLOWANCE_MS = 0;
 
 /** Walk the navigations in time order and collect the stretches spent off the origin. */
-function collectExcursions(navs: NavigationRecord[], gameOrigin: string, endAtMs: number) {
-  const excursions: OffGameExcursion[] = [];
+function collectExcursions(navs: NavigationRecord[], projectOrigin: string, endAtMs: number) {
+  const excursions: OffProjectExcursion[] = [];
   let open: { fromMs: number; urls: string[] } | null = null;
   let foreignNavigations = 0;
   for (const nav of navs) {
     // An unreadable origin cannot be proven foreign or home: it neither opens nor closes a stretch.
     const origin = originOf(nav.url);
     if (origin === null) continue;
-    if (origin !== gameOrigin) {
+    if (origin !== projectOrigin) {
       foreignNavigations++;
       if (open) open.urls.push(nav.url);
       else open = { fromMs: nav.atMs, urls: [nav.url] };
@@ -990,7 +990,7 @@ function collectExcursions(navs: NavigationRecord[], gameOrigin: string, endAtMs
   return { excursions, foreignNavigations };
 }
 
-const listExcursions = (ex: readonly OffGameExcursion[]) =>
+const listExcursions = (ex: readonly OffProjectExcursion[]) =>
   ex
     .map((e) => {
       const end = `${Math.round(e.toMs)}ms (${e.returned ? "returned" : "never returned"})`;
@@ -998,13 +998,13 @@ const listExcursions = (ex: readonly OffGameExcursion[]) =>
     })
     .join("; ");
 
-/** Why the run did not stay on the game; empty when it did. */
-function offGameReasons(input: StayedOnGameInput, excursions: readonly OffGameExcursion[]): string[] {
+/** Why the run did not stay on the project; empty when it did. */
+function offProjectReasons(input: StayedOnProjectInput, excursions: readonly OffProjectExcursion[]): string[] {
   const neverReturned = excursions.filter((e) => !e.returned);
-  const tooLong = excursions.filter((e) => e.returned && e.durationMs >= OFF_GAME_ALLOWANCE_MS);
+  const tooLong = excursions.filter((e) => e.returned && e.durationMs >= OFF_PROJECT_ALLOWANCE_MS);
   const reasons: string[] = [];
   if (neverReturned.length) {
-    reasons.push(`the document left ${input.gameOrigin} and never came back (${listExcursions(neverReturned)})`);
+    reasons.push(`the document left ${input.projectOrigin} and never came back (${listExcursions(neverReturned)})`);
   }
   if (tooLong.length) {
     reasons.push(
@@ -1019,29 +1019,30 @@ function offGameReasons(input: StayedOnGameInput, excursions: readonly OffGameEx
 }
 
 /**
- * DID THE RUN STAY ON THE GAME? An L1 row: a run that left the game measured something else. A
- * stretch off the origin fails when it never came back, when it outlasted `OFF_GAME_ALLOWANCE_MS`
+ * DID THE RUN STAY ON THE PROJECT? An L1 row: a run that left the project measured something else. A
+ * stretch off the origin fails when it never came back, when it outlasted `OFF_PROJECT_ALLOWANCE_MS`
  * (zero here), or when any page-state snapshot was read while off the origin. `unknown` only when
  * there is no origin or nothing to read.
  */
-export function stayedOnGame(input: StayedOnGameInput): StayedOnGameVerdict {
-  const unknown = (detail: string): StayedOnGameVerdict => ({
+export function stayedOnProject(input: StayedOnProjectInput): StayedOnProjectVerdict {
+  const unknown = (detail: string): StayedOnProjectVerdict => ({
     result: CheckResult.Unknown,
     detail,
     excursions: [],
     foreignNavigations: 0,
   });
-  if (!input.gameOrigin) return unknown("The game URL has no readable origin, so no navigation can be called foreign.");
+  if (!input.projectOrigin)
+    return unknown("The project URL has no readable origin, so no navigation can be called foreign.");
   const navs = [...input.navigations].sort((a, b) => a.atMs - b.atMs);
   if (navs.length === 0 && input.foreignSnapshots === 0) {
     return unknown("No main-frame navigation was observed, so where the document sat was never read.");
   }
-  const { excursions, foreignNavigations } = collectExcursions(navs, input.gameOrigin, input.endAtMs);
-  const reasons = offGameReasons(input, excursions);
+  const { excursions, foreignNavigations } = collectExcursions(navs, input.projectOrigin, input.endAtMs);
+  const reasons = offProjectReasons(input, excursions);
   if (reasons.length) {
     return {
       result: CheckResult.Fail,
-      detail: `The run did not stay on the game: ${reasons.join("; ")}. Every check measured while off the origin describes that page, not the game.`,
+      detail: `The run did not stay on the project: ${reasons.join("; ")}. Every check measured while off the origin describes that page, not the project.`,
       excursions,
       foreignNavigations,
     };
@@ -1052,7 +1053,7 @@ export function stayedOnGame(input: StayedOnGameInput): StayedOnGameVerdict {
       : "no page-state snapshot came back to check against it";
   return {
     result: CheckResult.Pass,
-    detail: `${navs.length} main-frame navigation(s) were observed and the document stayed on ${input.gameOrigin}; ${snapshots}.`,
+    detail: `${navs.length} main-frame navigation(s) were observed and the document stayed on ${input.projectOrigin}; ${snapshots}.`,
     excursions,
     foreignNavigations,
   };
@@ -1088,10 +1089,10 @@ function frameOrigin(url: string): string | null {
 
 /**
  * WHICH FRAME THE PAGE-SIDE READS TARGET. Reads move to the frame holding the largest canvas ONLY
- * when the top frame has none, and only when that frame is on the game's own origin; otherwise a
+ * when the top frame has none, and only when that frame is on the project's own origin; otherwise a
  * boot could pass on an embedded ad's pixels. An unreadable origin stays eligible (`sameOrigin: null`).
  */
-export function chooseEvidenceFrame(frames: ReadonlyArray<FrameCandidate>, gameOrigin: string): EvidenceFrameChoice {
+export function chooseEvidenceFrame(frames: ReadonlyArray<FrameCandidate>, projectOrigin: string): EvidenceFrameChoice {
   const topIndex = frames.findIndex((f) => f.isTop);
   const top = topIndex === -1 ? null : frames[topIndex];
   if (top && top.canvasArea > 0) {
@@ -1104,14 +1105,14 @@ export function chooseEvidenceFrame(frames: ReadonlyArray<FrameCandidate>, gameO
   }
   const largest = children.reduce((a, b) => (b.f.canvasArea > a.f.canvasArea ? b : a));
   const origin = frameOrigin(largest.f.url);
-  const foreign = Boolean(gameOrigin) && origin !== null && origin !== gameOrigin;
+  const foreign = Boolean(projectOrigin) && origin !== null && origin !== projectOrigin;
   if (foreign) {
     return {
       index: null,
       url: largest.f.url,
       sameOrigin: false,
       routed: false,
-      why: `the top frame has no canvas and the largest canvas is in a CROSS-ORIGIN frame (${origin}, game ${gameOrigin}); refused as evidence — reads stay on the top frame`,
+      why: `the top frame has no canvas and the largest canvas is in a CROSS-ORIGIN frame (${origin}, project ${projectOrigin}); refused as evidence — reads stay on the top frame`,
     };
   }
   const kind = origin === null ? "origin-less" : "same-origin";
@@ -1141,7 +1142,7 @@ export type FullscreenState =
   | null
   | undefined;
 
-/** Did the probe get stuck outside a fullscreen door? Only when the game asked and never got it. */
+/** Did the probe get stuck outside a fullscreen door? Only when the project asked and never got it. */
 export function fullscreenBlocked(state: FullscreenState): boolean {
   const requested = state?.requested ?? 0;
   return requested > 0 && state?.granted !== true;
@@ -1149,13 +1150,13 @@ export function fullscreenBlocked(state: FullscreenState): boolean {
 
 function activationClause(activation: boolean | null | undefined): string {
   if (activation === false) {
-    return " with NO user activation live at the first call — a request a real browser refuses for every player, so this is worth reading as a defect in the game as well as a door the probe could not open";
+    return " with NO user activation live at the first call — a request a real browser refuses for every player, so this is worth reading as a defect in the project as well as a door the probe could not open";
   }
   return activation === true ? " with user activation live at the first call" : "";
 }
 
 /**
- * Demote a check that failed behind a refused fullscreen request. There is NO shim, on purpose: a game
+ * Demote a check that failed behind a refused fullscreen request. There is NO shim, on purpose: a project
  * asking for fullscreen without a gesture is refused for every real player too. Call sites apply it
  * only while the entrance is unconfirmed: fullscreen is presentation, not input.
  */
@@ -1164,7 +1165,7 @@ export function demoteForFullscreen(result: CheckResult, state: FullscreenState)
   const refusal = state?.lastRefusal ? ` (${state.lastRefusal})` : "";
   return {
     result: CheckResult.Unknown,
-    why: `The game asked for fullscreen ${state?.requested ?? 0} time(s)${activationClause(state?.userActivationAtRequest)} and never got it${refusal}; the probe has no fullscreen shim, so whether the game went on past that door is unobserved and every input after it may have landed on the screen it shows while waiting. A game we could not ENTER must not be reported as a game that does not RESPOND; this row is unknown.`,
+    why: `The project asked for fullscreen ${state?.requested ?? 0} time(s)${activationClause(state?.userActivationAtRequest)} and never got it${refusal}; the probe has no fullscreen shim, so whether the project went on past that door is unobserved and every input after it may have landed on the screen it shows while waiting. A project we could not ENTER must not be reported as a project that does not RESPOND; this row is unknown.`,
   };
 }
 
@@ -1198,7 +1199,7 @@ export interface EntranceSignals {
   readonly cameraMoved: boolean | null;
   /** A pointer lock (native or the shim's) was held after the gesture. `null` when the page never answered. */
   readonly pointerLockEngaged: boolean | null;
-  /** The game asked for pointer lock at all. */
+  /** The project asked for pointer lock at all. */
   readonly pointerLockRequested: boolean;
 }
 
@@ -1221,7 +1222,7 @@ function entranceWitness(s: EntranceSignals): { by: EntranceVia; why: string } |
   if (s.pointerLockEngaged === true) {
     return {
       by: EntranceVia.PointerLock,
-      why: "a pointer lock was held after the gesture — the game took the probe in",
+      why: "a pointer lock was held after the gesture — the project took the probe in",
     };
   }
   const control = s.startControl;
@@ -1280,7 +1281,7 @@ export function judgeEntrance(s: EntranceSignals): EntranceVerdict {
   const parts = [startControlStory(s.startControl), pressAnyKeyStory(s.pressAnyKey)].filter(
     (p): p is string => p !== null,
   );
-  if (s.pointerLockRequested) parts.push("the game asked for pointer lock and none was held after the gesture");
+  if (s.pointerLockRequested) parts.push("the project asked for pointer lock and none was held after the gesture");
   parts.push(cameraStory(s.cameraMoved));
   const door = doorObserved ? "a door was observed and never seen to open" : "no door was observed";
   return { confirmed: false, by: EntranceVia.None, doorObserved, why: `${door}: ${parts.join("; ")}` };
@@ -1292,24 +1293,24 @@ export interface StillLoading {
   readonly progress: boolean;
 }
 
-/** Whether gameplay was reached, and why. */
-export interface GameplayReached {
+/** Whether interaction was reached, and why. */
+export interface InteractionReached {
   readonly reached: boolean;
   readonly why: string;
 }
 
 /**
- * WAS GAMEPLAY EVER REACHED? A confirmed entrance is the strong answer. With NO door observed, page
- * frames after the gesture are frames of whatever the game is (a game with no title screen has no
+ * WAS INTERACTION EVER REACHED? A confirmed entrance is the strong answer. With NO door observed, page
+ * frames after the gesture are frames of whatever the project is (a project with no title screen has no
  * entrance to confirm). A door observed and never opened, a loader still on screen at the end, or no
- * post-gesture frame at all is gameplay never reached.
+ * post-gesture frame at all is interaction never reached.
  */
-export function gameplayReached(input: {
+export function interactionReached(input: {
   readonly entrance: Pick<EntranceVerdict, "confirmed" | "doorObserved" | "why">;
   /** Page-source frames captured in a post-gesture phase (`POST_GESTURE_PHASES`). */
   readonly postGestureFrames: number;
   readonly stillLoading?: StillLoading | null;
-}): GameplayReached {
+}): InteractionReached {
   if (input.entrance.confirmed) return { reached: true, why: `the entrance was confirmed (${input.entrance.why})` };
   if (input.postGestureFrames === 0) {
     return { reached: false, why: "no page frame was captured in any post-gesture phase" };
@@ -1323,27 +1324,27 @@ export function gameplayReached(input: {
   if (!input.entrance.doorObserved) {
     return {
       reached: true,
-      why: `no door was observed and ${input.postGestureFrames} page frame(s) were captured after the gesture — a game with no entrance to confirm`,
+      why: `no door was observed and ${input.postGestureFrames} page frame(s) were captured after the gesture — a project with no entrance to confirm`,
     };
   }
   return { reached: false, why: input.entrance.why };
 }
 
 /**
- * Demote an input-side row that failed on a game the probe never got INTO. The same one-directional
+ * Demote an input-side row that failed on a project the probe never got INTO. The same one-directional
  * rule as the pointer-lock demotion. A crash is never routed here.
  */
-export function demoteForNoGameplay(result: CheckResult, gameplay: GameplayReached): Demotion {
-  if (result !== CheckResult.Fail || gameplay.reached) return unchanged(result);
+export function demoteForNoInteraction(result: CheckResult, interaction: InteractionReached): Demotion {
+  if (result !== CheckResult.Fail || interaction.reached) return unchanged(result);
   return {
     result: CheckResult.Unknown,
-    why: `Gameplay was never reached (${gameplay.why}), so this row measured the screen the probe was stuck on, not the game. A game we could not ENTER must not be reported as a game that does not RESPOND; this row is unknown.`,
+    why: `Interaction was never reached (${interaction.why}), so this row measured the screen the probe was stuck on, not the project. A project we could not ENTER must not be reported as a project that does not RESPOND; this row is unknown.`,
   };
 }
 
 /* ------------------------------------------------------- page-ran precondition */
 
-/** Fewer requests than this and the page did not load a game: the document plus one sub-resource. */
+/** Fewer requests than this and the page did not load a project: the document plus one sub-resource. */
 export const RAN_REQUEST_FLOOR = 2;
 
 /** Whether the page ran, and why not. */
@@ -1367,7 +1368,7 @@ export function pageRan(obs: {
   if (obs.requests < RAN_REQUEST_FLOOR) {
     return {
       ran: false,
-      why: `only ${obs.requests} network request(s) were observed, under the ${RAN_REQUEST_FLOOR} (document plus one sub-resource) a page that loaded a game makes`,
+      why: `only ${obs.requests} network request(s) were observed, under the ${RAN_REQUEST_FLOOR} (document plus one sub-resource) a page that loaded a project makes`,
     };
   }
   const window = obs.windowMs;
@@ -1423,7 +1424,7 @@ export interface ExposureSelection<F extends ExposureFrameLike> {
 /**
  * WHICH FRAMES `visually_legible` MAY READ. Element-source frames are out (no DOM HUD), look-phase
  * frames are out (the best-lit heading the prober hunted for, not what a player sees), frames before
- * the first witnessed draw are out (a loading card is not gameplay), and fewer than
+ * the first witnessed draw are out (a loading card is not interaction), and fewer than
  * `MIN_EXPOSURE_FRAMES` eligible frames is no sample.
  */
 export function selectExposureFrames<F extends ExposureFrameLike>(
@@ -1454,7 +1455,7 @@ function exposureShortfall(
   firstRenderRunMs: number | null,
 ): string | null {
   if (firstRenderRunMs === null) {
-    return `no capture ever witnessed a non-degenerate draw, so no frame can be called a gameplay frame (${counts.candidates} post-gesture page frame(s) were captured)`;
+    return `no capture ever witnessed a non-degenerate draw, so no frame can be called a interaction frame (${counts.candidates} post-gesture page frame(s) were captured)`;
   }
   if (counts.eligible >= MIN_EXPOSURE_FRAMES) return null;
   const look = counts.excludedLook ? ` (${counts.excludedLook} look-phase frame(s) are excluded by design)` : "";
@@ -1491,7 +1492,7 @@ const NAMED_LETTER_KEY =
 /**
  * The keys an entrance screen NAMES ("Esc resumes too", "press E"). Only the keys the text names,
  * only at the entrance, only after a click failed to open the door; Escape is allowed HERE and
- * nowhere else, because here the game itself asked for it.
+ * nowhere else, because here the project itself asked for it.
  */
 export function namedKeysIn(text: string): string[] {
   const t = text.toLowerCase();
@@ -1555,7 +1556,7 @@ function movesTried(e: EnterableInput): string {
 }
 
 /**
- * CAN THE GAME BE ENTERED AT ALL? An L2 machine row. `fail` only when the probe made EVERY move a
+ * CAN THE PROJECT BE ENTERED AT ALL? An L2 machine row. `fail` only when the probe made EVERY move a
  * player has and the door stayed shut, or when the start control sits under an invisible cover no
  * click can pass. Anything the probe could not do is `unknown`. A confirmed entrance, or no door at
  * all, is `pass`.
@@ -1565,21 +1566,21 @@ export function enterableVerdict(e: EnterableInput): EnterableVerdict {
   if (!e.doorObserved) {
     return {
       result: CheckResult.Pass,
-      why: "no door was observed — the game had no entrance to open, and every input landed on the game itself",
+      why: "no door was observed — the project had no entrance to open, and every input landed on the project itself",
     };
   }
   const occluded = e.startControl.found === null ? e.startControl.occluded : null;
   if (occluded) {
     return {
       result: CheckResult.Fail,
-      why: `The game cannot be entered: its start control "${occluded.text}" is covered by an invisible element (${occluded.by}) — a hit test at the control's centre never reaches it, so no click, the probe's or a player's, can land on it.`,
+      why: `The project cannot be entered: its start control "${occluded.text}" is covered by an invisible element (${occluded.by}) — a hit test at the control's centre never reaches it, so no click, the probe's or a player's, can land on it.`,
     };
   }
   const untried = untriedDoor(e);
   if (untried) return { result: CheckResult.Unknown, why: untried };
   return {
     result: CheckResult.Fail,
-    why: `The game cannot be entered: the probe ${movesTried(e)}, looked again after the gesture, and the same screen was still there with no camera sample moving. That is every move a player has. A game nobody can get into is not scored on what lies behind its door.`,
+    why: `The project cannot be entered: the probe ${movesTried(e)}, looked again after the gesture, and the same screen was still there with no camera sample moving. That is every move a player has. A project nobody can get into is not scored on what lies behind its door.`,
   };
 }
 

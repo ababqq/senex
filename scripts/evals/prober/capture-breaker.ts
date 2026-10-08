@@ -171,7 +171,7 @@ export function captureBreakerSentence(s: CaptureBreakerState): string | null {
     );
   }
   parts.push(
-    `${total(s.skipped)} capture(s) were skipped (${s.skipped.page} page, ${s.skipped.element} element, ${s.skipped.canvas} canvas) and ${total(s.probes)} short probe attempt(s) (one per kind per ${CAPTURE_RETRY_EVERY_MS / SECOND_MS}s, ${CAPTURE_PROBE_TIMEOUT_MS / SECOND_MS}s each) went out — the probe kept its wall clock instead of paying two timeouts per frame. Fewer frames is the honest cost; a run graded on them reads as evidence-insufficient rather than as a game that did not respond`,
+    `${total(s.skipped)} capture(s) were skipped (${s.skipped.page} page, ${s.skipped.element} element, ${s.skipped.canvas} canvas) and ${total(s.probes)} short probe attempt(s) (one per kind per ${CAPTURE_RETRY_EVERY_MS / SECOND_MS}s, ${CAPTURE_PROBE_TIMEOUT_MS / SECOND_MS}s each) went out — the probe kept its wall clock instead of paying two timeouts per frame. Fewer frames is the honest cost; a run graded on them reads as evidence-insufficient rather than as a project that did not respond`,
   );
   return `${parts.join("; ")}.`;
 }

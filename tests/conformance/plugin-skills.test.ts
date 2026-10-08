@@ -20,7 +20,7 @@ import {
   pluginSkillLine,
   pluginSkillTool,
 } from "../../src/shared/plugins.ts";
-import { GENEX_GAME_PACKAGES } from "../../src/shared/genex.ts";
+import { GENEX_PROJECT_PACKAGES } from "../../src/shared/genex.ts";
 import { inspectPackage, pluginSkillDigests, validateManifest } from "../../src/substrate/plugins/manifest.ts";
 import { PluginConsentDeclined, PluginRegistry } from "../../src/substrate/plugins/registry.ts";
 import { copyOfExample, pluginFixture } from "../helpers/plugins.ts";
@@ -343,10 +343,14 @@ test("the synthetic skill tool exists only for a plugin with file skills and nam
   assert.doesNotMatch(tool.description, /greeting/, "an inline skill is already in the brief");
 });
 
-test("the Genex game packages are exact pins", () => {
-  assert.deepEqual(Object.keys(GENEX_GAME_PACKAGES).sort(), ["@genex-ai/embed-sdk", "@genex-ai/multiplayer"]);
-  for (const version of Object.values(GENEX_GAME_PACKAGES)) assert.match(version, /^\d+\.\d+\.\d+$/);
-  assert.match(GENEX_GAME_PACKAGES["@genex-ai/multiplayer"], /^0\.16\.\d+$/, "the multiplayer card asks for ^0.16.0");
+test("the Genex project packages are exact pins", () => {
+  assert.deepEqual(Object.keys(GENEX_PROJECT_PACKAGES).sort(), ["@genex-ai/embed-sdk", "@genex-ai/multiplayer"]);
+  for (const version of Object.values(GENEX_PROJECT_PACKAGES)) assert.match(version, /^\d+\.\d+\.\d+$/);
+  assert.match(
+    GENEX_PROJECT_PACKAGES["@genex-ai/multiplayer"],
+    /^0\.16\.\d+$/,
+    "the multiplayer card asks for ^0.16.0",
+  );
 });
 
 // ── The registry serves file skills ─────────────────────────────────────────────────────────────
@@ -384,9 +388,9 @@ async function skillRegistry(edit?: (dir: string, m: RawManifest) => Promise<voi
     await writeFile(path.join(dir, "plugin.json"), JSON.stringify(m));
   }
   await f.registry.installLocal(dir, PluginSourceKind.Local);
-  const game = path.join(f.root, "game");
-  await mkdir(game);
-  return { ...f, source: dir, binding: { project: "game", directory: game } };
+  const project = path.join(f.root, "project");
+  await mkdir(project);
+  return { ...f, source: dir, binding: { project: "project", directory: project } };
 }
 
 /** The one package copy the registry installed for `id`. */
@@ -448,7 +452,7 @@ test("the skill tool reads the declared file and each declared reference, in the
   }
 });
 
-/** A skill read that must be refused with its reason, and leave the game and the package as they were. */
+/** A skill read that must be refused with its reason, and leave the project and the package as they were. */
 const LISTED = /exactly as listed/;
 const HOSTILE_READS: Array<[string, Record<string, unknown>, RegExp, ((copy: string) => Promise<void>)?]> = [
   ["the manifest", { name: "card", file: "plugin.json" }, LISTED],

@@ -9,7 +9,7 @@ import type { StudioCore } from "../../src/main/studio-core.ts";
 import type { PreviewPort } from "../../src/substrate/preview-port.ts";
 import { tmpDir } from "../helpers/tmp.ts";
 
-/** A preview service over one game folder, with Live's loads and offers recorded instead of made. */
+/** A preview service over one project folder, with Live's loads and offers recorded instead of made. */
 async function checkpointFixture(options: { headless?: boolean } = {}) {
   const root = await tmpDir("checkpoint-");
   const worktree = path.join(root, "worktree");
@@ -23,7 +23,7 @@ async function checkpointFixture(options: { headless?: boolean } = {}) {
   const createHeadlessPreview = options.headless ? async () => preview : undefined;
   const core = {
     options: { preview, previewPoolMax: 0, ...(createHeadlessPreview ? { createHeadlessPreview } : {}) },
-    games: { dirFor: () => root },
+    projects: { dirFor: () => root },
   } as unknown as StudioCore;
   const state = { ...idleWork(), ...unservedPreviews() } as CoreInternals;
   const service = new PreviewService(core, state);
@@ -31,7 +31,7 @@ async function checkpointFixture(options: { headless?: boolean } = {}) {
   const offers: LiveOffer[] = [];
   service.loadPreview = async (load) => {
     loads.push(load);
-    return "game://p";
+    return "project://p";
   };
   service.offerLive = async (offer) => {
     offers.push(offer);
@@ -41,7 +41,7 @@ async function checkpointFixture(options: { headless?: boolean } = {}) {
   return { root, worktree, visible, observed, state, service, loads, offers, serve };
 }
 
-test("a checkpoint never loads Live: it offers the build folder Live serves when it is in it, else the game folder", async () => {
+test("a checkpoint never loads Live: it offers the build folder Live serves when it is in it, else the project folder", async () => {
   const { root, worktree, service, loads, offers, serve } = await checkpointFixture();
   serve(null);
   await service.checkpointPreview("p", root, "the cube turned orange");

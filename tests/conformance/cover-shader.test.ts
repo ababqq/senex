@@ -24,9 +24,14 @@ import {
   type CoverRecipe,
 } from "../../src/shared/cover-recipe.ts";
 import { oklch, turnHue } from "../../src/shared/oklch.ts";
-import { displayCover, replaceableCover, validateGameCover, type GameCover } from "../../src/shared/game-library.ts";
-import { gameCoverUrl } from "../../src/shared/game-cover.ts";
-import { GameWorkspaces } from "../../src/substrate/game-workspace.ts";
+import {
+  displayCover,
+  replaceableCover,
+  validateProjectCover,
+  type ProjectCover,
+} from "../../src/shared/project-library.ts";
+import { projectCoverUrl } from "../../src/shared/project-cover.ts";
+import { ProjectWorkspaces } from "../../src/substrate/project-workspace.ts";
 import { startRig } from "../helpers/studio-rig.ts";
 import type { DelegateRequest } from "../../src/substrate/engines/types.ts";
 import { createToolRegistry, loadToolModules } from "../../src/harness-seed/tools/index.ts";
@@ -50,9 +55,9 @@ it("recipes cover the 21 named looks and 12 orb families in 9 hue slots, and rej
   assert.equal(COVER_FAMILIES.length, 18);
   assert.equal(ALL_COVER_LOOKS.length, 21 + 12 * COVER_HUE_SLOTS);
   for (const [family, palette] of COVER_LOOKS)
-    validateGameCover({ kind: "recipe", family, palette, seed: 2718, motion: 0.6 });
+    validateProjectCover({ kind: "recipe", family, palette, seed: 2718, motion: 0.6 });
   for (const family of Object.values(OrbFamily))
-    for (let hue = 0; hue < COVER_HUE_SLOTS; hue++) validateGameCover({ kind: "recipe", family, hue, seed: 9 });
+    for (let hue = 0; hue < COVER_HUE_SLOTS; hue++) validateProjectCover({ kind: "recipe", family, hue, seed: 9 });
   const base: CoverRecipe = { kind: "recipe", family: "clouds", palette: "night", seed: 3 };
   const orb: CoverRecipe = { kind: "recipe", family: OrbFamily.Plasma, hue: 2, seed: 3 };
   for (const bad of [
@@ -91,7 +96,7 @@ it("recipes cover the 21 named looks and 12 orb families in 9 hue slots, and rej
   assert.equal(coverLookName({ family: "ember", palette: "violet" }), "Ember · violet");
 });
 
-it("no two games share a look until every look of the family is taken", () => {
+it("no two projects share a look until every look of the family is taken", () => {
   const random = seededRandom(7);
   const taken: CoverLook[] = [];
   for (let n = 0; n < ALL_COVER_LOOKS.length; n++) taken.push(pickCoverLook(taken, {}, random));
@@ -115,7 +120,7 @@ it("an orb family's new hue slot is the free one farthest from its others", () =
     });
 });
 
-it("the builder names a family; Genex keeps its look free of every other game's", () => {
+it("the builder names a family; Genex keeps its look free of every other project's", () => {
   const taken: CoverLook[] = [
     { family: "ember", palette: "violet" },
     { family: "ember", palette: "lava" },
@@ -138,7 +143,7 @@ it("the builder names a family; Genex keeps its look free of every other game's"
 
 it("an orb cover's still keeps its family colours, turned to its hue", () => {
   const still = (hue: number) =>
-    decodeURIComponent(gameCoverUrl({ kind: "recipe", family: OrbFamily.Caustic, hue, seed: 4 }));
+    decodeURIComponent(projectCoverUrl({ kind: "recipe", family: OrbFamily.Caustic, hue, seed: 4 }));
   assert.match(still(0), /^data:image\/svg\+xml,<svg/);
   assert.doesNotMatch(still(0), /<script|onload|href=|<image/);
   assert.notEqual(still(0), still(3));
@@ -154,8 +159,8 @@ it("an orb cover's still keeps its family colours, turned to its hue", () => {
 });
 
 it("the sphere program draws every valid recipe seed as that seed modulo 997", () => {
-  // The cover poster (main/game-cover-renderer.ts) and the live sphere both pass the seed through
-  // coverShaderSeed, so a game's poster and its animation start from the same noise offset.
+  // The cover poster (main/project-cover-renderer.ts) and the live sphere both pass the seed through
+  // coverShaderSeed, so a project's poster and its animation start from the same noise offset.
   for (let seed = 0; seed <= COVER_SEED_MAX; seed++) assert.equal(coverShaderSeed(seed), seed % 997);
 });
 
@@ -170,13 +175,13 @@ it("the tool schema carries the looks as enums, and the seeded harness tool matc
   assert.deepEqual(seeded.parameters, COVER_TOOL.parameters);
   assert.equal(seeded.description, COVER_TOOL.description);
   assert.ok(
-    !modules.flatMap((module) => module.tools).some((tool) => tool.name === "set_game_cover_shader"),
+    !modules.flatMap((module) => module.tools).some((tool) => tool.name === "set_project_cover_shader"),
     "new harnesses no longer author GLSL",
   );
 });
 
 it("records from before recipes each get a look of their own, without rewriting them", () => {
-  const oldDefault: GameCover = {
+  const oldDefault: ProjectCover = {
     kind: "shader",
     version: 1,
     surface: "return vec3(0.5);",
@@ -187,7 +192,7 @@ it("records from before recipes each get a look of their own, without rewriting 
   const saved = JSON.stringify(oldDefault);
   const shown = displayCover(oldDefault)!;
   assert.equal(shown.kind, "recipe");
-  validateGameCover(shown);
+  validateProjectCover(shown);
   assert.deepEqual(displayCover(oldDefault), shown, "deterministic");
   assert.equal(JSON.stringify(oldDefault), saved, "display resolution must not mutate persisted defaults");
   const looks = new Set(
@@ -201,18 +206,18 @@ it("records from before recipes each get a look of their own, without rewriting 
   assert.notDeepEqual(displayCover(undefined, "snow-temple"), displayCover(undefined, "moon-racer"));
   assert.deepEqual(displayCover(), { kind: "recipe", family: "clouds", palette: "genex", seed: 23, placeholder: true });
   for (const version of [1, 2] as const) {
-    const custom: GameCover = { ...oldDefault, version, custom: true };
+    const custom: ProjectCover = { ...oldDefault, version, custom: true };
     assert.equal(displayCover(custom), custom);
-    assert.equal(gameCoverUrl(custom), poster);
-    validateGameCover(custom);
+    assert.equal(projectCoverUrl(custom), poster);
+    validateProjectCover(custom);
     assert.equal(replaceableCover(custom), false);
   }
-  const uploaded: GameCover = { kind: "image", dataUrl: poster };
+  const uploaded: ProjectCover = { kind: "image", dataUrl: poster };
   assert.equal(displayCover(uploaded), undefined);
-  assert.equal(gameCoverUrl(uploaded), poster);
+  assert.equal(projectCoverUrl(uploaded), poster);
   assert.equal(replaceableCover(uploaded), false);
   assert.equal(displayCover({ kind: "procedural", seed: 1, style: "world", palette: 0 }), undefined);
-  const still = decodeURIComponent(gameCoverUrl({ kind: "recipe", family: "ember", palette: "lava", seed: 4 }));
+  const still = decodeURIComponent(projectCoverUrl({ kind: "recipe", family: "ember", palette: "lava", seed: 4 }));
   assert.match(still, /^data:image\/svg\+xml,<svg/);
   assert.doesNotMatch(still, /<script|onload|href=|<image/);
   assert.equal(replaceableCover(), true);
@@ -261,7 +266,7 @@ it("legacy cover grammar still permits bounded math and rejects code, loops and 
   ])
     assert.throws(() => validateCoverSurface(bad), bad);
   assert.throws(() =>
-    validateGameCover({
+    validateProjectCover({
       kind: "shader",
       version: 1,
       custom: true,
@@ -272,53 +277,53 @@ it("legacy cover grammar still permits bounded math and rejects code, loops and 
   );
 });
 
-it("a new game is born with a look; the first one is always Clouds in the Genex sky", async () => {
+it("a new project is born with a look; the first one is always Clouds in the Genex sky", async () => {
   const rig = await startRig({ replies: [] });
   try {
-    const first = await rig.core.createGame("First game");
+    const first = await rig.core.createProject("First project");
     assert.deepEqual(
       { ...first.cover, seed: 0 },
       { kind: "recipe", family: "clouds", palette: "genex", seed: 0, placeholder: true },
     );
     const covers = [];
-    for (let n = 0; n < 6; n++) covers.push((await rig.core.createGame(`Next ${n}`)).cover);
+    for (let n = 0; n < 6; n++) covers.push((await rig.core.createProject(`Next ${n}`)).cover);
     for (const cover of covers) {
       assert.equal(cover?.kind, "recipe");
-      validateGameCover(cover!);
+      validateProjectCover(cover!);
       assert.equal(replaceableCover(cover), true);
     }
     const looks = [first.cover, ...covers].map((cover) => coverLookKey(cover as CoverRecipe));
-    assert.equal(new Set(looks).size, looks.length, "no two new games share a look");
-    const restarted = new GameWorkspaces(rig.core.games);
+    assert.equal(new Set(looks).size, looks.length, "no two new projects share a look");
+    const restarted = new ProjectWorkspaces(rig.core.projects);
     for (let n = 0; n < 6; n++)
       assert.deepEqual((await restarted.presentation(`next-${n}`)).cover, covers[n], "the roll is kept");
-    await rig.core.games.ensureCover("next-0");
+    await rig.core.projects.ensureCover("next-0");
     assert.deepEqual(
-      (await rig.core.games.presentation("next-0")).cover,
+      (await rig.core.projects.presentation("next-0")).cover,
       covers[0],
       "a later brief keeps the rolled look",
     );
     // An opened folder without a look keeps the one its row already showed.
-    const opened = await rig.core.games.scaffold("opened-folder");
+    const opened = await rig.core.projects.scaffold("opened-folder");
     assert.equal(opened.cover, undefined);
-    await rig.core.games.ensureCover(opened.name);
-    assert.deepEqual((await rig.core.games.presentation(opened.name)).cover, displayCover(undefined, opened.name));
+    await rig.core.projects.ensureCover(opened.name);
+    assert.deepEqual((await rig.core.projects.presentation(opened.name)).cover, displayCover(undefined, opened.name));
   } finally {
     await rig.stop();
   }
 });
 
-it("the builder picks a recipe once; it stays bound to its game and never replaces an upload", async () => {
+it("the builder picks a recipe once; it stays bound to its project and never replaces an upload", async () => {
   const rig = await startRig({ replies: [] });
   try {
-    rig.core.options.renderGameCover = async () => {
+    rig.core.options.renderProjectCover = async () => {
       throw Error("recipes never render in the main process");
     };
     const api = rig.core.api() as unknown as Record<string, (args: any) => Promise<any>>;
     for (const engine of ["claude-code", "codex", "bonsai"]) {
-      const game = await rig.core.createGame(`Cover ${engine}`),
-        threadId = await rig.core.threadForGame(game.name);
-      const before = await readFile(path.join(game.dir, "studio.json"), "utf8");
+      const project = await rig.core.createProject(`Cover ${engine}`),
+        threadId = await rig.core.threadForProject(project.name);
+      const before = await readFile(path.join(project.dir, "studio.json"), "utf8");
       let mode = "create";
       let chosen = "";
       rig.core.engines.register({
@@ -332,7 +337,7 @@ it("the builder picks a recipe once; it stays bound to its game and never replac
           const tool = request.liveTools?.find((tool) => tool.name === COVER_TOOL.name);
           if (mode === "create") {
             assert.ok(tool);
-            assert.match(request.prompt, /set_game_cover once/);
+            assert.match(request.prompt, /set_project_cover once/);
             await assert.rejects(
               request.onLiveTool!(COVER_TOOL.name, { family: "clouds", palette: "lava" }),
               /Unknown cover look/,
@@ -340,7 +345,7 @@ it("the builder picks a recipe once; it stays bound to its game and never replac
             const saved = String(
               await request.onLiveTool!(COVER_TOOL.name, { family: "ember", palette: "violet", seed: 11 }),
             );
-            // The family is kept; a palette another game already shows moves to a free one.
+            // The family is kept; a palette another project already shows moves to a free one.
             chosen = saved.match(/Ember · (\w+)/)?.[1] ?? "";
             assert.ok(chosen, saved);
             if (engine === "claude-code") assert.equal(chosen, "violet", "a free palette is kept as asked");
@@ -350,45 +355,45 @@ it("the builder picks a recipe once; it stays bound to its game and never replac
       } as never);
       await api["engine.delegate"]!({
         engine,
-        project: game.name,
+        project: project.name,
         threadId,
         prompt: "Build a tidal garden",
         model: "fixture-model",
       });
       mode = "existing";
-      await api["engine.delegate"]!({ engine, project: game.name, threadId, prompt: "Continue" });
-      const stored = (await new GameWorkspaces(rig.core.games).presentation(game.name)).cover;
+      await api["engine.delegate"]!({ engine, project: project.name, threadId, prompt: "Continue" });
+      const stored = (await new ProjectWorkspaces(rig.core.projects).presentation(project.name)).cover;
       assert.deepEqual(stored, { kind: "recipe", family: "ember", palette: chosen, seed: 11 });
       assert.equal(
-        await readFile(path.join(game.dir, "studio.json"), "utf8"),
+        await readFile(path.join(project.dir, "studio.json"), "utf8"),
         before,
-        "artwork is not written into the game",
+        "artwork is not written into the project",
       );
-      const next = await rig.core.createGame(`Read only ${engine}`);
+      const next = await rig.core.createProject(`Read only ${engine}`);
       await api["engine.delegate"]!({ engine, project: next.name, prompt: "Inspect", readOnly: true });
     }
-    const game = await rig.core.createGame("Local cover"),
-      threadId = await rig.core.threadForGame(game.name);
+    const project = await rig.core.createProject("Local cover"),
+      threadId = await rig.core.threadForProject(project.name);
     const registry = await createToolRegistry(
       { workspace: rig.core.layout.harnessWs, call: (name: string, args: any) => api[name]!(args) } as never,
-      { project: game.name },
+      { project: project.name },
     );
     assert.ok(registry.names().includes(COVER_TOOL.name));
     const response = await registry.execute(
       { name: COVER_TOOL.name, arguments: { family: "marble", palette: "jade" } },
-      { project: game.name, threadId, call: (name: string, args: any) => api[name]!(args) } as never,
+      { project: project.name, threadId, call: (name: string, args: any) => api[name]!(args) } as never,
     );
     assert.equal(response.ok, true);
     assert.match(response.content, /Marble · \w+/, "the family is kept; a taken palette moves");
-    assert.equal((await rig.core.games.presentation(game.name)).cover?.kind, "recipe");
-    const other = await rig.core.createGame("Other cover");
+    assert.equal((await rig.core.projects.presentation(project.name)).cover?.kind, "recipe");
+    const other = await rig.core.createProject("Other cover");
     await assert.rejects(
-      api["game.setCover"]!({ project: other.name, threadId, family: "clouds", palette: "day" }),
+      api["project.setCover"]!({ project: other.name, threadId, family: "clouds", palette: "day" }),
       /bound/,
     );
-    await rig.core.updateGame(other.name, { cover: { kind: "image", dataUrl: poster } });
-    assert.match(await api["game.setCover"]!({ project: other.name, family: "clouds", palette: "day" }), /kept/);
-    assert.deepEqual((await rig.core.games.presentation(other.name)).cover, { kind: "image", dataUrl: poster });
+    await rig.core.updateProject(other.name, { cover: { kind: "image", dataUrl: poster } });
+    assert.match(await api["project.setCover"]!({ project: other.name, family: "clouds", palette: "day" }), /kept/);
+    assert.deepEqual((await rig.core.projects.presentation(other.name)).cover, { kind: "image", dataUrl: poster });
     const candidate = await createToolRegistry(
       {
         workspace: rig.core.layout.harnessWs,
@@ -409,36 +414,36 @@ it("harnesses from before recipes can still author a custom GLSL cover; failures
   try {
     const api = rig.core.api() as unknown as Record<string, (args: any) => Promise<any>>;
     let renders = 0;
-    rig.core.options.renderGameCover = async (code) => {
+    rig.core.options.renderProjectCover = async (code) => {
       validateCoverSurface(code);
       renders++;
       return poster;
     };
-    const game = await rig.core.createGame("Legacy cover");
-    const result = await api["game.setCoverShader"]!({ project: game.name, surface });
+    const project = await rig.core.createProject("Legacy cover");
+    const result = await api["project.setCoverShader"]!({ project: project.name, surface });
     assert.equal(result.images[0].mimeType, "image/png");
-    const stored = (await rig.core.games.presentation(game.name)).cover;
+    const stored = (await rig.core.projects.presentation(project.name)).cover;
     assert.ok(stored?.kind === "shader");
     assert.deepEqual(
       { ...stored, seed: 0 },
       { kind: "shader", version: 2, surface, seed: 0, poster, custom: true },
       "the placeholder recipe gives way to the custom shader",
     );
-    assert.match(await api["game.setCoverShader"]!({ project: game.name, surface }), /preserved/);
+    assert.match(await api["project.setCoverShader"]!({ project: project.name, surface }), /preserved/);
     assert.equal(renders, 1);
-    const race = await rig.core.createGame("Cover race");
-    const before = (await rig.core.games.presentation(race.name)).cover;
-    rig.core.options.renderGameCover = async () => {
+    const race = await rig.core.createProject("Cover race");
+    const before = (await rig.core.projects.presentation(race.name)).cover;
+    rig.core.options.renderProjectCover = async () => {
       throw Error("compile failed");
     };
-    await assert.rejects(api["game.setCoverShader"]!({ project: race.name, surface }), /compile failed/);
-    assert.deepEqual((await rig.core.games.presentation(race.name)).cover, before);
-    rig.core.options.renderGameCover = async () => {
-      await rig.core.updateGame(race.name, { cover: { kind: "image", dataUrl: poster } });
+    await assert.rejects(api["project.setCoverShader"]!({ project: race.name, surface }), /compile failed/);
+    assert.deepEqual((await rig.core.projects.presentation(race.name)).cover, before);
+    rig.core.options.renderProjectCover = async () => {
+      await rig.core.updateProject(race.name, { cover: { kind: "image", dataUrl: poster } });
       return poster;
     };
-    assert.match(await api["game.setCoverShader"]!({ project: race.name, surface }), /newer image was preserved/);
-    assert.deepEqual((await rig.core.games.presentation(race.name)).cover, { kind: "image", dataUrl: poster });
+    assert.match(await api["project.setCoverShader"]!({ project: race.name, surface }), /newer image was preserved/);
+    assert.deepEqual((await rig.core.projects.presentation(race.name)).cover, { kind: "image", dataUrl: poster });
   } finally {
     await rig.stop();
   }

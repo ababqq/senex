@@ -33,7 +33,7 @@ import {
 } from "../../shared/protocol.ts";
 import type { CoreInternals, StudioCore } from "../studio-core.ts";
 import { errorMessage } from "../../shared/errors.ts";
-import { NEW_CHAT_TITLE, NEW_GAME_TITLE } from "./game-threads.ts";
+import { NEW_CHAT_TITLE, NEW_PROJECT_TITLE } from "./project-threads.ts";
 import { SECOND_MS } from "../../shared/duration.ts";
 import { settleWithin } from "../app-lifecycle.ts";
 import { threadOr } from "./main-thread.ts";
@@ -42,11 +42,11 @@ import { isQueueMessageId } from "./rewind.ts";
 
 /** Which build `show_build` and `land_build` mean when the coordinator names none: the run's own. */
 const INTEGRATION_BUILD = "integration";
-/** A show while Live holds another game: nothing was shown, and nothing waits for its Reload. */
-const OTHER_GAME_IN_LIVE =
-  "Another game is open in Live, so it was left as it is and nothing was shown. Tell the user to open this game first, then ask again.";
+/** A show while Live holds another project: nothing was shown, and nothing waits for its Reload. */
+const OTHER_PROJECT_IN_LIVE =
+  "Another project is open in Live, so it was left as it is and nothing was shown. Tell the user to open this project first, then ask again.";
 
-/** The build `show_build` means by the game folder as it is. */
+/** The build `show_build` means by the project folder as it is. */
 const LIVE_BUILD = "live";
 /** A commit hash, full or abbreviated, as a build name. */
 const COMMIT_HASH = /^[0-9a-f]{7,40}$/i;
@@ -78,7 +78,7 @@ const BUILD_CHANGES: ReadonlySet<CoordinatorTool> = new Set<CoordinatorTool>([
   CoordinatorTool.LandBuild,
 ]);
 /** Titles a thread has before its first message names it. */
-const PLACEHOLDER_TITLES: readonly string[] = [NEW_GAME_TITLE, NEW_CHAT_TITLE];
+const PLACEHOLDER_TITLES: readonly string[] = [NEW_PROJECT_TITLE, NEW_CHAT_TITLE];
 /** Characters of a first message kept as the thread's title. */
 const THREAD_TITLE_CHARS = 56;
 
@@ -126,7 +126,7 @@ type ContractorMeta =
     }
   | undefined;
 
-/** Where a message lands: its thread, the game it is about, and whether the studio thread answers it. */
+/** Where a message lands: its thread, the project it is about, and whether the studio thread answers it. */
 interface MessageTarget {
   threadId: string;
   project: string | undefined;
@@ -144,7 +144,7 @@ interface CoordinatorCall {
   run: CoordinatorRun;
   /**
    * The chat's own session asking, when a run control is its (`runControl`): its own hold on the
-   * game folder is not a contractor building there, nor one of the run's workers.
+   * project folder is not a contractor building there, nor one of the run's workers.
    */
   asker?: AbortController;
 }
@@ -165,7 +165,7 @@ function chatSteers(events: readonly EventEnvelope[]): AnyCustomPayload[] {
   return payloadsOf(events, CustomEvent.RunSteering).filter((steer) => steer.how !== SteerDelivery.Lead);
 }
 
-/** Does a game thread's next message go to a plan review first? */
+/** Does a project thread's next message go to a plan review first? */
 function needsPlanReview(options: ComposerSendOptions, waiting: PlanReview | undefined): boolean {
   const reviewOpen = Boolean(waiting && OPEN_PLAN_REVIEW.includes(waiting.state));
   return Boolean(options.reviewPlan || options.autopilot?.reviewPlan || reviewOpen);
@@ -178,7 +178,7 @@ function choiceChanged(metadata: ContractorMeta, options: ComposerSendOptions): 
   return Boolean(options.effort && metadata?.lastEffort !== options.effort);
 }
 
-/** A thread still named for what it was before its first message: a fresh chat, or its game's folder. */
+/** A thread still named for what it was before its first message: a fresh chat, or its project's folder. */
 function hasPlaceholderTitle(record: ConversationRecord, meta: ThreadMeta): boolean {
   if (!record.title || PLACEHOLDER_TITLES.includes(record.title)) return true;
   return meta?.project != null && record.title === meta.project;
@@ -260,8 +260,8 @@ export class ConversationService {
         ? await this.#resumeContractor(target.threadId, options)
         : { sendOptions: options, resume: options.resume };
     if (target.project && !target.studioThread) {
-      await this.#core.games.ensureCover(target.project);
-      this.#core.emit(UiEvent.GameChanged, { project: target.project });
+      await this.#core.projects.ensureCover(target.project);
+      this.#core.emit(UiEvent.ProjectChanged, { project: target.project });
     }
     const references = await this.#saveMoodBoard(target.project, sendOptions);
     const action = this.#userMessageAction(text, target, sendOptions, { resume, extraReads, stills, references });
@@ -285,15 +285,15 @@ export class ConversationService {
     await this.#core.host.dispatch(action);
   }
 
-  /** A game thread whose plan is under review, or that asked for one, sends the message there. */
+  /** A project thread whose plan is under review, or that asked for one, sends the message there. */
   async #requestPlanReview(text: string, options: ComposerSendOptions, sentAt: number): Promise<boolean> {
     const reviewThread = threadOr(this.#core, options.thread);
     const record = await this.#core.store.getRecord(reviewThread);
     const waiting = (record.metadata as { planReview?: PlanReview } | undefined)?.planReview;
-    const isGame = (record.metadata as ThreadMeta)?.kind === ThreadKind.Game;
+    const isProject = (record.metadata as ThreadMeta)?.kind === ThreadKind.Project;
     // Reading the whole log costs seconds on a long chat, so only a message that could go to
     // plan review pays for it; every other send reaches the queue without it.
-    if (!isGame || !needsPlanReview(options, waiting)) return false;
+    if (!isProject || !needsPlanReview(options, waiting)) return false;
     // A stale checked toggle cannot detach a follow-up from the plan already being built.
     if (await this.#continuingRun(reviewThread)) return false;
     // A plan keeps its request, not the composer's bubble id: approving it sends a new message.
@@ -317,15 +317,15 @@ export class ConversationService {
   /**
    * The mood board becomes durable project data the moment it commissions a run — the next
    * interview finds it in <project>/references/ even if the chat is long gone. Returns the files
-   * this message added (relative to the game), which rewinding it takes back.
+   * this message added (relative to the project), which rewinding it takes back.
    */
   async #saveMoodBoard(project: string | undefined, options: ComposerSendOptions): Promise<string[]> {
     const frames = options.frames ?? options.autopilot?.frames;
     if (!frames?.length || !project) return [];
-    const dir = this.#core.games.dirFor(project);
+    const dir = this.#core.projects.dirFor(project);
     try {
       const saved = await this.#core.saveReferenceFrames(project, frames);
-      // Only files this message added: a picture sent before is the game's already.
+      // Only files this message added: a picture sent before is the project's already.
       return saved.filter((entry) => entry.created).map((entry) => toPosixRelative(path.relative(dir, entry.file)));
     } catch (err) {
       this.#core.options.onLog?.(`[core] mood board save failed: ${errorMessage(err)}`, "stderr");
@@ -334,7 +334,7 @@ export class ConversationService {
   }
 
   /**
-   * The active thread decides where a message lands: a game thread carries its project (an
+   * The active thread decides where a message lands: a project thread carries its project (an
    * unbound draft means "scaffold a fresh one"), and the studio thread never builds.
    */
   async #messageTarget(text: string, options: ComposerSendOptions): Promise<MessageTarget> {
@@ -348,7 +348,7 @@ export class ConversationService {
     const record = await this.#core.store.getRecord(options.thread);
     target.threadId = record.id;
     const meta = record.metadata as ThreadMeta;
-    if (meta?.kind === ThreadKind.Game) {
+    if (meta?.kind === ThreadKind.Project) {
       if (meta.project) target.project = meta.project;
       else target.newProject = true;
     } else {
@@ -357,15 +357,15 @@ export class ConversationService {
       target.newProject = false;
     }
     const first = hasPlaceholderTitle(record, meta);
-    if (first && meta?.kind === ThreadKind.Game) await this.#nameThread(target.threadId, text, meta.project ?? null);
-    // A game its first message left Untitled ("Hello", which home already named it from) is named
+    if (first && meta?.kind === ThreadKind.Project) await this.#nameThread(target.threadId, text, meta.project ?? null);
+    // A project its first message left Untitled ("Hello", which home already named it from) is named
     // by a later one that says what it is. Never awaited: the message goes on while it is named.
-    const later = !first && !options.origin && meta?.kind === ThreadKind.Game;
+    const later = !first && !options.origin && meta?.kind === ThreadKind.Project;
     if (later && meta.project) void this.#nameFromIdea(meta.project, text, options);
     return target;
   }
 
-  /** The game named from this message, on the model it was sent to; a failure keeps the title it has. */
+  /** The project named from this message, on the model it was sent to; a failure keeps the title it has. */
   async #nameFromIdea(project: string, text: string, options: ComposerSendOptions): Promise<void> {
     const request = { prompt: text, ...(options.engine ? { engine: options.engine } : {}) };
     await this.#core
@@ -373,7 +373,7 @@ export class ConversationService {
       .catch(() => {});
   }
 
-  /** A game thread is named after the first line of its first message. */
+  /** A project thread is named after the first line of its first message. */
   async #nameThread(threadId: string, text: string, project: string | null): Promise<void> {
     const title = text.trim().split("\n")[0]?.slice(0, THREAD_TITLE_CHARS).trim();
     if (!title) return;
@@ -382,7 +382,7 @@ export class ConversationService {
   }
 
   /**
-   * Folders and stills the message names: a folder may become the thread's game, still folders
+   * Folders and stills the message names: a folder may become the thread's project, still folders
    * become read roots the thread remembers, and still files travel with the message.
    */
   async #namedPaths(
@@ -390,7 +390,7 @@ export class ConversationService {
     target: MessageTarget,
     frames: ReferenceFrame[] | undefined,
   ): Promise<{ extraReads: string[]; stills: ReferenceFrame[] | undefined }> {
-    const named = await resolveNamedPaths(text, { home: this.#core.games.homeDir });
+    const named = await resolveNamedPaths(text, { home: this.#core.projects.homeDir });
     const { workspace } = named;
     const adoptsNamedFolder = target.newProject && !target.project && workspace;
     if (adoptsNamedFolder) await this.#adoptNamed(target, workspace);
@@ -455,7 +455,7 @@ export class ConversationService {
   ): DispatchAction {
     const { project, newProject, studioThread } = target;
     const { resume, extraReads, stills } = context;
-    const projectDir = project ? this.#core.games.dirFor(project) : undefined;
+    const projectDir = project ? this.#core.projects.dirFor(project) : undefined;
     return {
       type: DispatchActionType.UserMessage,
       threadId: target.threadId,
@@ -515,7 +515,7 @@ export class ConversationService {
   }
 
   /**
-   * Chat entry point. The active thread decides where a message lands: a game thread carries
+   * Chat entry point. The active thread decides where a message lands: a project thread carries
    * its project (an unbound draft means "scaffold a fresh one"), and the studio thread never
    * builds — the flag lets the harness answer instead of guessing a workspace.
    */
@@ -586,7 +586,7 @@ export class ConversationService {
       case CoordinatorTool.ContinueBuild:
         return this.#continueBuild(call);
       // Seeing and landing a build are for any run — finished, paused or running. A user who
-      // asks "run the project" after a night must get the game, not "the run is finished".
+      // asks "run the project" after a night must get the project, not "the run is finished".
       case CoordinatorTool.ShowBuild:
         return this.#showBuild(call);
       case CoordinatorTool.LandBuild:
@@ -667,10 +667,10 @@ export class ConversationService {
     }
     // Neutral on purpose: with a Loop on the message the harness goes on as the same build, reopened
     // with the Loop's time, and tells its coordinator so; without one a builder takes it in the chat.
-    return "The requested work will continue in this game after your reply, using the saved plan and conversation.";
+    return "The requested work will continue in this project after your reply, using the saved plan and conversation.";
   }
 
-  /** The build a show or land names, the game it is in, and the commit it means (none for live or an unknown name). */
+  /** The build a show or land names, the project it is in, and the commit it means (none for live or an unknown name). */
   async #namedBuild({
     threadId,
     runId,
@@ -709,23 +709,23 @@ export class ConversationService {
     const loads = this.#loadsLive(call, project);
     const elsewhere = this.#x.previews.liveHoldsAnother(project);
     if (build === LIVE_BUILD) {
-      if (elsewhere) return OTHER_GAME_IN_LIVE;
+      if (elsewhere) return OTHER_PROJECT_IN_LIVE;
       if (!loads) {
         await this.#core.offerLive({ project, root: null });
-        return "Live was left as the person has it; if the game folder changed since it loaded, the Reload button on the stage now offers it.";
+        return "Live was left as the person has it; if the project folder changed since it loaded, the Reload button on the stage now offers it.";
       }
       await this.#x.previews.loadPreview({ project });
       this.#core.emit(UiEvent.StageShow, { project, view: "live" });
-      return "Live, on the right of the chat, now shows the game folder as it is.";
+      return "Live, on the right of the chat, now shows the project folder as it is.";
     }
     if (!commit) {
       if (build === INTEGRATION_BUILD) throw new Error(MESSAGE.noIntegrationToShow);
       throw new Error(MESSAGE.unknownBuild(build));
     }
-    if (elsewhere) return OTHER_GAME_IN_LIVE;
+    if (elsewhere) return OTHER_PROJECT_IN_LIVE;
     if (!loads) {
       const offered = await this.#core.offerBuild(project, commit);
-      return `Live was left as the person has it: the Reload button on the stage now offers this build (${offered.slice(0, SHORT_COMMIT)}) and plays it when they press it. The game folder is unchanged. Tell the user it is ready to play with Reload.`;
+      return `Live was left as the person has it: the Reload button on the stage now offers this build (${offered.slice(0, SHORT_COMMIT)}) and plays it when they press it. The project folder is unchanged. Tell the user it is ready to play with Reload.`;
     }
     const shown = await this.#core.showBuild(project, commit);
     this.#core.emit(UiEvent.StageShow, { project, view: "live" });
@@ -734,7 +734,7 @@ export class ConversationService {
       (call.run as { landed?: boolean }).landed === false
         ? "; this build is not in it yet, and land_build puts it there"
         : "";
-    return `Live, on the right of the chat, now shows ${what} (${shown.commit.slice(0, SHORT_COMMIT)}). The game folder is unchanged${notLanded}. Tell the user it is open in Live.`;
+    return `Live, on the right of the chat, now shows ${what} (${shown.commit.slice(0, SHORT_COMMIT)}). The project folder is unchanged${notLanded}. Tell the user it is open in Live.`;
   }
 
   async #landBuild(call: CoordinatorCall): Promise<string> {
@@ -750,9 +750,9 @@ export class ConversationService {
       ...(call.asker ? { asker: call.asker } : {}),
       offerLive: !loads,
     });
-    const landing = `Landed ${commit.slice(0, SHORT_COMMIT)} in the game folder (${landed.how})`;
+    const landing = `Landed ${commit.slice(0, SHORT_COMMIT)} in the project folder (${landed.how})`;
     if (this.#x.previews.liveHoldsAnother(project))
-      return `${landing}; another game is open in Live, so this one shows it when the user opens it.`;
+      return `${landing}; another project is open in Live, so this one shows it when the user opens it.`;
     if (!loads)
       return `${landing}; Live was left as the person has it, and the Reload button on the stage now offers it.`;
     this.#core.emit(UiEvent.StageShow, { project, view: "live" });
@@ -861,7 +861,7 @@ export class ConversationService {
     for (const delegation of this.#x.activeDelegations.values()) {
       if (delegation.threadId === threadId || (project && delegation.project === project)) delegation.abort.abort();
     }
-    // Stop withdraws the game's unanswered plugin and tool questions too (the thread's own when
+    // Stop withdraws the project's unanswered plugin and tool questions too (the thread's own when
     // unbound), and nothing the chat was answering is the person's to answer any more. A message
     // still queued behind it is: the queue answers it next, and its session asks.
     this.#x.consent.cancel(project ? { project } : { threadId }, "stop");

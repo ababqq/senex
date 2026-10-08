@@ -120,7 +120,7 @@ describe("a direct engine's play session", () => {
 
   it("plays with the tools on its lease, then asks for the answers once the budget is spent", async () => {
     const replies = [
-      { role: "assistant", content: "", tool_calls: [{ id: "t1", name: "game_state", arguments: {} }] },
+      { role: "assistant", content: "", tool_calls: [{ id: "t1", name: "project_state", arguments: {} }] },
       { role: "assistant", content: "still playing", tool_calls: [{ id: "t2", name: "fly", arguments: {} }] },
       {
         role: "assistant",

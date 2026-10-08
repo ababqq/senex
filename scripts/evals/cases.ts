@@ -18,8 +18,8 @@ import { CaseExposure, CaseMode, CaseVisibility } from "./vocabulary.ts";
 export const CASES_FILE = "evals/cases.md";
 /** The private holdout file, relative to `$GENEX_EVALS_HOME`. */
 export const PRIVATE_CASES_FILE = "cases-private.md";
-/** The folder every `Start from:` game lives in, relative to the repository root. */
-export const START_FROM_ROOT = "tests/fixtures/evals/games";
+/** The folder every `Start from:` project lives in, relative to the repository root. */
+export const START_FROM_ROOT = "tests/fixtures/evals/projects";
 /** Hex characters kept of a sha256 for a case or checklist version. */
 export const CASE_DIGEST_CHARS = 12;
 
@@ -401,11 +401,12 @@ function realPath(target: string): string | null {
 export function resolveStartFrom(root: string, evalCase: Pick<ParsedCase, "id" | "startFrom">): string {
   const refuse = (detail: string) => new CaseFileError(evalCase.id, CaseField.StartFrom, detail);
   const startFrom = evalCase.startFrom;
-  if (startFrom === null || !START_FROM_VALUE.test(startFrom)) throw refuse("no start folder under the fixture games");
-  const gamesRoot = realPath(path.join(root, START_FROM_ROOT));
+  if (startFrom === null || !START_FROM_VALUE.test(startFrom))
+    throw refuse("no start folder under the fixture projects");
+  const projectsRoot = realPath(path.join(root, START_FROM_ROOT));
   const real = realPath(path.join(root, startFrom));
-  if (gamesRoot === null || real === null) throw refuse("the start folder does not exist");
-  const expected = path.join(gamesRoot, path.basename(startFrom));
+  if (projectsRoot === null || real === null) throw refuse("the start folder does not exist");
+  const expected = path.join(projectsRoot, path.basename(startFrom));
   if (real !== expected) throw refuse("the start folder is reached through a symlink");
   if (!fs.statSync(real).isDirectory()) throw refuse("the start folder is not a directory");
   return real;

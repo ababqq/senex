@@ -46,7 +46,7 @@ export interface EvalCase {
   version: string;
   /** sha256 of the acceptance block, so adding cases never invalidates old rows. */
   checklistVersion: string;
-  /** The committed folder an edit case starts from, repository-relative under `tests/fixtures/evals/games`, or null. */
+  /** The committed folder an edit case starts from, repository-relative under `tests/fixtures/evals/projects`, or null. */
   startFrom: string | null;
 }
 

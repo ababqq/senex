@@ -28,7 +28,7 @@ const report = {
   artifacts: [],
   limitations: [
     "Native/vendor authorization and packaged-main plus development OS identity combination are not exercised",
-    "Game input uses existing PreviewInputAction contract; desktop input uses main-owned CDP",
+    "Project input uses existing PreviewInputAction contract; desktop input uses main-owned CDP",
     "Shared dependency bytes beyond lock/version/path identity are not immutable",
   ],
 };
@@ -239,7 +239,7 @@ try {
     "lifecycle",
     "two separate Git checkouts plus sentinel; all roots distinct and unfocused",
     async () => {
-      for (const key of ["electron", "session", "core", "games"])
+      for (const key of ["electron", "session", "core", "projects"])
         assert.equal(new Set([a, b, sentinel].map((i) => i.identity.roots[key])).size, 3);
       for (const i of [a, b, sentinel]) {
         const s = await op(i, "status");
@@ -270,7 +270,7 @@ try {
     },
   );
   await check(
-    "Build Review navigation and ranked game search",
+    "Build Review navigation and ranked project search",
     "desktop",
     "room/project/thread observed from real DOM and CSS resolved",
     async () => {
@@ -279,13 +279,17 @@ try {
       await op(b, "key", { surface: "desktop", key: "1", code: "Digit1", modifiers: ["Meta"] });
       await until(async () => (await snapshot(b)).state.room === "build", "Build keyboard shortcut");
       await op(b, "key", { surface: "desktop", key: "k", code: "KeyK", modifiers: ["Meta"] });
-      await op(b, "type", { selector: 'input[aria-label="Search games"]', text: "no matching project", replace: true });
-      await until(async () => (await snapshot(b)).text.includes("No games for"), "no results");
-      await op(b, "type", { selector: 'input[aria-label="Search games"]', text: "Fixture", replace: true });
+      await op(b, "type", {
+        selector: 'input[aria-label="Search projects"]',
+        text: "no matching project",
+        replace: true,
+      });
+      await until(async () => (await snapshot(b)).text.includes("No projects for"), "no results");
+      await op(b, "type", { selector: 'input[aria-label="Search projects"]', text: "Fixture", replace: true });
       await until(
         async () =>
-          (await op(b, "snapshot", { surface: "desktop", scope: "#game-search-results" })).controls.some((c) =>
-            c.text?.includes("Fixture Game"),
+          (await op(b, "snapshot", { surface: "desktop", scope: "#project-search-results" })).controls.some((c) =>
+            c.text?.includes("Fixture Project"),
           ),
         "search results",
       );
@@ -298,7 +302,7 @@ try {
         "model menu closed",
       );
       const s = await snapshot(b);
-      assert.equal(s.state.project, "fixture-game");
+      assert.equal(s.state.project, "fixture-project");
       assert.match(s.style.font, /Zalando Sans SemiExpanded/);
       assert.notEqual(s.style.background, "rgba(0, 0, 0, 0)");
       await screenshot(b, "desktop", "app-basics");
@@ -358,7 +362,10 @@ try {
         "saved base capture loaded",
       );
       await screenshot(a, "desktop", "build-history");
-      await assert.rejects(op(a, "capture", { surface: "game", name: "unavailable-game" }), /missing-prerequisite/);
+      await assert.rejects(
+        op(a, "capture", { surface: "project", name: "unavailable-project" }),
+        /missing-prerequisite/,
+      );
       return (await snapshot(a)).stage;
     },
   );
@@ -410,26 +417,26 @@ try {
     },
   );
   await check(
-    "game state input and separate compositor capture",
-    "game",
+    "project state input and separate compositor capture",
+    "project",
     "fixture state/input changes and two distinct actual images",
     async () => {
-      const before = await op(b, "game.state");
+      const before = await op(b, "project.state");
       assert.equal(before.fixture, 1);
-      await op(b, "game.input", { actions: [{ type: "click", x: 0.2, y: 0.2 }] });
-      const after = await op(b, "game.state");
+      await op(b, "project.input", { actions: [{ type: "click", x: 0.2, y: 0.2 }] });
+      const after = await op(b, "project.state");
       assert.ok(after.clicks > before.clicks);
-      const game = await screenshot(b, "game", "game-surface"),
+      const project = await screenshot(b, "project", "project-surface"),
         desktop = await screenshot(b, "desktop", "desktop-separate");
-      assert.notEqual(hash(fs.readFileSync(game.file)), hash(fs.readFileSync(desktop.file)));
+      assert.notEqual(hash(fs.readFileSync(project.file)), hash(fs.readFileSync(desktop.file)));
       assert.equal((await op(b, "status")).window.focused, false);
       return { before, after };
     },
   );
   await check(
-    "chat picker preserves or occludes the native game by overlap",
-    "desktop/game",
-    "non-overlapping options preserve the game; overlapping model list occludes it, then Escape restores it",
+    "chat picker preserves or occludes the native project by overlap",
+    "desktop/project",
+    "non-overlapping options preserve the project; overlapping model list occludes it, then Escape restores it",
     async () => {
       await op(b, "click", { selector: '[aria-label="Model settings"]' });
       await until(
@@ -443,7 +450,7 @@ try {
         "model options",
       );
       await screenshot(b, "desktop", "genex-model-options");
-      await screenshot(b, "game", "genex-visible-under-chat-picker");
+      await screenshot(b, "project", "genex-visible-under-chat-picker");
       await op(b, "click", { selector: '[data-role="planner"]' });
       await until(
         async () =>
@@ -453,11 +460,11 @@ try {
         "named model list",
       );
       await screenshot(b, "desktop", "genex-model-list");
-      // The named list extends over the game pane at the acceptance window size.
+      // The named list extends over the project pane at the acceptance window size.
       // Native content must yield to the DOM overlay, then return when it closes.
       assert.equal((await op(b, "status")).selection.stageView, "live");
       await assert.rejects(
-        op(b, "capture", { surface: "game", name: "genex-occluded-model-list" }),
+        op(b, "capture", { surface: "project", name: "genex-occluded-model-list" }),
         /missing-prerequisite/,
       );
       await closeModelPicker(b);
@@ -466,8 +473,8 @@ try {
         "picker closed",
       );
       await sleep(300);
-      await screenshot(b, "game", "genex-restored-game");
-      return { optionsPreserveGame: true, overlappingListOccludesGame: true, visibleAfterEscape: true };
+      await screenshot(b, "project", "genex-restored-project");
+      return { optionsPreserveProject: true, overlappingListOccludesProject: true, visibleAfterEscape: true };
     },
   );
   await check(
@@ -544,7 +551,7 @@ try {
   await op(sentinel, "click", { selector: 'button[aria-label="Send"]' });
   await sleep(800);
   const sentinelEvents = (await op(sentinel, "logs", { surface: "core", limit: 200 })).entries,
-    sentinelGame = hash(fs.readFileSync(path.join(sentinel.identity.roots.games, "fixture-game/index.html")));
+    sentinelProject = hash(fs.readFileSync(path.join(sentinel.identity.roots.projects, "fixture-project/index.html")));
   const bHistory = (await op(b, "logs", { surface: "core", limit: 200 })).entries;
   await check(
     "evolved profile stale-build rejection and restart noninterference",
@@ -569,8 +576,8 @@ try {
       await stop(fresh);
       assert.deepEqual((await op(sentinel, "logs", { surface: "core", limit: 200 })).entries, sentinelEvents);
       assert.equal(
-        hash(fs.readFileSync(path.join(sentinel.identity.roots.games, "fixture-game/index.html"))),
-        sentinelGame,
+        hash(fs.readFileSync(path.join(sentinel.identity.roots.projects, "fixture-project/index.html"))),
+        sentinelProject,
       );
       assert.deepEqual((await op(b, "logs", { surface: "core", limit: 200 })).entries, bHistory);
       assert.equal((await op(sentinel, "status")).window.focused, false);
@@ -603,7 +610,7 @@ try {
   for (const i of active) {
     const identity = await op(i, "status");
     report.instances.push({ ...identity, reportCompletion: true });
-    for (const surface of ["desktop", "game", "harness", "stdout", "stderr"]) {
+    for (const surface of ["desktop", "project", "harness", "stdout", "stderr"]) {
       const logs = await op(i, "logs", { surface, limit: 200 });
       writeJson(path.join(evidence, `${i.profile}-${identity.instanceId}-${surface}-logs.json`), {
         version: 1,

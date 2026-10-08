@@ -24,14 +24,14 @@ test("summary folds once per history/evidence version and refreshes independent 
     supplement: async () => {},
   });
   const events: EventEnvelope[] = [];
-  const first = await cache.read(events, "game", "run", "/runs");
-  assert.equal(await cache.read(events, "game", "run", "/runs"), first);
+  const first = await cache.read(events, "project", "run", "/runs");
+  assert.equal(await cache.read(events, "project", "run", "/runs"), first);
   assert.equal(folds, 1);
   version = "two";
-  const changed = await cache.read(events, "game", "run", "/runs");
+  const changed = await cache.read(events, "project", "run", "/runs");
   assert.notEqual(changed.revision, first.revision);
   assert.equal(folds, 2);
-  await cache.read([...events], "game", "run", "/runs");
+  await cache.read([...events], "project", "run", "/runs");
   assert.equal(folds, 3);
 });
 
@@ -54,7 +54,7 @@ test("concurrent identical summary requests share one fold and supplement", asyn
     },
   });
   const events: EventEnvelope[] = [];
-  const reads = Array.from({ length: 20 }, () => cache.read(events, "game", "run", "/runs"));
+  const reads = Array.from({ length: 20 }, () => cache.read(events, "project", "run", "/runs"));
   await new Promise<void>((resolve) => setImmediate(resolve));
   release?.();
   const results = await Promise.all(reads);
@@ -66,8 +66,8 @@ test("concurrent identical summary requests share one fold and supplement", asyn
 test("a separate evidence root never reuses another root's summary", async () => {
   const cache = new RunSummaryCache({ version: async () => "", supplement: async () => {} });
   const events: EventEnvelope[] = [];
-  const first = await cache.read(events, "game", "run", "/one");
-  const second = await cache.read(events, "game", "run", "/two");
+  const first = await cache.read(events, "project", "run", "/one");
+  const second = await cache.read(events, "project", "run", "/two");
   assert.notEqual(first, second);
   assert.equal(second.runDirectory, path.join("/two", "run"));
 });
@@ -110,18 +110,18 @@ test("unchanged events refresh when an outside-director capture is created, chan
   );
   const cache = new RunSummaryCache();
   const events: EventEnvelope[] = [];
-  const absent = await cache.read(events, "game", "run", root);
+  const absent = await cache.read(events, "project", "run", root);
   assert.equal(absent.captures?.base, undefined);
   await writeFile(start, "first image");
-  const created = await cache.read(events, "game", "run", root);
+  const created = await cache.read(events, "project", "run", root);
   assert.equal(created.captures?.base, start);
   assert.notEqual(created.revision, absent.revision);
-  assert.equal(await cache.read(events, "game", "run", root), created);
+  assert.equal(await cache.read(events, "project", "run", root), created);
   await writeFile(start, "a different image");
-  const changed = await cache.read(events, "game", "run", root);
+  const changed = await cache.read(events, "project", "run", root);
   assert.notEqual(changed.revision, created.revision);
   await rm(start);
-  assert.equal((await cache.read(events, "game", "run", root)).captures?.base, undefined);
+  assert.equal((await cache.read(events, "project", "run", root)).captures?.base, undefined);
 });
 
 test("evidence scans do not traverse escaping directory links or cycle through internal links", async (t) => {
@@ -148,9 +148,9 @@ test("evidence scans do not traverse escaping directory links or cycle through i
   });
   const cache = new RunSummaryCache();
   const events: EventEnvelope[] = [];
-  const first = await cache.read(events, "game", "run", runs);
+  const first = await cache.read(events, "project", "run", runs);
   await writeFile(path.join(outside, "secret.json"), "changed private");
-  assert.equal(await cache.read(events, "game", "run", runs), first);
+  assert.equal(await cache.read(events, "project", "run", runs), first);
   assert.ok(
     reads.every((file) => file === run),
     JSON.stringify(reads),
@@ -167,19 +167,19 @@ test("a rejected supplement can retry and does not poison the pending cache", as
     },
   });
   const events: EventEnvelope[] = [];
-  await assert.rejects(cache.read(events, "game", "run", "/runs"), /temporary/);
-  await cache.read(events, "game", "run", "/runs");
+  await assert.rejects(cache.read(events, "project", "run", "/runs"), /temporary/);
+  await cache.read(events, "project", "run", "/runs");
   assert.equal(attempts, 2);
 });
 
 test("summary cache bounds retained runs and keeps recently read entries", async () => {
   const cache = new RunSummaryCache({ version: async () => "one", supplement: async () => {} });
   const events: EventEnvelope[] = [];
-  const first = await cache.read(events, "game", "run0", "/runs");
-  const second = await cache.read(events, "game", "run1", "/runs");
-  for (let i = 2; i < 32; i++) await cache.read(events, "game", `run${i}`, "/runs");
-  assert.equal(await cache.read(events, "game", "run0", "/runs"), first);
-  await cache.read(events, "game", "run32", "/runs");
-  assert.equal(await cache.read(events, "game", "run0", "/runs"), first);
-  assert.notEqual(await cache.read(events, "game", "run1", "/runs"), second);
+  const first = await cache.read(events, "project", "run0", "/runs");
+  const second = await cache.read(events, "project", "run1", "/runs");
+  for (let i = 2; i < 32; i++) await cache.read(events, "project", `run${i}`, "/runs");
+  assert.equal(await cache.read(events, "project", "run0", "/runs"), first);
+  await cache.read(events, "project", "run32", "/runs");
+  assert.equal(await cache.read(events, "project", "run0", "/runs"), first);
+  assert.notEqual(await cache.read(events, "project", "run1", "/runs"), second);
 });

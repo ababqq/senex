@@ -36,7 +36,7 @@ function result(overrides: Record<string, unknown> = {}): Record<string, unknown
   return {
     schemaVersion: 1,
     runId: "run_a",
-    project: "game",
+    project: "project",
     stageId: "optimization",
     attempt: 1,
     phase: "done",

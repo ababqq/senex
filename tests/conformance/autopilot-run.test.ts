@@ -66,7 +66,7 @@ const PLAN = {
   ],
   // Every trait is off unless the plan declares one (M4.4): a plan that says nothing gets no
   // HUD rule, no look check and no movement check, so the rig declares the kind it means.
-  game: { kind: "first-person" },
+  app: { kind: "first-person" },
   mainOwner: "terrain",
   base: { notes: "one palette", files: [{ path: "src/palette.js", purpose: "shared colours" }] },
   integrationNotes: "shared palette",
@@ -208,7 +208,7 @@ describe("autopilot scheduling primitives", () => {
     assert.deepEqual(overlapped.slice(0, 2), ["start1", "start2"], "two workers start before either ends");
   });
 
-  it("takes the run's console baseline after the game is up, not at did-finish-load", async () => {
+  it("takes the run's console baseline after the project is up, not at did-finish-load", async () => {
     // `preview.load` resolves at did-finish-load — before the first frame, before a shader
     // compiles. Read on the next line, the baseline missed exactly the error it exists to
     // forgive, and the base pass then voided the build for inheriting it.
@@ -219,7 +219,7 @@ describe("autopilot scheduling primitives", () => {
         asked.push(method);
         if (method === "preview.evaluate") {
           const answer = up;
-          up = true; // the game comes up between the first look and the second
+          up = true; // the project comes up between the first look and the second
           return answer;
         }
         if (method === "preview.console")
@@ -235,8 +235,8 @@ describe("autopilot scheduling primitives", () => {
     assert.deepEqual(await inheritedConsoleAfterLoad(ctx as never, { settleMs: 3_000, beatMs: 1 }), [
       "THREE.WebGLProgram: shader error",
     ]);
-    assert.ok(asked.filter((m) => m === "preview.evaluate").length >= 2, "it waits for the game to say it is up");
-    // A game that never comes up costs the settle and no more.
+    assert.ok(asked.filter((m) => m === "preview.evaluate").length >= 2, "it waits for the project to say it is up");
+    // A project that never comes up costs the settle and no more.
     const dead = { call: async () => null };
     assert.deepEqual(await inheritedConsoleAfterLoad(dead as never, { settleMs: 1, beatMs: 1 }), []);
   });
@@ -248,8 +248,8 @@ describe("autopilot scheduling primitives", () => {
       notify: () => {},
       heartbeat: () => {},
       call: async (method: string, params: { batch: Array<Record<string, unknown>> }) => {
-        if (method === "game.list") return [{ name: "moth" }];
-        if (method === "game.validate") return { contract: "loaded", problems: [] };
+        if (method === "project.list") return [{ name: "moth" }];
+        if (method === "project.validate") return { contract: "loaded", problems: [] };
         if (method === "events.append") appended.push(params);
         return null;
       },
@@ -265,9 +265,9 @@ describe("autopilot scheduling primitives", () => {
       orphanRuns: new Map(),
       scoped: () => ctx,
     };
-    // A run already owning this chat or this game refuses the second one…
+    // A run already owning this chat or this project refuses the second one…
     await assert.rejects(
-      launchFromIntake(studio as never, ctx as never, { threadId: "t-1", project: "moth" }, { goal: "a moth game" }),
+      launchFromIntake(studio as never, ctx as never, { threadId: "t-1", project: "moth" }, { goal: "a moth project" }),
       /a build is already running for moth/,
     );
     // …and it refuses before the user is promised a night that never starts.
@@ -357,7 +357,7 @@ describe("autopilot: a 2-facet run on the fake engine", () => {
     assert.deepEqual(order, ["terrain", "lighting"], "facets built strictly one at a time");
     // Verified scoreboard: the planner's identity check passed and flipped on the first build,
     // beside the harness-owned checks (one screen on every facet, one input path on the
-    // facet that owns main.js) — all measured, all passing on the fake game.
+    // facet that owns main.js) — all measured, all passing on the fake project.
     for (const record of facetIterations) {
       const board = record.scoreboard as {
         total: number;
@@ -403,10 +403,10 @@ describe("autopilot: a 2-facet run on the fake engine", () => {
       ),
     );
 
-    // Live-dir mode accumulates both facets' accepted work in the game folder.
-    const gameDir = path.join(rig.core.layout.gamesRoot, "duskworld");
-    assert.match(await readFile(path.join(gameDir, "src", "terrain.js"), "utf8"), /terrain work/);
-    assert.match(await readFile(path.join(gameDir, "src", "lighting.js"), "utf8"), /lighting work/);
+    // Live-dir mode accumulates both facets' accepted work in the project folder.
+    const projectDir = path.join(rig.core.layout.projectsRoot, "duskworld");
+    assert.match(await readFile(path.join(projectDir, "src", "terrain.js"), "utf8"), /terrain work/);
+    assert.match(await readFile(path.join(projectDir, "src", "lighting.js"), "utf8"), /lighting work/);
 
     // The run closed with the global blind verdict and a durable journal.
     const finished = customEvents(events, "run_finished")[0]!;
@@ -434,12 +434,12 @@ describe("autopilot: a 2-facet run on the fake engine", () => {
     assert.equal(journal?.facets?.terrain?.satisfied, true);
     assert.equal(journal?.facets?.lighting?.satisfied, true);
 
-    // The brief reached the builder as a file in the game folder (live mode), self-ignored by git.
-    assert.match(await readFile(path.join(gameDir, ".studio", "BRIEF.md"), "utf8"), /## Checks/);
-    assert.equal((await readFile(path.join(gameDir, ".studio", ".gitignore"), "utf8")).trim(), "*");
+    // The brief reached the builder as a file in the project folder (live mode), self-ignored by git.
+    assert.match(await readFile(path.join(projectDir, ".studio", "BRIEF.md"), "utf8"), /## Checks/);
+    assert.equal((await readFile(path.join(projectDir, ".studio", ".gitignore"), "utf8")).trim(), "*");
   });
 
-  it("a delegated engine runs facets in parallel worktrees and merges them into the live game", async () => {
+  it("a delegated engine runs facets in parallel worktrees and merges them into the live project", async () => {
     const rig = await startRig();
     rigs.push(rig);
 
@@ -531,7 +531,7 @@ describe("autopilot: a 2-facet run on the fake engine", () => {
       },
     });
 
-    // The game declares one scripted demo, so accepted facets must record its `demo:` camera
+    // The project declares one scripted demo, so accepted facets must record its `demo:` camera
     // (run_mtidvyqlpocx reported demos: [] on every facet — the filter matched the on-disk
     // demo_ file prefix instead of the demo: camera name, leaving the loss check inert).
     rig.preview.demoNames = ["boot"];
@@ -566,10 +566,10 @@ describe("autopilot: a 2-facet run on the fake engine", () => {
     );
     assert.equal(maxInFlight, 2, "facet contractors overlapped");
 
-    // The merges landed both facets' work in the live game, and the worktrees were removed.
-    const gameDir = path.join(rig.core.layout.gamesRoot, "worktreeworld");
-    assert.match(await readFile(path.join(gameDir, "terrain.js"), "utf8"), /terrain worktree work/);
-    assert.match(await readFile(path.join(gameDir, "lighting.js"), "utf8"), /lighting worktree work/);
+    // The merges landed both facets' work in the live project, and the worktrees were removed.
+    const projectDir = path.join(rig.core.layout.projectsRoot, "worktreeworld");
+    assert.match(await readFile(path.join(projectDir, "terrain.js"), "utf8"), /terrain worktree work/);
+    assert.match(await readFile(path.join(projectDir, "lighting.js"), "utf8"), /lighting worktree work/);
     for (const cwd of delegatedCwds) {
       await assert.rejects(readFile(path.join(cwd, "terrain.js")), "worktrees are cleaned up after integration");
     }
@@ -587,7 +587,7 @@ describe("autopilot: a 2-facet run on the fake engine", () => {
     assert.equal(journal.base?.ok, true, "the shared base committed before the facets forked");
     assert.ok(journal.base?.commit, "the base commit is what every facet worktree forked from");
     for (const [facetId, facet] of Object.entries(journal?.facets ?? {})) {
-      assert.deepEqual(facet.demos, ["boot"], `facet ${facetId} records the demos the game declares`);
+      assert.deepEqual(facet.demos, ["boot"], `facet ${facetId} records the demos the project declares`);
     }
     // Persistent builder: the facet's contractor session id is remembered for resume.
     assert.equal(journal.facets?.terrain?.sessionId, "ses_terrain");
@@ -606,7 +606,7 @@ describe("autopilot: a 2-facet run on the fake engine", () => {
     }
     // The base builder ran in the live folder; the playtester played the integrated build
     // read-only with live tools bound to a pooled preview.
-    assert.ok(otherDelegations.some((r) => /BASE BUILDER/.test(r.prompt) && r.cwd === gameDir));
+    assert.ok(otherDelegations.some((r) => /BASE BUILDER/.test(r.prompt) && r.cwd === projectDir));
     const playtest = otherDelegations.find((r) => r.playtest);
     assert.ok(playtest, "the integration facet convened a playtester");
     assert.equal(playtest!.readOnly, true);
@@ -631,7 +631,7 @@ describe("autopilot: a 2-facet run on the fake engine", () => {
     assert.ok(merges.length >= 2, `both facets merged continuously (${merges.length})`);
 
     // Every accepted build stays reachable after its worktree is removed: one ref per worker
-    // in the game's own repo, moved forward as the loop accepts. Before this, an accepted
+    // in the project's own repo, moved forward as the loop accepts. Before this, an accepted
     // commit nobody integrated was unreferenced the moment the worktree went.
     const api = rig.core.api() as unknown as Record<string, (p: unknown) => Promise<unknown>>;
     for (const facetId of ["terrain", "lighting"]) {
@@ -756,7 +756,7 @@ describe("autopilot: a 2-facet run on the fake engine", () => {
       },
     });
 
-    const threadId = await rig.core.createGameThread();
+    const threadId = await rig.core.createProjectThread();
     const frames = [
       { data: Buffer.from("frame-one").toString("base64"), mimeType: "image/png", label: "board 1" },
       { data: Buffer.from("frame-two").toString("base64"), mimeType: "image/png", label: "board 2" },
@@ -813,7 +813,7 @@ describe("autopilot: a 2-facet run on the fake engine", () => {
     );
   });
 
-  it("conflicting facet worktrees fall to the integrator session, and the game still closes judged", async () => {
+  it("conflicting facet worktrees fall to the integrator session, and the project still closes judged", async () => {
     const rig = await startRig();
     rigs.push(rig);
 
@@ -903,7 +903,7 @@ describe("autopilot: a 2-facet run on the fake engine", () => {
     // The conflict surfaced at the continuous merge, while it was one file — not only at the end.
     const conflicted = customEvents(events, "integration_merge").filter((m) => m.conflict === true);
     assert.ok(conflicted.length >= 1, "the continuous merge recorded the conflict");
-    const shared = await readFile(path.join(rig.core.layout.gamesRoot, "conflictworld", "shared.js"), "utf8");
+    const shared = await readFile(path.join(rig.core.layout.projectsRoot, "conflictworld", "shared.js"), "utf8");
     assert.match(shared, /integrated: both moods reconciled/, "the integrator's resolution is what shipped");
   });
 
@@ -1031,7 +1031,7 @@ describe("autopilot: a 2-facet run on the fake engine", () => {
   it("a 1-facet plan retains Gauntlet creative events and finalizes Optimization before publication", async () => {
     const { respond } = makeAutopilotResponder({
       plan: {
-        facets: [{ id: "whole", title: "Whole game", brief: "just build it", budgetShare: 1 }],
+        facets: [{ id: "whole", title: "Whole project", brief: "just build it", budgetShare: 1 }],
         integrationNotes: "",
         assumptions: [],
       },
@@ -1042,7 +1042,7 @@ describe("autopilot: a 2-facet run on the fake engine", () => {
     const runId = rig.core.newRunId();
     await rig.core.dispatchRun({
       runId,
-      goal: "one small game",
+      goal: "one small project",
       project: "tinygame",
       mode: "autopilot",
       classic: true,
@@ -1278,7 +1278,7 @@ describe("the move belongs to the director", () => {
 /**
  * Rounds that can finish (M3.4). The only start gate a worker had was "is there any time left?",
  * so on the first real night every second-round worker began a round it could not finish: the
- * build turn was cut at the deadline, the half-written game was judged as a partial, three of
+ * build turn was cut at the deadline, the half-written project was judged as a partial, three of
  * the five lost, and the morning counted those rounds as undone. A worker now measures its own
  * rounds — the build turn, then evidence and the judge — and starts another only when what is
  * left covers one with room to spare; and a turn the clock is about to cut is asked, in the same
@@ -1393,7 +1393,7 @@ describe("a round is started only when it can finish", () => {
     assert.equal(wound.builds.length, 2, "the turn was not simply left cut");
     assert.equal(wound.builds[1]!.params.resume, "plaza-1", "the same session, which still has everything it read");
     assert.match(String(wound.builds[1]!.params.prompt), /^TIME: your build turn is at its limit/);
-    assert.match(String(wound.builds[1]!.params.prompt), /Finish the edit you are inside so the game still runs/);
+    assert.match(String(wound.builds[1]!.params.prompt), /Finish the edit you are inside so the project still runs/);
     assert.ok((wound.builds[1]!.params.timeoutMs as number) <= 3 * 60_000, "and it is a wrap-up, not another round");
     const wind = wound.calls.filter(
       (c) => c.method === "events.append" && JSON.stringify(c.params).includes("facet_wind_down"),
@@ -1420,7 +1420,7 @@ describe("a round is started only when it can finish", () => {
 });
 
 /**
- * M4.4 — the game declaration the planner is shown. The shape is copied as it stands, so the
+ * M4.4 — the project declaration the planner is shown. The shape is copied as it stands, so the
  * three traits printed in it are declarations: `"hud":false,"mouseLook":false,"keyboardMove":
  * false` came back filled in beside a first-person kind, an explicit false outranks the kind's
  * own traits, and every board silently lost the four harness-owned checks the kind exists to
@@ -1458,7 +1458,7 @@ describe("the shape the planner copies declares a kind, not three falses", () =>
 
   it("prints no trait value to copy, and a copied kind brings that kind's own traits", async () => {
     const { ask, plan } = await askFor({
-      game: { kind: "first-person", playScript: null },
+      app: { kind: "first-person", playScript: null },
       facets: FACETS,
       mainOwner: "plaza",
       assumptions: [],
@@ -1466,10 +1466,10 @@ describe("the shape the planner copies declares a kind, not three falses", () =>
     assert.doesNotMatch(ask, /"hud":\s*false/, "a false in the shape is a declaration the planner copies");
     assert.doesNotMatch(ask, /"mouseLook":\s*false/);
     assert.doesNotMatch(ask, /"keyboardMove":\s*false/);
-    assert.match(ask, /"game":\{"kind":"<one of /, "the kind is still the shape's own field");
+    assert.match(ask, /"project":\{"kind":"<one of /, "the kind is still the shape's own field");
     // The behaviour the falses cost: a kind declared alone brings its own traits, so the
     // harness-owned HUD, look and movement checks reach the board.
-    assert.deepEqual(plan.game, {
+    assert.deepEqual(plan.app, {
       kind: "first-person",
       hud: true,
       mouseLook: true,
@@ -1478,14 +1478,14 @@ describe("the shape the planner copies declares a kind, not three falses", () =>
     });
   });
 
-  it("still lets a plan say this game differs from its kind", async () => {
+  it("still lets a plan say this project differs from its kind", async () => {
     const { plan } = await askFor({
-      game: { kind: "first-person", hud: false, playScript: null },
+      app: { kind: "first-person", hud: false, playScript: null },
       facets: FACETS,
       mainOwner: "plaza",
       assumptions: [],
     });
-    assert.equal(plan.game.hud, false, "an explicit false is a declaration and still wins");
-    assert.equal(plan.game.mouseLook, true, "and what it did not name keeps the kind's own value");
+    assert.equal(plan.app.hud, false, "an explicit false is a declaration and still wins");
+    assert.equal(plan.app.mouseLook, true, "and what it did not name keeps the kind's own value");
   });
 });

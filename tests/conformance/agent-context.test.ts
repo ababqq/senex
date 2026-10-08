@@ -213,7 +213,7 @@ test("tracked code cannot cite a local-only document; generic names, prose docs 
   fs.mkdirSync(path.join(x.root, "scripts"));
   fs.writeFileSync(path.join(x.root, "scripts/d.ts"), "x\n# SCRATCH-NOTES.md\n");
   // Shipped seed and template payload is exempt: editing it would refresh every install.
-  for (const payload of ["src/harness-seed/loop/x.mjs", "src/game-template/src/y.js", "src/harness-boot/z.mjs"]) {
+  for (const payload of ["src/harness-seed/loop/x.mjs", "src/project-template/src/y.js", "src/harness-boot/z.mjs"]) {
     fs.mkdirSync(path.join(x.root, path.dirname(payload)), { recursive: true });
     fs.writeFileSync(path.join(x.root, payload), "// see SCRATCH-NOTES.md\n");
   }
@@ -223,7 +223,7 @@ test("tracked code cannot cite a local-only document; generic names, prose docs 
       "tests/missing.ts",
       "docs/agent/knowledge-map.json",
       "src/harness-seed/loop/x.mjs",
-      "src/game-template/src/y.js",
+      "src/project-template/src/y.js",
       "src/harness-boot/z.mjs",
     ]),
     ["scripts/d.ts:2: cites local-only document SCRATCH-NOTES.md; state the rule or link a maintained doc instead"],

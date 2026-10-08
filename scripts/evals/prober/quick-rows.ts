@@ -2,7 +2,7 @@
  * The quick probe's rows (§8.2), computed from what the phases observed with no browser, so every
  * verdict replays in a test. Eight rows: `l1.builds_and_boots`, `l1.no_errors_60s` (the quick
  * probe's SHORT-WINDOW variant: it covers `noErrorsMs` of page time, not 60 s, and says so),
- * `l1.assets_arrived`, `l1.stayed_on_game`, `l2.enterable`, `l2.input_changes_state`,
+ * `l1.assets_arrived`, `l1.stayed_on_project`, `l2.enterable`, `l2.input_changes_state`,
  * `l3.visually_legible` and `l3.renderer_drew`. Each row fails only on positive evidence and says
  * `unknown` when it could not look.
  */
@@ -21,10 +21,10 @@ import {
   classifyFailure,
   demoteForFullscreen,
   demoteForLookInput,
-  demoteForNoGameplay,
+  demoteForNoInteraction,
   demoteForPointerLock,
   FailureBlameKind,
-  type GameplayReached,
+  type InteractionReached,
   lookInputVerdict,
   pageRan,
   pickEvidenceSnapshot,
@@ -32,7 +32,7 @@ import {
   rendererDefects,
   selectExposureFrames,
   shouldDemoteForCamera,
-  stayedOnGame,
+  stayedOnProject,
 } from "./verdicts.ts";
 
 /** Exposure band: inside it the frame is legible; outside it is flagged for a human, never gated. */
@@ -50,8 +50,8 @@ const ROW_TITLE: Partial<Record<ProbeRow, string>> = {
   [ProbeRow.L1BuildsAndBoots]: "Builds and boots",
   [ProbeRow.L1NoErrors60s]: "No uncaught errors in the quick-probe window (short variant of the 60 s row)",
   [ProbeRow.L1AssetsArrived]: "Every asset arrived",
-  [ProbeRow.L1StayedOnGame]: "Stayed on the game",
-  [ProbeRow.L2Enterable]: "The game can be entered",
+  [ProbeRow.L1StayedOnProject]: "Stayed on the project",
+  [ProbeRow.L2Enterable]: "The project can be entered",
   [ProbeRow.L2InputChangesState]: "Input changes state (against a no-input baseline)",
   [ProbeRow.L3VisuallyLegible]: "Visually legible: exposure, tonal range and contrast, tiled and centre-weighted",
   [ProbeRow.L3RendererDrew]: "The renderer drew what it was asked and warned of no removed API",
@@ -72,7 +72,7 @@ function row(id: ProbeRow, result: CheckResult, detail: string, value: unknown):
 
 /** Everything the phases observed, as the rows read it. */
 export interface QuickObservation {
-  gameOrigin: string;
+  projectOrigin: string;
   /** Run ms when the probe finished. */
   endAtMs: number;
   /** The quick probe's error window, page-clock ms. */
@@ -120,7 +120,7 @@ export function bootRow(o: QuickObservation): Check {
   return row(
     ProbeRow.L1BuildsAndBoots,
     CheckResult.Fail,
-    `Pixels rendered and ${contexts} WebGL context(s) were created, but not one view matrix was ever uploaded — something was on screen (a loading or title screen has pixels); the game's scene never drew.`,
+    `Pixels rendered and ${contexts} WebGL context(s) were created, but not one view matrix was ever uploaded — something was on screen (a loading or title screen has pixels); the project's scene never drew.`,
     { firstRenderMs: o.firstRenderMs, camera: snap?.camera ?? null },
   );
 }
@@ -168,11 +168,13 @@ export function noErrorsRow(o: QuickObservation): Check {
   );
 }
 
-/** `l1.assets_arrived`: no failed request blamed on the game, on a page that ran. */
+/** `l1.assets_arrived`: no failed request blamed on the project, on a page that ran. */
 export function assetsRow(o: QuickObservation): Check {
   const failed = o.events.network.filter((e) => e.failure !== null || (e.status ?? 0) >= HTTP_ERROR_MIN);
   const succeeded = new Set(o.events.network.filter((e) => !failed.includes(e)).map((e) => e.url));
-  const blamed = failed.filter((e) => classifyFailure(e.url, o.gameOrigin, succeeded).blame === FailureBlameKind.Asset);
+  const blamed = failed.filter(
+    (e) => classifyFailure(e.url, o.projectOrigin, succeeded).blame === FailureBlameKind.Asset,
+  );
   const value = { requests: o.events.network.length, failed: failed.length, blamed: blamed.map((e) => e.url) };
   if (blamed.length) {
     return row(
@@ -184,28 +186,28 @@ export function assetsRow(o: QuickObservation): Check {
   }
   const page = ran(o);
   if (!page.ran) {
-    return row(ProbeRow.L1AssetsArrived, CheckResult.Unknown, `No game-blamed failure, but ${page.why}.`, value);
+    return row(ProbeRow.L1AssetsArrived, CheckResult.Unknown, `No project-blamed failure, but ${page.why}.`, value);
   }
   const ignored = failed.length ? ` ${failed.length} benign failure(s) were ignored.` : "";
   return row(
     ProbeRow.L1AssetsArrived,
     CheckResult.Pass,
-    `${o.events.network.length} requests and no game-blamed failure.${ignored}`,
+    `${o.events.network.length} requests and no project-blamed failure.${ignored}`,
     value,
   );
 }
 
-/** `l1.stayed_on_game`, with no bounce allowed. */
+/** `l1.stayed_on_project`, with no bounce allowed. */
 export function stayedRow(o: QuickObservation): Check {
-  const pick = pickEvidenceSnapshot(o.snapshots, o.gameOrigin);
-  const verdict = stayedOnGame({
+  const pick = pickEvidenceSnapshot(o.snapshots, o.projectOrigin);
+  const verdict = stayedOnProject({
     navigations: o.events.navigations,
-    gameOrigin: o.gameOrigin,
+    projectOrigin: o.projectOrigin,
     foreignSnapshots: pick.foreign,
     sameOriginSnapshots: pick.sameOrigin,
     endAtMs: o.endAtMs,
   });
-  return row(ProbeRow.L1StayedOnGame, verdict.result, verdict.detail, { excursions: verdict.excursions });
+  return row(ProbeRow.L1StayedOnProject, verdict.result, verdict.detail, { excursions: verdict.excursions });
 }
 
 /** `l2.enterable`. */
@@ -225,20 +227,21 @@ export function enterableRow(o: QuickObservation): Check {
   });
 }
 
-/** Whether gameplay was reached: the precondition every input-side fail and every evidence frame needs. */
-export function quickGameplay(o: QuickObservation): GameplayReached {
+/** Whether interaction was reached: the precondition every input-side fail and every evidence frame needs. */
+export function quickInteraction(o: QuickObservation): InteractionReached {
   if (!o.entrance) return { reached: false, why: "the canvas never drew" };
   const postGestureFrames = o.frames.filter(
     (f) => f.record.source !== ShotKind.Element && POST_GESTURE_PHASES.has(f.record.phase),
   ).length;
-  return gameplayReachedFor(o.entrance, postGestureFrames);
+  return interactionReachedFor(o.entrance, postGestureFrames);
 }
 
-function gameplayReachedFor(entrance: EntranceObservation, postGestureFrames: number): GameplayReached {
+function interactionReachedFor(entrance: EntranceObservation, postGestureFrames: number): InteractionReached {
   const { verdict } = entrance;
   if (verdict.confirmed) return { reached: true, why: `the entrance was confirmed (${verdict.why})` };
   if (postGestureFrames === 0) return { reached: false, why: "no page frame was captured in any post-gesture phase" };
-  if (!verdict.doorObserved) return { reached: true, why: "no door was observed — a game with no entrance to confirm" };
+  if (!verdict.doorObserved)
+    return { reached: true, why: "no door was observed — a project with no entrance to confirm" };
   return { reached: false, why: verdict.why };
 }
 
@@ -285,7 +288,7 @@ function demoteInput(o: QuickObservation, first: { result: CheckResult; detail: 
       o.entrance?.verdict.confirmed
         ? { result: r, why: null }
         : demoteForFullscreen(r, lastOf(o.snapshots)?.fullscreen),
-    (r) => demoteForNoGameplay(r, quickGameplay(o)),
+    (r) => demoteForNoInteraction(r, quickInteraction(o)),
   ];
   let { result, detail } = first;
   for (const step of steps) {
@@ -316,7 +319,7 @@ const median = (values: number[]) => {
   return sorted[Math.floor(sorted.length / 2)];
 };
 
-/** `l3.visually_legible`: exposure three ways over gameplay frames; a flag for a human, never a gate. */
+/** `l3.visually_legible`: exposure three ways over interaction frames; a flag for a human, never a gate. */
 export function legibleRow(o: QuickObservation): Check {
   const candidates = o.frames.map((f) => ({ ...f.record, raw: f.raw }));
   const selection = selectExposureFrames(candidates, o.firstRenderMs);
@@ -324,7 +327,7 @@ export function legibleRow(o: QuickObservation): Check {
     return row(
       ProbeRow.L3VisuallyLegible,
       CheckResult.Unknown,
-      `Not enough gameplay frames to measure exposure: ${selection.why}.`,
+      `Not enough interaction frames to measure exposure: ${selection.why}.`,
       null,
     );
   }
@@ -390,10 +393,10 @@ export function quickRows(o: QuickObservation): Check[] {
   ];
 }
 
-/** The frames a grader may see: gameplay frames after the entrance and first render, on the game's origin. */
+/** The frames a grader may see: interaction frames after the entrance and first render, on the project's origin. */
 export function evidenceFrames(o: QuickObservation): LoggedFrame[] {
-  if (!quickGameplay(o).reached) return [];
-  const gameplay = (f: LoggedFrame) =>
+  if (!quickInteraction(o).reached) return [];
+  const interaction = (f: LoggedFrame) =>
     f.record.phase === ProbePhase.Entrance || POST_GESTURE_PHASES.has(f.record.phase);
-  return o.frames.filter((f) => gameplay(f) && f.ref.origin === o.gameOrigin);
+  return o.frames.filter((f) => interaction(f) && f.ref.origin === o.projectOrigin);
 }

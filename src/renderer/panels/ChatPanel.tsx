@@ -110,7 +110,7 @@ function ChatComposer(parts: ChatParts & { composerRef: RefObject<PromptBarHandl
             : null
         }
         activityLabel={work.activity.label}
-        gameMode={!chat.isStudioThread}
+        projectMode={!chat.isStudioThread}
         contextUsage={composer.contextUsage}
         onCompact={compact.compactNow}
         compacting={compact.compacting}
@@ -123,7 +123,7 @@ function ChatComposer(parts: ChatParts & { composerRef: RefObject<PromptBarHandl
         placeholder={chatPlaceholder({
           revisingPlan: plan.revising,
           studio: chat.isStudioThread,
-          // A game still waiting for its idea asks for one, as home does.
+          // A project still waiting for its idea asks for one, as home does.
           draft: chat.isDraft || chat.folder?.provisional === true,
         })}
         value={drafts.draft}
@@ -131,7 +131,7 @@ function ChatComposer(parts: ChatParts & { composerRef: RefObject<PromptBarHandl
         model={model.bar}
         permissions={composer.permissions.bar}
         busy={busy}
-        // A game chat with no model keeps its prompt: Connect AI model takes the model's place.
+        // A project chat with no model keeps its prompt: Connect AI model takes the model's place.
         disabled={composer.noModel && chat.isStudioThread}
         onSend={submit}
         stoppable={work.stoppable && Boolean(parts.props.activeThread)}

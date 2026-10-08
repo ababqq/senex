@@ -1,5 +1,5 @@
 /**
- * Steer: a message sent while the game chat's own turn works reaches that turn instead of
+ * Steer: a message sent while the project chat's own turn works reaches that turn instead of
  * waiting for it to end. The queue hands it over, the host puts it into the session answering
  * the chat — read mid-turn by an engine that can, or by interrupting and resuming the same
  * session — and the log records where it was read, so the chat shows it there.
@@ -582,10 +582,10 @@ describe("steered session: an engine without input mid-turn is interrupted and r
   });
 });
 
-/** A chat whose game has a finished run: its messages are answered by the run's coordinator. */
+/** A chat whose project has a finished run: its messages are answered by the run's coordinator. */
 async function coordinatorChat(rig: Rig, project: string, engine: string): Promise<string> {
-  await rig.core.games.scaffold(project);
-  const thread = await rig.core.createGameThread(project);
+  await rig.core.projects.scaffold(project);
+  const thread = await rig.core.createProjectThread(project);
   await rig.core.append(
     [
       { type: "custom", event_type: "run_started", payload: { runId: "saved", project, engine } },
@@ -709,8 +709,8 @@ describe("steer through the host and the harness process", () => {
     const rig = await startRig();
     rigs.push(rig);
     const project = "steer-contractor";
-    await rig.core.games.scaffold(project);
-    const thread = await rig.core.createGameThread(project);
+    await rig.core.projects.scaffold(project);
+    const thread = await rig.core.createProjectThread(project);
     const calls: DelegateRequest[] = [];
     let handed = deferred<SteerMessage>();
     rig.core.engines.register({

@@ -1,15 +1,15 @@
 /**
  * Home: where every launch starts, with nothing selected — one line and one composer whose first
- * message makes a game, named by the model, in the folder the chip under it names.
+ * message makes a project, named by the model, in the folder the chip under it names.
  *
- * While that game is being made, home becomes the chat and stage it is turning into: the composer
+ * While that project is being made, home becomes the chat and stage it is turning into: the composer
  * glides down into the chat's place, the message sits where the chat will show it, and the stage's
- * Planner starts writing (`launch.ts` holds the steps). Once the game's own chat has the message,
+ * Planner starts writing (`launch.ts` holds the steps). Once the project's own chat has the message,
  * home fades away over it, so the swap underneath is never seen.
  */
 import type { JSX } from "react";
 import { useEffect, useRef, useState } from "react";
-import type { GameLocation } from "../../shared/game-project.ts";
+import type { ProjectLocation } from "../../shared/project-folder.ts";
 import { UserMessage } from "../chat/UserMessage.tsx";
 import { chatPlaceholder, HOME_PLACEHOLDER } from "../composer-placeholder.ts";
 import { ShowSidebarButton } from "../panels/ChatHeader.tsx";
@@ -36,17 +36,17 @@ import { StatusOrb } from "../ui/StatusOrb.tsx";
 
 /** Home's words. */
 const MESSAGE = {
-  title: "Everything you need to ship a game",
+  title: "Everything you need to ship a project",
   naming: "Naming…",
-  namingStatus: "Naming your game…",
-  openingStatus: "Opening your game…",
+  namingStatus: "Naming your project…",
+  openingStatus: "Opening your project…",
   suggest: "Suggest prompt",
 } as const;
 
-/** Home's fade over the game it launched takes 250ms (`--duration-fast`); past this it is done anyway. */
+/** Home's fade over the project it launched takes 250ms (`--duration-fast`); past this it is done anyway. */
 const FADE_FALLBACK_MS = 400;
 
-/** Is home up: the room with nothing open, or a launch on its way to its game. */
+/** Is home up: the room with nothing open, or a launch on its way to its project. */
 function useHomeShown(): { shown: boolean; launch: Launch | null } {
   const room = useThreads(roomOf);
   const launch = useLaunch((s) => s.launch);
@@ -55,8 +55,8 @@ function useHomeShown(): { shown: boolean; launch: Launch | null } {
 }
 
 /**
- * Is home covering the chat and stage? Then they are out of reach beneath it, and the native game
- * view stays hidden, until home starts fading over the game it launched.
+ * Is home covering the chat and stage? Then they are out of reach beneath it, and the native project
+ * view stays hidden, until home starts fading over the project it launched.
  */
 export function useCoveredByHome(): boolean {
   const atHome = useThreads((s) => roomOf(s) === Room.Home);
@@ -92,7 +92,7 @@ function HomeScreen({
   const engines = useEngines((s) => s.list);
   const rootLabel = useLibrary((s) => s.rootLabel);
   const model = useHomeComposerModel(engines, app.engines.refresh);
-  const [location, setLocation] = useState<GameLocation | null>(null);
+  const [location, setLocation] = useState<ProjectLocation | null>(null);
   const [draft, setDraft] = useState("");
   const suggestion = useSuggestion(draft, setDraft, handoff);
   const leaving = launch?.phase === LaunchPhase.Handed;
@@ -112,13 +112,13 @@ function HomeScreen({
       ...(location ? { parent: location.dir } : {}),
     };
     // The launch's first step is synchronous: home becomes the chat and stage in one frame.
-    withViewTransition(() => void app.launchGame(input));
+    withViewTransition(() => void app.launchProject(input));
   };
   const composer = (
     <div data-home-composer className="home-composer">
       <PromptBar
         ref={handoff.homeComposer}
-        gameMode
+        projectMode
         placeholder={launch ? chatPlaceholder({ revisingPlan: false, studio: false, draft: false }) : HOME_PLACEHOLDER}
         model={model.bar}
         busy={launch !== null}
@@ -230,7 +230,7 @@ function useFinishWhenGone(launch: Launch | null, finish: (id: string) => void):
   }, [handed]);
 }
 
-/** Home on its way to the game: the chat and stage the launch is becoming, then a fade. */
+/** Home on its way to the project: the chat and stage the launch is becoming, then a fade. */
 function LaunchingHome({
   launch,
   leaving,

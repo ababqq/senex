@@ -1,6 +1,6 @@
 import { compareIds } from "../shared/compare-ids.ts";
 /**
- * Notifications: what is waiting on you, and what happened in your games while you were elsewhere.
+ * Notifications: what is waiting on you, and what happened in your projects while you were elsewhere.
  *
  * Read from the event log, never written to it. The log stays the one record; this is a reader's
  * inbox over it, kept in localStorage so it survives a relaunch past the bootstrap's event tail.
@@ -350,10 +350,10 @@ function onSignedOut(feed: FeedDraft, event: EventEnvelope): void {
   raise(feed, event, { kind: NoticeKind.SignIn, key: noticeKey.signIn(engine), engine, text: NOTICE_WORDS.signedOut });
 }
 
-/** Who a row is from: the provider for a sign-in, else the game, a game still being named, or the Harness chat. */
-export function noticeSource(notice: Notice, gameTitle: string | undefined, gameThread = true): string {
+/** Who a row is from: the provider for a sign-in, else the project, a project still being named, or the Harness chat. */
+export function noticeSource(notice: Notice, projectTitle: string | undefined, projectThread = true): string {
   if (notice.kind === NoticeKind.SignIn) return contractorIdentity(notice.engine ?? "").label;
-  return gameTitle ?? (gameThread ? NOTICE_WORDS.newGame : NOTICE_WORDS.harness);
+  return projectTitle ?? (projectThread ? NOTICE_WORDS.newProject : NOTICE_WORDS.harness);
 }
 
 /** Rows still waiting now; a plan that has started by itself no longer is. */

@@ -81,7 +81,7 @@ const QUEUE_NOT_RESTORED = (why: string) =>
  * The runs the harness that just died was in the middle of, named by the host. Nothing they
  * briefed can be judged, committed or landed any more — the host aborted every contractor the
  * moment the child exited — so each one gets its ending where the user is looking: in its own
- * game's thread, never in the studio's. "Paused", not "failed": the journal still holds the
+ * project's thread, never in the studio's. "Paused", not "failed": the journal still holds the
  * night's integration head, so the morning card can offer the build and Resume can pick the
  * night up from it. A run whose thread already carries an ending is left alone — the app
  * repairs interrupted logs at boot as well, and closing twice would overwrite a real close.

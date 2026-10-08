@@ -163,7 +163,7 @@ describe("ollama management API", () => {
 
 describe("ollama engine completions (real pi-ai over real HTTP)", () => {
   it("streams text deltas and returns an appendable assistant message", async () => {
-    const server = await fake({ replies: [{ text: "Here is a three.js pong game." }] });
+    const server = await fake({ replies: [{ text: "Here is a three.js pong project." }] });
     const engine = new OllamaEngine({ host: server.host });
     const deltas: string[] = [];
     const response = await engine.complete({
@@ -174,9 +174,9 @@ describe("ollama engine completions (real pi-ai over real HTTP)", () => {
     });
 
     assert.equal(response.message.role, "assistant");
-    assert.equal(response.message.content, "Here is a three.js pong game.");
+    assert.equal(response.message.content, "Here is a three.js pong project.");
     assert.ok(deltas.length > 1, "text arrived as a stream, not one blob");
-    assert.equal(deltas.join(""), "Here is a three.js pong game.");
+    assert.equal(deltas.join(""), "Here is a three.js pong project.");
     assert.equal(response.usage.input_tokens, 11);
     assert.equal(response.usage.output_tokens, 5);
     assert.equal(response.usage.cost_usd, 0, "local inference must be recorded as free");
@@ -244,7 +244,7 @@ describe("ollama engine completions (real pi-ai over real HTTP)", () => {
   });
 
   it("an abort signal stops a completion mid-generation as 'stopped by the user'", async () => {
-    const server = await fake({ replies: [{ hangAfter: "let me write the whole game—" }] });
+    const server = await fake({ replies: [{ hangAfter: "let me write the whole project—" }] });
     const engine = new OllamaEngine({ host: server.host });
     const abort = new AbortController();
     setTimeout(() => abort.abort(), 200);
@@ -317,7 +317,7 @@ describe("ollama engine completions (real pi-ai over real HTTP)", () => {
   });
 
   it("explains a connection cut mid-generation instead of the bare 'terminated'", async () => {
-    const server = await fake({ replies: [{ cutAfter: "half a game and then—" }] });
+    const server = await fake({ replies: [{ cutAfter: "half a project and then—" }] });
     const engine = new OllamaEngine({ host: server.host });
     await assert.rejects(
       engine.complete({ model: "qwen3.6:27b", messages: [{ role: "user", content: "make pong" }] }),
@@ -344,7 +344,7 @@ describe("ollama engine completions (real pi-ai over real HTTP)", () => {
       tools: [
         {
           name: "write_file",
-          description: "Write a file in the game workspace",
+          description: "Write a file in the project workspace",
           parameters: {
             type: "object",
             properties: { path: { type: "string" }, contents: { type: "string" } },
@@ -472,7 +472,7 @@ describe("message conversion", () => {
   });
 
   it("names a tool call the model left without an id, uniquely across rounds", () => {
-    const unnamed = { content: [{ type: "toolCall", name: "list_games", arguments: {} }] };
+    const unnamed = { content: [{ type: "toolCall", name: "list_projects", arguments: {} }] };
     const first = fromPiAssistant(unnamed).message.tool_calls![0]!.id;
     const second = fromPiAssistant(unnamed).message.tool_calls![0]!.id;
     assert.ok(first, "a result can only be bound to a call with an id");

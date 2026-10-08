@@ -25,7 +25,7 @@ import path from "node:path";
 import { SECOND_MS } from "../shared/duration.ts";
 import { StudioPlatform } from "../shared/boot.ts";
 
-/** The tools a game's build may need on PATH. `node` first: everything else rides on it. */
+/** The tools a project's build may need on PATH. `node` first: everything else rides on it. */
 export const BUILD_TOOLS = ["node", "npm", "pnpm", "yarn", "bun"] as const;
 export type BuildTool = (typeof BUILD_TOOLS)[number];
 
@@ -231,7 +231,7 @@ export async function readLoginPath(
   } catch {
     /* Standard macOS fallback. */
   }
-  // Fixed commands only; never accept shell instructions from a game or agent.
+  // Fixed commands only; never accept shell instructions from a project or agent.
   const command = path.basename(shell) === "fish" ? "string join : $PATH" : 'echo "$PATH"';
   return new Promise((resolve) => {
     const child = spawn(shell, ["-lic", command], { stdio: ["ignore", "pipe", "pipe"] });
@@ -376,7 +376,7 @@ export interface PackageCommands {
   /** What the user's "Install packages" button runs. */
   install: string;
   /**
-   * How that manager adds a named package to the game (`genex__package`), before the quoted name:
+   * How that manager adds a named package to the project (`genex__package`), before the quoted name:
    * saved exactly, so package.json records Studio's pin rather than a caret range.
    */
   add: string;
@@ -430,7 +430,7 @@ export function packageCommands(files: string[]): PackageCommands {
 
 /**
  * The only command lines the studio's one network exemption may ever wrap. `studio.json` lives
- * inside the user's game folder — a downloaded game ships one, and a contractor can write one
+ * inside the user's project folder — a downloaded project ships one, and a contractor can write one
  * mid-night — so a recorded `install` is honoured only when it is a package manager's own
  * install, never `npm install && curl … | sh`.
  */

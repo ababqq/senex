@@ -22,7 +22,7 @@
       "note": "learned over the bridge/water runs, 5 rejections: ≥1024×1024 target, once per frame, horizontal-only sine distortion ≤0.01"
     },
     {
-      "source": "skills/game-contract.md (deployed, 1 Sep 2026)",
+      "source": "skills/project-contract.md (deployed, 1 Sep 2026)",
       "note": "4+ consecutive iterations \"blocky/stepped, vague vertical smear\": true mirrored pass ≥1024, normal-map UV amplitude ≤0.02, one 3-tap vertical blur only"
     },
     {

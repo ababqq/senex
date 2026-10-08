@@ -51,20 +51,20 @@ test("pre-init injection avoids every real engine status/models/auth probe and k
 test("owned project policy rejects external adoption and symlink escapes before writes", async (t) => {
   const root = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "dev-project-")));
   t.after(() => fs.rm(root, { recursive: true, force: true }));
-  const games = path.join(root, "games"),
-    inside = path.join(games, "inside"),
+  const projects = path.join(root, "projects"),
+    inside = path.join(projects, "inside"),
     outside = path.join(root, "external");
   await fs.mkdir(inside, { recursive: true });
   await fs.mkdir(outside);
-  await assertOwnedProject(games, inside);
-  await assert.rejects(assertOwnedProject(games, outside), /outside/);
-  await fs.symlink(outside, path.join(games, "alias"));
-  await assert.rejects(assertOwnedProject(games, path.join(games, "alias")), /outside|alias/);
+  await assertOwnedProject(projects, inside);
+  await assert.rejects(assertOwnedProject(projects, outside), /outside/);
+  await fs.symlink(outside, path.join(projects, "alias"));
+  await assert.rejects(assertOwnedProject(projects, path.join(projects, "alias")), /outside|alias/);
   const core = new StudioCore({
     paths: { userData: path.join(root, "core"), resources: await makeResources() },
-    gamesRoot: games,
+    projectsRoot: projects,
     engines: [],
-    executionPolicy: { allowedProjectRoot: games },
+    executionPolicy: { allowedProjectRoot: projects },
   });
   await assert.rejects(core.adoptProject(outside), /outside/);
   assert.deepEqual(await fs.readdir(outside), []);
@@ -84,25 +84,25 @@ async function withTempFolder<T>(dir: string, body: () => Promise<T>): Promise<T
   }
 }
 
-test("a core-lite in a temp folder reached through a link owns its games by their real path", async () => {
+test("a core-lite in a temp folder reached through a link owns its projects by their real path", async () => {
   // macOS spells os.tmpdir() as /var/folders/…, a link to /private/var/folders/…. The containment
-  // check refuses a games root reached through a link, so the fixture must hand the core a real one.
+  // check refuses a projects root reached through a link, so the fixture must hand the core a real one.
   const root = await fs.realpath(await tmpDir("dev-linked-tmp-"));
   const real = path.join(root, "real");
   const linked = path.join(root, "linked");
   await fs.mkdir(real);
   await fs.symlink(real, linked, "junction");
-  const linkedGames = path.join(linked, "games");
-  await fs.mkdir(path.join(linkedGames, "game"), { recursive: true });
-  await assert.rejects(assertOwnedProject(linkedGames, path.join(linkedGames, "game")), /outside/);
+  const linkedProjects = path.join(linked, "projects");
+  await fs.mkdir(path.join(linkedProjects, "project"), { recursive: true });
+  await assert.rejects(assertOwnedProject(linkedProjects, path.join(linkedProjects, "project")), /outside/);
 
   const resources = await makeResources();
   const lite = await withTempFolder(linked, () => coreLite({ resources }));
   try {
-    await lite.core.games.scaffold("linked");
+    await lite.core.projects.scaffold("linked");
     const binding = await lite.core.pluginBinding("linked");
-    assert.equal(binding?.directory, path.join(lite.gamesRoot, "linked"));
-    assert.equal(lite.gamesRoot, await fs.realpath(lite.gamesRoot));
+    assert.equal(binding?.directory, path.join(lite.projectsRoot, "linked"));
+    assert.equal(lite.projectsRoot, await fs.realpath(lite.projectsRoot));
   } finally {
     await lite.close();
   }
@@ -113,10 +113,10 @@ test("indexed external project is rejected before sandbox/snapshot write registr
   // retry like tests/helpers/tmp.ts does rather than fail the run with ENOTEMPTY.
   t.after(() => fs.rm(root, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 }));
   const userData = path.join(root, "core"),
-    games = path.join(root, "games"),
+    projects = path.join(root, "projects"),
     external = path.join(root, "outside");
   await fs.mkdir(userData);
-  await fs.mkdir(games);
+  await fs.mkdir(projects);
   await fs.mkdir(external);
   await fs.writeFile(path.join(external, "index.html"), "external project");
   await fs.writeFile(
@@ -125,9 +125,9 @@ test("indexed external project is rejected before sandbox/snapshot write registr
   );
   const core = new StudioCore({
     paths: { userData, resources: await makeResources() },
-    gamesRoot: games,
+    projectsRoot: projects,
     engines: [],
-    executionPolicy: { allowedProjectRoot: games },
+    executionPolicy: { allowedProjectRoot: projects },
   });
   await assert.rejects(core.init(), /outside the owned/);
   assert.equal(core.sandbox, undefined);
@@ -145,7 +145,7 @@ test("fixture native guard covers all account, external, picker, export and down
   for (const channel of [
     "studio:packages.install",
     "studio:project.pick",
-    "studio:games-root.choose",
+    "studio:projects-root.choose",
     "studio:open-url",
     "studio:export",
     // Installing a plugin from a pinned commit downloads code and shows a trust dialog; updating does both again.
@@ -173,6 +173,6 @@ test("fixture native guard covers all account, external, picker, export and down
   ])
     assert.ok(!FIXTURE_BLOCKED_CHANNELS.has(channel), channel);
   // …and adoption is not one of them: it opens no network and writes only inside the profile's
-  // own games root, which is the one way a dev profile can hold a game that is not the fixture.
+  // own projects root, which is the one way a dev profile can hold a project that is not the fixture.
   assert.doesNotThrow(() => assertNativeActionAllowed(true, "studio:project.adopt"));
 });

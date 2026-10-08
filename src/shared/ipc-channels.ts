@@ -42,21 +42,21 @@ export const STUDIO_INVOKE_CHANNELS = {
   "studio:thread.events": "threadEvents",
   "studio:chat.page": "chatPage",
   "studio:threads": "threads",
-  "studio:thread.new": "newGameThread",
-  "studio:thread.forGame": "threadForGame",
+  "studio:thread.new": "newProjectThread",
+  "studio:thread.forProject": "threadForProject",
   "studio:thread.rename": "renameThread",
   "studio:compact": "compactThread",
-  "studio:game.archive": "archiveGame",
+  "studio:project.archive": "archiveProject",
   "studio:engines": "engines",
   "studio:provider-usage": "providerUsage",
   "studio:hardware": "hardware",
-  "studio:game.create": "createGame",
-  "studio:game.name": "nameGame",
-  "studio:game.location.pick": "pickGameLocation",
-  "studio:games-root.choose": "chooseGamesRoot",
-  "studio:game.update": "updateGame",
-  "studio:game.remove": "removeGame",
-  "studio:games": "games",
+  "studio:project.create": "createProject",
+  "studio:project.name": "nameProject",
+  "studio:project.location.pick": "pickProjectLocation",
+  "studio:projects-root.choose": "chooseProjectsRoot",
+  "studio:project.update": "updateProject",
+  "studio:project.remove": "removeProject",
+  "studio:projects": "projects",
   "studio:snapshots": "snapshots",
   "studio:selfchanges": "selfChanges",
   "studio:activity": "studioActivity",
@@ -142,12 +142,12 @@ export const STUDIO_INVOKE_CHANNELS = {
   "studio:build.preview": "buildPreview",
   "studio:preview.screens": "agentScreens",
   "studio:run.still": "readRunStill",
-  "studio:game.references": "readReferenceStills",
-  "studio:game.asset.preview": "previewProjectAsset",
-  "studio:game.asset.present": "presentProjectAssets",
-  "studio:game.asset.rigs": "projectModelRigs",
-  "studio:game.assets": "projectAssets",
-  "studio:game.asset.still": "readProjectAsset",
+  "studio:project.references": "readReferenceStills",
+  "studio:project.asset.preview": "previewProjectAsset",
+  "studio:project.asset.present": "presentProjectAssets",
+  "studio:project.asset.rigs": "projectModelRigs",
+  "studio:project.assets": "projectAssets",
+  "studio:project.asset.still": "readProjectAsset",
   "studio:run.feedback": "runFeedback",
   "studio:review.play": "playSnapshot",
   "studio:build.show": "showBuild",
@@ -170,7 +170,7 @@ export const STUDIO_INVOKE_CHANNELS = {
   "studio:skillopt.start": "startSkillOpt",
   "studio:skillopt.accept": "acceptProposal",
   "studio:skillopt.discard": "discardProposal",
-  "studio:export": "exportGame",
+  "studio:export": "exportProject",
   "studio:cancel-model-download": "cancelModelDownload",
   "studio:model-install.status": "modelInstallStatus",
   "studio:cli-install.start": "cliInstall",
@@ -179,8 +179,8 @@ export const STUDIO_INVOKE_CHANNELS = {
   "studio:models.lookup": "lookupModel",
   "studio:models.remove": "removeModel",
   "studio:reveal-project": "revealProject",
-  "studio:game-file.read": "readGameFile",
-  "studio:game-file.reveal": "revealGameFile",
+  "studio:project-file.read": "readProjectFile",
+  "studio:project-file.reveal": "revealProjectFile",
   "studio:chat-files.resolve": "resolveChatFiles",
   "studio:chat-file.open": "openChatFile",
   "studio:message-images": "messageImages",
@@ -221,20 +221,20 @@ export interface StudioInvokePayloads {
   "studio:chat.page": { threadId: string; before?: string };
   "studio:threads": undefined;
   "studio:thread.new": { project?: string };
-  "studio:thread.forGame": { project: string };
+  "studio:thread.forProject": { project: string };
   "studio:thread.rename": { threadId: string; title: string };
   "studio:compact": { threadId: string } & NonNullable<Arg<"compactThread", 1>>;
-  "studio:game.archive": { project: string };
+  "studio:project.archive": { project: string };
   "studio:engines": undefined;
   "studio:provider-usage": undefined;
   "studio:hardware": undefined;
-  "studio:game.create": { title: string } & NonNullable<Arg<"createGame", 1>>;
-  "studio:game.name": Arg<"nameGame", 0>;
-  "studio:game.location.pick": undefined;
-  "studio:games-root.choose": undefined;
-  "studio:game.update": { project: string; patch: Arg<"updateGame", 1> };
-  "studio:game.remove": { project: string };
-  "studio:games": undefined;
+  "studio:project.create": { title: string } & NonNullable<Arg<"createProject", 1>>;
+  "studio:project.name": Arg<"nameProject", 0>;
+  "studio:project.location.pick": undefined;
+  "studio:projects-root.choose": undefined;
+  "studio:project.update": { project: string; patch: Arg<"updateProject", 1> };
+  "studio:project.remove": { project: string };
+  "studio:projects": undefined;
   "studio:snapshots": undefined;
   "studio:selfchanges": undefined;
   "studio:activity": undefined;
@@ -321,12 +321,12 @@ export interface StudioInvokePayloads {
   "studio:build.preview": Arg<"buildPreview", 0>;
   "studio:preview.screens": undefined;
   "studio:run.still": { file: string; maxPx?: number };
-  "studio:game.references": { project: string };
-  "studio:game.asset.preview": Arg<"previewProjectAsset", 0>;
-  "studio:game.asset.present": Arg<"presentProjectAssets", 0>;
-  "studio:game.asset.rigs": Arg<"projectModelRigs", 0>;
-  "studio:game.assets": { project: string };
-  "studio:game.asset.still": Arg<"readProjectAsset", 0>;
+  "studio:project.references": { project: string };
+  "studio:project.asset.preview": Arg<"previewProjectAsset", 0>;
+  "studio:project.asset.present": Arg<"presentProjectAssets", 0>;
+  "studio:project.asset.rigs": Arg<"projectModelRigs", 0>;
+  "studio:project.assets": { project: string };
+  "studio:project.asset.still": Arg<"readProjectAsset", 0>;
   "studio:run.feedback": Arg<"runFeedback", 0>;
   "studio:review.play": { snapshotId: string; project: string };
   "studio:build.show": { project: string; commit: string };
@@ -358,8 +358,8 @@ export interface StudioInvokePayloads {
   "studio:models.lookup": { model: string };
   "studio:models.remove": { model: string };
   "studio:reveal-project": { project: string; file?: string };
-  "studio:game-file.read": { threadId: string; path: string };
-  "studio:game-file.reveal": { threadId: string; path: string };
+  "studio:project-file.read": { threadId: string; path: string };
+  "studio:project-file.reveal": { threadId: string; path: string };
   "studio:chat-files.resolve": { threadId: string; refs: Arg<"resolveChatFiles", 1> };
   "studio:chat-file.open": { threadId: string; ref: Arg<"openChatFile", 1> };
   "studio:message-images": { threadId: string; messageId: string };

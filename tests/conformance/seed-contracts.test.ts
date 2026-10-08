@@ -25,7 +25,7 @@ import * as seedWakeSchedule from "../../src/harness-seed/loop/director/wake-sch
 import { DelegationRefusal as seedDelegationRefusal } from "../../src/harness-seed/loop/director/lead-session.ts";
 import { RESUME_RUN as seedResumeRun } from "../../src/harness-seed/loop/after-night.ts";
 import { REOPEN_RUN as seedReopenRun } from "../../src/harness-seed/loop/reopen-run-prompts.ts";
-import { tools as seedGameTools } from "../../src/harness-seed/tools/game-tools.ts";
+import { tools as seedProjectTools } from "../../src/harness-seed/tools/project-tools.ts";
 import * as seedVerdict from "../../src/harness-seed/loop/verdict.ts";
 import { endsChatSessions } from "../../src/shared/chat-rewind.ts";
 import * as coordinator from "../../src/shared/coordinator.ts";
@@ -145,7 +145,7 @@ describe("the coordinator contract (shared/coordinator.ts ↔ loop/run-inbox.ts)
     assert.deepEqual(coordinator.coordinatorTools, seedInbox.coordinatorTools);
     for (const tool of seedInbox.coordinatorTools)
       assert.equal(coordinator.isCoordinatorTool(tool.name), true, tool.name);
-    assert.equal(coordinator.isCoordinatorTool("delete_game"), false);
+    assert.equal(coordinator.isCoordinatorTool("delete_project"), false);
   });
 
   it("the chat's own session after a night keeps the host's own tools: live run controls, and the resume it records", () => {
@@ -160,7 +160,7 @@ describe("the coordinator contract (shared/coordinator.ts ↔ loop/run-inbox.ts)
   });
 
   it("names the builds a chat's own session records to start as the seed's tools do, which Plan holds", () => {
-    const seedNames = new Set([...seedGameTools.map((tool) => tool.name), seedReopenRun, seedResumeRun]);
+    const seedNames = new Set([...seedProjectTools.map((tool) => tool.name), seedReopenRun, seedResumeRun]);
     for (const name of Object.values(coordinator.BuildLaunch)) assert.equal(seedNames.has(name), true, name);
     assert.equal(coordinator.BuildLaunch.ReopenRun, seedReopenRun);
     assert.equal(coordinator.BuildLaunch.ResumeRun, seedResumeRun);

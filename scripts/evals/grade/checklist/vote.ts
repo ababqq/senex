@@ -1,7 +1,7 @@
 /**
  * The vote (§8.4): an odd number of calls per family, majority wins, and fewer than two decided
  * votes is `inconclusive`: "the judge could not tell" is a fact about the instrument, never a defect
- * in the game. Calls run one after another, because they are independent samples of one question and
+ * in the project. Calls run one after another, because they are independent samples of one question and
  * concurrency buys only rate-limit errors. Families combine by conjunction and are never summed.
  */
 import { ZERO_TOKEN_USAGE, type TokenUsage } from "../../../../src/shared/eval-lane.ts";

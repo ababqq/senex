@@ -28,11 +28,11 @@ const BRIEF = {
   caseId: "lantern-walk",
   text: "Carry a paper lantern along a winding river path at dusk, and light every stone marker.",
 };
-const SHORT = { caseId: "vague", text: "make me a game about lanterns" };
+const SHORT = { caseId: "vague", text: "make me a project about lanterns" };
 const TERM = { caseId: "lantern-walk", term: "light every stone marker" };
 
 const filler = (count: number): IsolationFile[] =>
-  Array.from({ length: count }, (_, i) => ({ path: `src/harness-seed/filler-${i}.md`, text: "Build good games." }));
+  Array.from({ length: count }, (_, i) => ({ path: `src/harness-seed/filler-${i}.md`, text: "Build good projects." }));
 const scan = (...files: IsolationFile[]) => findLeaks([BRIEF, SHORT], [TERM], [...files, ...filler(MIN_FILES_SCANNED)]);
 
 describe("findLeaks", () => {
@@ -63,12 +63,12 @@ describe("findLeaks", () => {
 
   it("flags a checklist term only as whole words", () => {
     const report = scan(
-      { path: "src/game-template/NOTES.md", text: "Remember to light every stone marker." },
-      { path: "src/game-template/other.md", text: "delight every stone markers" },
+      { path: "src/project-template/NOTES.md", text: "Remember to light every stone marker." },
+      { path: "src/project-template/other.md", text: "delight every stone markers" },
     );
     assert.deepEqual(
       report.leaks.map((leak) => [leak.file, leak.kind, leak.match]),
-      [["src/game-template/NOTES.md", LeakKind.Term, "light every stone marker"]],
+      [["src/project-template/NOTES.md", LeakKind.Term, "light every stone marker"]],
     );
   });
 
@@ -81,7 +81,7 @@ describe("findLeaks", () => {
   });
 
   it("exempts a brief shorter than a shingle instead of calling it clean", () => {
-    const report = scan({ path: "src/harness-seed/example.md", text: "Say: make me a game about lanterns." });
+    const report = scan({ path: "src/harness-seed/example.md", text: "Say: make me a project about lanterns." });
     assert.deepEqual(report.leaks, []);
     assert.deepEqual(report.exempt, ["vague"]);
   });
@@ -134,8 +134,8 @@ describe("the isolation walker and CLI check", () => {
       fs.mkdirSync(path.dirname(path.join(dir, rel)), { recursive: true });
       fs.writeFileSync(path.join(dir, rel), text);
     };
-    for (let i = 0; i < MIN_FILES_SCANNED; i++) write(`src/harness-seed/notes/n${i}.md`, "Build good games.");
-    write("src/game-template/src/main.js", "// a template");
+    for (let i = 0; i < MIN_FILES_SCANNED; i++) write(`src/harness-seed/notes/n${i}.md`, "Build good projects.");
+    write("src/project-template/src/main.js", "// a template");
     write("src/plugins/kites/skills/fly/SKILL.md", "Fly kites.");
     write("src/plugins/kites/manifest.json", "{}");
     write("src/main/deep/thing-prompts.ts", "export const P = 'x';");
@@ -144,7 +144,7 @@ describe("the isolation walker and CLI check", () => {
     write("src/harness-seed/art/sprite.png", BRIEF.text);
     write("outside/leak.md", BRIEF.text);
     fs.symlinkSync(path.join(dir, "outside"), path.join(dir, "src/harness-seed/linked"));
-    fs.symlinkSync(path.join(dir, "outside/leak.md"), path.join(dir, "src/game-template/leak.md"));
+    fs.symlinkSync(path.join(dir, "outside/leak.md"), path.join(dir, "src/project-template/leak.md"));
     write(
       "evals/cases.md",
       [
@@ -164,7 +164,7 @@ describe("the isolation walker and CLI check", () => {
   it("walks the instruction trees and prompt modules only, skipping symlinks, dependencies and binaries", async () => {
     const dir = await repo();
     const files = isolationFiles(dir);
-    assert.ok(files.includes("src/game-template/src/main.js"));
+    assert.ok(files.includes("src/project-template/src/main.js"));
     assert.ok(files.includes("src/plugins/kites/skills/fly/SKILL.md"));
     assert.ok(files.includes("src/main/deep/thing-prompts.ts"));
     for (const skipped of [
@@ -173,7 +173,7 @@ describe("the isolation walker and CLI check", () => {
       "src/harness-seed/node_modules/dep/index.js",
       "src/harness-seed/art/sprite.png",
       "src/harness-seed/linked/leak.md",
-      "src/game-template/leak.md",
+      "src/project-template/leak.md",
     ])
       assert.ok(!files.includes(skipped), skipped);
   });

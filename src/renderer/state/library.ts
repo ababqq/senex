@@ -1,8 +1,8 @@
 import { browserVisibility, type VisibilitySource } from "./visibility.ts";
 import { sameSnapshot, shareRecords } from "./snapshot-equality.ts";
 /**
- * The game library: the games, where they live, which are building, the self-improvement
- * suggestions waiting, and each open game's asset inventory.
+ * The project library: the projects, where they live, which are building, the self-improvement
+ * suggestions waiting, and each open project's asset inventory.
  *
  * Asset inventories are watched, not polled per panel: the Builds timeline and the Assets stage
  * both call `watchAssets(project)`, and one read (every ten seconds, and on a plugin's or a
@@ -12,8 +12,8 @@ import { sameSnapshot, shareRecords } from "./snapshot-equality.ts";
  */
 import { createStore, type StoreApi } from "zustand/vanilla";
 import { SECOND_MS } from "../../shared/duration.ts";
-import type { GameUpdate } from "../../shared/game-library.ts";
-import type { Bootstrap, GameProject, ProjectAssets, StudioApi } from "../../shared/studio-api.ts";
+import type { ProjectUpdate } from "../../shared/project-library.ts";
+import type { Bootstrap, Project, ProjectAssets, StudioApi } from "../../shared/studio-api.ts";
 import { createRefresher, type Refresher } from "./refresher.ts";
 
 /** How often a watched inventory is walked again. */
@@ -26,22 +26,22 @@ export interface AssetInventory {
 }
 
 export interface LibraryState {
-  games: GameProject[];
-  /** `~/AI Games` as a human reads it. */
+  projects: Project[];
+  /** `~/AI Projects` as a human reads it. */
   rootLabel: string;
   /** Where run folders live, for stills recorded before a run named its own. */
   runsRoot: string | null;
-  /** Games a builder is working in right now. */
+  /** Projects a builder is working in right now. */
   building: ReadonlySet<string>;
   /** Self-improvement suggestions waiting for the user. */
   stagedCount: number;
-  /** Watched games' asset inventories. */
+  /** Watched projects' asset inventories. */
   assets: Record<string, AssetInventory>;
 }
 
 export const initialLibrary = (): LibraryState => ({
-  games: [],
-  rootLabel: "games",
+  projects: [],
+  rootLabel: "projects",
   runsRoot: null,
   building: new Set(),
   stagedCount: 0,
@@ -49,12 +49,12 @@ export const initialLibrary = (): LibraryState => ({
 });
 
 /**
- * The library as the bootstrap found it. Games with a builder at work read as building from the
+ * The library as the bootstrap found it. Projects with a builder at work read as building from the
  * start, so a reload during a build does not lose the badge until the next `delegation.*` event.
  */
 export function libraryBootstrapped(
   state: LibraryState,
-  boot: Pick<Bootstrap, "games" | "gamesRootLabel" | "layout"> & Partial<Pick<Bootstrap, "activeDelegations">>,
+  boot: Pick<Bootstrap, "projects" | "projectsRootLabel" | "layout"> & Partial<Pick<Bootstrap, "activeDelegations">>,
 ): LibraryState {
   const building = new Set(
     Object.entries(boot.activeDelegations ?? {})
@@ -63,34 +63,34 @@ export function libraryBootstrapped(
   );
   return {
     ...state,
-    games: boot.games,
-    rootLabel: boot.gamesRootLabel ?? "games",
+    projects: boot.projects,
+    rootLabel: boot.projectsRootLabel ?? "projects",
     runsRoot: boot.layout.runs ?? null,
     building,
   };
 }
 
-export function gamesLoaded(state: LibraryState, games: GameProject[]): LibraryState {
-  const shared = shareRecords(state.games, games, (game) => game.name);
-  return shared === state.games ? state : { ...state, games: shared };
+export function projectsLoaded(state: LibraryState, projects: Project[]): LibraryState {
+  const shared = shareRecords(state.projects, projects, (project) => project.name);
+  return shared === state.projects ? state : { ...state, projects: shared };
 }
 
-/** A game main just saved replaces its old record. */
-export function gameSaved(state: LibraryState, game: GameProject): LibraryState {
-  return { ...state, games: state.games.map((item) => (item.name === game.name ? game : item)) };
+/** A project main just saved replaces its old record. */
+export function projectSaved(state: LibraryState, project: Project): LibraryState {
+  return { ...state, projects: state.projects.map((item) => (item.name === project.name ? project : item)) };
 }
 
-/** A game just created goes to the end, replacing any record of the same name. */
-export function gameAdded(state: LibraryState, game: GameProject): LibraryState {
-  return { ...state, games: [...state.games.filter((item) => item.name !== game.name), game] };
+/** A project just created goes to the end, replacing any record of the same name. */
+export function projectAdded(state: LibraryState, project: Project): LibraryState {
+  return { ...state, projects: [...state.projects.filter((item) => item.name !== project.name), project] };
 }
 
-export function gameRemoved(state: LibraryState, name: string): LibraryState {
-  return { ...state, games: state.games.filter((game) => game.name !== name) };
+export function projectRemoved(state: LibraryState, name: string): LibraryState {
+  return { ...state, projects: state.projects.filter((project) => project.name !== name) };
 }
 
 /**
- * A builder started or finished in a game. `active` is how many are still working there; an
+ * A builder started or finished in a project. `active` is how many are still working there; an
  * older producer without it is read from the event's own name.
  */
 export function delegationChanged(
@@ -106,7 +106,7 @@ export function delegationChanged(
   return { ...state, building };
 }
 
-/** The games folder was changed in Settings: new games are created under this one. */
+/** The projects folder was changed in Settings: new projects are created under this one. */
 export function rootLabelChanged(state: LibraryState, rootLabel: string): LibraryState {
   return state.rootLabel === rootLabel ? state : { ...state, rootLabel };
 }
@@ -130,13 +130,13 @@ export const assetsOf = (state: LibraryState, project: string | null | undefined
   (project ? state.assets[project] : undefined) ?? NO_ASSETS;
 
 export interface LibraryStore extends StoreApi<LibraryState> {
-  refreshGames(): Promise<void>;
+  refreshProjects(): Promise<void>;
   refreshStaged(): Promise<void>;
-  saveGame(name: string, patch: GameUpdate): Promise<void>;
-  removeGame(name: string): Promise<void>;
-  /** Keep this game's inventory fresh while the returned function has not been called. */
+  saveProject(name: string, patch: ProjectUpdate): Promise<void>;
+  removeProject(name: string): Promise<void>;
+  /** Keep this project's inventory fresh while the returned function has not been called. */
   watchAssets(project: string): () => void;
-  /** Read a watched game's inventory again now (`null`: every watched game). */
+  /** Read a watched project's inventory again now (`null`: every watched project). */
   refreshAssets(project: string | null): void;
 }
 
@@ -151,15 +151,15 @@ const browserTimers: LibraryTimers = {
 };
 
 export function createLibraryStore(
-  api: Pick<StudioApi, "games" | "staged" | "updateGame" | "removeGame" | "projectAssets">,
+  api: Pick<StudioApi, "projects" | "staged" | "updateProject" | "removeProject" | "projectAssets">,
   timers: LibraryTimers = browserTimers,
   visibility: VisibilitySource = browserVisibility,
   publish?: (apply: () => void) => void,
 ): LibraryStore {
   const store = createStore<LibraryState>()(() => initialLibrary());
-  const games = createRefresher(
-    api.games.bind(api),
-    (list) => store.setState((state) => gamesLoaded(state, list), true),
+  const projects = createRefresher(
+    api.projects.bind(api),
+    (list) => store.setState((state) => projectsLoaded(state, list), true),
     { publish },
   );
   const staged = createRefresher(api.staged.bind(api), (list) =>
@@ -171,7 +171,7 @@ export function createLibraryStore(
   const reader = (project: string): Refresher =>
     createRefresher(
       () => api.projectAssets(project),
-      // An answer for another game (a renamed folder, a stale reply) is not this game's inventory.
+      // An answer for another project (a renamed folder, a stale reply) is not this project's inventory.
       (value) => {
         if (value.project === project) store.setState((state) => assetsLoaded(state, project, value), true);
       },
@@ -179,15 +179,15 @@ export function createLibraryStore(
     );
 
   return Object.assign(store, {
-    refreshGames: () => games.request(),
+    refreshProjects: () => projects.request(),
     refreshStaged: () => staged.request(),
-    async saveGame(name: string, patch: GameUpdate): Promise<void> {
-      const updated = await api.updateGame(name, patch);
-      store.setState((state) => gameSaved(state, updated), true);
+    async saveProject(name: string, patch: ProjectUpdate): Promise<void> {
+      const updated = await api.updateProject(name, patch);
+      store.setState((state) => projectSaved(state, updated), true);
     },
-    async removeGame(name: string): Promise<void> {
-      await api.removeGame(name);
-      store.setState((state) => gameRemoved(state, name), true);
+    async removeProject(name: string): Promise<void> {
+      await api.removeProject(name);
+      store.setState((state) => projectRemoved(state, name), true);
     },
     watchAssets(project: string): () => void {
       let entry = watched.get(project);

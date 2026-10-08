@@ -9,7 +9,7 @@ import {
   type GenexRequest,
 } from "../shared/genex.ts";
 import type { AudioPlaybackEvidence } from "../shared/audio-observation.ts";
-import { isAudioFile } from "../shared/game-assets.ts";
+import { isAudioFile } from "../shared/project-assets.ts";
 import { atomicWriteJson } from "./fsx.ts";
 import { USE_GUIDANCE } from "./genex-outcomes-prompts.ts";
 
@@ -20,7 +20,7 @@ const MAX_NOTE_CHARS = 2000;
 
 const MESSAGE = {
   NotDelivered: "Retrieve and deliver this job before checking its use. Use the delivered Studio job id.",
-  NoObserver: "Game observation is unavailable in this host",
+  NoObserver: "Project observation is unavailable in this host",
   UnknownOperation: "Unknown asset observation operation",
   NeedsInspection:
     "A runtime-loaded visual asset and a fresh inspection are required. Audio playback is not established by a screenshot.",
@@ -69,7 +69,7 @@ function inspectionGuidance(audio: boolean, verification: string, loaded: boolea
   return loaded ? USE_GUIDANCE.VisualLoaded : USE_GUIDANCE.NothingLoaded;
 }
 
-/** Capture the running game, record which delivered files it loaded, and verify audio playback. */
+/** Capture the running project, record which delivered files it loaded, and verify audio playback. */
 async function inspectUse({ job, dir, root, signal, observe }: UseInput): Promise<unknown> {
   if (!observe) throw new Error(MESSAGE.NoObserver);
   signal.throwIfAborted();
@@ -99,7 +99,7 @@ async function inspectUse({ job, dir, root, signal, observe }: UseInput): Promis
   return {
     ...job,
     images: [
-      { mimeType: "image/jpeg", data: observation.image.toString("base64"), label: "Asset use in the running game" },
+      { mimeType: "image/jpeg", data: observation.image.toString("base64"), label: "Asset use in the running project" },
     ],
     guidance: inspectionGuidance(audio, use.verification, observation.loadedFiles.length > 0),
   };

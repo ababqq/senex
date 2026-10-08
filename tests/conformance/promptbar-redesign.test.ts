@@ -24,7 +24,7 @@ function fixture() {
 for (const loop of [false, true])
   test(`manual plan approval gates ${loop ? "Loop" : "Auto"}, persists across restart and dispatches once`, async (t) => {
     const f = fixture();
-    await f.controller.request("chat", "Make a game", {
+    await f.controller.request("chat", "Make a project", {
       reviewPlan: true,
       ...(loop
         ? {
@@ -57,7 +57,7 @@ for (const loop of [false, true])
   });
 test("messages revise a waiting plan, including the word go; cancellation invalidates approval", async () => {
   const f = fixture();
-  await f.controller.request("chat", "Build a game", { reviewPlan: true });
+  await f.controller.request("chat", "Build a project", { reviewPlan: true });
   const old = f.records.get("chat")!;
   await f.controller.request("chat", "go, but add a river", {});
   const next = f.records.get("chat")!;
@@ -235,7 +235,7 @@ test("the real host stores approval before dispatch and keeps 15-minute Loop set
     await fs.rm(root, { recursive: true, force: true });
   });
   await core.init();
-  const thread = await core.createGameThread();
+  const thread = await core.createProjectThread();
   const dispatched: unknown[] = [];
   t.mock.method(core.host, "dispatch", async (action: unknown) => {
     dispatched.push(action);
@@ -284,7 +284,7 @@ test("each provider plans with current plugin capabilities without executable to
     await fs.rm(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
   });
   await core.init();
-  const thread = await core.createGameThread();
+  const thread = await core.createProjectThread();
   const engines = core.engines.all();
   for (const engine of engines) {
     const requests: any[] = [];
@@ -322,18 +322,18 @@ test("retrying an unavailable plan retains the request and changes the provider 
     ...f.host,
     generate: async (text: string) => {
       if (++calls === 1) throw new Error("Model unavailable");
-      assert.equal(text, "Make a football game");
+      assert.equal(text, "Make a football project");
       return "A football plan";
     },
   };
   const controller = new PlanReviewController(host);
-  await controller.request("chat", "Make a football game", {
+  await controller.request("chat", "Make a football project", {
     engine: "claude-code",
     reviewPlan: true,
     autopilot: { hours: 1 },
   });
   assert.equal(f.records.get("chat")!.state, "failed");
-  await controller.request("chat", "Make a football game", { engine: "codex", reviewPlan: true });
+  await controller.request("chat", "Make a football project", { engine: "codex", reviewPlan: true });
   assert.equal(f.records.get("chat")!.options.engine, "codex");
   assert.equal(f.records.get("chat")!.options.autopilot?.hours, 1);
   assert.equal(f.records.get("chat")!.state, "waiting");
@@ -350,11 +350,11 @@ test("a Stop pressed after its message was sent keeps that message's plan from b
   // The message was sent, then Stop was pressed before the plan request began.
   const sentAt = Date.now() - 1_000;
   await f.controller.cancel("chat");
-  await f.controller.request("chat", "Make a game", { reviewPlan: true }, { sentAt });
+  await f.controller.request("chat", "Make a project", { reviewPlan: true }, { sentAt });
   assert.equal(written, 0, "no plan is written for a stopped message");
   assert.equal(f.records.get("chat")?.state, "cancelled", "the request is kept, cancelled");
   // A message sent after the Stop is planned as usual.
-  await f.controller.request("chat", "Make a game", { reviewPlan: true }, { sentAt: Date.now() + 1_000 });
+  await f.controller.request("chat", "Make a project", { reviewPlan: true }, { sentAt: Date.now() + 1_000 });
   assert.equal(written, 1);
   assert.equal(f.records.get("chat")?.state, "waiting");
 });

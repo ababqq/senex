@@ -1,11 +1,11 @@
 /** A section of the Settings dialog a request can open. */
 export const SettingsSection = {
-  Games: "games",
+  Projects: "projects",
   Providers: "providers",
   Local: "local",
   Appearance: "appearance",
   Harness: "harness",
-  /** Claude Code's "always allow" rules saved in game chats. */
+  /** Claude Code's "always allow" rules saved in project chats. */
   Permissions: "permissions",
   /** Share build metrics: off by default (`panels/PrivacySection.tsx`). */
   Privacy: "privacy",

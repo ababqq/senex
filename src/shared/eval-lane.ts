@@ -31,7 +31,7 @@ export const EndedHow = {
 } as const;
 export type EndedHow = (typeof EndedHow)[keyof typeof EndedHow];
 
-/** Which launch the Loop chat chose for a Genex run: none (it built the game itself), or a timed or unattended run. */
+/** Which launch the Loop chat chose for a Genex run: none (it built the project itself), or a timed or unattended run. */
 export const LaunchPath = {
   None: "none",
   StartAutopilot: "start_autopilot",
@@ -243,7 +243,7 @@ export interface EvalLaneSpec {
   maxAnswers: number;
   /** Lane D: pass the host-skill suppression list to the Codex engine (recorded in `harnessPin`). */
   codexHostSkillSuppression: boolean;
-  gamesRoot: string;
+  projectsRoot: string;
   userDataRoot: string;
   /** The run's own folder, which every path above must sit inside. */
   workRoot: string;
@@ -267,14 +267,14 @@ export const EVAL_LANE_EXIT = { Ok: 0, Failed: 1, Refused: 78 } as const;
 /** Why main refuses an eval launch before any core starts. Printed on stderr: never rename a value. */
 export const EvalLaunchRefusal = {
   NotSmoke: "not-smoke",
-  /** A developer launch: its core runs on the dev profile and games, not the roots the guard checks. */
+  /** A developer launch: its core runs on the dev profile and projects, not the roots the guard checks. */
   DevLaunch: "dev-launch",
   InvalidSpec: "invalid-spec",
   LiveNotAllowed: "live-not-allowed",
   BypassMode: "bypass-mode",
   WorkRootTooBroad: "work-root-too-broad",
   OutsideWorkRoot: "outside-work-root",
-  InsideAiGames: "inside-ai-games",
+  InsideAiProjects: "inside-ai-projects",
   DefaultUserData: "default-user-data",
 } as const;
 export type EvalLaunchRefusal = (typeof EvalLaunchRefusal)[keyof typeof EvalLaunchRefusal];
@@ -345,9 +345,9 @@ export interface EvalLaneReport {
   harnessDigest: HarnessDigest;
   projectDir: string;
   /**
-   * The workspace digest of the game as the app seeded it, taken the moment the chat was bound to
+   * The workspace digest of the project as the app seeded it, taken the moment the chat was bound to
    * it and before the agent's first edit: what `template-untouched` is judged against at stop.
-   * Null when the chat never got a game, or the launch could not see the binding.
+   * Null when the chat never got a project, or the launch could not see the binding.
    */
   templateDigest: string | null;
   threadId: string;

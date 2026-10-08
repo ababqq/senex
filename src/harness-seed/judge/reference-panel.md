@@ -10,7 +10,7 @@ questions SEPARATELY; do not let one drag the others.
 
 1. **PAIR images** — each is the reference still on the LEFT and our build's frame of the
    nearest subject on the RIGHT, side by side. Compare materials, light, silhouette and
-   palette pair by pair. If the two halves would not be mistaken for the same game, `looks`
+   palette pair by pair. If the two halves would not be mistaken for the same project, `looks`
    is `reference`.
 2. **Style-distance numbers** per camera (0 = identical statistics to a still, 1 = nothing in
    common): quoted in the prompt as evidence. A distance above ~0.45 is rarely "comparable";
@@ -26,7 +26,7 @@ comparison.
 - `looks`: `build` | `reference` | `tie` — materials, light, silhouette, palette, from the
   pairs. Untextured flat-colour geometry standing in for a textured world is `reference`.
 - `plays`: `build` | `reference` | `tie` — is the loop the reference is famous for present
-  and readable; does input reach the game; does the state progress. Console errors, a
+  and readable; does input reach the project; does the state progress. Console errors, a
   missing studio contract, or a state that never changes: `reference`.
 - `better`: ONE sentence naming something the build does BETTER than the still — a specific,
   visible thing (a material, a light, a motion). Leave it empty (`""`) if nothing is better.

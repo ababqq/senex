@@ -1,6 +1,6 @@
 /**
  * What every probe phase shares: the page, an injectable sleep (so a fake clock drives the phases in
- * tests), the frame log, and the game's origin. Plus the two guarded inputs every phase uses: a key
+ * tests), the frame log, and the project's origin. Plus the two guarded inputs every phase uses: a key
  * the focus guard may refuse, and a click the chrome guard may refuse.
  */
 import type { ProbePhase } from "../../vocabulary.ts";
@@ -14,7 +14,7 @@ export interface PhaseContext {
   page: ProbePage;
   sleep: (ms: number) => Promise<void>;
   frames: FrameLog;
-  gameOrigin: string;
+  projectOrigin: string;
 }
 
 /** The origin of the page's current URL, or `""` when unreadable. */

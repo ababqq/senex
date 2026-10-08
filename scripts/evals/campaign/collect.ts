@@ -7,7 +7,7 @@
 import { readFile, realpath, stat } from "node:fs/promises";
 import type { EvalLaneReport } from "../../../src/shared/eval-lane.ts";
 import { layoutFor } from "../../../src/main/core/layout.ts";
-import { validateGameDir } from "../../../src/substrate/game-validation.ts";
+import { validateProjectDir } from "../../../src/substrate/project-validation.ts";
 import { EngineId } from "../../../src/shared/providers.ts";
 import { MINUTE_MS } from "../../../src/shared/duration.ts";
 import { readClaudeStream } from "../collect/claude-stream.ts";
@@ -184,10 +184,10 @@ export async function collectRun(input: CollectInput): Promise<CollectedRun> {
   };
 }
 
-/** What `validateGameDir` says of the stop-time snapshot (`output.validate`); unknown without one, or when it cannot be read. */
+/** What `validateProjectDir` says of the stop-time snapshot (`output.validate`); unknown without one, or when it cannot be read. */
 export async function snapshotValidation(finalDir: string | null): Promise<CheckResult> {
   if (finalDir === null) return CheckResult.Unknown;
-  const found = await validateGameDir(finalDir).catch(() => null);
+  const found = await validateProjectDir(finalDir).catch(() => null);
   if (found === null) return CheckResult.Unknown;
   return found.ok ? CheckResult.Pass : CheckResult.Fail;
 }

@@ -1,4 +1,4 @@
-import { ASSET_FORMATS, assetExtension, assetFormat, type AssetPreviewMode } from "./game-assets.ts";
+import { ASSET_FORMATS, assetExtension, assetFormat, type AssetPreviewMode } from "./project-assets.ts";
 import { isGenexRef } from "./genex-ref.ts";
 
 export { assetExtension };

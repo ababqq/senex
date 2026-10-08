@@ -1,6 +1,6 @@
 /**
- * A game folder's version history where it meets somebody else's: the repositories a folder
- * holds inside it (the user's own game, dropped into a project folder), the one conversion that
+ * A project folder's version history where it meets somebody else's: the repositories a folder
+ * holds inside it (the user's own project, dropped into a project folder), the one conversion that
  * makes such a repository part of the folder's history, and the `.gitignore` rules the studio
  * needs before it commits anything there.
  */
@@ -18,15 +18,15 @@ const GITLINK_MODE = "160000";
 
 const MESSAGE = {
   StagedChanges: (count: number) =>
-    `the game folder has changes staged for its own next commit (${count} file(s)) — commit or unstage them before making this build live`,
+    `the project folder has changes staged for its own next commit (${count} file(s)) — commit or unstage them before making this build live`,
   ConversionCommit: (converted: string[]) =>
-    `studio: ${converted.map((rel) => `${rel}/`).join(", ")} is part of this game's history now (its own is kept as ${NESTED_BACKUP})`,
+    `studio: ${converted.map((rel) => `${rel}/`).join(", ")} is part of this project's history now (its own is kept as ${NESTED_BACKUP})`,
   NoConsent: (landing: string[]) =>
-    `The game in ${landing.map((rel) => `${rel}/`).join(", ")} keeps its own version history, and the studio was not allowed to make it part of this game — the build's work inside it cannot be made live. Open this folder again and keep it: the studio then adds those files to the game's history, and the folder's own history is kept beside it.`,
+    `The project in ${landing.map((rel) => `${rel}/`).join(", ")} keeps its own version history, and the studio was not allowed to make it part of this project — the build's work inside it cannot be made live. Open this folder again and keep it: the studio then adds those files to the project's history, and the folder's own history is kept beside it.`,
 } as const;
 
 /**
- * The repositories a folder holds directly inside it: the user's own game, dropped into a
+ * The repositories a folder holds directly inside it: the user's own project, dropped into a
  * project folder. Git records such a folder as a pointer, not as files, which is why the studio
  * has to ask before it may version one (decision 1, 2026-09-08).
  */
@@ -40,8 +40,8 @@ export async function nestedRepos(dir: string): Promise<string[]> {
 }
 
 /**
- * The rules the studio needs in a game's `.gitignore`, beyond its own scratch: packages are
- * never committed (a fork links them in from the game folder, and an unignored link would be
+ * The rules the studio needs in a project's `.gitignore`, beyond its own scratch: packages are
+ * never committed (a fork links them in from the project folder, and an unignored link would be
  * swept into a commit and landed pointing at the user's own machine), a repository the studio
  * versioned keeps its own history beside it, and the three kinds of file a first `git add -A`
  * should never sweep into somebody's history — build output, secrets, and a tool's scratch.
@@ -52,7 +52,7 @@ export async function nestedRepos(dir: string): Promise<string[]> {
  * Written before `git init` (see `#writeTemplate`), so the very first commit is already clean:
  * one adopted folder shipped `.playwright-cli/` and `output/` into "substrate: initial".
  * A path the folder already tracks is unaffected — git ignores rules for tracked files — so a
- * game that commits its `dist/` keeps committing it.
+ * project that commits its `dist/` keeps committing it.
  */
 const IGNORE_RULES: Array<{ line: string; already: RegExp }> = [
   { line: ".studio/", already: /^\.studio\/?$/m },
@@ -132,19 +132,19 @@ async function commitConversion(dir: string, converted: string[], mergeWith?: st
 }
 
 /**
- * Make the game's own nested repositories part of *this* folder's history: back up each one's
+ * Make the project's own nested repositories part of *this* folder's history: back up each one's
  * `.git`, drop the pointer from the index and add the files. Only ever called with the user's
  * consent (`AdoptOptions.versionNested`, recorded in studio.json) — it is the one operation the
  * studio performs on somebody else's version history.
  *
  * `mergeWith` is the conversion commit the studio already made in its own forks: recording it as
  * a second parent makes the landing that follows a plain three-way merge, instead of an add/add
- * conflict on every file of the game. Returns the paths that were converted.
+ * conflict on every file of the project. Returns the paths that were converted.
  */
 export async function versionNestedTrees(dir: string, nested: string[], mergeWith?: string): Promise<string[]> {
   await refuseStagedChanges(dir, nested);
   // Before anything is added: the backup about to be made, and the packages a fork links in,
-  // must be ignored — or this conversion would commit the game's own history back into the game.
+  // must be ignored — or this conversion would commit the project's own history back into the project.
   await ensureIgnoreRules(dir);
   const progress = { converted: [] as string[], backed: [] as string[] };
   try {
@@ -153,7 +153,7 @@ export async function versionNestedTrees(dir: string, nested: string[], mergeWit
     await commitConversion(dir, progress.converted, mergeWith);
     return progress.converted;
   } catch (err) {
-    // A conversion that never reached its commit must leave nothing behind: a game that is no
+    // A conversion that never reached its commit must leave nothing behind: a project that is no
     // longer a repository, with no commit carrying its files, is worse than any refusal.
     for (const rel of progress.backed) {
       await rename(path.join(dir, rel, NESTED_BACKUP), path.join(dir, rel, ".git")).catch(() => {});
@@ -194,7 +194,7 @@ async function firstTouchSince(dir: string, base: string, commit: string, landin
 /**
  * The conversion a landing needs, when it needs one: the repositories this folder's history holds
  * as pointers and the build being landed holds as files. Nothing to convert (the usual case, and
- * every game that has no repository inside it) returns []; without the user's consent it refuses
+ * every project that has no repository inside it) returns []; without the user's consent it refuses
  * in words the user reads, because the alternative — merging files over a pointer — either fails
  * or writes over files git is not tracking.
  */

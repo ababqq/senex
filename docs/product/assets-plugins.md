@@ -1,6 +1,6 @@
 # Assets and plugins
 
-## Assets in a game
+## Assets in a project
 
 Assets groups `assets/` and `public/assets/` files by source and generation, even before a
 build exists; deliveries and external changes refresh it. Cards hide metadata; animation-only GLBs fold
@@ -10,9 +10,9 @@ Opening a file shows it with only Reveal in Finder and Close: images (click: ful
 size), audio/video, 3D models playing their clips, textures or bounded text. Unsupported
 formats and decoder failures explain themselves. Media reads are bounded; offscreen previews load lazily.
 
-Chat shows game-folder files. Builds shows Loop workspace assets as thumbnails with their
+Chat shows project-folder files. Builds shows Loop workspace assets as thumbnails with their
 location until landing; checks and Blender passes on an asset are notes. Visual results use lazy two-column previews; sounds play in compact rows.
-Chat offers Open in Assets and bounded batches. Job completion or “seen in game” observations
+Chat offers Open in Assets and bounded batches. Job completion or “seen in project” observations
 do not prove correct integration or passing checks.
 
 ## Tools and setup
@@ -22,20 +22,20 @@ Manage. Enabled, connected, signed in and permitted are different states.
 
 Plugins opens a workspace page with Plugins/Skills, search, rows and details. Plugins and MCP
 servers show their own pictures (manifest `icon`, MCP `serverInfo.icons`) or an initial. The
-list shows installed plugins (Genex as the game dev tools router), servers you added, the
+list shows installed plugins (Genex as the project dev tools router), servers you added, the
 Marketplace (Coming soon until the catalog has something new) and the plugin guide. Install from GitHub takes a pasted link and pins its latest release
-(else the default branch's newest commit). Games build, preview and export without plugins.
+(else the default branch's newest commit). Projects build, preview and export without plugins.
 The host draws Genex's app-wide page (shared balance, the tools it routes) and Local Blender's
 runtime card. Connect, unapproved, reuses a saved account or
-opens browser sign-in; setup survives restart and reinstall. Game spend is in the usage panel.
+opens browser sign-in; setup survives restart and reinstall. Project spend is in the usage panel.
 Enabled Genex suggests assets in planning; workers use it once the account is ready. User
 preferences win; failures and fallbacks are disclosed.
-Genex bundles its MCP with the same account: game/animation search, owned games and
+Genex bundles its MCP with the same account: project/animation search, owned projects and
 generation status. Studio’s host tools handle generation, delivery, credits and publishing,
-and run the pinned Genex CLI outside the game: `genex__cli` free; `genex__cli-paid` and
-`genex__package` (pinned multiplayer or player-identity package, build games) after consent.
+and run the pinned Genex CLI outside the project: `genex__cli` free; `genex__cli-paid` and
+`genex__package` (pinned multiplayer or player-identity package, build projects) after consent.
 Publish (a host-drawn stage dialog) tests the draft before making it public.
-Agents read Genex’s guide and cards via `genex__skill`, never from game files.
+Agents read Genex’s guide and cards via `genex__skill`, never from project files.
 Plugin MCPs connect on first use; the composer shows only actionable failures.
 
 The curated catalog is served anonymously from `plugins.genex.games`; reviewed release records
@@ -45,7 +45,7 @@ compatible release. See the [release procedure](../STUDIO-MARKETPLACE-RELEASE.md
 
 ## Permissions and lifecycle
 
-Installation shows publisher and capabilities; new capabilities need confirmation. Game agents
+Installation shows publisher and capabilities; new capabilities need confirmation. Project agents
 cannot install, enable or approve plugins. Process isolation does not sandbox native code.
 
 Confirmation tools ask in chat ([questions](chat.md#questions-and-plans)); routine generation
@@ -60,9 +60,9 @@ Removal preserves data, credentials and jobs; another source reusing a plugin's 
 local reinstall reviews a fresh snapshot. Updates preserve settings and jobs. Host-managed
 secrets never enter composer text.
 
-Skills lists Studio’s own (local chat, planner, director), this game’s, each provider’s global
+Skills lists Studio’s own (local chat, planner, director), this project’s, each provider’s global
 and plugin skills. Codex says whether workers load its catalog; Claude’s global entries stay
-excluded. Plugin switches cover all games; resumed workers hear what was withdrawn. Discovery
+excluded. Plugin switches cover all projects; resumed workers hear what was withdrawn. Discovery
 is read-only.
 
 ## Where to work

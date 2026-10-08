@@ -24,7 +24,7 @@ import { coordinatorPrompt } from "../../src/harness-seed/loop/coordinator-promp
 import * as coordinator from "../../src/harness-seed/loop/coordinator.ts";
 import * as coordinatorPrompts from "../../src/harness-seed/loop/coordinator-prompts.ts";
 import { steersInto } from "../../src/harness-seed/loop/message-queue.ts";
-import { tools as gameTools } from "../../src/harness-seed/tools/game-tools.ts";
+import { tools as projectTools } from "../../src/harness-seed/tools/project-tools.ts";
 import * as afterNightPrompts from "../../src/harness-seed/loop/after-night-prompts.ts";
 import * as delegatedTurn from "../../src/harness-seed/loop/delegated-turn.ts";
 import * as runDispatch from "../../src/harness-seed/loop/run-dispatch.ts";
@@ -176,7 +176,7 @@ const steersOf = (log: readonly Entry[]) =>
 
 describe("the Loop's working time for a reopened build", () => {
   it("R1. the Loop's hours give a reopened build the working time a launch gives, as a ceiling on its ask; the run's other knobs are kept", async () => {
-    const launch = gameTools.find((tool) => tool.name === "start_autopilot");
+    const launch = projectTools.find((tool) => tool.name === "start_autopilot");
     assert.ok(launch);
     /** What a launch with this Loop would be given (start_autopilot, then chat-dispatch.ts intakeBudgets). */
     const launchedWith = async (hours: number | null) => {
@@ -483,7 +483,7 @@ describe("reopening the finished build once the reply has ended", () => {
         why: /no longer/,
       },
       {
-        label: "a build is under way on the game from another chat",
+        label: "a build is under way on the project from another chat",
         set: ({ studio }) =>
           studio.activeRuns.set("run_x", {
             run: { runId: "run_x", project: "plaza" },
@@ -644,7 +644,7 @@ describe("reopening the finished build once the reply has ended", () => {
 describe("the chat's message, from the queue to the reopened night (chat-dispatch.ts)", () => {
   /**
    * A chat whose last build its own session led and finished, on a host that keeps the log and the
-   * journal. The session records `recorded`; once the chat's turn has ended no game has the build's
+   * journal. The session records `recorded`; once the chat's turn has ended no project has the build's
    * name, so a night started again throws before it builds and closes.
    */
   function chatAfter(
@@ -686,8 +686,8 @@ describe("the chat's message, from the queue to the reopened night (chat-dispatc
         store.turnOver = true;
       },
       "events.messages": () => [{ role: "user", content: "add enemies" }],
-      "game.list": () => (store.turnOver ? [] : [{ name: "plaza", title: "Plaza" }]),
-      "game.contentStamp": () => ({ all: "same", source: "same" }),
+      "project.list": () => (store.turnOver ? [] : [{ name: "plaza", title: "Plaza" }]),
+      "project.contentStamp": () => ({ all: "same", source: "same" }),
       "engine.delegate": answered,
     };
     const host = {

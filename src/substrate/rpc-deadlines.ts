@@ -2,7 +2,7 @@
  * How long the host services one harness call before it answers the harness with a timeout.
  *
  * A call nobody answers keeps the harness awaiting it, and a harness awaiting the host is not
- * wedged, so the watchdog stays quiet while any call is in flight. A generated game whose
+ * wedged, so the watchdog stays quiet while any call is in flight. A generated project whose
  * `state()` never returns, or a page that stops answering, therefore used to freeze a whole night
  * with nothing to notice it. Every call now has a class, and a class with a deadline is answered
  * with `RpcDeadline` once it passes; the watchdog sees the harness's own silence again after that.
@@ -17,9 +17,9 @@ import type { HarnessHostMethod } from "../shared/harness-api.ts";
 export const RpcClass = {
   /** The studio's own records and settings: local and quick, whatever the log's size. */
   Record: "record",
-  /** A question or an action on a loaded game page. */
+  /** A question or an action on a loaded project page. */
   Page: "page",
-  /** Loading, reloading or waiting for a game page, or profiling one. */
+  /** Loading, reloading or waiting for a project page, or profiling one. */
   PageLoad: "page-load",
   /** Engine work, runs, snapshots, plugins: bounded by their own timeouts, some for hours. */
   Work: "work",
@@ -84,20 +84,20 @@ export const RPC_CLASSES = {
   "coordinator.tool": RpcClass.Work,
   "engine.delegations": RpcClass.Record,
   "engine.hardware": RpcClass.Record,
-  "game.list": RpcClass.Record,
-  "game.setCover": RpcClass.Work,
-  "game.setCoverShader": RpcClass.Work,
-  "game.contentStamp": RpcClass.Record,
-  "game.recents": RpcClass.Record,
-  "game.scaffold": RpcClass.Work,
-  "game.validate": RpcClass.Work,
-  "game.attached": RpcClass.Record,
-  "game.upgradeContract": RpcClass.Work,
-  "game.read": RpcClass.Record,
-  "game.write": RpcClass.Record,
-  "game.tree": RpcClass.Record,
-  "game.export": RpcClass.Work,
-  "game.references": RpcClass.Record,
+  "project.list": RpcClass.Record,
+  "project.setCover": RpcClass.Work,
+  "project.setCoverShader": RpcClass.Work,
+  "project.contentStamp": RpcClass.Record,
+  "project.recents": RpcClass.Record,
+  "project.scaffold": RpcClass.Work,
+  "project.validate": RpcClass.Work,
+  "project.attached": RpcClass.Record,
+  "project.upgradeContract": RpcClass.Work,
+  "project.read": RpcClass.Record,
+  "project.write": RpcClass.Record,
+  "project.tree": RpcClass.Record,
+  "project.export": RpcClass.Work,
+  "project.references": RpcClass.Record,
   "preview.load": RpcClass.PageLoad,
   "preview.profile": RpcClass.PageLoad,
   "preview.reload": RpcClass.PageLoad,

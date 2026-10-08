@@ -1,9 +1,9 @@
 /**
- * Permission modes and tool permission requests for a game chat: the five modes Claude Code
+ * Permission modes and tool permission requests for a project chat: the five modes Claude Code
  * offers and the Allow / Deny questions it asks, answered in the chat instead of a terminal. Every
  * engine's chat session follows the chat's mode as far as it can (`permissionModesFor`).
  *
- * Whoever answers the person in a game chat asks: the chat's own session, and a build's lead or the
+ * Whoever answers the person in a project chat asks: the chat's own session, and a build's lead or the
  * run's coordinator on Claude Code while it answers a message the person sent. Unattended work (builders,
  * workers, playtesters, scouts, judges, candidates) never waits on a person: it keeps the sandboxed
  * contract of the engine that runs it. The host decides which is which from what it recorded
@@ -168,13 +168,13 @@ export const WHOLE_TOOL_RULES: ReadonlySet<string> = new Set([
 export const GrantKind = { Rule: "rule", Mode: "mode", Directory: "directory" } as const;
 export type GrantKind = (typeof GrantKind)[keyof typeof GrantKind];
 
-/** Where a rule applies: every chat of the game, or this conversation. */
-export const RuleScope = { Game: "game", Chat: "chat" } as const;
+/** Where a rule applies: every chat of the project, or this conversation. */
+export const RuleScope = { Project: "game", Chat: "chat" } as const;
 export type RuleScope = (typeof RuleScope)[keyof typeof RuleScope];
 
 /**
- * What "always" grants, translated from Claude Code's suggestions. A `game` rule is saved for
- * every chat of that game; a `chat` rule, a mode and a folder last for this conversation.
+ * What "always" grants, translated from Claude Code's suggestions. A `project` rule is saved for
+ * every chat of that project; a `chat` rule, a mode and a folder last for this conversation.
  * Rules use Claude Code's syntax: `Bash(npm test:*)`, `Read(//Users/me/refs/**)`, `WebFetch(domain:x.com)`.
  */
 export type PermissionGrant =
@@ -274,7 +274,7 @@ export type ModeSwitchFailure = (typeof ModeSwitchFailure)[keyof typeof ModeSwit
 
 export interface PermissionRuleView {
   project: string;
-  /** The game's title when it is still in the library. */
+  /** The project's title when it is still in the library. */
   title: string;
   rules: string[];
 }
@@ -282,7 +282,7 @@ export interface PermissionRuleView {
 export interface PermissionSettingsView {
   /** The mode a new chat starts in: the last steady one chosen. */
   defaultMode: PermissionMode;
-  /** Saved "always allow" rules, by game. */
+  /** Saved "always allow" rules, by project. */
   rules: PermissionRuleView[];
   /** Models whose sessions started in Manual because Auto is not available for the plan or model. */
   autoUnavailable: string[];

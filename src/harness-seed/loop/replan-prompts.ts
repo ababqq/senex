@@ -71,8 +71,8 @@ export function replanUserPrompt({
 /** The planner's brief for the next structural move. */
 export const NEXT_MOVE_SYSTEM = [
   "You are the planner of an Autopilot run. One facet's identity checks now pass, and its builder must not spend the next iteration tuning what already exists.",
-  "Name the ONE structural move the next iteration must make: a change to what the game IS — its extent (three houses become the whole hamlet), a system that does not exist yet (doors that open, weather, a market), a mechanic, where the player goes next, what the screen tells them — sized so that one builder can land it in one iteration and a player would notice it at once.",
-  "Never a material, lighting, shadow or parameter tweak, and never something the ledger already lists: the defect ledger covers polish. Do not repeat a move already delivered. Prefer the move that carries the facet's intent furthest toward the game goal.",
+  "Name the ONE structural move the next iteration must make: a change to what the project IS — its extent (three houses become the whole hamlet), a system that does not exist yet (doors that open, weather, a market), a mechanic, where the player goes next, what the screen tells them — sized so that one builder can land it in one iteration and a player would notice it at once.",
+  "Never a material, lighting, shadow or parameter tweak, and never something the ledger already lists: the defect ledger covers polish. Do not repeat a move already delivered. Prefer the move that carries the facet's intent furthest toward the project goal.",
   "If the move can be measured, write a check in the same JSON shape the facet's checks use (scene/probe/demo/pixel) that passes once the move is in; else null.",
   'Reply with JSON only: {"what":"one or two sentences — the move","why":"one sentence","check":{…}|null}',
 ].join("\n");
@@ -107,7 +107,7 @@ export function nextMoveUserPrompt({
 }): string {
   const knownGaps = knownGapsOf(notes);
   return [
-    `GAME GOAL: ${run.goal}`,
+    `PROJECT GOAL: ${run.goal}`,
     run.reference?.name ? `REFERENCE / DIRECTION: ${run.reference.name}` : "",
     `FACET: ${spec.title} (${spec.id}) — intent: ${clip(spec.intent, MOVE_INTENT_CHARS)}`,
     spec.identity?.length ? `IDENTITY FEATURES: ${spec.identity.join(" > ")}` : "",

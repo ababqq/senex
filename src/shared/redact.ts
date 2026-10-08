@@ -79,7 +79,7 @@ export function redactSecrets(text: string): string {
  * `text` with only the unmistakable credential shapes replaced: a bearer header's value, an API
  * key (`sk-…`, `genex_sk_v1_…`), a GitHub token and a JWT. For text kept for good and read back
  * as context (the event log, connector results): `redactSecrets`'s field, env-assignment and
- * callback-code patterns also rewrite ordinary prose and game code (`the api_key field`,
+ * callback-code patterns also rewrite ordinary prose and project code (`the api_key field`,
  * `SPRITE_KEY=hero`, `?code=level2`), which a log file can live with and a user's own words cannot.
  */
 export function redactTokens(text: string): string {

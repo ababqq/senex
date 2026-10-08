@@ -2,10 +2,10 @@ import { animationGate } from "./animation-gate.ts";
 /**
  * The page shim — the studio owns the clock (M4.1).
  *
- * The studio serves every game page itself, so it can put its own code on the page before a
- * single line of game code runs. That is what this file is. It takes over `performance.now`,
+ * The studio serves every project page itself, so it can put its own code on the page before a
+ * single line of project code runs. That is what this file is. It takes over `performance.now`,
  * `Date.now`, `requestAnimationFrame` and — while the clock is frozen — the timers, so the
- * studio can say `step(960)` to a game that never heard of the studio contract and get exactly
+ * studio can say `step(960)` to a project that never heard of the studio contract and get exactly
  * the frames it asked for. It seeds `Math.random` at install time, so a bundle that captured
  * the generator at module scope is still reproducible. It reports pointer lock as held whether
  * or not Chromium granted it, because an unattended run has no window to grant it in. And it
@@ -79,8 +79,8 @@ export function normalizeShimOptions(raw: Foreign) {
 }
 
 /**
- * Deterministic RNG (mulberry32) — the same generator `src/game-template/src/studio.js` ships,
- * so a template game and a game the user brought draw the same numbers from the same seed.
+ * Deterministic RNG (mulberry32) — the same generator `src/project-template/src/studio.js` ships,
+ * so a template project and a project the user brought draw the same numbers from the same seed.
  */
 export function mulberry32(seed: number) {
   let a = seed >>> 0;
@@ -96,7 +96,7 @@ export function mulberry32(seed: number) {
 /**
  * Install the seeded generator as `Math.random` NOW, not on the first `seed(n)` call. A bundle
  * that captured `Math.random` at module scope (a const, a bind, a minifier hoist) would keep
- * the native generator for ever otherwise — and a bundled game is exactly what this is for.
+ * the native generator for ever otherwise — and a bundled project is exactly what this is for.
  * Re-keying replaces the numbers behind the same installed function, so the capture stays valid.
  */
 export function installSeededRandom(host: Foreign, seed: unknown) {
@@ -224,7 +224,7 @@ function schedule(k: Clock, fn: Foreign, delay: Foreign, args: Foreign, repeat: 
   // The browser's nesting clamp, modelled. A one-shot `setTimeout(loop, 0)` that reschedules
   // itself is a new entry with a new handle every time, so the per-handle interval cap never
   // applies to it and the only bound left was the frame budget: 512 fires per simulated
-  // frame, about eight minutes of game logic inside one `step(960)`. The HTML spec gives a
+  // frame, about eight minutes of project logic inside one `step(960)`. The HTML spec gives a
   // nested chain a 4 ms floor, and so does this.
   const asked = Math.max(0, Number(delay) || 0);
   const delayMs = k.firing && asked < NESTED_TIMER_MIN_MS ? NESTED_TIMER_MIN_MS : asked;
@@ -388,7 +388,7 @@ function pause(k: Clock) {
 
 function start(k: Clock) {
   if (!k.frozen) return true;
-  // Monotonic across every freeze/resume cycle: no game ever sees a negative dt.
+  // Monotonic across every freeze/resume cycle: no project ever sees a negative dt.
   k.offset = k.pinned - nativeNow(k);
   k.frozen = false;
   for (const entry of k.rafEntries.values()) if (entry.native == null) arm(k, entry);
@@ -401,7 +401,7 @@ function start(k: Clock) {
  * is taken, so a `cancelAnimationFrame` issued from inside one of this frame's callbacks
  * really cancels the one it names — a browser skips a callback cancelled during its own
  * frame, and the cancel-then-request restart every pause screen does would otherwise fork the
- * loop and run the game at twice the rate for the rest of the night. A callback that requests
+ * loop and run the project at twice the rate for the rest of the night. A callback that requests
  * another frame lands under a fresh id that is not in this snapshot, which is what makes
  * "exactly the frames requested" literally true.
  *
@@ -452,7 +452,7 @@ async function step(k: Clock, ms: number) {
     // A microtask checkpoint between frames. An `async` animation callback returns at its
     // first `await`, so the continuation that re-arms the loop is still queued when the frame
     // ends; without this every frame after the first found nothing to call and a `step(960)`
-    // charged sixty frames to a game that had drawn one. `idle` counts the frames that found
+    // charged sixty frames to a project that had drawn one. `idle` counts the frames that found
     // no callback at all, so the over-charge can never be silent again.
     await null;
   }
@@ -593,7 +593,7 @@ export function createClock(host: Foreign, rawOptions = {}) {
  * is merely SLOW is `timedOut`, never failed. `phase: "failed"` is the studio's word for a page
  * that reported a boot failure of its own and every consumer treats it as a refusal to load — so
  * a 40 MB level or an 18 s shader compile used to blind the scout for the whole night instead of
- * costing it one note. A timed-out page keeps booting: a late quiet, or the game's own
+ * costing it one note. A timed-out page keeps booting: a late quiet, or the project's own
  * `__studio.ready()`, still settles it ready.
  */
 export function readinessVerdict(
@@ -677,12 +677,12 @@ const FACADE_DELEGATED = [
 ];
 
 /**
- * `window.__studio` as a merging facade — never an object a game can overwrite or freeze away.
+ * `window.__studio` as a merging facade — never an object a project can overwrite or freeze away.
  *
- * A game that assigns `window.__studio` keeps every method it defined; the shim fills in the
+ * A project that assigns `window.__studio` keeps every method it defined; the shim fills in the
  * ones it did not. The facade NEVER writes to the assigned value: it may be frozen, a class
- * instance with non-writable prototype methods, or a Proxy, and a throw inside a game's own
- * boot line would be the studio breaking the game it came to watch.
+ * instance with non-writable prototype methods, or a Proxy, and a throw inside a project's own
+ * boot line would be the studio breaking the project it came to watch.
  */
 export function createFacade({ own, getAssigned }: Foreign) {
   const facade: Foreign = {};
@@ -738,11 +738,11 @@ export function createFacade({ own, getAssigned }: Foreign) {
     configurable: true,
     get: () => Boolean(own.attached?.()),
   });
-  Object.defineProperty(facade, "__game", { enumerable: false, configurable: true, get: () => assigned() });
+  Object.defineProperty(facade, "__project", { enumerable: false, configurable: true, get: () => assigned() });
   /**
-   * A game may expose more than the contract names — a demo hook, a probe of its own — and the
+   * A project may expose more than the contract names — a demo hook, a probe of its own — and the
    * harness reaches those by name. Every key the assigned object carries that the facade has
-   * not already claimed becomes a pass-through, so nothing a game defined disappears behind us.
+   * not already claimed becomes a pass-through, so nothing a project defined disappears behind us.
    */
   facade.__absorb = function absorb(value: Foreign) {
     if (!value || typeof value !== "object") return facade;
@@ -777,7 +777,7 @@ export function createFacade({ own, getAssigned }: Foreign) {
 }
 
 /**
- * Install the facade on `target` (the page's window). The setter stores what a game assigns
+ * Install the facade on `target` (the page's window). The setter stores what a project assigns
  * and never reads through to it again; the getter always returns the same facade object.
  */
 export function installFacade(target: Foreign, own: Foreign) {
@@ -803,7 +803,7 @@ export const FACADE_MEMBERS = Object.freeze([...FACADE_VALUES, ...FACADE_OWN_ALW
  * `window.__studio` is a merging facade behind an accessor for exactly this reason; the clock,
  * the capture, the GL record, the counters and the hook are read back BY NAME from the page
  * world by every probe the studio trusts (readiness, the step witness, the attach report), so a
- * plain writable property let game code hand the studio a stub that reports whatever it liked.
+ * plain writable property let project code hand the studio a stub that reports whatever it liked.
  * The value is answered by a getter, an assignment is a silent no-op, and the property stays
  * configurable so an uninstall (and a second install of a newer version) can still take it back.
  */
@@ -1393,7 +1393,7 @@ const READINESS_POLL_MS = 100;
 const GL_DRAIN_EVERY_FRAMES = 30;
 
 // ── the persistent native pump ──
-// Registered first, so it always runs before the game's own callbacks: in wall mode it opens
+// Registered first, so it always runs before the project's own callbacks: in wall mode it opens
 // the frame (and the last of the page's callbacks closes it); while frozen it drains GL
 // errors and nothing else, so `steppedFrames` stays the honest measure of a step().
 /** Budget background GPU error reads; explicit probes still drain immediately. */
@@ -1428,22 +1428,22 @@ function startPump(page: ReadyInputs, watch: CanvasWatch, r: Readiness) {
   }, READINESS_POLL_MS);
 }
 
-/** Calls the game's own verb of that name, if it has one, reporting (never throwing) its errors. */
-function callGame(win: Foreign, verb: string, ...args: Foreign[]) {
-  const game = win.__studio?.__game;
-  if (!game || typeof game[verb] !== "function") return;
+/** Calls the project's own verb of that name, if it has one, reporting (never throwing) its errors. */
+function callProject(win: Foreign, verb: string, ...args: Foreign[]) {
+  const project = win.__studio?.__project;
+  if (!project || typeof project[verb] !== "function") return;
   try {
-    game[verb](...args);
+    project[verb](...args);
   } catch (err) {
     console.error(err);
   }
 }
 
-function readGameState(win: Foreign) {
-  const game = win.__studio?.__game;
-  if (!game || typeof game.state !== "function") return null;
+function readProjectState(win: Foreign) {
+  const project = win.__studio?.__project;
+  if (!project || typeof project.state !== "function") return null;
   try {
-    return game.state();
+    return project.state();
   } catch {
     return null;
   }
@@ -1472,9 +1472,9 @@ function renderReport(watch: CanvasWatch, clock: ShimClock) {
   };
 }
 
-/** The game's own state with the render report merged in, filling the draw counts it left out. */
-function withRender(game: Foreign, render: ReturnType<typeof renderReport>) {
-  const merged = { ...game, __render: render };
+/** The project's own state with the render report merged in, filling the draw counts it left out. */
+function withRender(project: Foreign, render: ReturnType<typeof renderReport>) {
+  const merged = { ...project, __render: render };
   if (merged.drawCalls === undefined && render.drawCalls !== null) merged.drawCalls = render.drawCalls;
   if (merged.triangles === undefined && render.triangles !== null) merged.triangles = render.triangles;
   return merged;
@@ -1488,11 +1488,11 @@ const hookAttached = () => {
   }
 };
 
-/** What the page is doing: the game's own state when it has one, else the shim's view of it. */
+/** What the page is doing: the project's own state when it has one, else the shim's view of it. */
 function pageState(win: Foreign, watch: CanvasWatch, clock: ShimClock, lock: LockState) {
-  const game = readGameState(win);
+  const project = readProjectState(win);
   const render = renderReport(watch, clock);
-  if (game && typeof game === "object") return withRender(game, render);
+  if (project && typeof project === "object") return withRender(project, render);
   return {
     frame: clock.frames(),
     simulatedMs: Math.round(clock.elapsed()),
@@ -1556,22 +1556,22 @@ function studioFacade({ win, watch, clock, lock, ready }: FacadeParts) {
       // The stepper yields a microtask between frames, so this is a promise: every caller of
       // `__studio.step` reaches the page through `executeJavaScript(..., true)`, which resolves it.
       const result = await clock.step(ms);
-      callGame(win, "step", ms);
+      callProject(win, "step", ms);
       return result;
     },
     pause() {
       clock.pause();
-      callGame(win, "pause");
+      callProject(win, "pause");
       return true;
     },
     start() {
-      callGame(win, "start");
+      callProject(win, "start");
       clock.start();
       return true;
     },
     seed(value: Foreign) {
       const seeded = clock.seed(value);
-      callGame(win, "seed", value);
+      callProject(win, "seed", value);
       return seeded;
     },
     ...hookedAnswers(),
@@ -1588,7 +1588,7 @@ function studioFacade({ win, watch, clock, lock, ready }: FacadeParts) {
 }
 
 // ── the end-of-frame photograph ──
-// Installed for EVERY page, the template included: `#capturePageSide` must work on a game
+// Installed for EVERY page, the template included: `#capturePageSide` must work on a project
 // with no contract of its own, or one failed page capture blinds the whole evidence pass.
 function installCaptureGlobal(win: Foreign, watch: CanvasWatch, clock: ShimClock, natives: Natives) {
   installPageGlobal(
@@ -1607,12 +1607,12 @@ function installCaptureGlobal(win: Foreign, watch: CanvasWatch, clock: ShimClock
         frozen: clock.frozen,
         start: () => clock.start(),
         pause: () => clock.pause(),
-        // The game's own picture, when it has one — never the facade's, which is this function.
-        gameCapture: () => {
-          const game = win.__studio?.__game;
-          return typeof game?.capture === "function" ? game.capture() : null;
+        // The project's own picture, when it has one — never the facade's, which is this function.
+        projectCapture: () => {
+          const project = win.__studio?.__project;
+          return typeof project?.capture === "function" ? project.capture() : null;
         },
-        // Through the facade, so the template re-renders on its own named rig and an attached game
+        // Through the facade, so the template re-renders on its own named rig and an attached project
         // gets the hook's answer; the ladder only reaches here when nothing drew by itself.
         debugCamera: (name: Foreign) => win.__studio?.debugCamera?.(name) ?? null,
         currentCamera: () => {
@@ -1665,7 +1665,7 @@ function clockStats({ win, options, clock, watch, lock, readiness, random }: Clo
     triangles: totals ? (totals.triangles ?? null) : null,
     lastFrame: Math.round(clock.now()),
     ready: readiness.state.ready,
-    contract: Boolean(win.__studio?.__game),
+    contract: Boolean(win.__studio?.__project),
     pointerLock: lock.pointerLock.locked(),
     backend: backendOf(watch),
     autoResumes: clock.autoResumes(),
@@ -1731,7 +1731,7 @@ export function installStudioShim(rawOptions: Foreign) {
   const random = options.seed === null ? null : installSeededRandom(win, options.seed);
   const watch = watchCanvases(win);
   installGlGlobal(win, watch, options.counters);
-  // ── the draw counters, at the graphics API, installed before any game code runs ──
+  // ── the draw counters, at the graphics API, installed before any project code runs ──
   // `renderer.info` misses a composer's passes and every replayed render bundle, so the honest
   // whole-frame figure is counted here. `mark()` closes each frame from the clock's own frame
   // boundary below.

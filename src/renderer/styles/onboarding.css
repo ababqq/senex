@@ -16,7 +16,7 @@
   opacity: 0;
   pointer-events: none;
 }
-/* The first game is being made behind the welcome: nothing is clickable twice, and the wait shows. */
+/* The first project is being made behind the welcome: nothing is clickable twice, and the wait shows. */
 .onboarding[data-closing] {
   cursor: progress;
 }

@@ -307,7 +307,7 @@ describe("the status line", () => {
     const { graph, summary, rows } = rowsOf(night());
     assert.deepEqual(statusLine(graph, summary, rows), {
       tone: "green",
-      strong: "Live in your game · 17 min",
+      strong: "Live in your project · 17 min",
       rest: "all but tall mountain landed",
     });
   });
@@ -508,7 +508,7 @@ describe("the clock counts the time a build worked", () => {
 
   it("names the time on every closed build", () => {
     const { graph, summary, rows } = rowsOf(night());
-    assert.equal(statusLine(graph, summary, rows).strong, "Live in your game · 17 min");
+    assert.equal(statusLine(graph, summary, rows).strong, "Live in your project · 17 min");
     const failed = [...night({ finished: true }).slice(0, -1), event("run_finished", { failure: { message: "x" } })];
     const stopped = rowsOf(failed);
     assert.equal(statusLine(stopped.graph, stopped.summary, stopped.rows).strong, "Build failed · 17 min");
@@ -667,9 +667,9 @@ describe("the words a card wears", () => {
 
   it("says nothing about a build there was nothing to compare with", () => {
     const empty =
-      "Nothing to compare it with: the night started from an empty game, so this build is judged on its own.";
+      "Nothing to compare it with: the night started from an empty project, so this build is judged on its own.";
     assert.equal(buildReview(looked("judge", "first-build", empty)), null);
-    const unseen = "Nothing to compare it with: the game as it stood could not be photographed.";
+    const unseen = "Nothing to compare it with: the project as it stood could not be photographed.";
     assert.equal(buildReview(looked("judge", "no-start", unseen)), null);
   });
 });

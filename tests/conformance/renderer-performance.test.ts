@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { mergeChatEvents } from "../../src/shared/chat-history.ts";
 import { EventKind, type EventEnvelope } from "../../src/shared/event-log.ts";
-import { assetsFailed, assetsLoaded, gamesLoaded, initialLibrary } from "../../src/renderer/state/library.ts";
+import { assetsFailed, assetsLoaded, projectsLoaded, initialLibrary } from "../../src/renderer/state/library.ts";
 import { harnessDown, initialThreads, statusReported, threadsLoaded } from "../../src/renderer/state/threads.ts";
 import { eventsArrived, initialEventLog, threadBackfilled } from "../../src/renderer/state/event-log.ts";
 import { appendFeed } from "../../src/renderer/event-feed.ts";
@@ -19,12 +19,12 @@ const event = (id: string): EventEnvelope => ({
 
 describe("renderer performance behavior", () => {
   it("unchanged store refreshes preserve identity and still clear asset errors", () => {
-    const inventory = { project: "game", assets: [], skipped: [], truncated: false };
-    const library = assetsLoaded(initialLibrary(), "game", inventory);
-    assert.equal(assetsLoaded(library, "game", structuredClone(inventory)), library);
-    assert.equal(gamesLoaded(library, []), library);
-    const failed = assetsFailed(library, "game", "read failed");
-    assert.equal(assetsLoaded(failed, "game", inventory).assets.game?.error, null);
+    const inventory = { project: "project", assets: [], skipped: [], truncated: false };
+    const library = assetsLoaded(initialLibrary(), "project", inventory);
+    assert.equal(assetsLoaded(library, "project", structuredClone(inventory)), library);
+    assert.equal(projectsLoaded(library, []), library);
+    const failed = assetsFailed(library, "project", "read failed");
+    assert.equal(assetsLoaded(failed, "project", inventory).assets.project?.error, null);
     const threads = statusReported(initialThreads(), {});
     assert.equal(threadsLoaded(threads, []), threads);
     assert.equal(statusReported(threads, {}), threads);

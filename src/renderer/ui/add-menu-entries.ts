@@ -13,9 +13,9 @@ export interface EntryStatus {
   action?: { label: string; run: () => void };
 }
 
-/** Where a row's switch applies. Plugins are on or off for every game at once. */
+/** Where a row's switch applies. Plugins are on or off for every project at once. */
 export const EntryScope = {
-  AllGames: "all-games",
+  AllProjects: "all-projects",
 } as const;
 export type EntryScope = (typeof EntryScope)[keyof typeof EntryScope];
 
@@ -135,7 +135,7 @@ function pluginStatus(
   return servers.find(Boolean) ?? null;
 }
 
-/** The servers this game can use; optional endpoints stay in Plugins until configured. */
+/** The servers this project can use; optional endpoints stay in Plugins until configured. */
 export function visibleConnectors(
   connectors: McpConnectorView[],
   plugins: PluginInfo[],
@@ -172,7 +172,7 @@ export function addMenuEntries(
       kind: "plugin",
       name: plugin.manifest.name,
       on: plugin.enabled,
-      scope: EntryScope.AllGames,
+      scope: EntryScope.AllProjects,
       status: pluginStatus(plugin, owned, state, actions),
       toggle: (on) => actions.enablePlugin(plugin, on),
       ...(plugin.iconUrl ? { icon: plugin.iconUrl } : {}),

@@ -2,17 +2,17 @@
  * The one HTML rewriter — M4.1.
  *
  * Every byte the studio adds to a served page is added here. The preview's file server hands a
- * document's text to {@link rewriteGameHtml} and serves what comes back; nothing else in the
- * studio edits a game's HTML. That matters because the studio now owns the page's clock: the
- * shim has to be on the page before a single line of game code runs, on a page whose author
+ * document's text to {@link rewriteProjectHtml} and serves what comes back; nothing else in the
+ * studio edits a project's HTML. That matters because the studio now owns the page's clock: the
+ * shim has to be on the page before a single line of project code runs, on a page whose author
  * never heard of the studio, and it has to get there on the *response*, so a worker who deletes
  * the tag from index.html gets it back on the next serve.
  *
  * Pure string functions, no Electron import, so the whole insertion order is a unit test. The
  * same goes for the decisions the file server makes before it reads anything: which real file a
  * path names ({@link resolveServed}, the one function here that asks the disk), which http
- * requests are the studio's ({@link routeHttp}), and what the game partition may request or
- * navigate to at all ({@link gameRequestAllowed}, {@link previewNavigationAllowed}).
+ * requests are the studio's ({@link routeHttp}), and what the project partition may request or
+ * navigate to at all ({@link projectRequestAllowed}, {@link previewNavigationAllowed}).
  */
 
 import { realpath, stat } from "node:fs/promises";
@@ -20,7 +20,7 @@ import path from "node:path";
 import type { ShimOptions } from "../substrate/preview-port.ts";
 import { isPreviewCdnRead } from "../substrate/preview-network.ts";
 import { isInside } from "../substrate/paths.ts";
-import type { ContractReach } from "../substrate/game-page.ts";
+import type { ContractReach } from "../substrate/project-page.ts";
 
 /** Where the bundles live under the vendor directory (`vendor/` is already a served route). */
 export const SHIM_PATH = "vendor/studio/shim.js";
@@ -31,7 +31,7 @@ export const HOOK_MODULE_PATH = "vendor/studio/hook.js";
 
 /**
  * The two import-map keys the studio points at its own wrapper (M4.2a). `three/`, `three/tsl` and
- * `three/addons/` are left byte-identical: they still resolve to the game's own copies, and the
+ * `three/addons/` are left byte-identical: they still resolve to the project's own copies, and the
  * wrapper re-exports the same module record, so there is still exactly one `three` on the page.
  */
 export const HOOKED_KEYS = ["three", "three/webgpu"] as const;
@@ -62,7 +62,7 @@ export const CHARSET_BUDGET = 1024;
 /** The `sec-fetch-dest` values of an in-page navigation, the ones a document is rewritten for. */
 const DOCUMENT_DESTS: ReadonlySet<string> = new Set(["document", "iframe", "frame"]);
 
-/** The statuses the `game://` protocol answers with. */
+/** The statuses the `project://` protocol answers with. */
 export const HttpStatus = { Ok: 200, BadRequest: 400, Forbidden: 403, NotFound: 404 } as const;
 export type HttpStatus = (typeof HttpStatus)[keyof typeof HttpStatus];
 
@@ -95,7 +95,7 @@ export interface RewriteResult {
   reach: ContractReach;
   /** Import-map key → the URL the studio pointed it at (M4.2a). */
   hooked: Record<string, string>;
-  /** Anything the studio wants said on the game's console about this page. */
+  /** Anything the studio wants said on the project's console about this page. */
   notes: string[];
 }
 
@@ -104,7 +104,7 @@ export interface RewriteResult {
  *
  * The primary rule is that the path resolves to the entry this port loaded — the studio knows
  * that without asking Chromium anything. `sec-fetch-dest` is an additional allow for in-page
- * navigations; an unknown dest is never rewritten, so a game's own `fetch('level.html')` comes
+ * navigations; an unknown dest is never rewritten, so a project's own `fetch('level.html')` comes
  * back byte-identical.
  */
 export function shouldRewrite(
@@ -162,7 +162,7 @@ function escapeAttribute(value: string): string {
  * kilobyte), then the shim, then the page's own import map, then the hook, then the page's own
  * scripts. Idempotent: a document already carrying `data-studio-shim` comes back unchanged.
  */
-export function rewriteGameHtml(html: string, options: RewriteOptions = {}): RewriteResult {
+export function rewriteProjectHtml(html: string, options: RewriteOptions = {}): RewriteResult {
   const source = String(html ?? "");
   const notes: string[] = [];
   const untouched = (): RewriteResult => ({ html: source, injected: false, reach: "none", hooked: {}, notes });
@@ -224,7 +224,7 @@ function withPageMap(
   const { working, documentUrl, shim, hooked } = input;
   const rewritten = documentUrl ? rewriteImportMap(map.text, documentUrl) : { text: map.text, hooked: {} };
   for (const [key, url] of Object.entries(rewritten.hooked)) hooked[key] = url;
-  // The page's own map is the strongest reach there is: it is how the game asked for three.
+  // The page's own map is the strongest reach there is: it is how the project asked for three.
   const reach = Object.keys(rewritten.hooked).length ? "import-map" : input.reach;
   return {
     html: `${working.slice(0, at)}${shim}${working.slice(at, map.start)}${rewritten.text}${HOOK_TAG}${working.slice(map.end)}`,
@@ -234,7 +234,7 @@ function withPageMap(
 
 /**
  * A page with no map of its own runs on the studio's vendored three. Reported as
- * `inserted-map`, never refused: a game the user brought may name another version in its
+ * `inserted-map`, never refused: a project the user brought may name another version in its
  * package.json and never install it, and a black screen is worse than a version note.
  */
 function withStudioMap(input: HeadInsertion, at: number, documentUrl: string): { html: string; reach: Reach } {
@@ -272,7 +272,7 @@ export function threeHookModule(real: string, key: string): string | null {
 
 /** Only a real, absolute URL may be re-exported: everything else is a 400, never a guess. */
 export function isAbsoluteUrl(value: string): boolean {
-  return /^(?:https?|game|data|blob|file):/i.test(String(value ?? "").trim());
+  return /^(?:https?|project|data|blob|file):/i.test(String(value ?? "").trim());
 }
 
 /**
@@ -282,7 +282,7 @@ export function isAbsoluteUrl(value: string): boolean {
 export function threeUrlKey(spec: string): "three" | "three/webgpu" | null {
   const text = String(spec ?? "").trim();
   if (!text) return null;
-  if (!/^(?:https?:|game:|blob:|file:|\/|\.{1,2}\/)/i.test(text)) return null;
+  if (!/^(?:https?:|project:|blob:|file:|\/|\.{1,2}\/)/i.test(text)) return null;
   const file = (text.split(/[?#]/)[0] ?? "").split("/").pop() ?? "";
   if (/^three\.webgpu(?:\.nodes)?(?:\.min)?\.m?js$/i.test(file)) return "three/webgpu";
   if (/^three(?:\.module|\.core)?(?:\.min)?\.m?js$/i.test(file)) return "three";
@@ -295,7 +295,7 @@ export function isThreeUrl(spec: string): boolean {
 
 /**
  * Point the page's own map at the wrapper, and change nothing else. The map's text is edited in
- * place rather than re-serialised: a game's map keeps its own formatting, its comments-by-spacing
+ * place rather than re-serialised: a project's map keeps its own formatting, its comments-by-spacing
  * and every scope byte-identical, and the diff of a served page is two URLs.
  */
 export function rewriteImportMap(
@@ -503,7 +503,7 @@ export function cspNote(csp: MetaCsp): string {
 
 // ── what a request is served from ─────────────────────────────────────────────────────────
 
-/** Game names the file server answers for; anything else is refused before a file is touched. */
+/** Project names the file server answers for; anything else is refused before a file is touched. */
 const SERVABLE_PROJECT = /^[a-z0-9][a-z0-9-_]*$/;
 
 export function servableProject(project: string): boolean {
@@ -574,20 +574,25 @@ export async function resolveServed(base: string, rel: string, pinnedRoot?: stri
 
 /**
  * {@link resolveServed} against the right root: `vendor/…` is the studio's own vendor directory,
- * everything else the game's folder. `gameRoot` is asked only for a game path, because resolving
- * a game's root can consult the library.
+ * everything else the project's folder. `projectRoot` is asked only for a project path, because resolving
+ * a project's root can consult the library.
  *
- * `liveRoot` is the game's own folder when `gameRoot` is a worktree of it (R4): a worktree's
- * `node_modules` is SnapshotEngine's link to the live game's, so a game that imports straight
+ * `liveRoot` is the project's own folder when `projectRoot` is a worktree of it (R4): a worktree's
+ * `node_modules` is SnapshotEngine's link to the live project's, so a project that imports straight
  * from `./node_modules/three/…` would otherwise be a broken build in every worker's preview.
  */
 export async function servedLocation(
   relative: string,
-  roots: { vendor: string; gameRoot: () => string; liveRoot?: () => string; pinnedGameRoot?: () => string | null },
+  roots: {
+    vendor: string;
+    projectRoot: () => string;
+    liveRoot?: () => string;
+    pinnedProjectRoot?: () => string | null;
+  },
 ): Promise<Served> {
   if (isVendorPath(relative)) return resolveServed(roots.vendor, relative.slice("vendor/".length) || ".");
-  const root = roots.gameRoot();
-  const served = await resolveServed(root, relative, roots.pinnedGameRoot?.() ?? null);
+  const root = roots.projectRoot();
+  const served = await resolveServed(root, relative, roots.pinnedProjectRoot?.() ?? null);
   const forbidden = !served.ok && served.status === HttpStatus.Forbidden;
   if (!forbidden || !roots.liveRoot) return served;
   const live = roots.liveRoot();
@@ -597,7 +602,7 @@ export async function servedLocation(
 
 /**
  * A request under a worktree's `node_modules` (at its root, or beside a nested repository's
- * package.json), served from the live game's packages — only when that `node_modules` resolves to
+ * package.json), served from the live project's packages — only when that `node_modules` resolves to
  * exactly the live folder's own at the same place, and the file's real path stays inside it.
  * Null when the request is not one of those.
  */
@@ -620,14 +625,14 @@ async function resolveLinkedModules(base: string, liveRoot: string, rel: string)
   return resolveServed(own, parts.slice(at + 1).join(path.sep) || ".");
 }
 
-/** What {@link routeHttp} decides for one request: serve it from a game's folder, or refuse it. */
+/** What {@link routeHttp} decides for one request: serve it from a project's folder, or refuse it. */
 export const HttpRouteKind = { Serve: "serve", Deny: "deny" } as const;
 export type HttpRouteKind = (typeof HttpRouteKind)[keyof typeof HttpRouteKind];
 
 /**
- * What the game partition's http handler does with a request. A loopback origin on a port handed
- * out by `loopbackPortFor` is that game's file server; everything else is a 403 (SECUI-3). It used
- * to be re-fetched from the main process, which sent a game's plain-http beacon out of the machine.
+ * What the project partition's http handler does with a request. A loopback origin on a port handed
+ * out by `loopbackPortFor` is that project's file server; everything else is a 403 (SECUI-3). It used
+ * to be re-fetched from the main process, which sent a project's plain-http beacon out of the machine.
  */
 export type HttpRoute = { route: typeof HttpRouteKind.Serve; project: string } | { route: typeof HttpRouteKind.Deny };
 
@@ -668,14 +673,14 @@ export function confinePreviewContents(contents: {
 }
 
 /**
- * The game partition's network allowlist (SECUI-3), for `webRequest.onBeforeRequest`. A game may
- * reach the studio's own `game:` server, inline `data:`/`blob:` content, DevTools, the loopback
- * port the studio handed this game, and https reads of the public library/font CDNs in
+ * The project partition's network allowlist (SECUI-3), for `webRequest.onBeforeRequest`. A project may
+ * reach the studio's own `project:` server, inline `data:`/`blob:` content, DevTools, the loopback
+ * port the studio handed this project, and https reads of the public library/font CDNs in
  * substrate/preview-network.ts. Everything else — other hosts, writes to a CDN, websockets, other
- * loopback ports, `file:` — is cancelled, so what an agent wrote into a game cannot leave the
+ * loopback ports, `file:` — is cancelled, so what an agent wrote into a project cannot leave the
  * machine when the studio loads the page to look at it. `method` defaults to a read.
  */
-export function gameRequestAllowed(
+export function projectRequestAllowed(
   url: string | URL,
   loopbackPorts: ReadonlyMap<number, string>,
   method = "GET",
@@ -683,7 +688,7 @@ export function gameRequestAllowed(
   const parsed = parseUrl(url);
   if (!parsed) return false;
   switch (parsed.protocol) {
-    case "game:":
+    case "project:":
     case "data:":
     case "blob:":
     case "devtools:":
@@ -699,7 +704,7 @@ export function gameRequestAllowed(
 
 /**
  * Where a page in the preview may navigate (SECUI-3), for `will-navigate`/`will-frame-navigate`.
- * The top level stays on `game:` or the game's registered loopback origin, so a game cannot put a
+ * The top level stays on `project:` or the project's registered loopback origin, so a project cannot put a
  * remote page — a fake sign-in form — inside the studio's chrome, which has no URL bar. An
  * embedded frame may also hold content the page already has (`about:blank`, `about:srcdoc`,
  * `data:`, `blob:`); nothing remote either way.
@@ -711,7 +716,7 @@ export function previewNavigationAllowed(
 ): boolean {
   const parsed = parseUrl(url);
   if (!parsed) return false;
-  if (parsed.protocol === "game:") return true;
+  if (parsed.protocol === "project:") return true;
   if (parsed.protocol === "http:") return routeHttp(parsed, loopbackPorts).route === HttpRouteKind.Serve;
   if (frame.mainFrame) return false;
   if (parsed.protocol === "about:") return parsed.pathname === "blank" || parsed.pathname === "srcdoc";

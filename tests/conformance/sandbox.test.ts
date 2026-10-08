@@ -157,7 +157,7 @@ describe("sandboxed spawn", () => {
   const hostLoopback =
     process.platform === "darwin" ? false : "Linux: srt's network namespace hides the host's loopback";
 
-  it("reaches a server on localhost, as the local model runtime and game server need", {
+  it("reaches a server on localhost, as the local model runtime and project server need", {
     skip: hostLoopback,
   }, async () => {
     const server = http.createServer((_request, response) => response.end("reached"));
@@ -267,56 +267,59 @@ describe("sandboxed spawn", () => {
 });
 
 /**
- * A game's `.claude` folder is Claude Code's project settings, so no agent process writes it
- * (`claudeFolderDenyWrites`), even when the game's path reads as a glob to sandbox-runtime. Each
- * game sits in a writable folder, so only the deny can refuse; the rest of the game, and a
+ * A project's `.claude` folder is Claude Code's project settings, so no agent process writes it
+ * (`claudeFolderDenyWrites`), even when the project's path reads as a glob to sandbox-runtime. Each
+ * project sits in a writable folder, so only the deny can refuse; the rest of the project, and a
  * neighbour the path's glob reading would have hit, stay writable. Seatbelt matches bytes, which
  * the unit test's JavaScript regexes cannot show.
  */
-describe("a game's .claude folder under Seatbelt", {
+describe("a project's .claude folder under Seatbelt", {
   skip: process.platform !== "darwin" && "Seatbelt is macOS-only",
 }, () => {
-  const GAMES: Array<{ name: string; dir: string }> = [
+  const PROJECTS: Array<{ name: string; dir: string }> = [
     { name: "a bracketed tag", dir: path.join("work", "Pong [WIP]") },
     { name: "a star and a question mark", dir: path.join("work", "a*b?") },
     { name: "an ASCII control character", dir: path.join("work", "c\u0001d [1]") },
     { name: "a two-byte control character", dir: path.join("work", "e\u0085f [1]") },
     { name: "sandbox-runtime's placeholder", dir: path.join("work", "x__GLOBSTAR_SLASH__y [1]") },
-    { name: "a bracketed games folder", dir: path.join("[AI] Games", "pong") },
+    { name: "a bracketed projects folder", dir: path.join("[AI] Projects", "pong") },
   ];
   let base: string;
-  let games: ProcessSandbox;
+  let projects: ProcessSandbox;
 
   before(async () => {
     base = await realpath(await tmpDir("studio-sandbox-claude-"));
-    const dirs = GAMES.map((row) => path.join(base, row.dir));
+    const dirs = PROJECTS.map((row) => path.join(base, row.dir));
     for (const dir of [...dirs, path.join(base, "work", "Pong W")]) await mkdir(dir, { recursive: true });
-    games = await ProcessSandbox.create({
+    projects = await ProcessSandbox.create({
       writableRoots: [base],
       scratchDir: path.join(base, "scratch"),
       secretPaths: [],
-      denyWrite: claudeFolderDenyWrites(path.join(base, "[AI] Games"), dirs),
+      denyWrite: claudeFolderDenyWrites(path.join(base, "[AI] Projects"), dirs),
     });
   });
 
-  for (const row of GAMES)
-    it(`refuses a game folder with ${row.name} its .claude folder, in any case`, async () => {
+  for (const row of PROJECTS)
+    it(`refuses a project folder with ${row.name} its .claude folder, in any case`, async () => {
       const dir = path.join(base, row.dir);
-      const made = await games.run({ command: "mkdir -p .Claude && printf x > .Claude/settings.local.json", cwd: dir });
+      const made = await projects.run({
+        command: "mkdir -p .Claude && printf x > .Claude/settings.local.json",
+        cwd: dir,
+      });
       assert.notEqual(made.code, 0, "a new .Claude folder must be refused");
       await assert.rejects(() => stat(path.join(dir, ".Claude")), /ENOENT/);
       // The person's own session made the folder; an agent still may not write into it.
       await mkdir(path.join(dir, ".claude"));
-      const planted = await games.run({ command: "printf x > .claude/settings.json", cwd: dir });
+      const planted = await projects.run({ command: "printf x > .claude/settings.json", cwd: dir });
       assert.notEqual(planted.code, 0, "settings planted in .claude must be refused");
       await assert.rejects(() => readFile(path.join(dir, ".claude", "settings.json"), "utf8"), /ENOENT/);
-      const game = await games.run({ command: "mkdir -p src && printf x > src/main.js", cwd: dir });
-      assert.equal(game.code, 0, game.stderr);
-      assert.equal(game.sandboxed, true);
+      const project = await projects.run({ command: "mkdir -p src && printf x > src/main.js", cwd: dir });
+      assert.equal(project.code, 0, project.stderr);
+      assert.equal(project.sandboxed, true);
     });
 
   it("leaves the neighbour a bracketed name would have matched as a glob writable", async () => {
-    const result = await games.run({
+    const result = await projects.run({
       command: "mkdir -p .claude && printf x > .claude/settings.json",
       cwd: path.join(base, "work", "Pong W"),
     });

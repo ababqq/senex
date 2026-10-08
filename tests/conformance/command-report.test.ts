@@ -34,7 +34,7 @@ const queued = (eventId: string, messageId: string, action: Record<string, unkno
 
 test("a command's result is sent to the harness with its origin", async (t) => {
   const { core } = await coreLite();
-  const thread = await core.createGameThread();
+  const thread = await core.createProjectThread();
   const dispatched: Record<string, unknown>[] = [];
   t.mock.method(core.host, "dispatch", async (action: Record<string, unknown>) => {
     dispatched.push(action);
@@ -66,9 +66,9 @@ test("a command's result carries the chat's Loop only before the chat's first bu
   };
   const threadId = "derby-chat";
   rememberChatLoop(storage, threadId, { on: true, hours: 2 });
-  const fresh = chatLoopExtras({ storage, threadId, build: null, coordinating: false, gameMode: true });
+  const fresh = chatLoopExtras({ storage, threadId, build: null, coordinating: false, projectMode: true });
   assert.deepEqual(fresh, { autopilot: { hours: 2, frames: [] } });
-  const building = chatLoopExtras({ storage, threadId, build: null, coordinating: true, gameMode: true });
+  const building = chatLoopExtras({ storage, threadId, build: null, coordinating: true, projectMode: true });
   assert.deepEqual(building, {}, "a running build takes no new commission");
   const halfHour = { on: true, hours: 0.5 };
   const finished = chatLoopExtras({
@@ -76,7 +76,7 @@ test("a command's result carries the chat's Loop only before the chat's first bu
     threadId,
     build: { state: "finished", loop: halfHour },
     coordinating: false,
-    gameMode: true,
+    projectMode: true,
   });
   // Flipped (was: the chat's own Loop again): a result is not the person asking for more, so it never reopens the build.
   assert.deepEqual(finished, {}, "a finished build: a command's result carries no Loop");
@@ -86,12 +86,12 @@ test("a command's result carries the chat's Loop only before the chat's first bu
     threadId,
     build: { state: "paused", loop: halfHour },
     coordinating: false,
-    gameMode: true,
+    projectMode: true,
   });
   assert.deepEqual(paused, {}, "a paused build takes no new commission");
   rememberChatLoop(storage, threadId, { on: false, hours: 2 });
-  assert.deepEqual(chatLoopExtras({ storage, threadId, build: null, coordinating: false, gameMode: true }), {});
-  assert.deepEqual(chatLoopExtras({ storage, threadId, build: null, coordinating: false, gameMode: false }), {});
+  assert.deepEqual(chatLoopExtras({ storage, threadId, build: null, coordinating: false, projectMode: true }), {});
+  assert.deepEqual(chatLoopExtras({ storage, threadId, build: null, coordinating: false, projectMode: false }), {});
 });
 
 test("a command's result is sent with its origin, and with the chat's Loop only before the chat's first build", async (t) => {

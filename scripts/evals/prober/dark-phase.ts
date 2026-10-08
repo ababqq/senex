@@ -1,7 +1,7 @@
 /**
  * `l3.dark_phase`: explicit, reviewed evidence about the darkest playable phase (a village at
  * night), separate from the median exposure. The reviewer names the phase and the frames and says
- * whether gameplay (not just the HUD) stayed readable. No review, or a missing frame, is `unknown`.
+ * whether interaction (not just the HUD) stayed readable. No review, or a missing frame, is `unknown`.
  */
 import { CheckResult } from "../vocabulary.ts";
 import type { ExposureSample } from "./types.ts";
@@ -15,7 +15,7 @@ export const DARK_PHASE_MAX_LUMA = 0.85;
 export interface DarkPhaseReview {
   files: string[];
   phase: string;
-  gameplayReadable: boolean;
+  interactionReadable: boolean;
   note: string;
 }
 
@@ -32,7 +32,7 @@ const filled = (value: unknown): value is string => typeof value === "string" &&
 function isCompleteReview(review: DarkPhaseReview | undefined): review is DarkPhaseReview {
   if (!review || !filled(review.phase) || !filled(review.note)) return false;
   const files = Array.isArray(review.files) && review.files.length > 0 && review.files.every(filled);
-  return files && typeof review.gameplayReadable === "boolean";
+  return files && typeof review.interactionReadable === "boolean";
 }
 
 const measured = (s: ExposureSample) =>
@@ -56,10 +56,10 @@ export function darkPhaseAcceptance(samples: readonly ExposureSample[], review?:
   const inBand = found.every(
     (s) => s.report.centreWeightedMean <= DARK_PHASE_MAX_LUMA && s.report.tonalRange > 0 && s.report.contrast > 0,
   );
-  const pass = review.gameplayReadable && darkest >= DARK_PHASE_MIN_LUMA && inBand;
+  const pass = review.interactionReadable && darkest >= DARK_PHASE_MIN_LUMA && inBand;
   return {
     result: pass ? CheckResult.Pass : CheckResult.Fail,
-    detail: `Darkest verified phase: ${review.phase}; minimum centre-weighted sRGB luma ${darkest.toFixed(5)} (required ≥ ${DARK_PHASE_MIN_LUMA}). Gameplay review: ${review.note}`,
+    detail: `Darkest verified phase: ${review.phase}; minimum centre-weighted sRGB luma ${darkest.toFixed(5)} (required ≥ ${DARK_PHASE_MIN_LUMA}). Interaction review: ${review.note}`,
     value: { review, darkest, band: { min: DARK_PHASE_MIN_LUMA, max: DARK_PHASE_MAX_LUMA }, frames: found },
   };
 }

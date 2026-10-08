@@ -165,7 +165,7 @@ describe("SEC-2: a contractor keeps its own sign-in and nobody else's", () => {
       authStatusFn: async () => ({ loggedIn: true, method: "chatgpt", detail: "Logged in using ChatGPT" }),
       execFn: fn,
     });
-    const cwd = path.join(root, "game");
+    const cwd = path.join(root, "project");
     await mkdir(cwd, { recursive: true });
     await withEnv(
       { ...FOREIGN, CLAUDE_CODE_OAUTH_TOKEN: "oauth-leak", CLAUDE_CONFIG_DIR_HINT: "hint", HARMLESS_FLAG: "x" },
@@ -320,7 +320,7 @@ describe("SEC-2: a contractor keeps its own sign-in and nobody else's", () => {
     ];
     const parent: Record<string, string> = {
       PATH: "/usr/bin",
-      PWD: "/Users/me/game",
+      PWD: "/Users/me/project",
       OLDPWD: "/Users/me",
       HARMLESS_FLAG: "x",
       HTTPS_PROXY: "http://proxy.example:3128",
@@ -530,7 +530,7 @@ describe("SEC-3: both CLIs' sign-in homes are off limits to every agent process"
       execFn: fn,
       protectedPaths: [path.join(root, "secrets")],
     });
-    const cwd = path.join(root, "game");
+    const cwd = path.join(root, "project");
     await mkdir(cwd, { recursive: true });
     await engine.delegate({ prompt: "build", cwd });
     for (const dir of [path.join(root, "secrets"), dotCodex, dotClaude, systemHome])

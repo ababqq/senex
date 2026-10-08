@@ -205,7 +205,7 @@ describe("lane root placement", () => {
     fs.mkdirSync(path.join(evals, "ledger"));
     fs.mkdirSync(path.join(evals, "homes", "claude"), { recursive: true });
     fs.mkdirSync(path.join(evals, "work", OTHER_RUN_ID, "project"), { recursive: true });
-    fs.writeFileSync(path.join(evals, "work", OTHER_RUN_ID, "project", "game.js"), "finished");
+    fs.writeFileSync(path.join(evals, "work", OTHER_RUN_ID, "project", "project.js"), "finished");
     return evals;
   }
 

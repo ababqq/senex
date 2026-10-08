@@ -20,7 +20,7 @@ import { isCoordinatorTool } from "../shared/coordinator.ts";
 import { SessionActivityRole } from "../shared/chat-activity.ts";
 import type { EventData, Message } from "../shared/event-log.ts";
 import { EventKind } from "../shared/event-log.ts";
-import { type AssetDeliveredPayload, deliveredToBuild, isAssetDelivery } from "../shared/game-assets.ts";
+import { type AssetDeliveredPayload, deliveredToBuild, isAssetDelivery } from "../shared/project-assets.ts";
 import { SteerDelivery } from "../shared/message-queue.ts";
 import { engineLabel, roleName } from "../shared/model-roles.ts";
 import { ExecutionStatus, RoundOutcome, roundOutcome } from "../shared/run-state.ts";
@@ -165,7 +165,7 @@ export type Entry =
   /**
    * The morning: what the night amounts to, in one card. It replaces the line that read
    * "RUN ended after 21 iterations — the director finished the run" over a night that had
-   * built, merged and judged a game.
+   * built, merged and judged a project.
    */
   | {
       kind: typeof EntryKind.Morning;
@@ -188,7 +188,7 @@ export type Entry =
       /** the first and last frames the night recorded, as saved-run stills */
       before: string | null;
       after: string | null;
-      /** what the run generated in its own workspace: shown with its result, once in the game */
+      /** what the run generated in its own workspace: shown with its result, once in the project */
       assets?: AssetDeliveredPayload[];
       /** the user stopped it with a follow-up waiting, so that message is the next word, not this card */
       handedOff?: boolean;
@@ -384,7 +384,7 @@ interface ChatDraft {
   turnModels: Map<string, { engine?: string; model?: string }>;
   activeTurns: Map<string, string>;
   /**
-   * A Loop run generates into its build workspace, not the game: those files are not playable,
+   * A Loop run generates into its build workspace, not the project: those files are not playable,
    * previewable or even present until the build lands, so they wait for the run's result card.
    */
   runAssets: Map<string, AssetDeliveredPayload[]>;
@@ -992,7 +992,7 @@ function narrateSkillAccepted(chat: ChatDraft, event: EventEnvelope): void {
   chat.entries.push({ id: event.id, kind: EntryKind.Learning, text, link: TRANSCRIPT_WORDS.seeInHarness });
 }
 
-/** An unattended run narrates itself in the game's own chat: start, verdicts, ending, lessons. */
+/** An unattended run narrates itself in the project's own chat: start, verdicts, ending, lessons. */
 function narrateRunStart(chat: ChatDraft, event: EventEnvelope): void {
   const started = customPayload(event.data, CustomEvent.RunStarted);
   if (!started) return;
@@ -1105,7 +1105,7 @@ function openPluginRow(
 ): ToolChipRow {
   const row: ToolChipRow = {
     key: payload.callId ?? event.id,
-    icon: "game",
+    icon: "project",
     label: payload.pluginName ?? TRANSCRIPT_WORDS.plugin,
     activeLabel: usingPluginWords(payload.pluginName),
     detailMono: false,

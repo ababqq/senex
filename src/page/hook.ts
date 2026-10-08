@@ -1,10 +1,10 @@
 /**
  * The renderer hook — attach, don't install (M4.2a).
  *
- * A Three.js game becomes judgeable with nothing added to it. The serve layer points the page's
+ * A Three.js project becomes judgeable with nothing added to it. The serve layer points the page's
  * own `three` at a wrapper module that re-exports the same module record and calls `hook()` with
- * it; from there the studio watches what the game's renderers actually draw and reads the scene,
- * the camera and the renderer off the frames themselves. A game whose `three` is inside its own
+ * it; from there the studio watches what the project's renderers actually draw and reads the scene,
+ * the camera and the renderer off the frames themselves. A project whose `three` is inside its own
  * bundle, out of the import map's reach, gets the same thing from two lines:
  * `installStudio({ renderer, player })` calls `wrapRenderer(renderer)`.
  *
@@ -19,7 +19,7 @@
  * data-property function, installing the wrapped copy as an own property of the exported class's
  * prototype. Only when no prototype in the chain owns the method does it install the accessor
  * trap that captures the constructor's assignment. The naive "own data property or accessor
- * trap" rule shadows the inherited method and makes every WebGPU game throw on its first render.
+ * trap" rule shadows the inherited method and makes every WebGPU project throw on its first render.
  *
  * Nothing is traversed inside a render call: each call pushes one record, and the frame's records
  * are turned into observations, scored and reduced to one world by {@link endFrame}, which the
@@ -53,11 +53,11 @@ export const WRAPPED_METHODS = Object.freeze(["render", "renderAsync", "setRende
 export const HOOKED_KEYS = Object.freeze(["three", "three/webgpu"]);
 
 /** What a helper throws when there is no scene to answer about. */
-export const UNAVAILABLE = "the game's scene graph is not available";
+export const UNAVAILABLE = "the project's scene graph is not available";
 
 /** Why `inspect()` has nothing to answer with. Reported, never thrown, so a check can say it. */
 export const NO_RENDER_REASON =
-  "no scene has been rendered yet — the game has not called renderer.render(scene, camera) since load, and installStudio was not given a scene";
+  "no scene has been rendered yet — the project has not called renderer.render(scene, camera) since load, and installStudio was not given a scene";
 
 // ── module state ─────────────────────────────────────────────────────────────
 
@@ -279,7 +279,7 @@ function installTrap(proto: Foreign, method: Foreign) {
 }
 
 /**
- * Watch one renderer INSTANCE — the two-line install, for a game whose `three` is inside its own
+ * Watch one renderer INSTANCE — the two-line install, for a project whose `three` is inside its own
  * bundle and never passed through the serve layer's wrapper.
  */
 export function wrapRenderer(instance: Foreign) {
@@ -638,7 +638,7 @@ function canvasOf(renderer: Foreign) {
 
 /**
  * The helpers every `scene` check is evaluated against. One implementation for both paths: the
- * game the studio attached to and the game that called `installStudio` share this code, so a
+ * project the studio attached to and the project that called `installStudio` share this code, so a
  * check written against one means the same thing against the other.
  */
 export function sceneHelpers(source: InspectOptions = {}) {
@@ -903,10 +903,10 @@ export function inspect(options: InspectOptions = {}): Foreign {
 
 function pageState() {
   try {
-    const game = (globalThis as PageGlobal).__studio?.__game;
-    if (game && typeof game.state === "function") return game.state();
+    const project = (globalThis as PageGlobal).__studio?.__project;
+    if (project && typeof project.state === "function") return project.state();
   } catch {
-    /* a game whose state() throws is not the hook's problem */
+    /* a project whose state() throws is not the hook's problem */
   }
   return null;
 }
@@ -929,7 +929,7 @@ export function sceneSummary(options: InspectOptions = {}) {
 }
 
 /**
- * An attached game registered no cameras, but it renders through one, and the studio can name
+ * An attached project registered no cameras, but it renders through one, and the studio can name
  * it: `default` is whatever camera drew the last judged frame.
  */
 export function cameras() {
@@ -972,15 +972,15 @@ export function hookState() {
 
 /**
  * Why nothing has been seen. The accessor trap is the whole mechanism for WebGL, so a three that
- * assigns `render` some other way — or a game that replaces `renderer.render` after construction
+ * assigns `render` some other way — or a project that replaces `renderer.render` after construction
  * — must say so rather than report an empty scene graph.
  */
 function attachReason() {
   if (!state.namespaces.length && instancesWrapped === 0) {
-    return "the studio never reached this page's three — its renderer is inside its own bundle; call installStudio({ renderer, player }) from the game's entry";
+    return "the studio never reached this page's three — its renderer is inside its own bundle; call installStudio({ renderer, player }) from the project's entry";
   }
   if (state.renders === 0 && state.frames > 30) {
-    return "the page has drawn frames but no wrapped renderer was called — a game that replaces renderer.render after construction is invisible to the studio";
+    return "the page has drawn frames but no wrapped renderer was called — a project that replaces renderer.render after construction is invisible to the studio";
   }
   return NO_RENDER_REASON;
 }
@@ -1003,7 +1003,7 @@ export function canvas() {
 
 /**
  * Put the hook on the page and close every frame with it. Idempotent, and safe on a page with
- * no clock: the studio's shim installs first, but a game served by something else still gets
+ * no clock: the studio's shim installs first, but a project served by something else still gets
  * the frame boundary from the browser's own animation frames.
  */
 export function installStudioHook(target: PageGlobal = globalThis as PageGlobal) {

@@ -40,7 +40,7 @@ const SEMVER = /^\d+\.\d+\.\d+$/;
  * whose CLI Studio already spawns for asset work, may ask for it.
  */
 const HOST_CLI_PLUGIN = "genex";
-/** Host tools that spend credits or change the game: each needs the user's consent every time. */
+/** Host tools that spend credits or change the project: each needs the user's consent every time. */
 const CONSENTED_HOST_TOOLS: ReadonlySet<string> = new Set([PluginHostTool.GenexCliPaid, PluginHostTool.GenexPackage]);
 const HOST_TOOLS: ReadonlySet<unknown> = new Set(Object.values(PluginHostTool));
 const KIB = 1024;

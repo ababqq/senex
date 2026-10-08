@@ -54,15 +54,15 @@ The controller builds immutable output under `.studio-dev/builds/<id>` and retur
 readiness and profile/build/source/runtime identity. Rebuilding does not update a running app.
 Use the controller to stop owned sessions; a PID alone is not authority to signal a process.
 `clean --profile <name>` removes only stopped recognized disposable state. Retained live
-profiles, evidence and normal games are not disposable fixture cleanup.
+profiles, evidence and normal projects are not disposable fixture cleanup.
 
 See [owned sessions](agent/verification.md#owned-development-sessions) for fixtures, bounded
-UI requests, desktop/game captures and diagnostics. A desktop capture does not include the
-separate native game view.
+UI requests, desktop/project captures and diagnostics. A desktop capture does not include the
+separate native project view.
 
 ## Normal profile and packaged app
 
-`npm start` rebuilds and launches the normal profile, with your own games and accounts (agents
+`npm start` rebuilds and launches the normal profile, with your own projects and accounts (agents
 use it only when asked). Quit any running instance first. Closing a window may leave the process
 alive. `open` can focus an existing process and is not proof of a fresh launch.
 
@@ -85,18 +85,18 @@ warnings); the UI clears its per-render timing measures each minute there. `npm 
 | `docs/`, `AGENTS.md` | Maintained developer knowledge and instructions |
 | `.studio-dev/notes/<task>.md` | Short local note for unfinished development work |
 | `.studio-dev/evidence/<task>/` | Local verification reports, screenshots and identities |
-| `.studio-dev/profiles/<name>/` | Owned developer Electron, session, core and game roots |
+| `.studio-dev/profiles/<name>/` | Owned developer Electron, session, core and project roots |
 | `~/Library/Application Support/Genex/` | Normal application profile (moved from `AI Game Studio/` on first launch) |
-| Profile `workspaces/harness/` | Active editable game-building harness; upgrades preserve self-edits |
+| Profile `workspaces/harness/` | Active editable project-building harness; upgrades preserve self-edits |
 | Profile `engine-homes/`, `runs/`, `exoharness/` | Provider/plugin/runtime state, run artifacts and persisted events |
 | Profile `scratch/`, `exports/` | App-managed build workspaces and export destinations |
 | Profile `opened-files/` | Read-only copies of build-only files a chat link opened in their app |
 | Profile `Crashpad/` | Local crash dumps, never uploaded. Dumps hold process memory; review before sharing |
 | Profile `run-sharing/` | Share build metrics' state, install identity and unsent rows (owner-only files) |
 | `$GENEX_EVALS_HOME` (`~/.genex-evals`) | The eval ledger, run work folders, evidence, eval-owned builds and CLI homes ([evals](evals.md#eval-homes-and-operator-setup)) |
-| `~/AI Games/` or the selected project folder | User game source; the project binding is authoritative |
+| `~/AI Projects/` or the selected project folder | User project source; the project binding is authoritative |
 
-Credential storage belongs to the host/provider. Never copy it into notes, games, prompts or
+Credential storage belongs to the host/provider. Never copy it into notes, projects, prompts or
 reports. Git SHA alone does not identify installed harness self-edits or provider/plugin versions.
 [AGENTS.md](../AGENTS.md#documentation-and-prs) owns handbook updates, size limits and optional scratch notes.
 
@@ -166,11 +166,11 @@ logs (`maxOutputBytes`) from generated files (`maxAssetBytes`); doctor errors na
 For a real independent SDK check, author from the public kit, then exercise typed numeric
 arguments, retrieval of the same completed files, changed-file refusal, active disable,
 folder reload and standard settings through the custom panel. A local MCP process reading
-actual game assets complements public HTTP acceptance; record its real filesystem result,
+actual project assets complements public HTTP acceptance; record its real filesystem result,
 argv including spaces, project scope and same-session activation. Neither proves OAuth.
 
-The full Electron game runner also accepts `node tests/e2e/run-electron-e2e.mjs --packaged`
-after packaging; it retains the same game, capture and provider readiness assertions. The
+The full Electron project runner also accepts `node tests/e2e/run-electron-e2e.mjs --packaged`
+after packaging; it retains the same project, capture and provider readiness assertions. The
 portrait shape fixture uses a frameless window with explicit content size and permission to
 exceed the screen size, so macOS title bars and work-area clamping cannot change its required
 540×960 capture. Keep those pixel assertions; do not substitute the clamped window dimensions.
@@ -191,7 +191,7 @@ paths remain unavailable. Paid account acceptance remains a separate live gate. 
 logs even when an isolated retry passes: sandbox-runtime's one-second executable lookup has
 intermittently reported a missing bash during loaded test runs.
 
-Unity retirement (2026-09-15): the active app supports browser games only. The CLI, editor, bridge, Unity templates, tools and UI are archived in `archive/unity/`; no feature flag enables them. There is no Unity-specific compatibility or migration path. Ordinary browser-project validation remains. Historical Unity plans describe archived behavior; existing user work and the source archive remain preserved.
+Unity retirement (2026-09-15): the active app supports browser projects only. The CLI, editor, bridge, Unity templates, tools and UI are archived in `archive/unity/`; no feature flag enables them. There is no Unity-specific compatibility or migration path. Ordinary browser-project validation remains. Historical Unity plans describe archived behavior; existing user work and the source archive remain preserved.
 
 Full regression coverage: `npm run typecheck`, `npm test`, `npm run test:e2e` (real sandbox, scripted
 Ollama wire, Chromium and CSS), `npm run test:build-ui` (build/history fixture, and since M1.8
@@ -216,20 +216,20 @@ Optimization UI replay additionally needs prior AG-931 result data; it is condit
 clean-checkout gate. Seed-upgrade, interrupted, snapshots, sandbox, harness-host and
 self-improving conformance tests protect product behavior. Native login/picker/download
 verification requires separate explicit prerequisites; fixtures do not certify it.
-`npm run test:computer:e2e` runs the real Electron with a fixture game: the computer tool over an
+`npm run test:computer:e2e` runs the real Electron with a fixture project: the computer tool over an
 offscreen window (WebGL and WebGPU), the requested-state setup, agent screens on their Builds nodes, and a
 scripted director's run end to end (worker, look, integrate, show, finish, landing).
-It also checks secure contexts in Live and worker views. Register `game` and `studio-plugin`
-privileges in one call before Electron is ready; a second registration loses the game's secure
+It also checks secure contexts in Live and worker views. Register `project` and `studio-plugin`
+privileges in one call before Electron is ready; a second registration loses the project's secure
 context and disables WebGPU, while Three.js can silently render through its WebGL fallback.
 `npm run test:shapes:e2e` is the milestone's own proof, and part of `npm run verify`. It opens
-each of the five games under `tests/fixtures/games` as the user's own game — four of them with no
+each of the five projects under `tests/fixtures/projects` as the user's own project — four of them with no
 edit at all, the bundled one with the two-line `installStudio({ renderer, player })` — waits for
 the page to report itself ready, shadow-builds the one that has a build, drives it, photographs
 it and judges the evidence with the harness's own `gatherEvidence`; then drives the same five
 again through the real Codex file bridge (the shim run as a child process, only the CLI scripted)
 and the real in-process Claude MCP server (only the model scripted), and compares the two
-observed tool surfaces. `summary.json` carries fifteen entries — five games by three transports —
+observed tool surfaces. `summary.json` carries fifteen entries — five projects by three transports —
 each with its shape, its cameras, the milliseconds the page took to boot, the state paths that
 moved and its own check list, plus two pages the runner carries for the capture rules (a canvas
 with `alpha: true` over a coloured page, and a portrait window with a second canvas in the corner).
@@ -240,14 +240,14 @@ inner loop under ten seconds; the full regression gate runs the whole set.
 
 `tests/conformance/director.test.ts` runs a whole night on the plain-Node rig, once per shape a
 night can take — every `it` in its own describe block, so the list is read there rather than
-counted here. They cover the finish and its landing; a game from scratch getting its base stage,
+counted here. They cover the finish and its landing; a project from scratch getting its base stage,
 and a starting point that could not be built; the fork gate refusing a base that does not run and
-exempting the run's own starting points; a game that cannot be judged until the contract is
+exempting the run's own starting points; a project that cannot be judged until the contract is
 installed, and a wiring session whose page still does not answer; a worker the lead stops
 mid-round; a steer that interrupts a loop worker, a user steer addressed to one, and a steered
 single session; the director's own commit becoming the head it lands; a landing that conflicts
 with the user's own commits and changes nothing; a merge that carries nothing from a repository
-inside the game, and a consented one whose landing is left to the user; a night whose director
+inside the project, and a consented one whose landing is left to the user; a night whose director
 dies of the engine's session limit; a night killed outright and then resumed; a reviewed plan
 held for the user's go, and one the user answers in their own words; a worker's commit outliving
 its worktree; the restored `.studio/DIRECTOR.md`; and a close that looks through the studio's
@@ -270,11 +270,11 @@ the ported rail's tokens, and `run-controls.test.ts` the one-Stop rule across th
 renderer plus the keep-awake wiring in main. Behaviour that needs a window — the two chat Stop
 controls, immediate thread cancellation, the blocker held past the request, the morning card
 mounting — lives in the build smoke, which is why `npm run test:build-ui` is now part of `npm
-run verify`. The Assets stage tab is covered by `assets-layout.test.ts`, `game-assets.test.ts` and
+run verify`. The Assets stage tab is covered by `assets-layout.test.ts`, `project-assets.test.ts` and
 `canvas-view.test.ts` (grouping, deterministic non-overlapping rects, the read-only walk and join,
 containment and size caps, the fit and zoom maths) and by five build-smoke checks that offer the
-tab, hide the native game, render a real fixture delivery back through the contained reader, find
-the delivery in the project's log and give the stage back to the game. A sixth appends the host's
+tab, hide the native project, render a real fixture delivery back through the contained reader, find
+the delivery in the project's log and give the stage back to the project. A sixth appends the host's
 own `plugin_tool_started` / `plugin_tool` pair and asserts the Builds graph draws the asset job
 under the part that asked for it; `run-graph.test.ts` and `words.test.ts` pin the same payloads and
 the chat's `TOOL` line without a window.
@@ -282,7 +282,7 @@ the chat's `TOOL` line without a window.
 Milestones 2 and 3 added four suites of their own. `verdict.test.ts` pins the one record every
 judged build leaves (`loop/verdict.ts`) and the sentence it hands the screen — including that
 each pass of a real night writes one. `learning.test.ts` replays the first real night's journal
-and then two rig nights on one game: the ledger's records, the lessons they add up to, the briefs
+and then two rig nights on one project: the ledger's records, the lessons they add up to, the briefs
 that carry them, the check that stops being written, the morning card's learned line, and what
 SkillOpt sees in a director's night. `engines.test.ts` covers external Claude login wiring and explicitly injected SDK paths.
 `external-cli.test.ts` covers discovery priority, spaces/symlinks, excluded project dependencies,
@@ -290,7 +290,7 @@ missing Node, incompatible commands, override persistence, update/removal, and n
 It also proves Stop kills an active diagnostic, both Claude SDK entry points refuse launch after
 Stop during discovery, and an allocation expiring during discovery starts no builder.
 Provider fixture tests preserve subscription-only billing, Stop and tool bridges.
-For live Claude coding acceptance, use an ordinary project directory (for example under `~/AI Games`),
+For live Claude coding acceptance, use an ordinary project directory (for example under `~/AI Projects`),
 not a fixture nested under `.claude`: native Claude Write treats that ancestor as sensitive.
 Require a successful native Write/Read pair; a shell fallback after a refusal is not that evidence.
 Keep protected-path refusals intact. Record the explicit CLI path/version, requested/reported model,
@@ -299,7 +299,7 @@ session and actual tool result; a clean preview alone does not prove the request
 
 Milestones 2 and 3: the pure half (shapes read from evidence, adoption, sheet words, build memos,
 the scoreboard, move ladder, ledger and verdict record) runs in `npm test` through the
-`project-shape`, `game-build`, `snapshots`, `scoreboard`, `facet-loop-v2`, `learning`, `verdict`
+`project-shape`, `project-build`, `snapshots`, `scoreboard`, `facet-loop-v2`, `learning`, `verdict`
 and `words` suites. `director.test.ts`'s rig drives the real core and harness with scripted engines
 for the nested-repository policy, plan review, interrupting steer and landing refusals; the build
 smoke and `npm run test:computer:e2e` need a real window. No live account, real `npm install` or
@@ -311,7 +311,7 @@ Do not treat an in-progress scenario as a passing capability. Source changes req
 and restart for main/preload/resources; watch does not continuously copy resources. Explicit
 profile reuse preserves evolved harness state; use fresh data for a clean-source assertion.
 
-Capture desktop and game separately, inspect image content and actual postconditions. Record
+Capture desktop and project separately, inspect image content and actual postconditions. Record
 per-check expected/observed, pass/fail/unverified, time and surface. Overall fail wins over
 unverified; missing required evidence otherwise yields unverified. Exit codes for check runs
 are 0/1/2 respectively. A successful lifecycle command is not a verification pass.
@@ -329,7 +329,7 @@ readiness/identity JSON. `npm run studio:dev -- fixtures` lists the named fixtur
 build-graph (two sword-in-ice nights: folded tries, an undone step, a lead-merged unjudged round),
 first-launch (an empty library and the welcome; Claude Code needs a sign-in, Codex is not
 installed, and sign-in, links and downloads are refused as in every fixture) and notifications
-(six games; about four seconds after launch a question, a plan, a plugin permission, a sign-out
+(six projects; about four seconds after launch a question, a plan, a plugin permission, a sign-out
 and delivered, failed and stopped builds arrive as news; macOS notifications are refused) and
 sandbox-setup (the window opens on "Set up the protected workspace" for a Linux machine missing
 bubblewrap and socat, `[data-sandbox-setup]`; `[data-sandbox-retry]` opens the studio) and
@@ -346,7 +346,7 @@ core cleanup and process exit; clean only removes stopped recognized disposable 
 removes a developer checkout. Evidence lives outside profile cleanup. Unknown versions,
 symlink aliases, copied ownership and duplicate writers fail explicitly. A stale PID without
 an authenticated endpoint is never authority to signal it. A failed launch keeps diagnostic
-state; do not manually point its configuration at normal Electron data or ~/AI Games.
+state; do not manually point its configuration at normal Electron data or ~/AI Projects.
 
 Requests are JSON files to avoid shell quoting:
 
@@ -362,12 +362,12 @@ walks the full loop.
 The request union/runtime validator is src/main/dev/protocol.ts. Operations are status,
 snapshot (desktop, scope/limit), click (selector/scope), type (plus text/replace), key
 (surface/key/code/modifiers), select (selector/scope/value), scroll (surface/deltas/target),
-game.input (existing bounded action union), game.state, window.resize, capture, logs, cpu.start/stop,
+project.input (existing bounded action union), project.state, window.resize, capture, logs, cpu.start/stop,
 main.cpu.start/stop (a profile of the main process), heap,
 trace.start/stop and stop. `graph.drag` takes bounded duration/distance/steps and returns
 commit counters through release; `window.resize` takes bounded width/height deltas, steps and
-duration, resizes the studio window step by step with a game in Live, and returns how far the
-game view trailed its slot right after each change and before the next ([performance](performance.md));
+duration, resizes the studio window step by step with a project in Live, and returns how far the
+project view trailed its slot right after each change and before the next ([performance](performance.md));
 `fixture.graph` takes `other-project-frames` or `append-round`
 only in `large-build-graph`. Traces accept `toplevel` for renderer task durations.
 No arbitrary eval, PID, webContents ID or output path is accepted.
@@ -375,8 +375,8 @@ Scoped DOM inspection resolves one visible enabled non-occluded target. CDP disp
 pointer-down/up, keyboard and Unicode insertText to the desktop without system focus/pointer
 movement. The native macOS select did not accept background keys on pinned Electron. The select
 operation reports unsupported-surface if keys do not apply. Open an earlier build with its chat
-card's title button, `button[data-open-build]` (scroll the conversation to it first). Game actions use the
-existing GamePreview contract. Fixture and smoke windows are shown inactive, nonfocusable and
+card's title button, `button[data-open-build]` (scroll the conversation to it first). Project actions use the
+existing ProjectPreview contract. Fixture and smoke windows are shown inactive, nonfocusable and
 parked offscreen. Live development profiles open normally and accept keyboard focus so they
 can be used for manual testing.
 For human review with fixture data, launch or restart the owned fixture profile with
@@ -385,7 +385,7 @@ providers, credential isolation and native-action restrictions remain unchanged.
 opt-in unset for automated acceptance.
 
 `capture --profile ag-933 --surface desktop --name after` writes an owned surface-labelled PNG;
-repeat for game. Renderer captures do not include the native game child. The capture records
+repeat for project. Renderer captures do not include the native project child. The capture records
 image dimensions, image-pixel/CSS-pixel scale, renderer zoom, visibility, focus and time. For diagnostics use a JSON request
 with `diagnostics --profile ag-933 --request FILE`. Start/stop a matching CPU profile ID; heap
 needs surface/name. Trace needs traceId, durationMs (100–30000) and supported categories from
@@ -406,7 +406,7 @@ its spawn helper. Restore missing locked dependencies only when needed for the r
 admission, disposal and managed output filtering; neighboring engines/Claude/Codex suites cover
 fallback home/environment, cancellation and verified completion. Run `npm run test:terminal` for
 an immutable credential-disabled fixture with a fixed `/bin/sh` script: actual PTY input/Unicode,
-resize, hide/reopen, output flooding with concurrent chat, native game isolation/visibility, Stop
+resize, hide/reopen, output flooding with concurrent chat, native project isolation/visibility, Stop
 and stubborn-child cleanup, Settings handoff, browser action, zoom and renderer reload. Evidence
 under `.studio-dev/evidence/terminal-<id>/` includes build/source/runtime/provider identities.
 
@@ -448,7 +448,7 @@ cached remounts, hover/focus actions, automatic captures, modal focus restoratio
 recovery, learning navigation callbacks, new-row versus history motion, light/dark, 200% zoom
 and reduced motion. Evidence lives in `.studio-dev/evidence/results-ui/`. Pair with
 `run-chat-ui.mjs` and `run-chat-feedback-ui.mjs` for real host reads, history/streaming and Studio
-navigation; component fixtures do not prove account access or native game layering.
+navigation; component fixtures do not prove account access or native project layering.
 
 Genex account regressions: `run-genex-account-ui.mjs` renders the Genex page's own account card
 and checks that a failed connect keeps its reason after the status is read again. It does not

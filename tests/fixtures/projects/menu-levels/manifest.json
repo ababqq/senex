@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "id": "menu-levels",
+  "title": "Two Rooms",
+  "proves": [
+    "a DOM first screen becomes ready instead of hanging boot",
+    "a trusted gesture plus the setup script walks a title screen to the judged state and verify says it landed",
+    "the page-side eyes see a DOM HUD the canvas capture cannot",
+    "a scene and camera switch is visible in the evidence and inspect().scenes names two",
+    "a page that assigns window.__studio itself keeps every method it defined"
+  ],
+  "shape": {
+    "entry": "index.html",
+    "main": "src/main.js",
+    "build": null,
+    "install": null,
+    "own": true,
+    "kind": "three-modules",
+    "serve": "."
+  },
+  "addsAtLeast": ["src/studio.js", "src/studio.d.ts", "CLAUDE.md", "NOTES.md", "studio.json", ".gitignore", ".git"],
+  "neverAdded": ["index.html", "src/main.js", "docs/CONTRACT.md"],
+  "edits": "none",
+  "contract": "loaded",
+  "needsNodeModules": false,
+  "backend": "webgl",
+  "app": {
+    "kind": "third-person",
+    "hud": false,
+    "mouseLook": false,
+    "keyboardMove": true
+  },
+  "setup": {
+    "gesture": true,
+    "actions": [
+      { "type": "click", "x": 0.5, "y": 0.61 },
+      { "type": "wait", "ms": 250 },
+      { "type": "click", "x": 0.25, "y": 0.5 },
+      { "type": "wait", "ms": 250 }
+    ],
+    "settleMs": 600,
+    "verify": { "path": "phase", "equals": "level" },
+    "note": "Start, then the Blue Room card"
+  },
+  "cameras": ["default"],
+  "expectWarnings": ["this project paints UI outside the canvas"],
+  "allowWarnings": [],
+  "delta": [
+    { "path": "player.x", "min": 0.5 },
+    { "path": "player.z", "min": 0.5 }
+  ],
+  "deterministic": true,
+  "readyBudgetMs": 6000
+}

@@ -10,10 +10,10 @@ import type { PluginManifest, PluginNativeResult } from "../../src/shared/plugin
 
 async function setup() {
   const root = await mkdtemp(path.join(os.tmpdir(), "native-plugin-")),
-    game = path.join(root, "game"),
+    project = path.join(root, "project"),
     pkg = path.join(root, "package"),
     storage = path.join(root, "storage");
-  for (const dir of [game, pkg, storage]) await mkdir(dir);
+  for (const dir of [project, pkg, storage]) await mkdir(dir);
   const manifest: PluginManifest = {
     apiVersion: 3,
     id: "native-example",
@@ -54,10 +54,19 @@ async function setup() {
     ],
   };
   const service = new PluginNativeServices(root, []),
-    binding = { project: "game", directory: game };
+    binding = { project: "project", directory: project };
   const call = (method: string, args: any, signal = new AbortController().signal, source = "tool") =>
     service.call(manifest, pkg, storage, method, args, binding, { method: source, name: "install", signal }, () => {});
-  return { root, game, pkg, storage, manifest, service, call, close: () => rm(root, { recursive: true, force: true }) };
+  return {
+    root,
+    project,
+    pkg,
+    storage,
+    manifest,
+    service,
+    call,
+    close: () => rm(root, { recursive: true, force: true }),
+  };
 }
 
 test("native manifests require declared recipes, safe aliases, a pinned digest and user install action", async () => {
@@ -132,10 +141,10 @@ test("actual managed job stages only its input and delivers only declared output
 }, async () => {
   const f = await setup();
   try {
-    await writeFile(path.join(f.game, ".env"), "synthetic-secret");
+    await writeFile(path.join(f.project, ".env"), "synthetic-secret");
     await writeFile(
-      path.join(f.game, "script.sh"),
-      `if /bin/cat '${f.game}/.env'; then exit 20; fi\nprintf 'asset' > "$1"\nprintf 'private' > "$(/usr/bin/dirname "$1")/undeclared.txt"`,
+      path.join(f.project, "script.sh"),
+      `if /bin/cat '${f.project}/.env'; then exit 20; fi\nprintf 'asset' > "$1"\nprintf 'private' > "$(/usr/bin/dirname "$1")/undeclared.txt"`,
     );
     const result = (await f.call("native.run", {
       job: "write",
@@ -157,7 +166,7 @@ test("actual managed job stages only its input and delivers only declared output
       f.storage,
       "native.result",
       { id: result.id },
-      { project: "game", directory: f.game },
+      { project: "project", directory: f.project },
       { method: "tool", name: "retrieve", signal: new AbortController().signal },
       () => {},
     )) as PluginNativeResult;
@@ -173,7 +182,7 @@ test("native jobs enforce output limits and cancel active local processes", {
 }, async () => {
   const f = await setup();
   try {
-    await writeFile(path.join(f.game, "large.sh"), '/usr/bin/yes x | /usr/bin/head -c 5000 > "$1"');
+    await writeFile(path.join(f.project, "large.sh"), '/usr/bin/yes x | /usr/bin/head -c 5000 > "$1"');
     const large = (await f.call("native.run", {
       job: "write",
       inputs: { script: "large.sh" },
@@ -181,7 +190,7 @@ test("native jobs enforce output limits and cancel active local processes", {
     })) as PluginNativeResult;
     assert.equal(large.state, "failed");
     assert.match(large.reason!, /size limit/);
-    await writeFile(path.join(f.game, "wait.sh"), "/bin/sleep 30");
+    await writeFile(path.join(f.project, "wait.sh"), "/bin/sleep 30");
     const stop = new AbortController();
     const pending = f.call("native.run", { job: "write", inputs: { script: "wait.sh" }, values: {} }, stop.signal);
     const timer = setTimeout(() => stop.abort(), 100);
@@ -236,9 +245,12 @@ test("asset size limits include prior worker deliveries after host restart", asy
       return service;
     };
     const args = { output: source, jobId: "11111111-1111-4111-8111-111111111111" };
-    const first = await create().call("native-example", "assets.deliver", args, { project: "game", directory: f.game });
+    const first = await create().call("native-example", "assets.deliver", args, {
+      project: "project",
+      directory: f.project,
+    });
     assert.deepEqual(
-      await create().call("native-example", "assets.deliver", args, { project: "game", directory: f.game }),
+      await create().call("native-example", "assets.deliver", args, { project: "project", directory: f.project }),
       first,
       "same completed job reuses identical files after restart without double-counting quota",
     );
@@ -247,15 +259,15 @@ test("asset size limits include prior worker deliveries after host restart", asy
         "native-example",
         "assets.deliver",
         { ...args, jobId: "22222222-2222-4222-8222-222222222222" },
-        { project: "game", directory: second },
+        { project: "project", directory: second },
       ),
       /across this project's workspaces/,
     );
-    await rm(path.join(f.game, "assets"), { recursive: true });
+    await rm(path.join(f.project, "assets"), { recursive: true });
     assert.equal(
       (
         (await create().call("native-example", "assets.deliver", args, {
-          project: "game",
+          project: "project",
           directory: second,
         })) as string[]
       ).length,
@@ -267,7 +279,7 @@ test("asset size limits include prior worker deliveries after host restart", asy
   }
 });
 
-test("SDK retrieval preserves changed game assets, restores missing files and rejects symlinks", async () => {
+test("SDK retrieval preserves changed project assets, restores missing files and rejects symlinks", async () => {
   const { PluginServices } = await import("../../src/substrate/plugins/services.ts");
   const f = await setup();
   try {
@@ -277,9 +289,9 @@ test("SDK retrieval preserves changed game assets, restores missing files and re
     await writeFile(path.join(source, "nested", "image.png"), "image");
     const service = new PluginServices(f.root, { "native-example": f.storage }, async () => null);
     const args = { output: source, jobId: "11111111-1111-4111-8111-111111111111" },
-      binding = { project: "game", directory: f.game };
+      binding = { project: "project", directory: f.project };
     const first = (await service.call("native-example", "assets.deliver", args, binding)) as string[];
-    const destination = path.join(f.game, "assets/native-example", args.jobId),
+    const destination = path.join(f.project, "assets/native-example", args.jobId),
       asset = path.join(destination, "asset.txt");
     await rm(path.join(destination, "nested", "image.png"));
     assert.deepEqual(await service.call("native-example", "assets.deliver", args, binding), first);

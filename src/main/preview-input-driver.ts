@@ -2,7 +2,7 @@
  * Preview input, applied: how one {@link PreviewInputAction} becomes Chromium input events plus
  * the page-side copies (`__studio.injectInput` and synthetic DOM events), so a paused `step()`
  * playthrough still sees WASD. `substrate/preview-input.ts` owns the mapping and the caps; this
- * module owns the order of events a player's hands would produce. {@link GamePreview} supplies
+ * module owns the order of events a player's hands would produce. {@link ProjectPreview} supplies
  * the target: its view's `sendInputEvent`, its page dispatch, its clock and its pointer.
  */
 import {
@@ -162,7 +162,7 @@ async function clickOnce(target: InputTarget, click: ClickStroke, n: number): Pr
   target.send({ type: "mouseDown", ...mouse });
   dom.push({ ...page, type: "mousedown", buttons: buttonsMask(button.index) });
   if (click.stepMs) {
-    // A frozen clock makes press and release the same instant, and a game that samples
+    // A frozen clock makes press and release the same instant, and a project that samples
     // input once a frame never sees the button down. Straddle a simulated frame instead.
     await target.dispatch({ studio: {}, dom: dom.splice(0, dom.length) });
     await target.stepClock(click.stepMs);
@@ -258,7 +258,7 @@ const TYPED_KEY: Record<string, string> = { "\n": "enter", "\t": "tab" };
 
 async function applyType(target: InputTarget, action: ActionOf<"type">): Promise<void> {
   // Every character is one stroke: keydown, char, keyup — what a keyboard delivers, so a
-  // game reading keydown and a text field reading input both hear it.
+  // project reading keydown and a text field reading input both hear it.
   for (const ch of typedText(action.text)) {
     const [key] = normalizeKeys([TYPED_KEY[ch] ?? ch]);
     if (!key) continue;
@@ -382,7 +382,7 @@ function sleep(ms: number): Promise<void> {
 
 /**
  * `stepMs` on a tap or a click: how far to advance the page's own loop between the press and
- * the release. The play script sets it when the clock is frozen; a game that reads a key inside
+ * the release. The play script sets it when the clock is frozen; a project that reads a key inside
  * its frame never sees a press and a release delivered in the same JS turn otherwise.
  */
 function stepBetweenPressAndRelease(action: PreviewInputAction): number {

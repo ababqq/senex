@@ -20,7 +20,7 @@ function event(eventType: string, runId = "run_stop", payload = {}): EventEnvelo
     session_id: null,
     turn_id: null,
     created_at: date,
-    data: { type: EventKind.Custom, event_type: eventType, payload: { runId, project: "auth-game", ...payload } },
+    data: { type: EventKind.Custom, event_type: eventType, payload: { runId, project: "auth-project", ...payload } },
   };
 }
 const fake = fakeStudioApi();
@@ -30,14 +30,14 @@ const props: ChatPanelProps = {
   stateEvents: [],
   history: { hasMore: false, paging: false, loadEarlier: async () => {} },
   engines: [],
-  games: [],
+  projects: [],
   activeThread: {
     id: "auth-thread",
     agent_id: "studio",
     created_at: date,
     updated_at: date,
     latest_event_id: null,
-    metadata: { kind: ThreadKind.Game, project: "auth-game" },
+    metadata: { kind: ThreadKind.Project, project: "auth-project" },
   },
   status: "idle",
   busySince: null,

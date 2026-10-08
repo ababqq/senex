@@ -101,7 +101,7 @@ export function useReport(props: ChatPanelProps, chat: ChatThread, composer: Cha
       threadId,
       build: composer.build,
       coordinating: run?.state === RunState.Running,
-      gameMode: !chat.isStudioThread,
+      projectMode: !chat.isStudioThread,
     });
     const options = { autopilot: reportCommissions(run), extras };
     await props.onSend(text, { ...composerSendOptions(model, key, options), origin });

@@ -247,7 +247,7 @@ describe("the draw counters count what the frame actually submitted", () => {
     draw.enable(true);
     gl.drawElements(TRIANGLES, 36, 0, 0);
     assert.equal(draw.totals().drawCalls, 1);
-    // The game's own calls still reached the driver both times.
+    // The project's own calls still reached the driver both times.
     assert.equal(world.calls.filter((name) => name === "drawElements").length, 2);
 
     draw.end();

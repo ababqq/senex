@@ -34,7 +34,7 @@ export const WORKER_FLOOR_MS = 3 * MINUTE_MS;
 export const MAX_WAIT_S = 240;
 /** Workers alive at once, whatever the pool says — twelve windows is already a machine on its knees. */
 export const MAX_WORKERS = 12;
-/** A worker window needs at least this much free memory to open (a big game's window is over a gigabyte). */
+/** A worker window needs at least this much free memory to open (a big project's window is over a gigabyte). */
 export const MIN_FREE_MB = 1_024;
 /** The longest the studio goes without looking at a running loop worker. */
 export const MONITOR_TICK_MS = 3 * MINUTE_MS;
@@ -101,7 +101,7 @@ export function workerWindows(max: number): number {
 }
 
 /**
- * A worker given less time than a round on this game has been taking. The loop refuses a round it
+ * A worker given less time than a round on this project has been taking. The loop refuses a round it
  * cannot finish with a quarter to spare (`tooLateToStart`), and that gate runs before the first
  * one — so such a worker ends with no rounds at all, after a worktree, a window lease and (on an
  * unproven fork point) a whole evidence pass have been spent on it. Said at `worker_start`, where
@@ -114,7 +114,7 @@ export function workerWindows(max: number): number {
  */
 export function shortBudgetWarning(budgetMs: number, medianMs: number | null): string | null {
   if (!medianMs || !(budgetMs < medianMs * ITERATION_HEADROOM)) return null;
-  return `a round on this game has been taking about ${minutes(medianMs)} min and this worker has ${minutes(budgetMs)} — it will very likely stop before its first round. Give it at least ${minutes(Math.ceil(medianMs * ITERATION_HEADROOM))} min, or finish instead.`;
+  return `a round on this project has been taking about ${minutes(medianMs)} min and this worker has ${minutes(budgetMs)} — it will very likely stop before its first round. Give it at least ${minutes(Math.ceil(medianMs * ITERATION_HEADROOM))} min, or finish instead.`;
 }
 
 /**
@@ -148,7 +148,7 @@ export function planReviewWaitMs({
  * The middle of a set of measured milliseconds, in whole minutes — null until something has
  * been measured. A run used to size every worker on the assumption that a round takes eight
  * minutes; the rounds of one real night took nine to forty-six, so every second-round worker
- * began a round it could not finish. This is what a round actually costs on this game.
+ * began a round it could not finish. This is what a round actually costs on this project.
  */
 export function medianMinutes(samples: readonly number[] | null | undefined): number | null {
   const sorted = [...(samples ?? [])].filter((ms) => Number.isFinite(ms) && ms > 0).sort((a, b) => a - b);

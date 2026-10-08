@@ -50,7 +50,7 @@ test("a file skill reaches the facts as an index entry naming the tool that read
     };
     manifest.skills = [
       ...manifest.skills,
-      { name: "card", summary: "How to play the card game.", file: "card.md", references: ["ref.md"] },
+      { name: "card", summary: "How to play the card project.", file: "card.md", references: ["ref.md"] },
     ];
     const plugin = { manifest, enabled: true, removed: false } as PluginInfo;
     const connections = { sources: [] } as unknown as ConnectionSnapshot;
@@ -59,7 +59,7 @@ test("a file skill reaches the facts as an index entry naming the tool that read
       const [entry] = JSON.parse(facts.split("\n\n")[2] ?? "{}").plugins;
       assert.deepEqual(
         entry.skills.at(-1),
-        { name: "card", summary: "How to play the card game.", readWith: "cards__skill" },
+        { name: "card", summary: "How to play the card project.", readWith: "cards__skill" },
         audience,
       );
       assert.equal(entry.skills[0].name, "greeting", "an inline skill keeps its text");
@@ -69,10 +69,10 @@ test("a file skill reaches the facts as an index entry naming the tool that read
         "the skill tool is listed with the builders' tools",
       );
       assert.doesNotMatch(facts, new RegExp(sentinel));
-      assert.doesNotMatch(facts, /for this game/, "a plugin is enabled for every game, not this one");
+      assert.doesNotMatch(facts, /for this project/, "a plugin is enabled for every project, not this one");
     }
     const conversation = planningCapabilities(1, [plugin], connections, [], false, CapabilityAudience.Conversation);
-    assert.match(conversation, /enabled for all games/);
+    assert.match(conversation, /enabled for all projects/);
   } finally {
     await rm(base, { recursive: true, force: true });
   }

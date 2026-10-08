@@ -131,7 +131,7 @@ export function BuildCapture({
       )}
       {frame?.caption ? (
         <span className="text-micro leading-relaxed text-ink-3">
-          {frame.caption} · A screenshot does not establish that gameplay checks passed.
+          {frame.caption} · A screenshot does not establish that interaction checks passed.
         </span>
       ) : null}
     </div>

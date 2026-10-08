@@ -4,7 +4,7 @@
  * "It renders" is not "it's fun", and a screenshot alone is a weak signal in 3D. So the studio
  * always has two channels: pixels (screenshots at named camera angles) and structure
  * (`__studio.state()` probes, console errors, fps). Hands (keys, look, click) are how it
- * *plays* the game instead of watching the clock.
+ * *plays* the project instead of watching the clock.
  */
 import { applyPlayScript, CONTROL_EXERCISE, shotToImage } from "../loop/play-script.ts";
 import type { AnyRecord, HarnessTool } from "../types/harness.d.ts";
@@ -37,7 +37,7 @@ function keysToPress(args: AnyRecord): string[] {
 export const tools: HarnessTool[] = [
   {
     name: "load_preview",
-    description: "Load a game project into the built-in browser.",
+    description: "Load a project project into the built-in browser.",
     parameters: { type: "object", properties: { project: str("project id") }, required: ["project"] },
     async execute(args, ctx) {
       const url = await ctx.call(HostMethod.PreviewLoad, { project: args.project });
@@ -51,7 +51,7 @@ export const tools: HarnessTool[] = [
     parameters: { type: "object", properties: {} },
     async execute(_args, ctx) {
       await ctx.call(HostMethod.PreviewReload, {});
-      // A reload answers the moment the navigation starts, not when the game is on screen: a
+      // A reload answers the moment the navigation starts, not when the project is on screen: a
       // screenshot taken straight after it photographs a page that has drawn nothing. Wait for
       // the page to say it is ready, and say how long it took — or that it never did.
       const ready = await ctx.call(HostMethod.PreviewReady, {}).catch(() => null);
@@ -70,7 +70,7 @@ export const tools: HarnessTool[] = [
   {
     name: "screenshot",
     description:
-      "Capture what the game looks like right now. You will see the picture on the next round — a path is not a picture. Pass a camera name to compare like with like across builds.",
+      "Capture what the project looks like right now. You will see the picture on the next round — a path is not a picture. Pass a camera name to compare like with like across builds.",
     parameters: {
       type: "object",
       properties: {
@@ -98,7 +98,7 @@ export const tools: HarnessTool[] = [
   {
     name: "press_keys",
     description:
-      "Press keys in the game preview the way a player would (WASD, Space, arrows). Hold with holdMs. Then look at a screenshot — 'I added WASD' is not a fact until the player moved.",
+      "Press keys in the project preview the way a player would (WASD, Space, arrows). Hold with holdMs. Then look at a screenshot — 'I added WASD' is not a fact until the player moved.",
     parameters: {
       type: "object",
       properties: {
@@ -126,7 +126,7 @@ export const tools: HarnessTool[] = [
   {
     name: "click",
     description:
-      "Click in the game preview. Omit x,y to click the centre. Values between 0 and 1 are a fraction of the view.",
+      "Click in the project preview. Omit x,y to click the centre. Values between 0 and 1 are a fraction of the view.",
     parameters: {
       type: "object",
       properties: {
@@ -147,7 +147,7 @@ export const tools: HarnessTool[] = [
 
   {
     name: "look",
-    description: "Mouse-look in the game preview (dx/dy in pixels). Positive dx looks right, negative dy looks up.",
+    description: "Mouse-look in the project preview (dx/dy in pixels). Positive dx looks right, negative dy looks up.",
     parameters: {
       type: "object",
       properties: {
@@ -167,9 +167,9 @@ export const tools: HarnessTool[] = [
   },
 
   {
-    name: "game_state",
+    name: "project_state",
     description:
-      "Read window.__studio.state() — score, phase, entity counts, fps, and any probes the game exposes. The structural half of judging.",
+      "Read window.__studio.state() — score, phase, entity counts, fps, and any probes the project exposes. The structural half of judging.",
     parameters: { type: "object", properties: {} },
     async execute(_args, ctx) {
       const state = await ctx.call(HostMethod.PreviewState, {});
@@ -220,7 +220,7 @@ export const tools: HarnessTool[] = [
 
   {
     name: "console_log",
-    description: "Read the game's console output and errors.",
+    description: "Read the project's console output and errors.",
     parameters: { type: "object", properties: { sinceMs: { type: "number", description: "epoch ms" } } },
     async execute(args, ctx) {
       const entries = await ctx.call(HostMethod.PreviewConsole, { sinceMs: args.sinceMs ?? 0 });

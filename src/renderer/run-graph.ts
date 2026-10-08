@@ -15,7 +15,7 @@ import type { RunGraphEvent } from "../shared/run-graph-events.ts";
 import { CustomEvent } from "../shared/custom-events.ts";
 import { HOUR_MS } from "../shared/duration.ts";
 import type { EventEnvelope } from "../shared/event-log.ts";
-import type { ProjectAsset, ProjectAssets } from "../shared/game-assets.ts";
+import type { ProjectAsset, ProjectAssets } from "../shared/project-assets.ts";
 import { normalizeOptimization, type OptimizationResultV1 } from "../shared/optimization.ts";
 import {
   executionStep,
@@ -305,7 +305,7 @@ export interface BaseNode {
   empty?: boolean;
   outages: number;
   /**
-   * There was never a shared base to build: a lead's night that started from the game as it
+   * There was never a shared base to build: a lead's night that started from the project as it
    * stands. Without this the card pulses "Building the ground every part starts from…" all
    * night, because `autopilot_base` — which only a base stage emits — never arrives.
    */
@@ -398,7 +398,7 @@ export interface FinalNode {
   }>;
   /** The night's own report to the user, in its words — `reportSummary` says where it comes from. */
   summary: string | null;
-  /** Did the run's merged build reach the live game folder (null until the run closes)? */
+  /** Did the run's merged build reach the live project folder (null until the run closes)? */
   landed: boolean | null;
   /** The merged build's commit — playable and landable after the run, landed or not. */
   integrationHead: string | null;
@@ -430,8 +430,8 @@ export type AssetState = "requested" | "generating" | "delivered" | "failed";
 export interface AssetInfo {
   /** the Assets stage's record of this asset, for its thumbnail; set by the Builds page */
   preview?: ProjectAsset;
-  /** a copy is in the game itself, not only in a build workspace */
-  inGame?: boolean;
+  /** a copy is in the project itself, not only in a build workspace */
+  inProject?: boolean;
   generationId?: string;
   name: string;
   file: string | null;
@@ -457,7 +457,7 @@ export interface AssetInfo {
   /** the id a delivery joins on; null until the plugin names one */
   jobId: string | null;
   state: AssetState;
-  /** game-relative paths that landed, once they have */
+  /** project-relative paths that landed, once they have */
   files: string[];
   /** the arguments digest the host wrote, and the two fields worth their own line */
   args: string;
@@ -465,7 +465,7 @@ export interface AssetInfo {
   operation: string | null;
   /** the bare tool name the plugin declared (`asset`) */
   tool: string | null;
-  /** the latest in-game check of this asset (`inspect_use`/`verify_use`), when one ran */
+  /** the latest in-project check of this asset (`inspect_use`/`verify_use`), when one ran */
   check?: { ok: boolean; error: string | null; at: string };
   /** plugin work done on this asset (a Blender inspection or re-export): a step, not a new asset */
   derived?: Array<{
@@ -591,7 +591,7 @@ interface GraphDraft {
   runId: string;
   run: RunNode;
   base: BaseNode;
-  /** a new-game run announced its base stage (`autopilot_base_started`) */
+  /** a new-project run announced its base stage (`autopilot_base_started`) */
   baseStarted: boolean;
   integration: IntegrationNode;
   final: FinalNode;
@@ -1356,7 +1356,7 @@ function isDecided(status: IterationStatus): boolean {
 
 function assembleGraph(graph: GraphDraft): RunGraph {
   const { run, base, runId } = graph;
-  // Existing-game director runs reuse the starting world. A new-game run explicitly announces
+  // Existing-project director runs reuse the starting world. A new-project run explicitly announces
   // its base before delegation; keep that stage pending until its checks arrive. Without either
   // base event, do not invent a base stage that may never run.
   const baseNeverAnnounced = !base.done && !graph.baseStarted;
@@ -1675,10 +1675,10 @@ export interface Rect extends Size {
 }
 
 /**
- * Each asset job of the graph joined to the game's asset inventory: the inventory's record of it
+ * Each asset job of the graph joined to the project's asset inventory: the inventory's record of it
  * (by job id, the remote generation id, else one of its files) for its thumbnail, and whether a
- * copy is in the game itself rather than only in a build workspace. An inventory entry with no
- * delivery record is a plain file walked in the game folder itself.
+ * copy is in the project itself rather than only in a build workspace. An inventory entry with no
+ * delivery record is a plain file walked in the project folder itself.
  */
 export function joinAssetInventory(nodes: GraphNode[], inventory: ProjectAssets | null): GraphNode[] {
   return nodes.map((node) =>
@@ -1693,11 +1693,11 @@ function joinJob(job: AssetInfo, inventory: ProjectAssets | null): AssetInfo {
     return Boolean(job.generationId) && a.generationId === job.generationId;
   };
   const asset = inventory?.assets.find(ofJob) ?? inventory?.assets.find((a) => job.files.includes(a.file));
-  return { ...job, preview: asset, inGame: asset ? inGameCopy(asset) : undefined };
+  return { ...job, preview: asset, inProject: asset ? inProjectCopy(asset) : undefined };
 }
 
-/** A delivered asset is in the game when a present copy is the project's; a walked file with no delivery record is. */
-function inGameCopy(asset: ProjectAsset): boolean {
+/** A delivered asset is in the project when a present copy is the project's; a walked file with no delivery record is. */
+function inProjectCopy(asset: ProjectAsset): boolean {
   const copies = asset.availability?.deliveries.filter((d) => d.present);
   return copies ? copies.some((d) => d.scope === "project") : !asset.assetRef;
 }
@@ -1705,7 +1705,7 @@ function inGameCopy(asset: ProjectAsset): boolean {
 /**
  * The graph the Builds tab draws: the run's recorded summary restored over the live log (its
  * graph events when it carries them, its run folder), a skipped optimisation left out, and the
- * asset jobs joined to the game's inventory.
+ * asset jobs joined to the project's inventory.
  */
 export function buildsView(supplied: RunGraph, summary: RunSummary | null, inventory: ProjectAssets | null): RunGraph {
   const restored = summary?.graphEvents ? (buildRunGraph(summary.graphEvents) ?? supplied) : supplied;

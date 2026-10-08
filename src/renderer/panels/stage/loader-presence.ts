@@ -1,7 +1,7 @@
 /**
  * When the stage's loader shows. A load that finishes within the first moments shows nothing (the
  * app's own rule for waits, `ui/Pending.tsx`); one that shows the loader keeps it up long enough
- * to be read, then fades it out before the game is uncovered, because the native game view cannot
+ * to be read, then fades it out before the project is uncovered, because the native project view cannot
  * fade in itself.
  */
 import { useEffect, useRef, useState } from "react";
@@ -11,7 +11,7 @@ import { SECOND_MS } from "../../../shared/duration.ts";
 export const LOADER_DELAY_MS = 0.4 * SECOND_MS;
 /** A loader that shows stays at least this long. */
 export const LOADER_MIN_MS = 0.6 * SECOND_MS;
-/** Its fade out, before the game is uncovered. */
+/** Its fade out, before the project is uncovered. */
 export const LOADER_FADE_MS = 0.15 * SECOND_MS;
 
 /** Where the loader is: not there, waiting out the delay, shown, or fading out. */

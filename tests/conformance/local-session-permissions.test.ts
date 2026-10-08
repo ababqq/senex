@@ -58,7 +58,7 @@ describe("a Bonsai chat session in the chat's mode", () => {
     replies: PermissionReply[] = [],
     onRound: (round: number, control: PermissionControl | null) => void = () => {},
   ) {
-    cwd = await mkdtemp(path.join(root, "game-"));
+    cwd = await mkdtemp(path.join(root, "project-"));
     await mkdir(cwd, { recursive: true });
     const asked: PermissionAsk[] = [];
     const answers: string[] = [];
@@ -122,7 +122,7 @@ describe("a Bonsai chat session in the chat's mode", () => {
         ["Bash", "Bonsai wants to run a command"],
       ],
     );
-    // The session works in the game folder's real path (macOS's /var is /private/var).
+    // The session works in the project folder's real path (macOS's /var is /private/var).
     const file = path.join(await realpath(cwd), "jump.js");
     assert.deepEqual(run.asked[0]!.input, { file_path: file, content: "export const jump = 1;" });
     assert.deepEqual(run.asked[1]!.input, { command: "echo ran > ran.txt" });

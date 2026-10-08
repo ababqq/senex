@@ -1,6 +1,6 @@
 /**
  * The Skills tab's sections, built without React: Studio's own skills under a label that says who
- * uses them, this game's own skills with the builders that load them, each provider's global
+ * uses them, this project's own skills with the builders that load them, each provider's global
  * skills with a note chosen by whether they reach builders, and the plugins' skills by their line.
  */
 import { test } from "node:test";
@@ -9,7 +9,7 @@ import type { PluginInfo, PluginManifest } from "../../src/shared/plugins.ts";
 import { ProviderBuilderUse, type ProviderSkillInventory } from "../../src/shared/provider-skills.ts";
 import { EngineId } from "../../src/shared/providers.ts";
 import {
-  gameSkillsSection,
+  projectSkillsSection,
   pluginSkillRows,
   providerNote,
   skillChangeWords,
@@ -88,8 +88,8 @@ test("the Codex note follows whether its builders load these skills", () => {
   assert.notEqual(providerNote(codex(ProviderBuilderUse.NotLoaded)), notes[0]);
 });
 
-test("this game's skills name the builders that load them, and an empty game says so", () => {
-  const section = gameSkillsSection({
+test("this project's skills name the builders that load them, and an empty project says so", () => {
+  const section = projectSkillsSection({
     project: "demo",
     skills: [
       {
@@ -109,7 +109,7 @@ test("this game's skills name the builders that load them, and an empty game say
     ],
     warnings: [],
   });
-  assert.equal(section.id, SkillsSection.Game);
+  assert.equal(section.id, SkillsSection.Project);
   assert.deepEqual(
     section.rows.map((r) => [r.name, r.line, r.tag]),
     [
@@ -118,7 +118,7 @@ test("this game's skills name the builders that load them, and an empty game say
     ],
   );
   assert.equal(section.rows[0]?.skill.provider, section.title);
-  assert.ok(gameSkillsSection({ project: "demo", skills: [], warnings: [] }).empty);
+  assert.ok(projectSkillsSection({ project: "demo", skills: [], warnings: [] }).empty);
 });
 
 test("a plugin's last skill change names what it added, changed and removed", () => {

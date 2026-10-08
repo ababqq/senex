@@ -91,10 +91,10 @@ async function acceptance() {
     await until(`!!document.querySelector('nav [data-thread="studio"]')`);
     await click('nav [data-thread="studio"]');
     check(
-      "feed loads runs from both games beyond the bootstrap tail",
+      "feed loads runs from both projects beyond the bootstrap tail",
       await until(`document.querySelectorAll('[data-activity-kind="run"]').length===3`),
     );
-    check("Studio hides native game", !nativeVisible());
+    check("Studio hides native project", !nativeVisible());
     check(
       "Studio composer offers images, one model menu and Send",
       await js(
@@ -350,26 +350,26 @@ async function acceptance() {
     check(
       "an expanded run says plainly what it delivered",
       await until(
-        `document.querySelector('[data-activity-kind="run"] .disclosure-body[data-open="true"]')?.textContent.includes('Your game is as you left it')`,
+        `document.querySelector('[data-activity-kind="run"] .disclosure-body[data-open="true"]')?.textContent.includes('Your project is as you left it')`,
       ),
     );
     check(
       "an expanded run shows its result and actions, not the technical report",
       await js(
-        `!document.querySelector('[data-activity-kind="run"] [data-testid="run-outcome"]') && !document.querySelector('[data-activity-kind="run"] .disclosure-body button.chat-disclosure') && !!document.querySelector('[aria-label="Open game chat for Ashlands walk"]')`,
+        `!document.querySelector('[data-activity-kind="run"] [data-testid="run-outcome"]') && !document.querySelector('[data-activity-kind="run"] .disclosure-body button.chat-disclosure') && !!document.querySelector('[aria-label="Open project chat for Ashlands walk"]')`,
       ),
     );
     await capture("studio-run-details");
     await type("Keep this Studio draft");
-    await click('[aria-label="Open game chat for Ashlands walk"]');
+    await click('[aria-label="Open project chat for Ashlands walk"]');
     check(
-      "Open game chat navigates to the run’s game",
+      "Open project chat navigates to the run’s project",
       await until(
         `document.querySelector('[data-studio-state]')?.dataset.room==='build' && document.querySelector('[data-chat-header]').textContent.includes('Ashlands walk')`,
       ),
     );
     check(
-      "game composer retains its model and tool controls",
+      "project composer retains its model and tool controls",
       await js(
         `!!document.querySelector('[data-promptbar] [aria-label="Model settings"]') && !document.querySelector('[data-studio-composer]')`,
       ),

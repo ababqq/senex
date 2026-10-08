@@ -27,7 +27,7 @@ export interface BriefInput {
 
 /** The line every brief ends on: a build nobody can judge is a loss. */
 const JUDGEABLE = [
-  `When you are done, make sure the game still loads and window.__studio still works —`,
+  `When you are done, make sure the project still loads and window.__studio still works —`,
   `a build that cannot be judged counts as a loss.`,
 ];
 
@@ -77,8 +77,8 @@ function firstPlayableBrief(run: BriefRun): string {
     ambitionFor(run),
     ``,
     `Build the first playable version. Architecture is yours. It must load, expose window.__studio,`,
-    `and look like a game from the default camera toward that feeling/bar — AAA/photoreal if that is`,
-    `what was asked. A cube on a plane is not a game.`,
+    `and look like a project from the default camera toward that feeling/bar — AAA/photoreal if that is`,
+    `what was asked. A cube on a plane is not a project.`,
     `Sample input in update() from ctx.keys / ctx.look so the critic can drive WASD while paused.`,
     ...JUDGEABLE,
   ].join("\n");
@@ -94,7 +94,7 @@ function integrationBrief(run: BriefRun, iteration: number, biggestGap: string):
     `leftover feel, the camera, the one verb. The last blind gap was:`,
     biggestGap,
     ``,
-    `When you are done, make sure the game still loads and window.__studio still works.`,
+    `When you are done, make sure the project still loads and window.__studio still works.`,
   ].join("\n");
 }
 

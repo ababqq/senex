@@ -15,15 +15,15 @@ export function useShellShortcuts(
   navigation: Navigation,
   composer: RefObject<PromptBarHandle | null>,
 ): void {
-  const { records: threads, activeThreadId, games } = useRailView();
-  const railIds = useMemo(() => railThreadIds(threads, games), [threads, games]);
+  const { records: threads, activeThreadId, projects } = useRailView();
+  const railIds = useMemo(() => railThreadIds(threads, projects), [threads, projects]);
   useAppShortcuts({
     blocked: dialogs.state.picked !== null,
     search: () => dialogs.dispatch({ type: "search" }),
     toggleSidebar: chrome.toggleSidebar,
     closeDrawer: chrome.closeDrawer,
-    newGame: navigation.newGame,
-    returnToGame: navigation.returnToGame,
+    newProject: navigation.newProject,
+    returnToProject: navigation.returnToProject,
     enterStudio: navigation.enterStudio,
     focusComposer: () => composer.current?.focus(),
     stepRail: (step) => {

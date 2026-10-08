@@ -9,7 +9,7 @@
  * `path.relative(realRoot, realTarget)` may not climb out or be absolute. `/vendor/**` maps to
  * the app's `resources/vendor`, the three.js the template's import map names; a vendor folder that
  * does not exist is a typed refusal (`vendor-missing`), never a quiet fall-through to the snapshot,
- * which would fail every template game's boot. A Host header that is not this server is refused, so
+ * which would fail every template project's boot. A Host header that is not this server is refused, so
  * a page elsewhere cannot rebind a name onto it.
  */
 import { createReadStream } from "node:fs";
@@ -43,7 +43,7 @@ const COPY_NAME_LENGTH = 16;
 /** The type a file with an unknown extension is served as; `nosniff` keeps it inert. */
 const DEFAULT_MIME = "application/octet-stream";
 
-/** Content types by extension: everything a web game ships, from modules to compressed textures. */
+/** Content types by extension: everything a web project ships, from modules to compressed textures. */
 export const MIME_TYPES: Readonly<Record<string, string>> = {
   ".html": "text/html; charset=utf-8",
   ".htm": "text/html; charset=utf-8",
@@ -128,7 +128,7 @@ export interface StaticServerOptions {
   servedVia: ServedVia;
   /** How the copy's build typed a snapshot with no page (`PreparedCopy.noBuild`); null by default. */
   noBuild?: NoBuild | null;
-  /** The query the entry is opened with (`genex_local_test=1` for a Genex game), without `?`. */
+  /** The query the entry is opened with (`genex_local_test=1` for a Genex project), without `?`. */
   entryQuery?: string;
   /** 0 (the default) picks a free port. */
   port?: number;

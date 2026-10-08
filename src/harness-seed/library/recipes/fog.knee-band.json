@@ -35,7 +35,7 @@
       "note": "learned over run_mthlnp75kmex, night-light, 8 rejections: separate thin layer 0–1.2 m, opacity ≤ ~0.3, global FogExp2 ≤ 0.008; floor / mist band / clear air / sky"
     },
     {
-      "source": "skills/game-contract.md (deployed, 1 Sep 2026)",
+      "source": "skills/project-contract.md (deployed, 1 Sep 2026)",
       "note": "keep a low ground-fog band as a separate pass from volumetric fog (older 0–2 m, opacity 0.3–0.5 superseded by the tighter rule); try/catch volumetric passes"
     },
     {

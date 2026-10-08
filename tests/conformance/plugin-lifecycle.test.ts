@@ -95,7 +95,7 @@ test("an update removes the package copy it replaced", async () => {
     assert.match(copies[0]!, /^1\.1\.0-/);
     assert.deepEqual(
       await f.registry.tool("example__greet", { name: "Ada" }, f.binding),
-      { text: "Hello Ada", project: "game" },
+      { text: "Hello Ada", project: "project" },
       "the running version is the one kept",
     );
   } finally {
@@ -152,7 +152,7 @@ test("start-up sweeps copies no record points to and staging leftovers, but neve
       assert.equal(next.list().find((p) => p.manifest.id === "dropped")?.unlisted, true);
       assert.deepEqual(await next.tool("example__greet", { name: "Ada" }, f.binding), {
         text: "Hello Ada",
-        project: "game",
+        project: "project",
       });
     } finally {
       next.cancel();

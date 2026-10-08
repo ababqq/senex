@@ -19,7 +19,7 @@ import {
   manifestDisagreements,
   splitVendoredSkill,
 } from "../../scripts/refresh-genex-skills.ts";
-import { GENEX_GAME_PACKAGES } from "../../src/shared/genex.ts";
+import { GENEX_PROJECT_PACKAGES } from "../../src/shared/genex.ts";
 import type { PluginManifest } from "../../src/shared/plugins.ts";
 import { inspectPackage } from "../../src/substrate/plugins/manifest.ts";
 import { tmpDir } from "../helpers/tmp.ts";
@@ -90,7 +90,7 @@ test("Studio's multiplayer package pin satisfies the range the multiplayer card 
   const card = await readFile(path.join(CARDS, "genex-threejs-multiplayer", "SKILL.md"), "utf8");
   const asked = /npm i @genex-ai\/multiplayer@\^(\d+)\.(\d+)\.(\d+)/.exec(card);
   assert.ok(asked, "the card names a caret range");
-  const [major, minor, patch] = GENEX_GAME_PACKAGES["@genex-ai/multiplayer"].split(".").map(Number);
+  const [major, minor, patch] = GENEX_PROJECT_PACKAGES["@genex-ai/multiplayer"].split(".").map(Number);
   // A caret range below 1.0.0 is minor-locked: same major and minor, patch at least the one asked.
   assert.equal(major, Number(asked[1]));
   assert.equal(minor, Number(asked[2]));

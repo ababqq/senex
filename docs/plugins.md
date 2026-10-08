@@ -9,7 +9,7 @@ Genex account. No connector credentials enter the composer. See [connections and
 
 Plugins contribute tools, skills, standard settings, isolated interactive panels and, since API 2,
 buttons in the stage strip beside Live/Builds and MCP servers the host runs as connectors they own. Genex is bundled and enabled by default. Enablement
-never signs in, unlocks credentials or enables paid assets. Core game creation, previews and
+never signs in, unlocks credentials or enables paid assets. Core project creation, previews and
 exports work with no enabled plugins.
 
 ## Compatibility policy
@@ -43,7 +43,7 @@ dot-folders anywhere (`.git`, `.env`) and the scaffold's authoring files at its 
 (`AGENTS.md`, `jsconfig.json`, `tsconfig.json`, `plugin-sdk/`) are never packed, copied, fetched
 from GitHub or scanned (`isPackageEntry` in `substrate/plugins/pack.ts`). Local packages are unreviewed. Backends execute trusted native
 code; a child process is crash isolation, not an OS security sandbox — the trust dialog says so.
-Never load a package merely because an agent placed it in a game. Agents cannot install, enable,
+Never load a package merely because an agent placed it in a project. Agents cannot install, enable,
 update, allow or approve plugins.
 
 The curated catalog is an app-owned `catalog.json` containing exact manifests, HTTPS artifact
@@ -163,7 +163,7 @@ wears its plugin's icon on the plugin's page.
 ### Skills
 
 A skill is guidance for agents, contributed while the plugin is enabled and withdrawn the moment
-it is not. Studio serves it from the installed package and never writes it into a game folder
+it is not. Studio serves it from the installed package and never writes it into a project folder
 (no `.claude`, `.agents` or `AGENTS.md`).
 
 - **Inline** `{name, text}` (API 1): every builder brief carries the whole text after a
@@ -225,8 +225,8 @@ tools (`delegation-prompts.ts`).
   most 16 keys) — pressed, it runs the same review → ticket → native approval sequence as the
   Plugins page — or `{kind: "panel", id}` naming a declared panel, which opens as a dialog over
   the stage (`role="dialog"`, labelled with the panel title, closed by a button reading
-  `Close <title>`); the native game view is hidden while it is open.
-- `requiresProject` (default `true`) hides the button until a game is loaded.
+  `Close <title>`); the native project view is hidden while it is open.
+- `requiresProject` (default `true`) hides the button until a project is loaded.
 - Buttons render as `button[data-plugin-toolbar="<plugin>:<item>"]` immediately after the
   Live/Builds group, for enabled installed plugins only; a disabled, removed or not-enabled plugin
   contributes nothing.
@@ -237,7 +237,7 @@ debounced to once per second, and every 30 s while a project is open. It returns
 `PluginToolbarStatus` — `{badge?, disabled?, title?, tone?: ok | warn | err | info, attention?}` —
 sanitized by `toolbarStatusFrom` (badge ≤ 16 characters, title ≤ 120, unknown tones dropped,
 `attention` a boolean). A button is drawn in the prompt bar's quiet pill fill, or in the accent while
-its status sets `attention` (the action is due) and the game is not empty; Genex's Publish uses
+its status sets `attention` (the action is due) and the project is not empty; Genex's Publish uses
 only `title` and `attention`. A backend can also push a status without being asked through
 `events.emit` with `{kind: "toolbar", item, badge, tone, title, attention}`; the renderer applies it
 to that item, or re-asks the status action when the item is not named.
@@ -330,7 +330,7 @@ The bridge is bundled with its dependencies and exits when its host pipe closes.
 `GENEX_BLENDER_URL` from the `blender-url` setting, `GENEX_API_URL` as a literal (the same API base
 the asset adapter spawns the CLI with), `GENEX_ENV_FILE` as `credential-file`,
 `requires: {credential: true, settings: ["blender-url"]}` and `blender_export_glb` denied, because
-that tool writes to a caller-supplied absolute path; finished models reach a game through the
+that tool writes to a caller-supplied absolute path; finished models reach a project through the
 contained asset tools. The endpoint is a requirement rather than a preference because without one
 the CLI can list tools that only answer with a setup hint. The independent Local Blender plugin
 remains available alongside a ready remote connector. Local jobs start from an empty scene;
@@ -359,7 +359,7 @@ forge them, and cannot suppress them by staying quiet.
 ## The tool consent model
 
 A tool declared with `confirmation` is an agent-invoked tool that spends, publishes or otherwise
-acts beyond the game folder. The host — never the plugin, never the agent — asks the user:
+acts beyond the project folder. The host — never the plugin, never the agent — asks the user:
 
 - The registry's `consent` hook is called with the plugin id, the tool declaration, the arguments
   and the binding before the backend sees the call. When Studio has no way to ask (no hook in
@@ -406,7 +406,7 @@ finds none of the user's tools (Genex's publish found no Homebrew `git-lfs` ther
 Available services are capability checked and scoped to the calling plugin:
 
 - `settings.read`: defaults plus host-owned settings; edits come from Studio's standard controls.
-- `storage.root`: plugin-owned durable storage, outside games and exports.
+- `storage.root`: plugin-owned durable storage, outside projects and exports.
 - `project.read` / `project.write`: relative files in the bound worktree; private/internal paths
   and traversal are refused. Existing parent directories are required for writes.
 - `assets.deliver`: copy plugin-owned output into a unique project asset directory, refusing
@@ -417,14 +417,14 @@ Available services are capability checked and scoped to the calling plugin:
 - `jobs.read` / `jobs.write`: durable provider references, not a credit ledger.
 - `events.emit`: sanitized progress to Studio, with host-bound project/thread attribution. A
   payload of kind `toolbar` is a toolbar status update (see above).
-- `observe`: current game loading/capture/audio evidence for authorized local files.
-- `export.stage` (capability `export`, API 2): Studio writes the public export of the bound game
+- `observe`: current project loading/capture/audio evidence for authorized local files.
+- `export.stage` (capability `export`, API 2): Studio writes the public export of the bound project
   under the plugin's own storage (`publish/<project>/dist`) and returns the export result; it
   needs a project binding and is `Export unavailable` in sessions without the host export. The
-  target is Studio's, never the game folder: the plugin names no path and the same audited
+  target is Studio's, never the project folder: the plugin names no path and the same audited
   exporter the Export button uses does the copying. The copy carries no package.json, so the
-  result's `genex` field holds what the game's own one tells Genex (its Genex SDK versions and
-  `genex` settings), read only when that file lives inside the game.
+  result's `genex` field holds what the project's own one tells Genex (its Genex SDK versions and
+  `genex` settings), read only when that file lives inside the project.
 - `credentials.read/write/clear`: plugin-scoped protected storage. Reserved account actions
   `unlock`, `connect`, `disconnect` authorize these operations; agents cannot invoke actions.
   Cache unlocked credentials only in the backend session. Background status must never unlock.
@@ -650,11 +650,11 @@ Genex:
 - Core reads Genex job folders under `engine-homes/genex/projects/*/jobs` for the Assets inventory
   and provenance, resolves `@genex/` retained-asset references, and serves one saved inspection
   frame through the `genex-inspection` scope of `readProjectAsset`.
-- A game using `@genex-ai/embed-sdk` is previewed with `?genex_local_test=1`.
+- A project using `@genex-ai/embed-sdk` is previewed with `?genex_local_test=1`.
 - `tools[].host` (API 3, id `genex`, source `bundled`, else refused before any hook runs) names a
   program Studio runs for the tool through the registry's `hostTool` hook. `genex-cli` backs
   `genex__cli` and `genex-cli-paid` backs `genex__cli-paid`: Studio's pinned CLI runs in
-  ProcessSandbox in a fresh `<userData>/genex-cli/<id>` folder (also its `HOME`), never a game
+  ProcessSandbox in a fresh `<userData>/genex-cli/<id>` folder (also its `HOME`), never a project
   folder, so the CLI's skill sync and contract healing touch only that folder, which is removed
   afterwards. `main/core/genex-cli-policy.ts` allows doctor, budget, `llm models|status|cancel`
   and `shop list` free, and `llm bench` and `shop add|set|remove|test` paid; everything else,
@@ -663,12 +663,12 @@ Genex:
   `--api-url https://api.genex.games`, `--no-auth` and `--json`, and `--user-approved` only for an
   approved bench. The consent card shows Studio's summary of the validated call (the command, what
   it spends first, the agent's text last and clipped), and a call Studio would refuse asks nobody. The token reaches the
-  preload on stdin; the network is `api.genex.games` only; the games root and every game are
+  preload on stdin; the network is `api.genex.games` only; the projects root and every project are
   write-denied; a run stops after 90 s; output is redacted and capped at 64 KiB. A project
   command sees only `{id, slug}` from the publish workspace. `genex-package` backs
   `genex__package`: it adds `@genex-ai/multiplayer` or `@genex-ai/embed-sdk` at the exact pin in
-  `GENEX_GAME_PACKAGES` (`shared/genex.ts`) with the game's package manager, only in the bound
-  game or a git worktree of it under Studio's scratch (by realpath), never in a template game
+  `GENEX_PROJECT_PACKAGES` (`shared/genex.ts`) with the project's package manager, only in the bound
+  project or a git worktree of it under Studio's scratch (by realpath), never in a template project
   with no `package.json`. The paid tool and the package tool need consent; fixture profiles refuse
   both host steps (`studio:plugins.host-cli`, `studio:plugins.host-package`).
 - Genex's guide and seven platform cards are vendored behind Studio-written prefaces in
@@ -691,7 +691,7 @@ official ids.
 - Agent behavior extension points: orchestration, judges and learning hooks. These need a
   separate authority/evaluation design; API 3 still registers none of them.
 - Studio-owned asset canvas: implemented as the Assets stage tab over plugin-neutral metadata
-  (the host ledger, read-only plugin job records and the game's own assets folders). Interactive
+  (the host ledger, read-only plugin job records and the project's own assets folders). Interactive
   3D viewing and model/audio thumbnails remain deferred.
 - Strong OS sandboxing for arbitrary backend publishers is not claimed by this trusted-code host.
 
@@ -783,7 +783,7 @@ opening `[role="dialog"][aria-label="SDK demo"] iframe[sandbox="allow-scripts"]`
 `window.studio`, `require` or `process`; the exact `Close SDK demo` button closing it; and the
 button disappearing on `setEnabled('example', false)` and returning on re-enable through the real
 `plugins.changed` event, never a synthetic push. The Genex publish checks sit in the same block:
-`button[aria-label="Publish game"]` present while Genex is enabled, its click opening Studio's own
+`button[aria-label="Publish project"]` present while Genex is enabled, its click opening Studio's own
 `[role="dialog"][aria-label="Publish to the web"]` with `[data-genex-publish-status]` and no frame, the ticketed
 `publish-draft` approval refused with `unsupported-in-fixture`, Publish staying with
 `setEnabled('genex', false)` as Studio's own button whose dialog offers Turn on Genex plugin, and Genex's
@@ -795,7 +795,7 @@ drives the host on a lite core (who asks, forged threads and rows, withdrawal, m
 `tool-permissions`, `permission-store`, `permission-words` and `permission-entries` the pure parts.
 
 `plugin-consent.test.ts` pins the consent ledger on its own: approve, decline, the timeout
-(`by: 'timeout'`), a turn's end and a game's Stop settling only the questions in their scope, an
+(`by: 'timeout'`), a turn's end and a project's Stop settling only the questions in their scope, an
 unknown or already-settled id resolving to `false`, and the turn's abort signal withdrawing a
 question as a stop. `genex-plumbing.test.ts` pins the runtime across every agent path
 (claude-code, codex and the local harness registry): a pending `plugin_consent` card appears, the
@@ -807,15 +807,15 @@ timeout, by Stop and by the end of a turn.
 `genex-plugin-cli.test.ts` publishes for real against the pinned CLI with a local http fixture
 API, a `file://` bare repo as the managed source remote and a no-op `git-lfs` shim on `PATH` (it
 skips itself when git is absent, and the shim satisfies the pre-check that keeps the CLI from
-trying to install git-lfs): the hosted `project.json` lands under Studio storage, the game folder
+trying to install git-lfs): the hosted `project.json` lands under Studio storage, the project folder
 gains no `.genex`, `index.html` is uploaded, `refs/heads/preview` is pushed, one Publish press
-deploys once to the draft page, promotes that build and lists the game, a second press deploys and
+deploys once to the draft page, promotes that build and lists the project, a second press deploys and
 promotes without listing again or creating a second project, and a draft alone promotes nothing. The same test first runs a
 publish on a `PATH` where `git lfs version` fails, and pins the refusal: no job is started and the
 CLI is never spawned, because its `pushSource` would otherwise `brew install git-lfs`. **No live Genex publish, preview or promote is ever run
 in verification** — no real account, no real upload, no paid generation. Retain all existing Genex accounting/recovery
 tests; the source adapter re-export lets those tests exercise the extracted implementation
-unchanged. Verify installed, disabled and removed Genex in the packaged application; existing game
+unchanged. Verify installed, disabled and removed Genex in the packaged application; existing project
 assets remain ordinary files. A fixture `assets.deliver` must leave an `asset_delivered` event in
 the project's log and a card on the Assets tab; no paid generation is needed for either. Use
 fixture accounts and existing assets, with no additional paid generation.

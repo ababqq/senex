@@ -7,7 +7,7 @@
  * window: zero errors is also what a page that never scheduled a frame produces.
  *
  * The frame rate is a LOWER BOUND (screenshots and the mirror readback steal time from the render
- * loop) and never a quality score. On a software rasteriser it cannot be attributed to the game, so
+ * loop) and never a quality score. On a software rasteriser it cannot be attributed to the project, so
  * the row never gates there (`fpsRowsGate`).
  */
 import { SECOND_MS } from "../../../../src/shared/duration.ts";
@@ -120,7 +120,7 @@ export function frameRateRow(snap: InstrumentSnapshot | null, mode: RendererMode
   const figures = `${fps.toFixed(1)} fps median (5th percentile ${(p05Fps ?? 0).toFixed(1)} fps) from the page's own rAF cadence`;
   if (fps >= floor) return machineRow(id, CheckResult.Pass, `${figures}.`, value, gates);
   if (!gates) {
-    const detail = `${figures}, below the ${floor} fps floor, but WebGL ran on a software rasteriser (${renderer ?? "unnamed"}): faithful per frame and slow per second, so this number cannot be attributed to the game.`;
+    const detail = `${figures}, below the ${floor} fps floor, but WebGL ran on a software rasteriser (${renderer ?? "unnamed"}): faithful per frame and slow per second, so this number cannot be attributed to the project.`;
     return machineRow(id, CheckResult.Unknown, detail, value, false);
   }
   const detail = `${figures}, below the ${floor} fps floor on ${renderer ?? "an unnamed renderer"}.`;
@@ -129,7 +129,7 @@ export function frameRateRow(snap: InstrumentSnapshot | null, mode: RendererMode
 
 /**
  * `l3.assets_usable`: the other half of `assets_arrived`. That row reads network status; this one
- * reads whether the game could use the bytes (every GLB HTTP 200, every one thrown away by a loader).
+ * reads whether the project could use the bytes (every GLB HTTP 200, every one thrown away by a loader).
  * Fails only on positive evidence and only when the page ran; L3, so it never un-scores a run.
  */
 export function assetsUsableRow(events: PageEvents, ran: PageRan): Check {

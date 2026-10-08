@@ -3,7 +3,7 @@
  * captures and computer sessions agents look through, the agent screens on the stage, and a run's
  * builds played or landed. Composed by `StudioCore`; its state stays in the core.
  */
-import { genexJobDir, isGenexInspectionFile, readContainedImage, readGenexJobs } from "../game-assets.ts";
+import { genexJobDir, isGenexInspectionFile, readContainedImage, readGenexJobs } from "../project-assets.ts";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { readFile, readdir, realpath, rm, stat, writeFile } from "node:fs/promises";
@@ -13,12 +13,12 @@ import {
   isImageFile,
   nestedForLanding,
   versionNestedForLanding,
-  type GameProject,
-} from "../../substrate/game-workspace.ts";
+  type Project,
+} from "../../substrate/project-workspace.ts";
 import type { HarnessParams, HarnessResult } from "../../shared/harness-api.ts";
 import { genexOutputFile, isGenexRef } from "../../shared/genex-ref.ts";
 import { resetToolchain } from "../../substrate/toolchain.ts";
-import { buildFailureNote, servedAfterBuild } from "../game-build.ts";
+import { buildFailureNote, servedAfterBuild } from "../project-build.ts";
 import type { BuildProblem, InstallResult } from "../../shared/build-problem.ts";
 import { describeUnknownImage, sniffImage } from "../../substrate/image-sniff.ts";
 import { claudeFolderChanges, git } from "../../substrate/snapshots.ts";
@@ -53,8 +53,8 @@ import { ReadyPhase, CaptureSurface } from "../../shared/preview-contract.ts";
 import { MINUTE_MS, SECOND_MS } from "../../shared/duration.ts";
 import { LiveGate, type LiveOffer } from "./live-gate.ts";
 import type { LiveBehindEvent } from "../../shared/live-behind.ts";
-import type { GameSoundRequest } from "../../shared/game-sound.ts";
-import { liveAudible, type LiveSound } from "../game-sound.ts";
+import type { ProjectSoundRequest } from "../../shared/project-sound.ts";
+import { liveAudible, type LiveSound } from "../project-sound.ts";
 
 /** The most cameras one capture photographs. */
 const MAX_CAPTURE_CAMERAS = 8;
@@ -100,7 +100,7 @@ const SHARED_WINDOWS: ReadonlySet<string> = new Set([LIVE_HANDLE, STAND_IN_HANDL
 const COMMIT_HASH = /^[0-9a-f]{7,40}$/i;
 /** Files under `references/` that are notes about the stills, never stills. */
 const REFERENCE_NOTE = /\.(md|txt|json)$/i;
-/** How long the stand-in stays open once the harness stops using it: a game in it keeps running. */
+/** How long the stand-in stays open once the harness stops using it: a project in it keeps running. */
 const STAND_IN_IDLE_MS = 2 * MINUTE_MS;
 
 /** Errors the user reads when a build cannot be shown or landed, and why a reference is no still. */
@@ -108,21 +108,21 @@ const MESSAGE = {
   noPreview: "no preview is attached (headless mode)",
   profilingNeedsStage: "profiling requires a stage preview",
   previewChanged: "The selected preview changed while this build was preparing. Open the build again when ready.",
-  noGameInSnapshot: "that snapshot has no game to play",
+  noProjectInSnapshot: "that snapshot has no project to play",
   sessionEnded: "the session ended before its window opened",
   notRunArtefact: (file: string) => `not a run artefact: ${file}`,
   notStill: (file: string) => `not a run artefact or a reference still: ${file}`,
   notCommitHash: (commit: string) => `"${commit}" is not a commit hash`,
   notInHistory: (commit: string, project: string) => `commit ${commit} is not in "${project}"'s history`,
   claudeFolder: (commit: string, files: string[]) =>
-    `build ${commit} changes the game's .claude folder (${files.join(", ")}), Claude Code's own settings, so it was not landed`,
+    `build ${commit} changes the project's .claude folder (${files.join(", ")}), Claude Code's own settings, so it was not landed`,
   contractorBuilding: (project: string) =>
     `a contractor is building in "${project}" right now — wait for it to finish before landing a build`,
   uncommittedEdits: (files: number) =>
-    `the game folder has uncommitted edits (${files} file(s)) — commit or discard them before landing a build`,
+    `the project folder has uncommitted edits (${files} file(s)) — commit or discard them before landing a build`,
   landingConflicted: (revision: string, excerpt: string) =>
-    `landing ${revision} conflicted with the game folder; nothing was changed (${excerpt})`,
-  noSuchGame: (project: string) => `there is no game called "${project}"`,
+    `landing ${revision} conflicted with the project folder; nothing was changed (${excerpt})`,
+  noSuchProject: (project: string) => `there is no project called "${project}"`,
   stillUnreadable: "unreadable",
   stillTooLarge: `larger than ${REFERENCE_MAX_MB} MB`,
   stillNotJudgeable: (what: string) => `${what} — the reviewers cannot read it; re-save as JPEG or PNG`,
@@ -211,7 +211,7 @@ async function placeCamera(port: PreviewPort, camera: string, placeable: boolean
 
 /** The address a load answers with when the build had nothing to serve. */
 function unservedUrl(p: { project: string; entry?: string | undefined }): string {
-  return `game://${p.project}/${p.entry ?? "index.html"}`;
+  return `project://${p.project}/${p.entry ?? "index.html"}`;
 }
 
 /** A setup's demo, run; the note when the page refused it. */
@@ -267,11 +267,11 @@ export class PreviewService {
   #standInIdle: NodeJS.Timeout | null = null;
   readonly #frames = new Map<string, PendingFrame>();
   #stageVisible = true;
-  /** The person watches a game in Live, whatever briefly covers it (the renderer's `watchingLive`). */
+  /** The person watches a project in Live, whatever briefly covers it (the renderer's `watchingLive`). */
   #liveWatched = true;
   /** Sessions looking through Live itself: only where this build opens no hidden windows. */
   #liveObservers = 0;
-  /** What the Live game's sound depends on, bar the stage and the agents that `#applySound` reads. */
+  /** What the Live project's sound depends on, bar the stage and the agents that `#applySound` reads. */
   #sound: Pick<LiveSound, "on" | "foreground"> = { on: true, foreground: true };
 
   constructor(core: StudioCore, x: CoreInternals) {
@@ -279,7 +279,7 @@ export class PreviewService {
     this.#x = x;
     this.#live = new LiveGate({
       emit: (event) => core.emit(UiEvent.LiveBehind, event),
-      gameDir: (project) => core.games.dirFor(project),
+      projectDir: (project) => core.projects.dirFor(project),
       showing: () => x.servedRoots.get(LIVE_HANDLE),
       showingHead: (project) => (x.runPreview.project === project ? x.runPreview.head : null),
     });
@@ -293,7 +293,7 @@ export class PreviewService {
   }
 
   /**
-   * Whether a show or landing the person asked for may load Live itself: Live, holding this game
+   * Whether a show or landing the person asked for may load Live itself: Live, holding this project
    * (or none yet), is out of their sight. While they watch it, a dialog or a popover over it
    * included, only Reload changes it (`live-gate.ts`).
    */
@@ -301,7 +301,7 @@ export class PreviewService {
     return !this.#liveWatched && !this.liveHoldsAnother(project);
   }
 
-  /** Live holds a game other than this one: nothing of this one is shown or offered there. */
+  /** Live holds a project other than this one: nothing of this one is shown or offered there. */
   liveHoldsAnother(project: string): boolean {
     const holds = this.#x.servedRoots.get(LIVE_HANDLE)?.project;
     return holds !== undefined && holds !== project;
@@ -324,25 +324,25 @@ export class PreviewService {
   }
 
   /** The user's switch. */
-  setSound(request: GameSoundRequest): void {
+  setSound(request: ProjectSoundRequest): void {
     this.#sound = { ...this.#sound, on: request.on };
     this.#applySound();
   }
 
-  /** Genex came to the front or went behind another app: a game in the background is not heard. */
+  /** Genex came to the front or went behind another app: a project in the background is not heard. */
   setForeground(foreground: boolean): void {
     this.#sound = { ...this.#sound, foreground };
     this.#applySound();
   }
 
-  /** Live is heard only while it is the user's own game, on screen, in front, with the switch on. */
+  /** Live is heard only while it is the user's own project, on screen, in front, with the switch on. */
   #applySound(): void {
     const lent = this.#liveObservers > 0;
     this.#optionalPreview()?.setAudioMuted?.(!liveAudible({ ...this.#sound, lent, shown: this.#stageVisible }));
   }
 
   /**
-   * A builder's checkpoint in `cwd`. It never reloads Live (`live-gate.ts`): the game folder, or
+   * A builder's checkpoint in `cwd`. It never reloads Live (`live-gate.ts`): the project folder, or
    * the build folder Live serves when the checkpoint is in that one, is offered to Live's Reload.
    */
   async checkpointPreview(project: string, cwd: string, note: string | null): Promise<void> {
@@ -372,7 +372,7 @@ export class PreviewService {
   }
 
   async previewRevision(project: string, root: string | null): Promise<string | null> {
-    const dir = root ?? this.#core.games.dirFor(project);
+    const dir = root ?? this.#core.projects.dirFor(project);
     try {
       if ((await git(dir, ["status", "--porcelain"])).trim()) return null;
       return (await git(dir, ["rev-parse", "HEAD"])).trim() || null;
@@ -383,7 +383,7 @@ export class PreviewService {
 
   /**
    * Where the preview serves a project from. The studio's own shape serves the folder as it is.
-   * A game with its own build is built first — in a shadow under the app's scratch, never in the
+   * A project with its own build is built first — in a shadow under the app's scratch, never in the
    * folder the user owns — and its output is served, so `/assets/…` inside the built page
    * resolves where the bundler put it.
    *
@@ -398,10 +398,10 @@ export class PreviewService {
     port: PreviewPort,
     options: { fallback?: boolean } = {},
   ): Promise<{ entry: string; root: string | undefined; loopback: boolean; stale: string | null } | null> {
-    const descriptor = (await this.#core.games.list().catch(() => [] as GameProject[])).find((g) => g.name === project);
+    const descriptor = (await this.#core.projects.list().catch(() => [] as Project[])).find((g) => g.name === project);
     const shape = descriptor?.shape ?? TEMPLATE_SHAPE;
     const loopback = descriptor?.built === true;
-    const base = root ?? this.#core.games.dirFor(project);
+    const base = root ?? this.#core.projects.dirFor(project);
     const outcome = await this.#core.builds.ensure({ project, dir: base, shape });
     const note = outcome.problem ? buildFailureNote(outcome.problem) : null;
     if (note) port.note?.("error", note, { loadError: true });
@@ -424,7 +424,7 @@ export class PreviewService {
     };
   }
 
-  /** `preview.load`: serve a game (or a checked worktree of it) into a preview, one load per handle at a time. */
+  /** `preview.load`: serve a project (or a checked worktree of it) into a preview, one load per handle at a time. */
   loadPreview(p: HarnessParams<"preview.load">): Promise<string> {
     const handle = p.handle ?? LIVE_HANDLE;
     return serial(this.#x.previewOperations, handle, async () => {
@@ -536,9 +536,9 @@ export class PreviewService {
       return await this.runFile(file);
     } catch {
       const resolved = await realpath(String(file ?? ""));
-      const games = await this.#core.games.list();
-      for (const game of games) {
-        const refs = await realpath(path.join(game.dir, "references")).catch(() => null);
+      const projects = await this.#core.projects.list();
+      for (const project of projects) {
+        const refs = await realpath(path.join(project.dir, "references")).catch(() => null);
         if (refs && isInside(refs, resolved)) return resolved;
       }
       throw new Error(MESSAGE.notStill(file));
@@ -576,7 +576,7 @@ export class PreviewService {
       }
       const call = ++sequence;
       // The session's window: a capture is a fresh load of the workspace (edits included)
-      // through the served entry — a game with its own build is built first — then the
+      // through the served entry — a project with its own build is built first — then the
       // setup script, then the shots. The window stays loaded for the computer tool after.
       const port = await session.get();
       const target = currentRoot();
@@ -629,7 +629,7 @@ export class PreviewService {
       const warning = switchIsDead
         ? ` — WARNING: the build rendered camera "${actual}" instead; your debugCamera("${camera}") does not switch`
         : "";
-      // `auto`: a game whose menu, car-select or HUD lives in the DOM is invisible to a
+      // `auto`: a project whose menu, car-select or HUD lives in the DOM is invisible to a
       // canvas-only eye, and the builder is the one who has to see what it built.
       const frame = await captureSurface(port, DEFAULT_SHOT_QUALITY, CaptureSurface.Auto);
       const file = path.join(outDir, `c${call}_${safePathSegment(camera)}.jpg`);
@@ -727,14 +727,14 @@ export class PreviewService {
 
   /** What the studio asks the page to wait for: the folder's own `bootMs`, or the default. */
   async bootMsFor(project: string): Promise<number> {
-    const descriptor = (await this.#core.games.list().catch(() => [] as GameProject[])).find(
-      (game) => game.name === project,
+    const descriptor = (await this.#core.projects.list().catch(() => [] as Project[])).find(
+      (entry) => entry.name === project,
     );
     return bootBudget(descriptor?.shape.bootMs);
   }
 
   /**
-   * Load a build into a port the way the judges do: through the served entry, so a game with
+   * Load a build into a port the way the judges do: through the served entry, so a project with
    * its own build (Vite, TypeScript) is built first. The builders' capture used to skip this
    * step and load `index.html` raw — on skate-prod every worker saw `src/main.ts` served as
    * text and spent the night blind.
@@ -748,7 +748,7 @@ export class PreviewService {
    * refusing a slow page would blind the scout and every computer-tool worker on exactly the
    * shape this milestone exists for. A timeout is a NOTE on the caller's answer. Refusal is
    * reserved for a real load error, a page that reports that it FAILED to boot, and a page that
-   * has left the address the studio serves — the last being the boundary that stops a game
+   * has left the address the studio serves — the last being the boundary that stops a project
    * escaping the studio by running its own dev server on its own port.
    */
   async loadServed(
@@ -759,7 +759,7 @@ export class PreviewService {
     forceLoopback = false,
   ): Promise<LoadedServed> {
     const served = await this.servedEntry(project, root, entry, port);
-    if (!served) return { problem: port.status().loadError ?? "the game's build failed", note: null, ready: null };
+    if (!served) return { problem: port.status().loadError ?? "the project's build failed", note: null, ready: null };
     const budgetMs = await this.bootMsFor(project);
     // `shim.readyMs` is the same number: one budget, so the page and the studio give up together.
     const loaded = await port.load(project, served.entry, served.root, {
@@ -894,7 +894,7 @@ export class PreviewService {
       let shot = jpeg;
       if (!shot && port.screenshotWithStats) {
         // `auto` reads the compositor when the canvas read is black. A frame that is still black
-        // (a page between loads) shows nothing of the game: the card keeps its last picture.
+        // (a page between loads) shows nothing of the project: the card keeps its last picture.
         const captured = await port.screenshotWithStats(FRAME_QUALITY, { surface: CaptureSurface.Auto });
         if (isEffectivelyBlack(captured.stats)) return;
         shot = captured.jpeg;
@@ -926,7 +926,7 @@ export class PreviewService {
 
   async showBuild(project: string, commit: string): Promise<{ dir: string; commit: string }> {
     if (!COMMIT_HASH.test(String(commit ?? ""))) throw new Error(MESSAGE.notCommitHash(commit));
-    const projectDir = this.#core.games.dirFor(project);
+    const projectDir = this.#core.projects.dirFor(project);
     await this.#core.assertProjectAllowed(projectDir);
     this.#core.snapshots.register({ name: project, dir: projectDir });
     const resolved = (await git(projectDir, ["rev-parse", "--verify", `${commit}^{commit}`]).catch(() => "")).trim();
@@ -963,13 +963,13 @@ export class PreviewService {
     } finally {
       if (candidateHandle) await this.pool().release(candidateHandle);
     }
-    await this.#core.games.touch(project).catch(() => {});
+    await this.#core.projects.touch(project).catch(() => {});
     return { dir: showDir, commit: resolved };
   }
 
-  /** Whether the studio may version this game's own nested repositories inside a fork of it. */
+  /** Whether the studio may version this project's own nested repositories inside a fork of it. */
   async nestedPolicy(projectDir: string): Promise<{ versionNested: boolean }> {
-    return { versionNested: await this.#core.games.nestedConsent(projectDir).catch(() => false) };
+    return { versionNested: await this.#core.projects.nestedConsent(projectDir).catch(() => false) };
   }
 
   /**
@@ -981,7 +981,7 @@ export class PreviewService {
     project: string,
     { max = REFERENCE_MAX_STILLS, maxPx = REFERENCE_MAX_PX }: { max?: number; maxPx?: number } = {},
   ): Promise<{ frames: ReferenceFrame[]; skipped: SkippedStill[] }> {
-    const dir = path.join(this.#core.games.dirFor(project), "references");
+    const dir = path.join(this.#core.projects.dirFor(project), "references");
     const entries = (await readdir(dir, { withFileTypes: true }).catch(() => []))
       .filter((e) => e.isFile() && !e.name.startsWith("."))
       .map((e) => e.name)
@@ -1043,7 +1043,7 @@ export class PreviewService {
     project: string;
     file: string;
     maxPx?: number;
-    scope?: "game" | "genex-inspection";
+    scope?: "project" | "genex-inspection";
     jobId?: string;
   }): Promise<{ mimeType: string; data: string } | null> {
     const malformed = !p || typeof p.project !== "string" || typeof p.file !== "string";
@@ -1055,7 +1055,7 @@ export class PreviewService {
       return readContainedImage(dir, p.file, { prefixes: [], ...resize });
     }
     if (isGenexRef(p.file)) return this.#readGenexOutput(p.project, p.file, resize);
-    return readContainedImage(this.#core.games.dirFor(p.project), p.file, resize);
+    return readContainedImage(this.#core.projects.dirFor(p.project), p.file, resize);
   }
 
   /** A downscale to `maxPx` for an image read, when one is asked for and the preview can. */
@@ -1105,14 +1105,14 @@ export class PreviewService {
   }
 
   /**
-   * Load a game snapshot in the preview without touching the live folder or the harness.
+   * Load a project snapshot in the preview without touching the live folder or the harness.
    * The working copy is a detached git worktree under scratch, so Play is not a rollback.
    */
-  async playGameSnapshot(snapshotId: string, project: string): Promise<{ dir: string; snapshotId: string }> {
+  async playProjectSnapshot(snapshotId: string, project: string): Promise<{ dir: string; snapshotId: string }> {
     const record = this.#core.snapshotIndex.get(snapshotId);
-    if (!record?.git.game) throw new Error(MESSAGE.noGameInSnapshot);
-    await this.#core.assertProjectAllowed(this.#core.games.dirFor(project));
-    this.#core.snapshots.register({ name: project, dir: this.#core.games.dirFor(project) });
+    if (!record?.git.game) throw new Error(MESSAGE.noProjectInSnapshot);
+    await this.#core.assertProjectAllowed(this.#core.projects.dirFor(project));
+    this.#core.snapshots.register({ name: project, dir: this.#core.projects.dirFor(project) });
     const playDir = path.join(this.#core.layout.scratch, "review-play", project);
     await this.#core.snapshots.removeWorktree(project, playDir);
     await rm(playDir, { recursive: true, force: true });
@@ -1121,7 +1121,7 @@ export class PreviewService {
       project,
       record.git.game,
       playDir,
-      await this.nestedPolicy(this.#core.games.dirFor(project)),
+      await this.nestedPolicy(this.#core.projects.dirFor(project)),
     );
     await this.preview().load(project, "index.html", playDir);
     await this.#live.loaded(project, { print: undefined, root: playDir });
@@ -1129,8 +1129,8 @@ export class PreviewService {
   }
 
   /**
-   * Make a build live: merge it into the game folder (the branch the user plays from) and load
-   * it. Refuses a dirty game folder and a merge that conflicts — the user's edits are never
+   * Make a build live: merge it into the project folder (the branch the user plays from) and load
+   * it. Refuses a dirty project folder and a merge that conflicts — the user's edits are never
    * overwritten from here, and since M2.7 nowhere else either: the night's own landing refuses
    * the same way and leaves the build on its ref for this button to land. A landing nobody on the
    * stage asked for (`offerLive`: a harness's `land_build` with no message of the person's waiting
@@ -1142,7 +1142,7 @@ export class PreviewService {
     { asker, offerLive = false }: { asker?: AbortController; offerLive?: boolean } = {},
   ): Promise<{ commit: string; how: "merged" | "already" }> {
     if (!COMMIT_HASH.test(String(commit ?? ""))) throw new Error(MESSAGE.notCommitHash(commit));
-    const projectDir = this.#core.games.dirFor(project);
+    const projectDir = this.#core.projects.dirFor(project);
     await this.#core.assertProjectAllowed(projectDir);
     this.#core.snapshots.register({ name: project, dir: projectDir });
     // The chat's own session asking to land (a run control) holds the folder while it waits for
@@ -1154,10 +1154,10 @@ export class PreviewService {
     const resolved = (await git(projectDir, ["rev-parse", "--verify", `${commit}^{commit}`]).catch(() => "")).trim();
     if (!resolved) throw new Error(MESSAGE.notInHistory(commit, project));
     // A build never brings Claude Code's project settings or hooks: the person's own session in
-    // the game loads them, and nothing a night or the harness made may choose them.
+    // the project loads them, and nothing a night or the harness made may choose them.
     const settings = await claudeFolderChanges(projectDir, "HEAD", resolved);
     if (settings.length) throw new Error(MESSAGE.claudeFolder(resolved.slice(0, 10), settings));
-    // The dirty check first, and only then the conversion. Converting renames the nested game's
+    // The dirty check first, and only then the conversion. Converting renames the nested project's
     // `.git` and commits — a refusal after that left the folder half-converted with nothing
     // landed. A path the conversion is about to absorb reads modified only because it has not
     // happened yet, so it is not what "the user has uncommitted edits" means here.
@@ -1166,10 +1166,10 @@ export class PreviewService {
     if (dirty.length > 0) {
       throw new Error(MESSAGE.uncommittedEdits(dirty.length));
     }
-    // The conversion happens only with the consent the Open Game sheet recorded — the one place
+    // The conversion happens only with the consent the Open Project sheet recorded — the one place
     // the studio touches somebody else's version history (decision 1, 2026-09-08).
     const versioned = await versionNestedForLanding(projectDir, resolved, {
-      consent: await this.#core.games.nestedConsent(projectDir),
+      consent: await this.#core.projects.nestedConsent(projectDir),
     });
     if (versioned.length > 0)
       this.#core.options.onLog?.(
@@ -1197,29 +1197,29 @@ export class PreviewService {
     }
     if (offerLive) await this.offerLive({ project, root: null });
     else await this.loadPreview({ project });
-    await this.#core.games.touch(project).catch(() => {});
+    await this.#core.projects.touch(project).catch(() => {});
     return { commit: resolved, how: already ? "already" : "merged" };
   }
 
-  /** Why the stage cannot show this game's own build — null when the last build was fine. */
+  /** Why the stage cannot show this project's own build — null when the last build was fine. */
   buildProblem(project: string): BuildProblem | null {
     return this.#x.buildProblems.get(project) ?? null;
   }
 
   /**
-   * Install the game's packages, in the user's own folder. Decision 3 (2026-09-08): this is the
+   * Install the project's packages, in the user's own folder. Decision 3 (2026-09-08): this is the
    * only thing the studio ever opens the network for, it happens because the user pressed a
    * button, and it opens exactly one domain for exactly this command.
    */
   async installPackages(project: string): Promise<InstallResult> {
-    const descriptor = (await this.#core.games.list()).find((game) => game.name === project);
-    if (!descriptor) throw new Error(MESSAGE.noSuchGame(project));
+    const descriptor = (await this.#core.projects.list()).find((entry) => entry.name === project);
+    if (!descriptor) throw new Error(MESSAGE.noSuchProject(project));
     const result = await this.#core.builds.install({ project, dir: descriptor.dir, shape: descriptor.shape });
     if (result.ok) this.#x.buildProblems.delete(project);
     return result;
   }
 
-  /** `preview.reload`: what is on disk now — a rebuild for a game with its own build — one load per handle at a time. */
+  /** `preview.reload`: what is on disk now — a rebuild for a project with its own build — one load per handle at a time. */
   reloadPreview(p: HarnessParams<"preview.reload">): Promise<HarnessResult<"preview.reload">> {
     const handle = p?.handle ?? LIVE_HANDLE;
     return serial(this.#x.previewOperations, handle, async () => {
@@ -1234,7 +1234,7 @@ export class PreviewService {
       const port = this.preview(p?.handle);
       const last = this.#x.servedRoots.get(handle);
       const print = handle === LIVE_HANDLE && last ? await this.#live.printBefore(last.project, last.root) : undefined;
-      // Reload means "what is on disk NOW" — for a game with its own build, that is a rebuild.
+      // Reload means "what is on disk NOW" — for a project with its own build, that is a rebuild.
       const rebuilt = last ? await this.#rebuildServed(port, last, handle, p?.retry === true) : false;
       if (!rebuilt) await port.reload();
       if (last && handle === LIVE_HANDLE) await this.#live.loaded(last.project, { print, root: last.root });
@@ -1242,7 +1242,7 @@ export class PreviewService {
     });
   }
 
-  /** The person's Stop: Live's game stops running, after any load of it already under way. */
+  /** The person's Stop: Live's project stops running, after any load of it already under way. */
   stopLive(): Promise<void> {
     return serial(this.#x.previewOperations, LIVE_HANDLE, async () => {
       await this.#optionalPreview()?.stop?.();
@@ -1259,7 +1259,7 @@ export class PreviewService {
   // ── Live's gate: only the person changes what Live shows (`live-gate.ts`) ───────────────────
 
   /**
-   * Something would have changed Live — a checkpoint, a rewind, the harness loading the game or a
+   * Something would have changed Live — a checkpoint, a rewind, the harness loading the project or a
    * build in the stand-in. It waits for the person's Reload instead (`live.behind`).
    */
   offerLive(offer: LiveOffer): Promise<void> {
@@ -1273,7 +1273,7 @@ export class PreviewService {
    */
   async offerBuild(project: string, commit: string): Promise<string> {
     if (!COMMIT_HASH.test(String(commit ?? ""))) throw new Error(MESSAGE.notCommitHash(commit));
-    const projectDir = this.#core.games.dirFor(project);
+    const projectDir = this.#core.projects.dirFor(project);
     await this.#core.assertProjectAllowed(projectDir);
     const resolved = (await git(projectDir, ["rev-parse", "--verify", `${commit}^{commit}`]).catch(() => "")).trim();
     if (!resolved) throw new Error(MESSAGE.notInHistory(commit, project));
@@ -1281,7 +1281,7 @@ export class PreviewService {
     return resolved;
   }
 
-  /** What waits for Live's Reload for this game, and the build Live shows: what the stage reads on mount. */
+  /** What waits for Live's Reload for this project, and the build Live shows: what the stage reads on mount. */
   liveState(project: string): LiveBehindEvent {
     return this.#live.state(project);
   }
@@ -1309,7 +1309,7 @@ export class PreviewService {
    * The window a harness call means. It named one: that one. It named none, or the live view: the
    * stand-in wherever this build can open hidden windows (the live view otherwise), opened on
    * first use; `mirror` puts in a fresh stand-in what it last showed, else what Live shows, so a
-   * look without a load sees the same game the person does. Pair with `harnessWindowDone`.
+   * look without a load sees the same project the person does. Pair with `harnessWindowDone`.
    */
   async harnessWindow(named: string | undefined, { mirror }: { mirror: boolean }): Promise<string | undefined> {
     if (named !== undefined && named !== LIVE_HANDLE) return named;
@@ -1380,7 +1380,7 @@ export class PreviewService {
     // and the PATH is resolved from the login shell again rather than from boot.
     if (retry) {
       resetToolchain();
-      this.#core.builds.forget(last.root ?? this.#core.games.dirFor(last.project));
+      this.#core.builds.forget(last.root ?? this.#core.projects.dirFor(last.project));
     }
     const served = await this.servedEntry(last.project, last.root, last.entry, port, {
       fallback: handle === LIVE_HANDLE,
@@ -1389,7 +1389,7 @@ export class PreviewService {
     // A different folder from the one the port is showing — the stage fell back to the last
     // build that worked, or the build that had nothing to show now builds — so it is loaded
     // rather than reloaded. `port.reload()` re-loads the URL the page already has, and after
-    // a failed load that is the previous game's page, or nothing at all.
+    // a failed load that is the previous project's page, or nothing at all.
     const key = servedKey(served);
     if (!served.stale && last.loaded === key) return false;
     await port.load(last.project, served.entry, served.root, { loopback: served.loopback });

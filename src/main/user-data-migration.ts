@@ -2,7 +2,7 @@
  * The app was called "AI Game Studio" before it was Genex, and Electron names the data folder
  * after the app: `~/Library/Application Support/<name>` on macOS, `~/.config/<name>` on Linux,
  * `%APPDATA%\<name>` on Windows. Before anything reads userData, the normal profile moves the
- * legacy folder to the new name, so games, threads, settings and plugins carry over. Secrets do
+ * legacy folder to the new name, so projects, threads, settings and plugins carry over. Secrets do
  * not: safeStorage's key is named after the app too (`SecretStore.get` reads them as missing).
  */
 import fs from "node:fs";

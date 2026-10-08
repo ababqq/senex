@@ -38,7 +38,7 @@ export function eventsRpc(core: StudioCore, x: CoreInternals) {
     [HostMethod.EventsMessages]: async (p) => x.rewind.harnessMessages(threadOr(core, p.threadId)),
     [HostMethod.EventsInbox]: async () => inboxOf(core.store).pending(core.store),
     [HostMethod.ThreadMain]: async () => core.mainThread,
-    // A title and nothing else: a thread's kind, game, id and permission mode are the host's to
+    // A title and nothing else: a thread's kind, project, id and permission mode are the host's to
     // set. A harness that could write them could make a thread of its own read as the person's chat.
     [HostMethod.ThreadCreate]: async (p) =>
       core.store.createThread(typeof p?.title === "string" ? { title: p.title } : {}),

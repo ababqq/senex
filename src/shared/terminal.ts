@@ -1,4 +1,4 @@
-/** What a terminal session runs: the game's shell, a Claude Code sign-in, or one command a chat reply offered. */
+/** What a terminal session runs: the project's shell, a Claude Code sign-in, or one command a chat reply offered. */
 export const TerminalKind = {
   Shell: "shell",
   ClaudeLogin: "claude-login",
@@ -6,7 +6,7 @@ export const TerminalKind = {
 } as const;
 export type TerminalKind = (typeof TerminalKind)[keyof typeof TerminalKind];
 
-/** Ephemeral user terminals. Never part of the game/harness tool contract or event store. */
+/** Ephemeral user terminals. Never part of the project/harness tool contract or event store. */
 export interface TerminalSession {
   id: string;
   title: string;

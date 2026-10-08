@@ -1,5 +1,5 @@
 /**
- * FIND THE GAME'S OWN START CONTROL, and never page chrome, and never something buried under an
+ * FIND THE PROJECT'S OWN START CONTROL, and never page chrome, and never something buried under an
  * overlay. Plus the other page-side payloads the probe serialises: what is under a click
  * (`chromeAtInPage`), where keyboard focus sits (`describeFocusInPage`), dropping focus
  * (`blurActiveInPage`), a "press any key" title line (`findPressAnyKeyInPage`) and the look phase's
@@ -10,7 +10,7 @@
  * helper or constant would be a ReferenceError in the page. That is also what makes each replayable
  * against a fake DOM in `node:vm` with no browser.
  *
- * WHY THE FINDER SCORES INSTEAD OF MATCHING: games name their start button after their fiction
+ * WHY THE FINDER SCORES INSTEAD OF MATCHING: projects name their start button after their fiction
  * ("DEPLOY", "Walk in"), so an anchored vocabulary misses them. Two halves carry the weight: the deny
  * list (`CHROME_DENY_SOURCE`, passed in because module scope is not visible) and a GEOMETRIC
  * predicate: a candidate must be the topmost hit at its own centre (itself or a descendant), so a
@@ -36,7 +36,7 @@ export interface OccludedControl {
 export function findStartControlInPage(denySource: string): string | null {
   const DENY = new RegExp(denySource, "i");
   const PLAY =
-    /(play|start|begin|enter|continue|deploy|launch|resume|new game|go\b|jump in|drop in|walk in|step in|step inside|come in|wander in|spawn|ready|fight|race|drive|run\b)/i;
+    /(play|start|begin|enter|continue|deploy|launch|resume|new project|go\b|jump in|drop in|walk in|step in|step inside|come in|wander in|spawn|ready|fight|race|drive|run\b)/i;
   const MARK = "data-genex-probe-start";
   const MARK_OCCLUDED = "data-genex-probe-occluded";
   const MAX_LABEL = 44;
@@ -282,7 +282,7 @@ export function blurActiveInPage(): boolean {
 /**
  * A "PRESS ANY KEY" TITLE LINE: consulted only when no start control was found. The affordance's own
  * shape (press / hit / tap, an optional "any", then the thing to press, or "[SPACE] to start"), and
- * deliberately NOT "Press E to interact", a HUD legend on a game already running. The same visibility
+ * deliberately NOT "Press E to interact", a HUD legend on a project already running. The same visibility
  * and topmost-at-centre rules as the finder apply. Marks nothing and clicks nothing.
  */
 // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: page-side source serialized with toString(), so it stays one self-contained function
@@ -355,7 +355,7 @@ export function findPressAnyKeyInPage(): string | null {
 /**
  * THE LOOK PHASE'S SYNTHETIC MOUSE DELTAS: one `pointermove` and one `mousemove` per call, each with
  * an explicit `movementX`/`movementY`, on the pointer-lock element or else the largest canvas. A
- * LOCKED game reads `movementX` with no button held; a game with NO lock reads look input from a
+ * LOCKED project reads `movementX` with no button held; a project with NO lock reads look input from a
  * DRAG, so without a lock the events go out as a real gesture: a press at the target's centre on
  * `start`, moves whose coordinates advance by the caller's offset with `buttons: 1`, a release on
  * `end`. The events are untrusted; the caller reads the camera to see whether they landed.

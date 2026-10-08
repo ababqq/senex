@@ -22,7 +22,7 @@
       "note": "Seyda Neen runs, 5+ rejections: never a pale mirror-grey plane; color 0x2b3324, roughness 0.35, exposure 0.6–0.8; chop ≥3 octaves, no grid coarser than 0.2 units"
     },
     {
-      "source": "skills/game-contract.md (deployed, 1 Sep 2026)",
+      "source": "skills/project-contract.md (deployed, 1 Sep 2026)",
       "note": "explicit dark base #2b3323 with depth tinting, reflectivity ≤0.3, water darker than sky and stone banks; histogram must not peak above mid-grey"
     },
     {

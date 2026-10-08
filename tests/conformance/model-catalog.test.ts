@@ -68,7 +68,7 @@ describe("model catalog", () => {
     for (const ram of [128, 192]) {
       const { defaultModel, picks } = await recommendModels(machine(ram, true));
       assert.equal(defaultModel, "qwen3.5:122b");
-      assert.ok(picks[0]?.vision && picks[0].tools, "the large-Mac Best fit must build and see the game");
+      assert.ok(picks[0]?.vision && picks[0].tools, "the large-Mac Best fit must build and see the project");
     }
   });
 

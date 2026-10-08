@@ -1,6 +1,6 @@
 /**
- * Claude Code permissions in a game chat, from the host's side: only the session answering a
- * message the person sent in this game's own chat is handed a mode and a way to ask; every other
+ * Claude Code permissions in a project chat, from the host's side: only the session answering a
+ * message the person sent in this project's own chat is handed a mode and a way to ask; every other
  * delegation (builders, anything the harness shapes on its own) keeps the sandboxed contract, and
  * a build's lead or the run's coordinator asks from its own seat (lead-sessions-host.test.ts). A question lands in the chat as a pending card and its answer as a
  * settled one; a Stop, the turn's end or a restart withdraws it without anyone's click; and the
@@ -32,7 +32,7 @@ const permissionRows = (events: EventEnvelope[]): ToolPermissionEvent[] =>
       : [],
   );
 
-describe("game chat permissions", () => {
+describe("project chat permissions", () => {
   let lite: CoreLite;
   let core: StudioCore;
   let api: Api;
@@ -45,14 +45,14 @@ describe("game chat permissions", () => {
   let during: (request: DelegateRequest) => Promise<void> = async () => {};
 
   before(async () => {
-    // No project root policy: one test adopts a game from outside the studio's folders.
+    // No project root policy: one test adopts a project from outside the studio's folders.
     lite = await coreLite({ executionPolicy: { runBackgroundImprovement: false }, onUiEvent: (e) => uiEvents.push(e) });
     core = lite.core;
     // No harness in a lite core: a dispatch reaches nothing, and a message is still the person's.
     core.host.dispatch = async () => undefined;
-    await core.games.scaffold(project);
-    await core.games.scaffold("perm-other");
-    threadId = await core.createGameThread(project);
+    await core.projects.scaffold(project);
+    await core.projects.scaffold("perm-other");
+    threadId = await core.createProjectThread(project);
     api = core.api() as unknown as Api;
     const delegate = (id: string) => async (request: DelegateRequest) => {
       seen.push(request);
@@ -145,13 +145,13 @@ describe("game chat permissions", () => {
       fence.includes(path.join(core.layout.engineHomes, "permissions.json")),
       "and the permission store by name",
     );
-    for (const dir of [core.layout.gamesRoot, core.layout.secrets, core.layout.engineHomes]) {
+    for (const dir of [core.layout.projectsRoot, core.layout.secrets, core.layout.engineHomes]) {
       assert.ok(!fence.includes(dir), `not fenced here: ${dir}`);
     }
-    const cwd = core.games.dirFor(project);
+    const cwd = core.projects.dirFor(project);
     assert.ok(
       fence.every((file) => !isInside(file, cwd) && !isInside(cwd, file)),
-      "the game itself is never protected from its chat",
+      "the project itself is never protected from its chat",
     );
 
     const unattended = [
@@ -166,12 +166,12 @@ describe("game chat permissions", () => {
       const request = await brief(extra);
       assert.equal(request.permissions, undefined, `unattended: ${Object.keys(extra).join(", ")}`);
       assert.equal(request.leadAsks, undefined, `nor a lead's: ${Object.keys(extra).join(", ")}`);
-      assert.ok(request.denyReads?.includes(core.games.dirFor("perm-other")), "sibling games stay unreadable");
+      assert.ok(request.denyReads?.includes(core.projects.dirFor("perm-other")), "sibling projects stay unreadable");
     }
   });
 
   // The owner asked the chat to read their Downloads and it refused without trying, in Auto: its
-  // brief said to stay inside the game's folder. Only the host knows the session reaches the Mac.
+  // brief said to stay inside the project's folder. Only the host knows the session reaches the Mac.
   it("tells the session answering the person it reaches their whole Mac, and an unattended one nothing of it", async () => {
     const chat = await brief({ prompt: "Read my downloads folder" });
     assert.ok(chat.permissions, "the chat's session asks");
@@ -214,7 +214,7 @@ describe("game chat permissions", () => {
     assert.equal((await brief({}, stopped)).permissions, undefined, "Stop ends whatever the chat was answering");
 
     await api["engine.delegate"]!({ engine: "claude-code", project, threadId: core.mainThread, prompt: "x" });
-    assert.equal(seen.at(-1)!.permissions, undefined, "the Studio thread is not a game chat");
+    assert.equal(seen.at(-1)!.permissions, undefined, "the Studio thread is not a project chat");
     await api["engine.delegate"]!({ engine: "claude-code", project, prompt: "x" });
     assert.equal(seen.at(-1)!.permissions, undefined, "a nested contractor has no chat");
   });
@@ -241,7 +241,7 @@ describe("game chat permissions", () => {
     ]);
     assert.equal((await core.store.getRecord(threadId)).metadata?.permissionMode, "bypassPermissions");
     const chat = await codexBrief();
-    assert.ok(chat.denyReads?.includes(core.games.dirFor("perm-other")), "sibling games stay unreadable");
+    assert.ok(chat.denyReads?.includes(core.projects.dirFor("perm-other")), "sibling projects stay unreadable");
     assert.equal(chat.prompt.includes(mainAgentReachNote()), false, "not told it reaches the whole Mac");
     assert.equal(chat.leadAsks, undefined);
     await api["engine.delegate"]!({ engine: "codex", project, threadId, prompt: "x", timeoutMs: 60_000 });
@@ -367,7 +367,7 @@ describe("game chat permissions", () => {
 
   it("the lead model: a night's lead is never the chat's own session, the chat's own session after the night asks", async () => {
     await core.setPermissionMode(threadId, "default");
-    // A waking night's lead answers the chat too, in the game folder, but its turn is its run's: it
+    // A waking night's lead answers the chat too, in the project folder, but its turn is its run's: it
     // never gets the chat's own permissions, and without a run of this chat behind its grant it asks
     // nobody (a real one asks from its own seat: lead-sessions-host.test.ts).
     const lead = await brief({
@@ -416,12 +416,12 @@ describe("game chat permissions", () => {
     assert.equal(seen.at(-1)!.permissions?.mode, "acceptEdits", "and keeps the mode it first ran in");
     await core.setPermissionMode(null, "auto");
     assert.equal((await brief()).permissions?.mode, "plan", "a chat that chose keeps its own");
-    await assert.rejects(core.setPermissionMode(core.mainThread, "plan"), /game chat/);
+    await assert.rejects(core.setPermissionMode(core.mainThread, "plan"), /project chat/);
     await assert.rejects(core.setPermissionMode(threadId, "yolo"), /Unknown permission mode/);
     assert.ok(uiEvents.some((event) => event.type === "permissions.changed"));
   });
 
-  it("a question waits in the chat, and 'always' keeps its grants for the game and the chat", async () => {
+  it("a question waits in the chat, and 'always' keeps its grants for the project and the chat", async () => {
     await core.setPermissionMode(threadId, "default");
     const { card, done } = await asking({
       tool: "Bash",
@@ -508,14 +508,14 @@ describe("game chat permissions", () => {
     // `withdrawn` is the host's alone: an answer from the Studio UI that claims it is the person's own.
     core.answerPermission(denied.card.requestId, {
       decision: "deny",
-      message: "  Write it inside the game  ",
+      message: "  Write it inside the project  ",
       withdrawn: true,
     } as never);
-    assert.deepEqual(await denied.done(), { decision: "deny", message: "Write it inside the game" });
+    assert.deepEqual(await denied.done(), { decision: "deny", message: "Write it inside the project" });
     const deniedRow = (await rows(denied.card.requestId)).at(-1)!;
     assert.deepEqual(
       [deniedRow.state, deniedRow.by, deniedRow.message, deniedRow.granted],
-      ["denied", "user", "Write it inside the game", undefined],
+      ["denied", "user", "Write it inside the project", undefined],
     );
 
     await core.setPermissionMode(threadId, "plan");
@@ -553,7 +553,7 @@ describe("game chat permissions", () => {
     });
     assert.equal((await rows(stopped.card.requestId)).at(-1)!.by, "stop");
 
-    // The harness's own Stop (`engine.abort` for the game) withdraws it too.
+    // The harness's own Stop (`engine.abort` for the project) withdraws it too.
     const aborted = await asking({ tool: "Bash", input: { command: "ls" }, always: [] });
     await api["engine.abort"]!({ project });
     assert.deepEqual(await aborted.done(), {
@@ -563,8 +563,8 @@ describe("game chat permissions", () => {
     });
   });
 
-  it("a game kept outside the studio's folders does not deny its neighbours to the sandboxed shell", async () => {
-    // A game in the person's home has the whole home as neighbours: ~/.nvm, git's config, ~/.claude.
+  it("a project kept outside the studio's folders does not deny its neighbours to the sandboxed shell", async () => {
+    // A project in the person's home has the whole home as neighbours: ~/.nvm, git's config, ~/.claude.
     const home = await tmpDir("perm-home-");
     for (const dir of ["mygame", ".nvm", ".config"]) await mkdir(path.join(home, dir), { recursive: true });
     await writeFile(path.join(home, "mygame", "index.html"), "<!doctype html><title>x</title>");
@@ -572,14 +572,14 @@ describe("game chat permissions", () => {
     await api["engine.delegate"]!({ engine: "claude-code", project: adopted.name, prompt: "x", timeoutMs: 60_000 });
     const denied = seen.at(-1)!.denyReads ?? [];
     assert.ok(!denied.some((dir) => isInside(home, dir)), `nothing of the home is denied: ${denied.join(", ")}`);
-    assert.ok(denied.includes(path.resolve(core.games.dirFor("perm-other"))), "other games still are");
-    // A worktree still reads its own game: its node_modules link and git metadata point there.
+    assert.ok(denied.includes(path.resolve(core.projects.dirFor("perm-other"))), "other projects still are");
+    // A worktree still reads its own project: its node_modules link and git metadata point there.
     const worktree = path.join(core.layout.scratch, "autopilot", "run-w", "worker");
     await mkdir(worktree, { recursive: true });
     await mkdir(path.join(core.layout.scratch, "autopilot", "run-w", "neighbour"), { recursive: true });
     await api["engine.delegate"]!({ engine: "claude-code", project, prompt: "x", cwd: worktree, timeoutMs: 60_000 });
     const worker = seen.at(-1)!.denyReads ?? [];
-    assert.ok(!worker.includes(path.resolve(core.games.dirFor(project))), "its own game is readable");
+    assert.ok(!worker.includes(path.resolve(core.projects.dirFor(project))), "its own project is readable");
     assert.ok(
       worker.some((dir) => dir.endsWith("neighbour")),
       "another worktree is not",
@@ -587,7 +587,7 @@ describe("game chat permissions", () => {
   });
 
   it("the harness cannot make a thread of its own read as the person's chat, nor write their questions", async () => {
-    // thread.create takes a title and nothing else: kind, game, id and mode are the host's.
+    // thread.create takes a title and nothing else: kind, project, id and mode are the host's.
     const forged = String(
       await api["thread.create"]!({
         title: "x",
@@ -607,7 +607,7 @@ describe("game chat permissions", () => {
       chatTurn: { messageId: onForged },
     });
     assert.equal(seen.at(-1)!.permissions, undefined);
-    // Another game's chat does not ask for this game.
+    // Another project's chat does not ask for this project.
     const message = await personSays();
     await api["engine.delegate"]!({
       engine: "claude-code",

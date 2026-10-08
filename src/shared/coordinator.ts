@@ -1,5 +1,5 @@
 /**
- * The conversation coordinator's contract with the host: the tools a game chat's coordinator may
+ * The conversation coordinator's contract with the host: the tools a project chat's coordinator may
  * call on a run, the run a conversation is on as the coordinator sees it, the state it reads
  * back from `run_status`, and the slice of the conversation a queued message may see.
  *
@@ -40,7 +40,7 @@ export const CoordinatorTool = {
 export type CoordinatorTool = (typeof CoordinatorTool)[keyof typeof CoordinatorTool];
 
 /**
- * The tool name a game chat's delegation is logged under (`tool_requested` … `tool_result`), from
+ * The tool name a project chat's delegation is logged under (`tool_requested` … `tool_result`), from
  * the brief it hands a contractor to the build's result. The harness writes it (its copy is
  * `loop/delegated-turn.ts` `DELEGATE_TOOL`): never rename it.
  */
@@ -93,7 +93,7 @@ export const coordinatorTools: readonly StudioToolSpec[] = [
   {
     name: CoordinatorTool.ContinueBuild,
     description:
-      "Continue implementation in this game's existing conversation after the run has finished. Use for a requested change or unfinished work, never a question. The saved plan and results are retained; this does not repeat intake or create a new timed run.",
+      "Continue implementation in this project's existing conversation after the run has finished. Use for a requested change or unfinished work, never a question. The saved plan and results are retained; this does not repeat intake or create a new timed run.",
     parameters: {
       type: "object",
       properties: {
@@ -110,7 +110,7 @@ export const coordinatorTools: readonly StudioToolSpec[] = [
   {
     name: CoordinatorTool.ShowBuild,
     description:
-      "Open a build in Live, the game view on the right of this chat, without changing the game folder: integration (what the run built, landed or not), live (the game folder as it is), or a commit hash. Use only when the user asks to see, run, play or launch what a run made, including after the run has finished or paused; never to show your own edits, which the stage's Reload button offers by itself. Afterwards say what it answered: open in Live, or waiting behind Reload while the user watches Live.",
+      "Open a build in Live, the project view on the right of this chat, without changing the project folder: integration (what the run built, landed or not), live (the project folder as it is), or a commit hash. Use only when the user asks to see, run, play or launch what a run made, including after the run has finished or paused; never to show your own edits, which the stage's Reload button offers by itself. Afterwards say what it answered: open in Live, or waiting behind Reload while the user watches Live.",
     parameters: {
       type: "object",
       properties: { build: { type: "string", description: "live, integration (default), or a commit hash." } },
@@ -119,7 +119,7 @@ export const coordinatorTools: readonly StudioToolSpec[] = [
   {
     name: CoordinatorTool.LandBuild,
     description:
-      "Put a build in the game folder: merge what the run built (integration, the default) or a named commit into the folder the user plays from; Live shows it at once or through its Reload button, as the answer says. Only for a run that has finished or paused; use finish_run while it is running. Refuses when the game folder has uncommitted edits.",
+      "Put a build in the project folder: merge what the run built (integration, the default) or a named commit into the folder the user plays from; Live shows it at once or through its Reload button, as the answer says. Only for a run that has finished or paused; use finish_run while it is running. Refuses when the project folder has uncommitted edits.",
     parameters: {
       type: "object",
       properties: { build: { type: "string", description: "integration (default) or a commit hash." } },
@@ -161,7 +161,7 @@ export function isRunControl(name: string): name is RunControl {
 
 /**
  * The builds a chat's own session records to start, which the harness starts once its reply ends:
- * a Loop's launch (the seed's `tools/game-tools.ts`), a finished build reopened
+ * a Loop's launch (the seed's `tools/project-tools.ts`), a finished build reopened
  * (`loop/reopen-run-prompts.ts` `REOPEN_RUN`) and a paused one resumed (`resume_run`). While the
  * chat is in Plan the host holds them behind the plan card (`main/core/plan-approval.ts`). The model
  * calls them by these names: never rename one (`seed-contracts.test.ts` holds them to the seed's).

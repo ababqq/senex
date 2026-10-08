@@ -45,12 +45,12 @@ function isAnswering(queue: QueueView, activeRunId: string | null): boolean {
  * on their way and its transcript split the way the panel draws it.
  */
 export function useChatThread(props: ChatPanelProps) {
-  const { activeThread, games, firstAsk, status } = props;
+  const { activeThread, projects, firstAsk, status } = props;
   const { events, stateEvents } = useRewoundView(props);
   const meta = threadMeta(activeThread);
-  const isStudioThread = meta.kind !== ThreadKind.Game;
-  const isDraft = meta.kind === ThreadKind.Game && !meta.project;
-  const folder = games.find((game) => game.name === meta.project) ?? null;
+  const isStudioThread = meta.kind !== ThreadKind.Project;
+  const isDraft = meta.kind === ThreadKind.Project && !meta.project;
+  const folder = projects.find((project) => project.name === meta.project) ?? null;
   const chatTitle =
     folder?.title ??
     displayChatTitle({

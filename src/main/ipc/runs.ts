@@ -20,7 +20,7 @@ const MESSAGE = {
 
 /** How long `run.stop` waits for the harness to take the request. */
 const RUN_STOP_TIMEOUT_MS = 30 * SECOND_MS;
-/** The most reference frames a run keeps; a "beat a real game" run needs at least two. */
+/** The most reference frames a run keeps; a "beat a real project" run needs at least two. */
 const MAX_REFERENCE_FRAMES = 8;
 const MIN_REFERENCE_FRAMES = 2;
 
@@ -39,7 +39,7 @@ export interface RunsIpcDeps {
     | "newRunId"
     | "saveRunArtifact"
     | "dispatchRun"
-    | "threadForGame"
+    | "threadForProject"
     | "host"
     | "requestRunFinish"
     | "resumeAutopilot"
@@ -83,7 +83,7 @@ export function registerRunsIpc(
   handle("studio:run.start", async (payload) => {
     const frames = (payload.reference.frames ?? []).filter((frame) => frame?.data).slice(0, MAX_REFERENCE_FRAMES);
     if (payload.reference.kind === "reference" && frames.length < MIN_REFERENCE_FRAMES) {
-      throw new Error('A "beat a real game" run needs at least two screenshots of the reference.');
+      throw new Error('A "beat a real project" run needs at least two screenshots of the reference.');
     }
     const runId = core.newRunId();
     const shots = [...(payload.reference.shots ?? []), ...(await saveReferenceFrames(core, runId, frames))];
@@ -95,7 +95,7 @@ export function registerRunsIpc(
       // The dispatch only rejects when the harness never got to close the run itself — a UI
       // push alone would leave the log claiming whatever it claimed when the host died.
       const error = String(errorMessage(err));
-      const threadId = await core.threadForGame(payload.project).catch(() => undefined);
+      const threadId = await core.threadForProject(payload.project).catch(() => undefined);
       await appendErrorDurably(threadId, `run ${runId} failed: ${error}`);
       pushUiEvent({ type: UiEvent.RunFailed, payload: { runId, error } });
     });

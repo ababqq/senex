@@ -2,9 +2,9 @@
 
 ## What the user sees
 
-Each game has one conversation. User messages are soft right-aligned bubbles, their images
+Each project has one conversation. User messages are soft right-aligned bubbles, their images
 above; long ones fold with Show more/Show less. Replies are Markdown prose. Any file the chat
-names that exists is a link: game Markdown and images open beside the chat, others in their app
+names that exists is a link: project Markdown and images open beside the chat, others in their app
 (programs only shown). Empty chat is blank. Only the prompt bar writes and sends; a pasted image
 adds the picture, not its file name.
 
@@ -26,14 +26,14 @@ Replies get current plugin, account, MCP and template facts each turn; asking ab
 never resumes a build.
 
 - A real `ask_user` question opens the question panel: options plus a typed-answer row. Choosing alone does not submit; Send answer confirms. Chat about this puts it aside
-  for the composer; any reply settles it. Progress is never a question; an unsaid game or look
+  for the composer; any reply settles it. Progress is never a question; an unsaid project or look
   before a build is.
 - Permission requests need an explicit answer and stay pinned above the composer, even with
   their page unloaded. Worker plugin questions appear in the owning run’s conversation,
   cancelled with their worker. Plugins ask Approve or Decline; Claude asks **Allow**, the grant it offers
   (**Always allow …**) or **Deny**, or takes words instead; a plan leaving Plan is approved
   into a mode. Stop, the turn's end or a restart withdraws one.
-- A game reply's one-line `bash` block offers **Run** and **Copy**; output shows below and
+- A project reply's one-line `bash` block offers **Run** and **Copy**; output shows below and
   reaches the agent unseen, reopening no build.
 - **Plan mode** (Add's bulb) is a one-message choice: the plan is Markdown with **Approve**,
   **Make changes** and **Cancel**; only Approve starts it, and a revision needs fresh approval.
@@ -53,7 +53,7 @@ Resume. A message cut off by a quit is retried once, then left for the user to r
 **Rewind** sits beside every sent bubble (on hover or focus) unless the chat answers; a running
 build stops first, cutting off any answer under way. That message and all after it leave the
 chat and model context (the log keeps them); the next answer starts a fresh session; the message
-returns to the composer with its pictures and waiting follow-ups. **Restore game files** returns
+returns to the composer with its pictures and waiting follow-ups. **Restore project files** returns
 the folder to its checkpoint before that message, off at first if files changed outside the
 chat; otherwise one line says why only the conversation rewinds.
 

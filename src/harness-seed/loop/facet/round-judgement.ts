@@ -60,7 +60,7 @@ export function remeasurable(
 /**
  * The regressions a second look at the same build did not reproduce: they passed this time, so
  * the first look caught a frame, not a build. A probe that samples one frame of moving AI fails
- * on whichever frame catches a dead ball; the builder then tunes the game to keep the probe green.
+ * on whichever frame catches a dead ball; the builder then tunes the project to keep the probe green.
  */
 export function noisyRegressions(
   regressed: readonly string[],

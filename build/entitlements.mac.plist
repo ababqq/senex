@@ -4,7 +4,7 @@
   Hardened-runtime entitlements for the app and every helper (scripts/package-signing.cjs).
   allow-jit: V8 needs it in main, the renderers and the ELECTRON_RUN_AS_NODE children (harness,
   plugin backends, MCP servers, the self-edit gate).
-  Deliberately absent: camera, microphone, bluetooth, USB, location and print (games are denied
+  Deliberately absent: camera, microphone, bluetooth, USB, location and print (projects are denied
   media permissions in main/preview.ts), and disable-library-validation, so only native addons
   signed with the app's own team load. Third-party plugins' native addons are not supported; the
   install scan already reports a .node file as a dangerous native binary.

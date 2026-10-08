@@ -63,7 +63,7 @@ describe("the artefact classes the three judges share", () => {
     assert.equal(filterArtefactClasses(sharedBlock(), artefactTokens({ ownShape: true })), frozenBlock());
   });
 
-  it("keeps every class for a first-person run and drops [no-hands] for a game with no hands", () => {
+  it("keeps every class for a first-person run and drops [no-hands] for a project with no hands", () => {
     const all = filterArtefactClasses(sharedBlock(), ["template", "fps"]);
     assert.equal(all, frozenBlock(), "a shooter sees the whole list");
     const puzzle = filterArtefactClasses(sharedBlock(), ["template", "puzzle"]);
@@ -84,17 +84,17 @@ describe("the artefact classes the three judges share", () => {
     assert.equal(new Set(bullets).size, bullets.length, "no class is listed twice");
   });
 
-  it("conditions [dead-input] on the GAME line and retracts it for a game that has none", () => {
+  it("conditions [dead-input] on the PROJECT line and retracts it for a project that has none", () => {
     const block = sharedBlock();
     assert.equal(block.match(/\[dead-input\]/g)?.length, 1, "the class is named once");
-    assert.match(block, /the numbers the GAME line\n {2}names as this game's input evidence are unchanged/);
-    assert.match(block, /Never report it when the GAME line says the class does not apply/);
+    assert.match(block, /the numbers the PROJECT line\n {2}names as this project's input evidence are unchanged/);
+    assert.match(block, /Never report it when the PROJECT line says the class does not apply/);
   });
 
   it("reads its tokens off the run record", () => {
     assert.deepEqual(artefactTokens(null), []);
-    assert.deepEqual(artefactTokens({ genres: [], game: {} }), []);
-    assert.deepEqual(artefactTokens({ genres: ["FPS"], game: { kind: "first-person" } }).sort(), [
+    assert.deepEqual(artefactTokens({ genres: [], app: {} }), []);
+    assert.deepEqual(artefactTokens({ genres: ["FPS"], app: { kind: "first-person" } }).sort(), [
       "first-person",
       "fps",
       "template",
@@ -128,7 +128,7 @@ describe("the two critics' rubrics", () => {
     const text = rubric("readability.md");
     assert.match(
       text,
-      /^This game is a screen, not a place a player walks through: judge what the screen tells the\nplayer, not how real the world feels\./,
+      /^This project is a screen, not a place a player walks through: judge what the screen tells the\nplayer, not how real the world feels\./,
     );
     assert.match(
       text,

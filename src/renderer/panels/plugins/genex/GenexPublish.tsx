@@ -1,8 +1,8 @@
 /**
- * Publish to the web, drawn by Studio over the game's stage in the app's own type and buttons. It
+ * Publish to the web, drawn by Studio over the project's stage in the app's own type and buttons. It
  * asks first for what publishing needs and the person lacks (Genex Tools installed and on, then a
- * Genex account), then shows one dialog with one main button: the game and the name players will
- * see, Publish, its progress in that same button and under it, and the link once the game is live.
+ * Genex account), then shows one dialog with one main button: the project and the name players will
+ * see, Publish, its progress in that same button and under it, and the link once the project is live.
  * A failed attempt is said calmly, with the raw detail kept for support. The Publish press is the
  * consent to the files it uploads (listed on request beside it); nothing asks again.
  */
@@ -20,7 +20,7 @@ import { useLibrary } from "../../../state/hooks.ts";
 import { Button } from "../../../ui/Button.tsx";
 import { OPEN_PLUGINS_EVENT } from "../../../ui/ComposerAddMenu.tsx";
 import { DialogSurface } from "../../../ui/dialog.tsx";
-import { GameAvatar } from "../../../ui/GameAvatar.tsx";
+import { ProjectAvatar } from "../../../ui/ProjectAvatar.tsx";
 import { Icon } from "../../../ui/icons.tsx";
 import { Pending } from "../../../ui/Pending.tsx";
 import { GENEX_WORDS, problemWords } from "../../../words.ts";
@@ -114,10 +114,10 @@ function Progress({ view }: { view: PublishView }): JSX.Element {
 }
 
 /**
- * The game: its cover, and while nothing runs the name players will see, editable; while it
- * publishes, that name as text. Under it, where the game is.
+ * The project: its cover, and while nothing runs the name players will see, editable; while it
+ * publishes, that name as text. Under it, where the project is.
  */
-function GameLine({
+function AppLine({
   project,
   title,
   onTitle,
@@ -130,12 +130,12 @@ function GameLine({
   view: PublishView;
   publishing: boolean;
 }): JSX.Element {
-  const game = useLibrary((s) => s.games.find((g) => g.name === project));
+  const entry = useLibrary((s) => s.projects.find((g) => g.name === project));
   const live = view.stage === PublishStage.Public && !publishing;
   return (
-    <div className="genex-publish-game">
-      <GameAvatar cover={game?.cover} gameKey={project} className="genex-publish-cover" />
-      <div className="genex-publish-game-text">
+    <div className="genex-publish-project">
+      <ProjectAvatar cover={entry?.cover} projectKey={project} className="genex-publish-cover" />
+      <div className="genex-publish-project-text">
         {publishing ? (
           <span className="genex-publish-title">{title}</span>
         ) : (
@@ -211,7 +211,7 @@ function CopyDetails({ details }: { details: string }): JSX.Element {
 }
 
 /**
- * The dialog's frame: one title, the words for where the game is, and, once the record is read,
+ * The dialog's frame: one title, the words for where the project is, and, once the record is read,
  * where it is on Genex for smoke checks, whatever the dialog asks for first.
  */
 function PublishFrame({
@@ -504,7 +504,7 @@ export function GenexPublishDialog({
 }
 
 /**
- * The read record: the game and its name, the running attempt's progress, the live link or what
+ * The read record: the project and its name, the running attempt's progress, the live link or what
  * went wrong, the files on request, and the footer's presses.
  */
 function PublishBody({
@@ -516,10 +516,10 @@ function PublishBody({
   record: ReturnType<typeof usePublishRecord>;
   project: string;
 }): JSX.Element {
-  const gameTitle = useLibrary((s) => s.games.find((g) => g.name === project)?.title);
+  const projectTitle = useLibrary((s) => s.projects.find((g) => g.name === project)?.title);
   const [title, setTitle] = useState<string | null>(null);
   const [filesOpen, setFilesOpen] = useState(false);
-  const name = title ?? offeredTitle(record.state, gameTitle, project);
+  const name = title ?? offeredTitle(record.state, projectTitle, project);
   const publishing = record.pressing === Pressing.Publish || view.running;
   const failure = record.error ? { title: WORDS.failedTitle, text: record.error, details: record.error } : view.failure;
   const toggleFiles = () => {
@@ -533,7 +533,7 @@ function PublishBody({
           {problem}
         </p>
       ))}
-      <GameLine project={project} title={name} onTitle={setTitle} view={view} publishing={publishing} />
+      <AppLine project={project} title={name} onTitle={setTitle} view={view} publishing={publishing} />
       {view.running && <Progress view={view} />}
       {view.link && !publishing && <LinkField link={view.link} />}
       {failure && !publishing && <Failure title={failure.title} text={failure.text} />}
@@ -560,7 +560,7 @@ function PublishBody({
 
 /**
  * The presses on the footer's trailing edge. One main button: Publish (busy while it publishes),
- * Try again after a failure, Open game once live with Publish update beside it, or, while an
+ * Try again after a failure, Open project once live with Publish update beside it, or, while an
  * upload's outcome is unknown, Check again and the person's own word.
  */
 function Presses({
@@ -633,7 +633,7 @@ function Presses({
         busy={acting}
         onClick={() => void record.act(GenexAction.PublishOpen, { target: LinkTarget.Gallery })}
       >
-        {WORDS.openGame}
+        {WORDS.openProject}
         <Icon name="arrow-up-right" size={14} />
       </Button>
     </>

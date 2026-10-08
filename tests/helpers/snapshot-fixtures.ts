@@ -1,6 +1,6 @@
 /**
  * User repositories in the states snapshot, landing and restore code must never lose: committed
- * history plus uncommitted edits, staged edits and untracked files, and a game folder that holds
+ * history plus uncommitted edits, staged edits and untracked files, and a project folder that holds
  * another repository one level down (the flautout-remix shape).
  *
  * Built with the machine's real git. Commits carry a fixture identity and skip signing and hooks,
@@ -57,7 +57,7 @@ export interface UserRepo {
 }
 
 const DEFAULT_REPO: Required<UserRepoSpec> = {
-  committed: { "index.html": '<canvas id="game"></canvas>\n', "src/main.js": "export const speed = 1;\n" },
+  committed: { "index.html": '<canvas id="project"></canvas>\n', "src/main.js": "export const speed = 1;\n" },
   modified: { "src/main.js": "export const speed = 2; // the user's edit, not yet committed\n" },
   staged: { "src/level.js": "export const level = 'staged, never committed';\n" },
   untracked: { "notes/ideas.md": "- a jump that feels like mine\n" },
@@ -88,24 +88,24 @@ async function initRepo(dir: string, spec: Required<UserRepoSpec>): Promise<User
 }
 
 /**
- * A game folder that is the user's own repository, dirty in every way at once: an unstaged edit,
+ * A project folder that is the user's own repository, dirty in every way at once: an unstaged edit,
  * a staged new file and an untracked file on top of one commit. Pass a spec to change any part.
  */
 export async function dirtyUserRepo(spec: UserRepoSpec = {}, dir?: string): Promise<UserRepo> {
-  return initRepo(dir ?? path.join(await tmpDir("studio-user-repo-"), "game"), { ...DEFAULT_REPO, ...spec });
+  return initRepo(dir ?? path.join(await tmpDir("studio-user-repo-"), "project"), { ...DEFAULT_REPO, ...spec });
 }
 
 export interface NestedRepo {
   /** The folder the user opened. */
   parent: string;
-  /** The repository one level down that holds the real game. */
+  /** The repository one level down that holds the real project. */
   inner: UserRepo;
   /** The inner repo's folder name relative to `parent`. */
   rel: string;
 }
 
 /**
- * A folder holding the user's game one level down as a repository of its own, dirty like
+ * A folder holding the user's project one level down as a repository of its own, dirty like
  * {@link dirtyUserRepo}. `parentRepo` makes the outer folder a repository too, with one commit that
  * leaves the inner repository unadded (git would record it only as a gitlink, never as files).
  */

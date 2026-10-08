@@ -1,10 +1,10 @@
 /**
  * The five shapes, guarded without an Electron in sight.
  *
- * `tests/fixtures/games` holds five games nobody wrote the studio's contract for. They are only
+ * `tests/fixtures/projects` holds five projects nobody wrote the studio's contract for. They are only
  * evidence while they stay that way: the moment one of them grows a `studio.json` with a
  * `contractVersion`, a CDN tag, or a second `installStudio`, it is testing the template again and
- * every claim this milestone makes about "any Three.js game" is quietly false. These are the
+ * every claim this milestone makes about "any Three.js project" is quietly false. These are the
  * rules that keep them real, and they run in `npm test`, not only in the e2e — a renamed warning
  * or a drifted shape has to fail in seconds, on a laptop, with no window open.
  */
@@ -12,17 +12,17 @@ import assert from "node:assert/strict";
 import { cp, mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { describe, it } from "node:test";
-import { GameWorkspaces, detectProjectShape } from "../../src/substrate/game-workspace.ts";
+import { ProjectWorkspaces, detectProjectShape } from "../../src/substrate/project-workspace.ts";
 import { MAX_INPUT_ACTIONS, capActions } from "../../src/substrate/preview-input.ts";
-import { normalizeGameTraits, withHarnessChecks } from "../../src/harness-seed/loop/spec.ts";
+import { normalizeAppTraits, withHarnessChecks } from "../../src/harness-seed/loop/spec.ts";
 import { tmpDir } from "../helpers/tmp.ts";
 import { MACHINE_WARNINGS, missingWarnings, undeclaredWarnings } from "../../tests/e2e/warning-policy.ts";
 
 const repo = path.resolve(import.meta.dirname, "../..");
-const gamesDir = path.join(repo, "tests/fixtures/games");
+const projectsDir = path.join(repo, "tests/fixtures/projects");
 const seedDir = path.join(repo, "src/harness-seed");
 
-/** The six entries `ls tests/fixtures/games` must print — five games and the page of rules. */
+/** The six entries `ls tests/fixtures/projects` must print — five projects and the page of rules. */
 const FIXTURE_IDS = ["bundled-ts", "esm-addons", "inline-raf", "menu-levels", "webgpu-field"] as const;
 
 const MAX_SOURCE_LINES = 300;
@@ -42,7 +42,7 @@ interface FixtureManifest {
   edits: "none" | "two-line-install";
   needsNodeModules: boolean;
   backend: "webgl" | "webgpu";
-  game: Record<string, unknown>;
+  app: Record<string, unknown>;
   setup: { gesture?: boolean; actions?: unknown[]; settleMs?: number; verify?: { path: string } } | null;
   cameras: string[];
   expectWarnings: string[];
@@ -53,7 +53,7 @@ interface FixtureManifest {
 }
 
 async function manifestOf(id: string): Promise<FixtureManifest> {
-  return JSON.parse(await readFile(path.join(gamesDir, id, "manifest.json"), "utf8")) as FixtureManifest;
+  return JSON.parse(await readFile(path.join(projectsDir, id, "manifest.json"), "utf8")) as FixtureManifest;
 }
 
 /** Every file in a folder, project-relative, with git's bookkeeping and build output left out. */
@@ -87,7 +87,7 @@ function importMapKeys(html: string): string[] {
 }
 
 /**
- * The state paths the harness's own input probes name for this game. `delta` entries have to be
+ * The state paths the harness's own input probes name for this project. `delta` entries have to be
  * paths something actually measures; deriving them from `withHarnessChecks` rather than from a
  * list in this file means the fixtures follow the kinds table wherever it goes.
  */
@@ -96,8 +96,8 @@ const harnessChecks = withHarnessChecks as unknown as (
   options: Record<string, unknown>,
 ) => { checks?: Array<{ expr?: unknown }> };
 
-function probePaths(game: unknown): Set<string> {
-  const spec = harnessChecks({ checks: [] }, { ownsMain: true, role: "facet", game, screen: true });
+function probePaths(app: unknown): Set<string> {
+  const spec = harnessChecks({ checks: [] }, { ownsMain: true, role: "facet", app, screen: true });
   const paths = new Set<string>();
   for (const check of spec.checks ?? []) {
     for (const match of String(check.expr ?? "").matchAll(/delta\(\s*['"]([^'"]+)['"]\s*\)/g)) {
@@ -129,10 +129,10 @@ async function seedText(): Promise<string> {
   return parts.join("\n");
 }
 
-function workspaces(base: string): GameWorkspaces {
-  return new GameWorkspaces({
+function workspaces(base: string): ProjectWorkspaces {
+  return new ProjectWorkspaces({
     root: path.join(base, "library"),
-    templateDir: path.join(repo, "src", "game-template"),
+    templateDir: path.join(repo, "src", "project-template"),
     vendorDir: path.join(base, "vendor"),
     indexFile: path.join(base, "projects.json"),
     userData: path.join(base, "userData"),
@@ -141,8 +141,8 @@ function workspaces(base: string): GameWorkspaces {
 }
 
 describe("the five shapes", () => {
-  it("is exactly five games and the page of rules", async () => {
-    const entries = (await readdir(gamesDir)).sort();
+  it("is exactly five projects and the page of rules", async () => {
+    const entries = (await readdir(projectsDir)).sort();
     assert.deepEqual(entries, ["README.md", ...FIXTURE_IDS].sort());
   });
 
@@ -161,7 +161,7 @@ describe("the five shapes", () => {
 
   it("says in its README's first paragraph what the shape proves — the paragraph adoption seeds NOTES.md from", async () => {
     for (const id of FIXTURE_IDS) {
-      const readme = await readFile(path.join(gamesDir, id, "README.md"), "utf8");
+      const readme = await readFile(path.join(projectsDir, id, "README.md"), "utf8");
       const paragraph = readme
         .split("\n\n")
         .map((block) => block.trim())
@@ -176,9 +176,9 @@ describe("the five shapes", () => {
 
   it("keeps every source file under the caps a fixture is read at", async () => {
     for (const id of FIXTURE_IDS) {
-      for (const file of await filesIn(path.join(gamesDir, id))) {
+      for (const file of await filesIn(path.join(projectsDir, id))) {
         if (!isSource(file)) continue;
-        const text = await readFile(path.join(gamesDir, id, file), "utf8");
+        const text = await readFile(path.join(projectsDir, id, file), "utf8");
         assert.ok(
           text.split("\n").length <= MAX_SOURCE_LINES,
           `${id}/${file}: ${text.split("\n").length} lines, cap ${MAX_SOURCE_LINES}`,
@@ -193,9 +193,9 @@ describe("the five shapes", () => {
 
   it("fetches nothing: no CDN tag, no remote import, in any source file", async () => {
     for (const id of FIXTURE_IDS) {
-      for (const file of await filesIn(path.join(gamesDir, id))) {
+      for (const file of await filesIn(path.join(projectsDir, id))) {
         if (!isSource(file)) continue;
-        const found = remoteUrls(await readFile(path.join(gamesDir, id, file), "utf8"));
+        const found = remoteUrls(await readFile(path.join(projectsDir, id, file), "utf8"));
         assert.deepEqual(found, [], `${id}/${file} reaches the network: ${found.join(", ")}`);
       }
     }
@@ -208,11 +208,11 @@ describe("the five shapes", () => {
 
   it("carries no studio scaffold, and above all no studio.json with a contractVersion", async () => {
     for (const id of FIXTURE_IDS) {
-      const files = await filesIn(path.join(gamesDir, id));
+      const files = await filesIn(path.join(projectsDir, id));
       for (const scaffold of SCAFFOLD) {
         assert.ok(!files.includes(scaffold), `${id} carries the studio's ${scaffold}`);
       }
-      const meta = await readFile(path.join(gamesDir, id, "studio.json"), "utf8").catch(() => null);
+      const meta = await readFile(path.join(projectsDir, id, "studio.json"), "utf8").catch(() => null);
       if (meta !== null) {
         assert.ok(
           !("contractVersion" in (JSON.parse(meta) as Record<string, unknown>)),
@@ -220,7 +220,7 @@ describe("the five shapes", () => {
         );
       }
       assert.notEqual(
-        await detectProjectShape(path.join(gamesDir, id)),
+        await detectProjectShape(path.join(projectsDir, id)),
         null,
         `${id} reads as the studio's own template`,
       );
@@ -230,7 +230,7 @@ describe("the five shapes", () => {
   it("resolves every bare specifier through its own import map, unless it is bundled", async () => {
     for (const id of FIXTURE_IDS) {
       const manifest = await manifestOf(id);
-      const html = await readFile(path.join(gamesDir, id, "index.html"), "utf8");
+      const html = await readFile(path.join(projectsDir, id, "index.html"), "utf8");
       const keys = importMapKeys(html);
       if (manifest.shape.build) {
         assert.deepEqual(keys, [], `${id} is bundled: its bare specifiers belong to the bundler`);
@@ -238,7 +238,7 @@ describe("the five shapes", () => {
       }
       assert.ok(
         keys.includes("three"),
-        `${id}: a no-build own-shape game with no import map is a hard validation problem before its page loads`,
+        `${id}: a no-build own-shape project with no import map is a hard validation problem before its page loads`,
       );
     }
   });
@@ -246,39 +246,39 @@ describe("the five shapes", () => {
   it("records the shape detectProjectShape actually answers", async () => {
     for (const id of FIXTURE_IDS) {
       const manifest = await manifestOf(id);
-      assert.deepEqual(await detectProjectShape(path.join(gamesDir, id)), manifest.shape, `${id}: shape`);
+      assert.deepEqual(await detectProjectShape(path.join(projectsDir, id)), manifest.shape, `${id}: shape`);
     }
   });
 
   it("promises what adoption would add, as a relation and never as the template's file list", async () => {
     const base = await tmpDir("studio-shapes-");
-    const games = workspaces(base);
+    const projects = workspaces(base);
     for (const id of FIXTURE_IDS) {
       const manifest = await manifestOf(id);
-      const writes = await games.plannedWrites(path.join(gamesDir, id), { template: false });
+      const writes = await projects.plannedWrites(path.join(projectsDir, id), { template: false });
       for (const file of manifest.addsAtLeast) {
         assert.ok(writes.includes(file), `${id}: adoption no longer writes ${file} (${writes.join(", ")})`);
       }
       for (const file of manifest.neverAdded) {
-        assert.ok(!writes.includes(file), `${id}: adoption would write ${file} over the game's own`);
+        assert.ok(!writes.includes(file), `${id}: adoption would write ${file} over the project's own`);
       }
     }
   });
 
-  it("declares traits that survive normalizeGameTraits, and delta paths something measures", async () => {
+  it("declares traits that survive normalizeAppTraits, and delta paths something measures", async () => {
     for (const id of FIXTURE_IDS) {
       const manifest = await manifestOf(id);
-      const normalized = normalizeGameTraits(manifest.game) as unknown as Record<string, unknown>;
-      for (const [key, value] of Object.entries(manifest.game)) {
+      const normalized = normalizeAppTraits(manifest.app) as unknown as Record<string, unknown>;
+      for (const [key, value] of Object.entries(manifest.app)) {
         if (typeof value !== "boolean") continue;
-        assert.equal(normalized[key], value, `${id}: normalizeGameTraits dropped ${key}`);
+        assert.equal(normalized[key], value, `${id}: normalizeAppTraits dropped ${key}`);
       }
       assert.deepEqual(
-        normalizeGameTraits(normalized) as unknown as Record<string, unknown>,
+        normalizeAppTraits(normalized) as unknown as Record<string, unknown>,
         normalized,
-        `${id}: normalizeGameTraits does not round-trip`,
+        `${id}: normalizeAppTraits does not round-trip`,
       );
-      const measured = probePaths(manifest.game);
+      const measured = probePaths(manifest.app);
       for (const entry of manifest.delta) {
         assert.ok(entry.min > 0, `${id}: delta ${entry.path} needs a minimum worth measuring`);
         assert.ok(
@@ -321,7 +321,7 @@ describe("the five shapes", () => {
 
   /**
    * `expectWarnings` was a positive list and nothing bounded the other side: four of the five
-   * manifests said `[]`, which reads as "this game warns about nothing" and asserted nothing at
+   * manifests said `[]`, which reads as "this project warns about nothing" and asserted nothing at
    * all. The e2e now fails on any warning no list names, and these are the rules that guard the
    * policy itself — every fixture declares both lists, and a warning that appears out of nowhere
    * is undeclared for a fixture whose lists are empty.
@@ -331,7 +331,7 @@ describe("the five shapes", () => {
       const manifest = await manifestOf(id);
       assert.ok(Array.isArray(manifest.expectWarnings), `${id}: expectWarnings must be a list`);
       assert.ok(Array.isArray(manifest.allowWarnings), `${id}: allowWarnings must be a list, even an empty one`);
-      const invented = "this game paints its HUD in the margins of the page";
+      const invented = "this project paints its HUD in the margins of the page";
       assert.deepEqual(
         undeclaredWarnings([invented], manifest),
         [invented],
@@ -354,10 +354,10 @@ describe("the five shapes", () => {
   it("tolerates the slow-boot warning and nothing else a fixture did not name", async () => {
     const menu = await manifestOf("menu-levels");
     const slow = "the page took 7.4 s to report itself ready — every pass of the run pays that boot";
-    assert.deepEqual(undeclaredWarnings([slow], menu), [], "a slow machine is not a failing game");
+    assert.deepEqual(undeclaredWarnings([slow], menu), [], "a slow machine is not a failing project");
     assert.deepEqual(
       undeclaredWarnings(
-        ["this game paints UI outside the canvas (div#hud) — user:view shows it, the canvas frames do not"],
+        ["this project paints UI outside the canvas (div#hud) — user:view shows it, the canvas frames do not"],
         menu,
       ),
       [],
@@ -365,12 +365,12 @@ describe("the five shapes", () => {
     );
     const strict = { expectWarnings: [], allowWarnings: [] };
     assert.deepEqual(undeclaredWarnings([slow], strict), []);
-    assert.equal(undeclaredWarnings(["a full-screen overlay covers the game (div#menu)"], strict).length, 1);
+    assert.equal(undeclaredWarnings(["a full-screen overlay covers the project (div#menu)"], strict).length, 1);
     // What a permissive list buys, and only that.
     assert.deepEqual(
-      undeclaredWarnings(["a full-screen overlay covers the game (div#menu)"], {
+      undeclaredWarnings(["a full-screen overlay covers the project (div#menu)"], {
         expectWarnings: [],
-        allowWarnings: ["a full-screen overlay covers the game"],
+        allowWarnings: ["a full-screen overlay covers the project"],
       }),
       [],
     );
@@ -389,7 +389,7 @@ describe("the five shapes", () => {
 
     // (1) a fixture that gains a studio.json with contractVersion reads as the studio's template.
     const scaffolded = path.join(base, "scaffolded");
-    await cp(path.join(gamesDir, "inline-raf"), scaffolded, { recursive: true });
+    await cp(path.join(projectsDir, "inline-raf"), scaffolded, { recursive: true });
     await writeFile(
       path.join(scaffolded, "studio.json"),
       `${JSON.stringify({ name: "sweep", title: "Sweep", contractVersion: 1 })}\n`,
@@ -403,7 +403,7 @@ describe("the five shapes", () => {
     // (2) a fixture that gains a CDN script tag.
     const remote = path.join(base, "remote");
     await mkdir(remote, { recursive: true });
-    const page = await readFile(path.join(gamesDir, "inline-raf/index.html"), "utf8");
+    const page = await readFile(path.join(projectsDir, "inline-raf/index.html"), "utf8");
     await writeFile(
       path.join(remote, "index.html"),
       page.replace(
@@ -415,7 +415,7 @@ describe("the five shapes", () => {
 
     // (3) a shape that drifted: the same page with a build script is no longer three-modules.
     const built = path.join(base, "built");
-    await cp(path.join(gamesDir, "inline-raf"), built, { recursive: true });
+    await cp(path.join(projectsDir, "inline-raf"), built, { recursive: true });
     await writeFile(
       path.join(built, "package.json"),
       `${JSON.stringify({ name: "sweep", scripts: { build: "vite build" } })}\n`,
@@ -442,7 +442,7 @@ describe("the five shapes", () => {
 describe("the fixture tree stays out of the studio's way", () => {
   it("is excluded from the repository's typecheck, because bundled-ts imports a module adoption writes", async () => {
     const config = JSON.parse(await readFile(path.join(repo, "tsconfig.json"), "utf8")) as { exclude?: string[] };
-    assert.ok(config.exclude?.includes("tests/fixtures/games"), "tsconfig excludes the fixture games");
+    assert.ok(config.exclude?.includes("tests/fixtures/projects"), "tsconfig excludes the fixture projects");
     assert.ok(
       config.exclude?.includes("node_modules"),
       "exclude replaces TypeScript's default list, so node_modules has to be named again",
@@ -453,14 +453,14 @@ describe("the fixture tree stays out of the studio's way", () => {
     for (const id of FIXTURE_IDS) {
       const manifest = await manifestOf(id);
       assert.equal(manifest.needsNodeModules, id === "bundled-ts", `${id}: needsNodeModules`);
-      const files = await filesIn(path.join(gamesDir, id));
+      const files = await filesIn(path.join(projectsDir, id));
       assert.ok(
         !files.some((file) => /(package-lock\.json|pnpm-lock\.yaml|yarn\.lock|bun\.lock)$/.test(file)),
         `${id}: a lockfile`,
       );
     }
     // The one fixture with a package.json builds with what this repository already installs.
-    const pkg = JSON.parse(await readFile(path.join(gamesDir, "bundled-ts/package.json"), "utf8")) as {
+    const pkg = JSON.parse(await readFile(path.join(projectsDir, "bundled-ts/package.json"), "utf8")) as {
       scripts?: Record<string, string>;
       devDependencies?: Record<string, string>;
     };

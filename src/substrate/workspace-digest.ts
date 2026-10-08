@@ -1,7 +1,7 @@
 /**
  * The workspace digest evals judge `template-untouched` by (evals plan Rule 22): one sha256 over a
- * game folder's paths and contents, without `node_modules`, `.git` and what the studio writes into
- * a game besides its template. The app's eval lane takes it of the seeded game the moment the chat
+ * project folder's paths and contents, without `node_modules`, `.git` and what the studio writes into
+ * a project besides its template. The app's eval lane takes it of the seeded project the moment the chat
  * is bound to it (`EvalLaneReport.templateDigest`), and the eval scripts take it of the stop-time
  * snapshot; both call this module, so the two can only agree. Links are hashed by their target and
  * never followed.
@@ -13,7 +13,7 @@ import path from "node:path";
 /** Never cloned and never digested, at any depth. */
 export const WORKSPACE_EXCLUDED: ReadonlySet<string> = new Set(["node_modules", ".git"]);
 /**
- * What the studio writes into a game besides the template, left out of the workspace digest so
+ * What the studio writes into a project besides the template, left out of the workspace digest so
  * an untouched template still matches its seeded digest: its metadata file, its ignore rules, its
  * own folders, and Finder's litter.
  */

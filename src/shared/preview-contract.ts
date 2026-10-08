@@ -5,12 +5,12 @@
  * preview; nothing here runs.
  */
 
-/** The `__studio` verbs that start and pause a game's clock (`src/game-template/src/studio.js`). */
-export const GameClock = { Start: "start", Pause: "pause" } as const;
-export type GameClock = (typeof GameClock)[keyof typeof GameClock];
+/** The `__studio` verbs that start and pause a project's clock (`src/project-template/src/studio.js`). */
+export const ProjectClock = { Start: "start", Pause: "pause" } as const;
+export type ProjectClock = (typeof ProjectClock)[keyof typeof ProjectClock];
 
 /**
- * Which surface a capture photographs (M4.5/M4.9a). `canvas` is what the game draws, `page` is
+ * Which surface a capture photographs (M4.5/M4.9a). `canvas` is what the project draws, `page` is
  * the whole compositor frame — the DOM menu, the HTML HUD, the loader — and `auto` lets the
  * preview decide from what it can see of the page.
  */
@@ -41,13 +41,13 @@ export interface PreviewPixelStats extends PixelStats {
   kind?: "webgl" | "webgl2" | "webgpu" | "2d" | null;
   /**
    * Who took this picture (M4.9a). `shim` is the studio's own end-of-frame read off the canvas;
-   * `game` is a picture the build's own `capture()` answered with — the facade delegates
-   * `capture()` and `captureInfo()` to the game, so a `game` frame and the draw count beside it
+   * `project` is a picture the build's own `capture()` answered with — the facade delegates
+   * `capture()` and `captureInfo()` to the project, so a `project` frame and the draw count beside it
    * are the build's claim about itself, and a check that counts draws must not read them as the
    * canvas's own answer.
    */
-  provenance?: "shim" | "game" | null;
-  /** Which rungs the page-side capture climbed to get this frame (`frame`, `pump`, `async`, `game`). */
+  provenance?: "shim" | "project" | null;
+  /** Which rungs the page-side capture climbed to get this frame (`frame`, `pump`, `async`, `project`). */
   ladder?: string[] | null;
 }
 
@@ -120,7 +120,7 @@ export interface PreviewPortStatus {
 }
 
 export type PreviewInputAction =
-  /** `stepMs` advances the page's own loop between the press and the release, so a game that reads a key inside its frame sees it held (M4.1). It is honoured only while the studio owns the clock. */
+  /** `stepMs` advances the page's own loop between the press and the release, so a project that reads a key inside its frame sees it held (M4.1). It is honoured only while the studio owns the clock. */
   | { type: "tap"; keys: string[]; stepMs?: number }
   | { type: "down"; keys: string[] }
   | { type: "up"; keys: string[] }
@@ -177,7 +177,7 @@ export interface PreviewSetup {
   actions?: PreviewInputAction[];
   /** A `config.demos` entry that reaches the state deterministically — preferred when it exists. */
   demo?: string;
-  /** Milliseconds to let the game settle after the script; default 400. */
+  /** Milliseconds to let the project settle after the script; default 400. */
   settleMs?: number;
   /** A dotted state path and the value it must hold (`equals`), or merely be truthy. */
   verify?: { path: string; equals?: unknown; truthy?: boolean };
@@ -185,7 +185,7 @@ export interface PreviewSetup {
   note?: string;
 }
 
-/** Which signal answered: the studio's own page shim, the game's own contract, or nothing. Wire values. */
+/** Which signal answered: the studio's own page shim, the project's own contract, or nothing. Wire values. */
 export const ReadyVia = {
   Shim: "shim",
   Contract: "contract",

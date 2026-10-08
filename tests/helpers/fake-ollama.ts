@@ -54,7 +54,7 @@ export function countImages(messages: Array<{ content?: unknown }> | undefined):
 type FixtureImage = { data: string; label?: string };
 type FixtureJudgeRequest = { messages: Array<{ content: string; images?: readonly FixtureImage[] }> };
 
-/** Pick authored smoke-game state in a real screenshot run without exposing incumbent identity. */
+/** Pick authored smoke-project state in a real screenshot run without exposing incumbent identity. */
 export function stateFixtureBuild(request: FixtureJudgeRequest): "A" | "B" {
   const text = request.messages.map((message) => message.content).join("\n");
   const [, a = "", b = ""] = text.split(/\nBUILD [AB]\n/);

@@ -174,8 +174,8 @@ function EntryRow({
 }) {
   const id = `${list}-${entry.kind}-${index}`;
   const action = entry.status?.action;
-  // Where the switch applies, while no status needs the space: a plugin is on or off for every game.
-  const scope = !entry.status && entry.scope === EntryScope.AllGames ? `${id}-scope` : undefined;
+  // Where the switch applies, while no status needs the space: a plugin is on or off for every project.
+  const scope = !entry.status && entry.scope === EntryScope.AllProjects ? `${id}-scope` : undefined;
   return (
     <div className={`${pickerItem} hover:bg-control-hover`} data-plugin-row={entry.id}>
       <label htmlFor={id} className="flex min-w-0 flex-1 cursor-pointer items-center gap-2.5 self-stretch">
@@ -189,7 +189,7 @@ function EntryRow({
         )}
         {scope && (
           <span id={scope} className="picker-desc" data-plugin-scope={entry.scope}>
-            {SKILLS_WORDS.allGames}
+            {SKILLS_WORDS.allProjects}
           </span>
         )}
       </label>

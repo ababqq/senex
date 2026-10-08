@@ -57,7 +57,7 @@ export interface CanvasPixels {
 
 /**
  * Read the largest visible canvas as a PNG data URL, scaled to at most 1280x720. Runs inside the
- * game document from its own source text, so it names only page globals.
+ * project document from its own source text, so it names only page globals.
  */
 export function readCanvasPixels(): CanvasPixels | null {
   const MAX_WIDTH = 1280;

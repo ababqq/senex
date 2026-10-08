@@ -1,7 +1,7 @@
 /**
  * Scripted play — seed, then drive controls, then step.
  *
- * The critic cannot feel a game that only ticks the clock. A short WASD/look/jump script is how
+ * The critic cannot feel a project that only ticks the clock. A short WASD/look/jump script is how
  * two builds are compared on the same inputs.
  */
 import { HostMethod } from "./host-methods.ts";
@@ -34,9 +34,9 @@ export const CONTROL_EXERCISE: PlayAction[] = [
   { type: "look", dx: 56, dy: -8 },
   { type: "tap", keys: ["space"] },
   { type: "hold", keys: ["a"], ms: 800 },
-  // The primary verb: a held Mouse1 reaches the game as `Mouse1` in ctx.keys through the
+  // The primary verb: a held Mouse1 reaches the project as `Mouse1` in ctx.keys through the
   // same path a human's click takes (studio.js records mouse buttons as keys). Without it
-  // a judge once reported "shotsFired stay 0 across the whole run" as a defect of the game.
+  // a judge once reported "shotsFired stay 0 across the whole run" as a defect of the project.
   { type: "hold", keys: ["Mouse1"], ms: 320 },
 ];
 
@@ -54,12 +54,12 @@ interface Drive {
 /** A declared action, as a script carries it: any fields, read loosely. */
 type ScriptAction = AnyRecord;
 
-/** Under the stepped clock, advance the game by one input frame. */
+/** Under the stepped clock, advance the project by one input frame. */
 async function stepFrame(drive: Drive): Promise<void> {
   if (drive.stepped) await drive.call(HostMethod.PreviewCall, { method: PageMethod.Step, arg: INPUT_FRAME_MS });
 }
 
-/** Let the game run for `ms`: stepped, or a wall-clock wait. */
+/** Let the project run for `ms`: stepped, or a wall-clock wait. */
 async function runFor(drive: Drive, ms: number): Promise<void> {
   if (drive.stepped) await drive.call(HostMethod.PreviewCall, { method: PageMethod.Step, arg: ms });
   else await drive.call(HostMethod.PreviewInput, { actions: [{ type: "wait", ms }] });
@@ -87,7 +87,7 @@ const ACTION_STEPS = new Map<string, (drive: Drive, action: ScriptAction) => Pro
   ],
   [
     "tap",
-    // `stepMs` straddles the press and the release with a frame: a game that reads a key on
+    // `stepMs` straddles the press and the release with a frame: a project that reads a key on
     // the frame it was pressed used to see the down and the up inside one frame and nothing
     // between them, so a tap reached nothing.
     (drive, action) =>
@@ -145,8 +145,8 @@ const ACTION_STEPS = new Map<string, (drive: Drive, action: ScriptAction) => Pro
       });
     },
   ],
-  // Under the stepped clock the game is paused: a wall-clock wait advances nothing while the
-  // GAME line tells the judge the game waited. Wait means "let the game run", so it steps the
+  // Under the stepped clock the project is paused: a wall-clock wait advances nothing while the
+  // PROJECT line tells the judge the project waited. Wait means "let the project run", so it steps the
   // clock by the same milliseconds.
   ["wait", (drive, action) => runFor(drive, clamp(action.ms ?? 100, 0, MAX_ACTION_MS))],
   [

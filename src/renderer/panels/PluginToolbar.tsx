@@ -2,7 +2,7 @@
  * The buttons plugins contribute at the end of the stage strip, dressed as the app's own
  * buttons. Which buttons exist is the manifest's (`toolbarItems`); what they say is the plugin's status action or a `plugin.event` of kind
  * `toolbar`, both sanitized before they reach the DOM. A panel target opens its own dialog over
- * the stage (and says so, so the native game view gets out of the way); an action target runs
+ * the stage (and says so, so the native project view gets out of the way); an action target runs
  * the same review → ticket → native approval sequence as the Plugins dialog.
  */
 import type { Dispatch, JSX, SetStateAction } from "react";
@@ -48,8 +48,8 @@ const TONE_CLASS: Record<NonNullable<PluginToolbarStatus["tone"]>, string> = {
 interface Props {
   plugins: PluginInfo[];
   project: string | null;
-  /** The game has nothing in it yet: no button's action can be due, so none takes the accent. */
-  emptyGame: boolean;
+  /** The project has nothing in it yet: no button's action can be due, so none takes the accent. */
+  emptyProject: boolean;
   onNotice: Notify;
   /** A panel dialog is on screen — the stage zeroes the native view while it is. */
   onOpenChange: (open: boolean) => void;
@@ -91,7 +91,7 @@ function toolbarChange(
 
 /**
  * Each button's status — badge, tone, title, disabled — asked of its plugin after a quiet
- * moment, again every so often while a game is open, and whenever a plugin says it changed.
+ * moment, again every so often while a project is open, and whenever a plugin says it changed.
  */
 function useToolbarStatus(entriesRef: { current: PluginToolbarEntry[] }, membership: string, project: string | null) {
   const [status, setStatus] = useState<Record<string, PluginToolbarStatus>>({});
@@ -188,8 +188,8 @@ function ToolbarButton({
   due: boolean;
   onPress: () => void;
 }): JSX.Element {
-  const needsGame = entry.item.requiresProject !== false && !project;
-  const disabled = Boolean(status?.disabled) || needsGame || busy;
+  const needsProject = entry.item.requiresProject !== false && !project;
+  const disabled = Boolean(status?.disabled) || needsProject || busy;
   return (
     <Button
       variant={due ? "default" : "pill"}
@@ -264,7 +264,7 @@ function usePress({ project, onNotice, refreshRef, setPanel, setReview, setBusy 
 }
 
 /**
- * Publish for every open game: while Genex is off or not installed, Studio's own button opens a
+ * Publish for every open project: while Genex is off or not installed, Studio's own button opens a
  * dialog that brings Genex back, and once Genex's own Publish is there it takes over the dialog.
  */
 function useStudioPublish(plugins: PluginInfo[], project: string | null, genexPublish: PluginToolbarEntry | undefined) {
@@ -290,7 +290,7 @@ function StudioPublishButton({ onPress }: { onPress: () => void }): JSX.Element 
   );
 }
 
-export function PluginToolbar({ plugins, project, emptyGame, onNotice, onOpenChange }: Props): JSX.Element {
+export function PluginToolbar({ plugins, project, emptyProject, onNotice, onOpenChange }: Props): JSX.Element {
   const entries = useMemo(() => toolbarItems(plugins, project), [plugins, project]);
   const entriesRef = useRef(entries);
   entriesRef.current = entries;
@@ -353,7 +353,7 @@ export function PluginToolbar({ plugins, project, emptyGame, onNotice, onOpenCha
           status={status[entry.key]}
           project={project}
           busy={busy === entry.key}
-          due={Boolean(status[entry.key]?.attention) && !emptyGame}
+          due={Boolean(status[entry.key]?.attention) && !emptyProject}
           onPress={() => void press(entry)}
         />
       ))}

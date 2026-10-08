@@ -21,7 +21,7 @@ export function normalise(memory: Record<string, unknown> | null | undefined): R
 
 /**
  * What belongs in memory: durable facts about this machine, this user's taste, and hard-won
- * conclusions. What does not: anything already in the log, anything about one game's current
+ * conclusions. What does not: anything already in the log, anything about one project's current
  * state, and anything that will be false next week.
  */
 export function shouldRemember(key: string, value: unknown): boolean {

@@ -11,7 +11,7 @@
  * generated picture cannot be copied into the thread log by way of a tool result.
  */
 import { randomUUID } from "node:crypto";
-import type { PluginToolFinishedPayload, PluginToolRole, PluginToolStartedPayload } from "../shared/game-assets.ts";
+import type { PluginToolFinishedPayload, PluginToolRole, PluginToolStartedPayload } from "../shared/project-assets.ts";
 import { isJsonObject } from "../substrate/fsx.ts";
 
 /** The arguments digest is a chat line, not a transcript. */

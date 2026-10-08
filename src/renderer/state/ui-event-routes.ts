@@ -9,12 +9,12 @@ export interface UiEventReads {
   /** The all-threads log after the cursor. */
   events: boolean;
   threads: boolean;
-  games: boolean;
+  projects: boolean;
   /** Self-improvement suggestions waiting. */
   staged: boolean;
   engines: boolean;
   plugins: boolean;
-  /** Watched asset inventories: one game's (`project`), or every watched one (`null`). */
+  /** Watched asset inventories: one project's (`project`), or every watched one (`null`). */
   assets: { project: string | null } | null;
 }
 
@@ -23,7 +23,7 @@ const PULL_DONE = "success";
 
 /** Events whose record lands in the log: pull it in now rather than at the next poll. */
 const LOGGED: ReadonlySet<UiEventType> = new Set<UiEventType>([
-  UiEvent.GameChanged,
+  UiEvent.ProjectChanged,
   UiEvent.RunIteration,
   // Autopilot narrates itself into the log — facet rows and decision cards land live.
   UiEvent.RunOptimization,
@@ -44,7 +44,7 @@ const LOGGED: ReadonlySet<UiEventType> = new Set<UiEventType>([
   UiEvent.ThreadCreated,
   UiEvent.ThreadBound,
   UiEvent.ThreadUpdated,
-  UiEvent.GameArchived,
+  UiEvent.ProjectArchived,
   // A plugin's question to the user, and its answer, live in the log as consent cards.
   UiEvent.PluginConsent,
   // So do Claude's own permission questions: the event is only a nudge, the log is the card.
@@ -55,8 +55,8 @@ const THREADS: ReadonlySet<UiEventType> = new Set<UiEventType>([
   UiEvent.ThreadCreated,
   UiEvent.ThreadBound,
   UiEvent.ThreadUpdated,
-  UiEvent.GameArchived,
-  UiEvent.GameChanged,
+  UiEvent.ProjectArchived,
+  UiEvent.ProjectChanged,
   // A chat's permission mode lives in its thread's metadata.
   UiEvent.PermissionsChanged,
 ]);
@@ -67,7 +67,7 @@ function enginesChanged(event: UiEvent): boolean {
   return event.type === UiEvent.ModelPull && event.payload?.progress?.status === PULL_DONE;
 }
 
-/** The asset inventory an event makes stale: one game's, every watched one, or none. */
+/** The asset inventory an event makes stale: one project's, every watched one, or none. */
 function assetsRead(event: UiEvent): UiEventReads["assets"] {
   if (event.type === UiEvent.PluginEvent) {
     const project = event.payload?.project;
@@ -86,7 +86,7 @@ export function uiEventReads(event: UiEvent): UiEventReads {
   return {
     events: LOGGED.has(type) || isUiEventIn(event, "improvement.") || coordinatorRecord,
     threads: THREADS.has(type),
-    games: type === UiEvent.GameChanged,
+    projects: type === UiEvent.ProjectChanged,
     staged: isUiEventIn(event, "skillopt."),
     engines: enginesChanged(event),
     plugins: type === UiEvent.PluginsChanged,

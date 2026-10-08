@@ -1203,7 +1203,7 @@
   flex-direction: column;
   gap: 6px;
 }
-/* Under the composer, where the next game is saved: quiet until it is pointed at. */
+/* Under the composer, where the next project is saved: quiet until it is pointed at. */
 .home-folder-chip {
   display: inline-flex;
   min-width: 0;
@@ -1230,7 +1230,7 @@
   cursor: default;
   opacity: 0.5;
 }
-/* Under the composer: where the game is saved on the left, Suggest prompt on the right. */
+/* Under the composer: where the project is saved on the left, Suggest prompt on the right. */
 .home-compose-row {
   display: flex;
   align-items: center;
@@ -1264,7 +1264,7 @@
   visibility: hidden;
   opacity: 0;
 }
-/* Home on its way to the game it launched: the chat and stage it is becoming, then a fade over them. */
+/* Home on its way to the project it launched: the chat and stage it is becoming, then a fade over them. */
 .home-launching {
   display: grid;
   grid-template-columns: min(var(--chat-width), 52%) minmax(0, 1fr);
@@ -1274,11 +1274,11 @@
   opacity: 0;
   pointer-events: none;
 }
-/* A game being named has no name yet: its header and its row say so in quiet ink. */
+/* A project being named has no name yet: its header and its row say so in quiet ink. */
 .home-launch-chat .chat-header-title[data-naming] {
   color: var(--ink-3);
 }
-.game-avatar-pending {
+.project-avatar-pending {
   display: block;
   flex: none;
   background: var(--hover);
@@ -1298,7 +1298,7 @@
   flex-direction: column;
   view-transition-name: launch-stage;
 }
-/* Home ⇄ game (ui/view-transition.ts): the composer glides to its new place and the rest crossfades.
+/* Home ⇄ project (ui/view-transition.ts): the composer glides to its new place and the rest crossfades.
    Only one composer may carry the name, so the chat's has it only while home is not up. */
 .home-composer [data-promptbar],
 .studio-shell:not(:has(.home-layer)) [data-chat-composer] [data-promptbar] {
@@ -1406,8 +1406,8 @@ button.chat-header-title:hover {
   }
 }
 
-/* Game library: stable chrome, a single scrolling navigation region, quiet row actions. */
-.game-sidebar {
+/* Project library: stable chrome, a single scrolling navigation region, quiet row actions. */
+.project-sidebar {
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -1445,7 +1445,7 @@ button.chat-header-title:hover {
     color var(--duration-quick);
 }
 .sidebar-toggle:hover,
-.game-sidebar .sidebar-icon:enabled:hover {
+.project-sidebar .sidebar-icon:enabled:hover {
   background: var(--sidebar-hover);
   color: var(--ink);
 }
@@ -1470,13 +1470,13 @@ button.chat-header-title:hover {
   outline: 2px solid var(--focus-edge);
   outline-offset: 0;
 }
-/* One stack for New game, Plugins, Harness and Settings: equal 36px rows, 2px apart. */
+/* One stack for New project, Plugins, Harness and Settings: equal 36px rows, 2px apart. */
 .sidebar-nav {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
-/* Labels read exactly like game titles and the chat header's title: one type (the colour tweaker tries
+/* Labels read exactly like project titles and the chat header's title: one type (the colour tweaker tries
    --label-size, --label-tracking and --label-weight), secondary ink until hovered or current. */
 .sidebar-action {
   display: flex;
@@ -1546,7 +1546,7 @@ button.chat-header-title:hover {
 .notify-bell {
   position: relative;
 }
-.game-sidebar .notify-bell[data-open] {
+.project-sidebar .notify-bell[data-open] {
   background: var(--sidebar-selected);
   color: var(--ink);
 }
@@ -1803,7 +1803,7 @@ button.chat-header-title:hover {
   font: 10px / 16px var(--font-family-mono);
   letter-spacing: normal;
 }
-.sidebar-games-heading {
+.sidebar-projects-heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1813,11 +1813,11 @@ button.chat-header-title:hover {
   line-height: 20px;
   color: var(--ink-3);
 }
-.sidebar-games-heading .sidebar-icon {
+.sidebar-projects-heading .sidebar-icon {
   width: 28px;
   height: 28px;
 }
-/* Only the game list scrolls. Its 3px thumb sits 2px from the border and shows while the sidebar is hovered or scrolling. */
+/* Only the project list scrolls. Its 3px thumb sits 2px from the border and shows while the sidebar is hovered or scrolling. */
 .sidebar-list {
   position: relative;
   display: flex;
@@ -1829,7 +1829,7 @@ button.chat-header-title:hover {
   min-width: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  /* The scrollbar's 7px stay reserved, so a selected game keeps its right inset with no scrollbar. */
+  /* The scrollbar's 7px stay reserved, so a selected project keeps its right inset with no scrollbar. */
   scrollbar-gutter: stable;
   padding: 0 1px 12px 8px;
 }
@@ -1842,7 +1842,7 @@ button.chat-header-title:hover {
   background-clip: padding-box;
   border-radius: 4px;
 }
-.game-sidebar:is(:hover, [data-scrolling="true"]) .sidebar-scroll::-webkit-scrollbar-thumb {
+.project-sidebar:is(:hover, [data-scrolling="true"]) .sidebar-scroll::-webkit-scrollbar-thumb {
   background-color: var(--line-strong);
 }
 .sidebar-fade {
@@ -1855,12 +1855,12 @@ button.chat-header-title:hover {
   transition: opacity var(--duration-quick);
   pointer-events: none;
 }
-.game-sidebar[data-scrolled="true"] .sidebar-fade {
+.project-sidebar[data-scrolled="true"] .sidebar-fade {
   opacity: 1;
 }
-/* Relaunch to update floats over the foot of the game list while a downloaded version waits. The
+/* Relaunch to update floats over the foot of the project list while a downloaded version waits. The
  * list scrolls under it and fades out above it, as it does under the chrome at the top; its last
- * game and its scrollbar stop clear of the button. */
+ * project and its scrollbar stop clear of the button. */
 .sidebar-footer {
   position: absolute;
   inset-inline: 0;
@@ -1914,27 +1914,27 @@ button.chat-header-title:hover {
 .sidebar-update[aria-busy="true"] .gi .a-spin {
   animation: gi-spin 1.5s cubic-bezier(0.22, 1, 0.36, 1) infinite;
 }
-.sidebar-games {
+.sidebar-projects {
   display: flex;
   flex-direction: column;
   gap: 3px;
 }
-.sidebar-game {
+.sidebar-project {
   position: relative;
   display: flex;
   align-items: center;
   border-radius: var(--radius-control);
   transition: background-color var(--duration-quick);
 }
-.sidebar-game:hover,
-.sidebar-game:focus-within,
-.sidebar-game[data-menu-open="true"] {
+.sidebar-project:hover,
+.sidebar-project:focus-within,
+.sidebar-project[data-menu-open="true"] {
   background: var(--sidebar-hover);
 }
-.sidebar-game[data-active="true"] {
+.sidebar-project[data-active="true"] {
   background: var(--sidebar-selected);
 }
-.sidebar-game-select {
+.sidebar-project-select {
   display: flex;
   width: 100%;
   min-width: 0;
@@ -1950,11 +1950,11 @@ button.chat-header-title:hover {
   text-align: start;
   color: var(--ink-2);
 }
-.sidebar-game[data-active="true"] .sidebar-game-select,
-.sidebar-game-select:hover {
+.sidebar-project[data-active="true"] .sidebar-project-select,
+.sidebar-project-select:hover {
   color: var(--ink);
 }
-.sidebar-game-menu {
+.sidebar-project-menu {
   position: absolute;
   inset-inline-end: 6px;
   display: grid;
@@ -1968,18 +1968,18 @@ button.chat-header-title:hover {
     opacity var(--duration-quick),
     background-color var(--duration-quick);
 }
-.sidebar-game:hover .sidebar-game-menu,
-.sidebar-game:focus-within .sidebar-game-menu,
-.sidebar-game[data-menu-open="true"] .sidebar-game-menu {
+.sidebar-project:hover .sidebar-project-menu,
+.sidebar-project:focus-within .sidebar-project-menu,
+.sidebar-project[data-menu-open="true"] .sidebar-project-menu {
   opacity: 1;
 }
-.sidebar-game-menu:hover {
+.sidebar-project-menu:hover {
   background: var(--inset);
   color: var(--ink);
 }
 /* The pin and the working dot sit where ⋯ appears, centred in its 28px slot, and give way to it on hover. */
 .sidebar-pin,
-.sidebar-game-status {
+.sidebar-project-status {
   position: absolute;
   inset-inline-end: 6px;
   display: grid;
@@ -1990,12 +1990,12 @@ button.chat-header-title:hover {
   pointer-events: none;
   transition: opacity var(--duration-quick);
 }
-.sidebar-game:hover :is(.sidebar-pin, .sidebar-game-status),
-.sidebar-game:focus-within :is(.sidebar-pin, .sidebar-game-status),
-.sidebar-game[data-menu-open="true"] :is(.sidebar-pin, .sidebar-game-status) {
+.sidebar-project:hover :is(.sidebar-pin, .sidebar-project-status),
+.sidebar-project:focus-within :is(.sidebar-pin, .sidebar-project-status),
+.sidebar-project[data-menu-open="true"] :is(.sidebar-pin, .sidebar-project-status) {
   opacity: 0;
 }
-.game-text-input {
+.project-text-input {
   width: 100%;
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-control);
@@ -2005,18 +2005,18 @@ button.chat-header-title:hover {
   background: var(--field);
 }
 @media (hover: none) {
-  .sidebar-game-menu {
+  .sidebar-project-menu {
     opacity: 1;
   }
   .sidebar-pin,
-  .sidebar-game-status {
+  .sidebar-project-status {
     display: none;
   }
-  .sidebar-game[data-busy="true"] .sidebar-game-menu {
+  .sidebar-project[data-busy="true"] .sidebar-project-menu {
     box-shadow: inset 0 0 0 1.5px var(--accent);
   }
 }
-.game-search-input {
+.project-search-input {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -2024,7 +2024,7 @@ button.chat-header-title:hover {
   border-block-end: 1px solid var(--line);
   color: var(--ink-3);
 }
-.game-search-input input {
+.project-search-input input {
   min-width: 0;
   flex: 1;
   height: 28px;
@@ -2034,13 +2034,13 @@ button.chat-header-title:hover {
   font-family: var(--font-family-mono);
   font-size: var(--t-md);
 }
-.game-search-results {
+.project-search-results {
   max-height: min(55vh, 440px);
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: 6px;
 }
-.game-search-result {
+.project-search-result {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -2049,15 +2049,15 @@ button.chat-header-title:hover {
   padding: 8px;
   text-align: start;
 }
-.game-search-result[aria-selected="true"],
-.game-search-result:hover {
+.project-search-result[aria-selected="true"],
+.project-search-result:hover {
   background: var(--control-hover, var(--hover));
 }
 .search-cover {
   width: 44px;
   height: 44px;
 }
-.game-search-footer {
+.project-search-footer {
   display: flex;
   flex-wrap: wrap;
   gap: 16px;
@@ -2066,12 +2066,12 @@ button.chat-header-title:hover {
   font-size: var(--t-xs);
   color: var(--ink-3);
 }
-.game-search-footer > span {
+.project-search-footer > span {
   display: flex;
   align-items: center;
   gap: 5px;
 }
-[data-testid="game-search-dialog"] > div:first-child {
+[data-testid="project-search-dialog"] > div:first-child {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -2080,7 +2080,7 @@ button.chat-header-title:hover {
   clip-path: inset(50%);
 }
 
-/* Extensions are a workspace destination; the game and conversation stay mounted behind it. */
+/* Extensions are a workspace destination; the project and conversation stay mounted behind it. */
 .extensions-page {
   display: flex;
   flex-direction: column;
@@ -5284,7 +5284,7 @@ a:focus-visible {
   transition: left 180ms var(--ease-smooth-out);
 }
 /* Plan limits under the context: one block per signed-in subscription. */
-/* The Genex block: this game's spend, then the balance every game shares. */
+/* The Genex block: this project's spend, then the balance every project shares. */
 .usage-credits {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;

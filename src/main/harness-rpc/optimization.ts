@@ -3,12 +3,12 @@ import { HostMethod, type HarnessHostHandlers } from "../../shared/harness-api.t
 import { UiEvent } from "../../shared/ui-events.ts";
 import { git } from "../../substrate/snapshots.ts";
 import type { CoreInternals, StudioCore } from "../studio-core.ts";
-import { PromotionOutcome } from "../../substrate/game-candidate.ts";
+import { PromotionOutcome } from "../../substrate/project-candidate.ts";
 
 /** Why an optimization call from the harness is refused. */
 const MESSAGE = {
   unknownBaseline: "unknown baseline snapshot",
-  unknownGameBaseline: "unknown game baseline snapshot",
+  unknownProjectBaseline: "unknown project baseline snapshot",
 } as const;
 
 export function optimizationRpc(core: StudioCore, x: CoreInternals) {
@@ -25,7 +25,7 @@ export function optimizationRpc(core: StudioCore, x: CoreInternals) {
     },
     [HostMethod.OptimizationOpen]: async (p) => {
       const baseline = core.snapshotIndex.get(p.baselineSnapshotId);
-      if (!baseline?.git.game) throw new Error(MESSAGE.unknownGameBaseline);
+      if (!baseline?.git.game) throw new Error(MESSAGE.unknownProjectBaseline);
       return core.candidates.open(p.project, p.runId, p.baselineSnapshotId, baseline.git.game);
     },
     [HostMethod.OptimizationFreeze]: async (p) => core.candidates.freeze(p.candidateId),
@@ -37,7 +37,7 @@ export function optimizationRpc(core: StudioCore, x: CoreInternals) {
         await x.previews.runFile(p.resultArtifact),
       );
       if (result.outcome === PromotionOutcome.Promoted)
-        core.emit(UiEvent.GameChanged, { project: (await core.candidates.get(p.candidateId)).project });
+        core.emit(UiEvent.ProjectChanged, { project: (await core.candidates.get(p.candidateId)).project });
       return result;
     },
     [HostMethod.OptimizationReconcile]: async (p) => core.candidates.reconcile(p.project, p.baseline, p.candidate),

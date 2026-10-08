@@ -357,7 +357,7 @@ test("a scene that shrinks reads as contraction — the signal for moving back",
   assert.ok(moved(r) && r.scale < 1, `expected contraction, got ${r.scale}`);
 });
 
-test("AN INVERTED GAME IS DISTINGUISHABLE — the defect the pair tests could not see", () => {
+test("AN INVERTED PROJECT IS DISTINGUISHABLE — the defect the pair tests could not see", () => {
   // Correct: W grows the world, S shrinks it.
   const wOk = estimateScale(scene(1), scene(1.06));
   const sOk = estimateScale(scene(1), scene(0.94));

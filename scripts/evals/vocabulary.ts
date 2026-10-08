@@ -159,7 +159,7 @@ export const CaseVisibility = {
 } as const;
 export type CaseVisibility = (typeof CaseVisibility)[keyof typeof CaseVisibility];
 
-/** How a case is exercised: one build, an edit of a committed fixture game, a multi-turn follow-up, or a long Loop. */
+/** How a case is exercised: one build, an edit of a committed fixture project, a multi-turn follow-up, or a long Loop. */
 export const CaseMode = {
   Build: "build",
   EditExisting: "edit-existing",
@@ -442,7 +442,7 @@ export const ProbeRow = {
   L1BuildsAndBoots: "l1.builds_and_boots",
   L1NoErrors60s: "l1.no_errors_60s",
   L1AssetsArrived: "l1.assets_arrived",
-  L1StayedOnGame: "l1.stayed_on_game",
+  L1StayedOnProject: "l1.stayed_on_project",
   L1Survives5min: "l1.survives_5min",
   L1FrameRateFloor: "l1.frame_rate_floor",
   L2Enterable: "l2.enterable",
@@ -470,7 +470,7 @@ export const QUICK_PROBE_ROWS: readonly ProbeRow[] = [
   ProbeRow.L1BuildsAndBoots,
   ProbeRow.L1NoErrors60s,
   ProbeRow.L1AssetsArrived,
-  ProbeRow.L1StayedOnGame,
+  ProbeRow.L1StayedOnProject,
   ProbeRow.L2Enterable,
   ProbeRow.L2InputChangesState,
   ProbeRow.L3VisuallyLegible,

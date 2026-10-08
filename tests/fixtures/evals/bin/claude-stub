@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Stands in for the Claude Code CLI in a raw fixture lane (B): `--version`, or print mode, which
- * replays the recorded stream-json build with its timing, writes the recorded game into the
+ * replays the recorded stream-json build with its timing, writes the recorded project into the
  * working folder and keeps the session's transcript under `$CLAUDE_CONFIG_DIR/projects` (only when
  * that variable names a home: the stub never writes into the operator's own). No network, no model.
  */

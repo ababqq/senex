@@ -5,12 +5,12 @@
  * of its own, opened in the run's integration worktree beside the chat's contractor session, which
  * knew nothing of the conversation the build came from and wrote a memory file to survive its own
  * compactions. Now the chat's own session leads: the night resumes the session the chat's bookmark
- * names (`contractor_session`), in the game folder where that session lives, read-only while the
+ * names (`contractor_session`), in the project folder where that session lives, read-only while the
  * build runs — workers write, and the lead reads the integration worktree it leads. After the close
  * the chat goes on in the same session, before, during and after the build one conversation.
  *
  * When the chat has no session this lead can continue — its bookmark names another engine or
- * model, or it cannot be resumed — the lead starts a fresh one in the game folder with the brief,
+ * model, or it cannot be resumed — the lead starts a fresh one in the project folder with the brief,
  * the chat's latest messages and the digest (`freshChat`). A fresh session on the chat's own engine
  * and model becomes the chat's bookmark; one on another leaves the chat's bookmark alone.
  *
@@ -50,7 +50,7 @@ export function folderBusy(err: unknown): boolean {
 /**
  * Does every part of the night a lead depends on serve one (`SERVES_LEAD`): its words and its hands
  * for a lead that writes nothing are there? A seed upgrade keeps a part the agent edited before one
- * session, which never exported it — and would tell a lead in the game folder to edit and commit in
+ * session, which never exported it — and would tell a lead in the project folder to edit and commit in
  * its worktree. Such a night seats no lead: a director with its own hands leads, as it did before.
  */
 export function servesLead(parts: readonly Readonly<Record<string, unknown>>[]): boolean {
@@ -59,7 +59,7 @@ export function servesLead(parts: readonly Readonly<Record<string, unknown>>[]):
 
 /** Where a waking night's lead sits and whose session it is (`night.lead`). */
 export interface LeadSeat {
-  /** The game folder its session sits in: the live folder the user sees. */
+  /** The project folder its session sits in: the live folder the user sees. */
   folder: string;
   /** Its session is the chat's own: the chat's bookmark follows it (`bookmarkLead`). */
   chatSession: boolean;
@@ -119,7 +119,7 @@ function modelKey(model: unknown): string {
   return named === DEFAULT_MODEL ? "" : named;
 }
 
-/** Can this night's lead continue the chat's session: the same engine, the same game and the same model? */
+/** Can this night's lead continue the chat's session: the same engine, the same project and the same model? */
 export function continuesChat(bookmark: ChatBookmark, run: Run, leadModel: string | null | undefined): boolean {
   if (!bookmark.engine || bookmark.engine !== run.engine) return false;
   if (bookmark.project && bookmark.project !== run.project) return false;
@@ -150,7 +150,7 @@ export function leadSeat({
   if (!bookmark) return { ...seat, chatSession: true, sessionId: null, bookmarked: null };
   if (continuesChat(bookmark, run, model))
     return { ...seat, chatSession: true, sessionId: bookmark.sessionId, bookmarked: bookmark.sessionId };
-  // A lead of its own before the pause: its session sat in this game folder too.
+  // A lead of its own before the pause: its session sat in this project folder too.
   const prior = priorJournal?.director;
   const own = prior?.lead?.chatSession === false ? (prior.sessionId ?? null) : null;
   return { ...seat, chatSession: false, sessionId: own, bookmarked: null };
@@ -208,7 +208,7 @@ function statusPath(line: string): string {
 }
 
 /**
- * Changes in a lead's integration worktree that nobody committed — a game that builds in place, a
+ * Changes in a lead's integration worktree that nobody committed — a project that builds in place, a
  * tool's cache, a lead's edit it did not commit — would hold every merge off for the rest of the night. The
  * studio keeps them instead: every change, staged, as a commit over the integration head on a ref
  * of the run (`refs/studio/runs/<run>/set-aside/<stamp>`, never the branch), and the worktree reset

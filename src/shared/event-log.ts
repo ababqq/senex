@@ -92,9 +92,9 @@ export interface ModelTokenUsage {
   context_window?: number;
 }
 
-/** What a snapshot covers: the game, the harness, or both. Persisted in records: never rename a value. */
+/** What a snapshot covers: the project, the harness, or both. Persisted in records: never rename a value. */
 export const SnapshotScope = {
-  Game: "game",
+  Project: "game",
   Harness: "harness",
   Both: "both",
 } as const;
@@ -104,8 +104,8 @@ export interface SnapshotGitRefs {
   game?: string;
   harness?: string;
   /**
-   * The branch a game snapshot was taken on (`refs/heads/…`), `null` when HEAD was detached,
-   * absent on harness-only and older records. A game restore refuses when it moved.
+   * The branch a project snapshot was taken on (`refs/heads/…`), `null` when HEAD was detached,
+   * absent on harness-only and older records. A project restore refuses when it moved.
    */
   gameBranch?: string | null;
 }
@@ -151,7 +151,7 @@ export type EventData =
       scope: SnapshotScope;
       git: SnapshotGitRefs;
       healthy?: boolean;
-      /** False when `healthy` vouches for the game half only (see `SnapshotRecord.harness_healthy`). */
+      /** False when `healthy` vouches for the project half only (see `SnapshotRecord.harness_healthy`). */
       harness_healthy?: false;
       reason?: string;
     }
@@ -160,7 +160,7 @@ export type EventData =
       snapshot_id: string;
       reason: string;
       scope: SnapshotScope;
-      /** The rescue snapshot of the game folder, committed just before the folder was reset. */
+      /** The rescue snapshot of the project folder, committed just before the folder was reset. */
       rescue_snapshot_id?: string;
     }
   | { type: "custom"; event_type: string; payload?: unknown };
@@ -195,8 +195,8 @@ void eventKindsAreListed;
 export const ThreadKind = {
   /** The studio's own conversation. */
   Studio: "studio",
-  /** A game's conversation, bound to its project (or waiting for one). */
-  Game: "game",
+  /** A project's conversation, bound to its project (or waiting for one). */
+  Project: "game",
 } as const;
 export type ThreadKind = (typeof ThreadKind)[keyof typeof ThreadKind];
 
@@ -224,7 +224,7 @@ export interface ConversationRecord {
 
 /**
  * One entry of the snapshot index (`substrate/snapshots.ts`): the commits a snapshot holds, plus —
- * for a game — the branch it was taken on (`SnapshotGitRefs.gameBranch`). It rides inside `git` so
+ * for a project — the branch it was taken on (`SnapshotGitRefs.gameBranch`). It rides inside `git` so
  * the `snapshot_created` event carries it and a rebuilt index still has it.
  */
 export interface SnapshotRecord {
@@ -235,7 +235,7 @@ export interface SnapshotRecord {
   reason: string;
   healthy: boolean;
   /**
-   * False when `healthy` speaks for the game half only: a "both" snapshot of a won round holds a
+   * False when `healthy` speaks for the project half only: a "both" snapshot of a won round holds a
    * harness nobody has booted yet, and the watchdog must not rewind to it (R2). Marking the
    * record healthy later (a restart, an inherited non-code diff) vouches for both halves.
    */

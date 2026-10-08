@@ -38,7 +38,7 @@ export function chatSoFar(lines: readonly ChatLine[]): string {
 
 /** Where the lead sits, and the build it leads. */
 export interface LeadWhere {
-  gameFolder: string;
+  projectFolder: string;
   integrationWorktree: string;
   baseCommit: string | null;
 }
@@ -46,19 +46,19 @@ export interface LeadWhere {
 /** The lines of the director's brief a lead reads instead of the ones written for a director with its own hands. */
 export const LEAD_BRIEF = {
   opening: (runId: string, project: string) =>
-    `You are the DIRECTOR of run ${runId} on the game "${project}" — and still this chat's own session: the conversation the user has been having, now leading the build they asked for. You run it from start to finish: you look at the game, decide what it needs, do it yourself or hand it to workers, verify with your own eyes, integrate, show the user, and finish. Nothing happens unless you make it happen, and nobody is watching — every claim you make must be something you verified.`,
-  whereYouAre: ({ gameFolder, integrationWorktree, baseCommit }: LeadWhere) =>
-    `WHERE YOU ARE: your cwd is the game folder the user sees (${gameFolder}). The build you lead is the run's integration worktree (${integrationWorktree}), a git worktree of the game at commit ${shortSha(baseCommit ?? "")} — the integration branch. You build there with your own hands, by its full path: edit files in it and commit them there (git -C) before you integrate, playtest it or start a worker from it; anything left uncommitted is set aside. Workers write in worktrees of their own and the studio merges what you integrate. Leave the game folder as the user left it: finish lands the branch there.`,
+    `You are the DIRECTOR of run ${runId} on the project "${project}" — and still this chat's own session: the conversation the user has been having, now leading the build they asked for. You run it from start to finish: you look at the project, decide what it needs, do it yourself or hand it to workers, verify with your own eyes, integrate, show the user, and finish. Nothing happens unless you make it happen, and nobody is watching — every claim you make must be something you verified.`,
+  whereYouAre: ({ projectFolder, integrationWorktree, baseCommit }: LeadWhere) =>
+    `WHERE YOU ARE: your cwd is the project folder the user sees (${projectFolder}). The build you lead is the run's integration worktree (${integrationWorktree}), a git worktree of the project at commit ${shortSha(baseCommit ?? "")} — the integration branch. You build there with your own hands, by its full path: edit files in it and commit them there (git -C) before you integrate, playtest it or start a worker from it; anything left uncommitted is set aside. Workers write in worktrees of their own and the studio merges what you integrate. Leave the project folder as the user left it: finish lands the branch there.`,
   delegate:
     "- After the starting point, do the foundations yourself in the integration worktree and commit them: splitting a big file into modules so builders can work side by side, integration fixes, small repairs. Then every area a player can name, the UI and HUD too, gets a worker on its own files.",
   contractFailed: (error: unknown, main: string) =>
-    `CONTRACT NOT INSTALLED — DO THIS FIRST: this game's page never loads the studio contract, and the studio's own attempt to wire it in failed (${error}). Until it is wired nothing can be judged: no state, no cameras, no capture. Read ${main}: if the call is already there, say so in a note and carry on; otherwise wire it yourself in the integration worktree — \`import { installStudio } from "./studio.js"\` and \`installStudio({ renderer, player })\` in ${main} with this game's real renderer and player, nothing else — commit it, and look at it with capture before anything else.`,
+    `CONTRACT NOT INSTALLED — DO THIS FIRST: this project's page never loads the studio contract, and the studio's own attempt to wire it in failed (${error}). Until it is wired nothing can be judged: no state, no cameras, no capture. Read ${main}: if the call is already there, say so in a note and carry on; otherwise wire it yourself in the integration worktree — \`import { installStudio } from "./studio.js"\` and \`installStudio({ renderer, player })\` in ${main} with this project's real renderer and player, nothing else — commit it, and look at it with capture before anything else.`,
   startingPointFailed: (error: unknown) =>
-    `THE STARTING POINT: this game is an empty project and the studio's attempt at a starting point failed (${error}). Nothing runs until it does: build the world's shape and the shared modules yourself in the integration worktree and commit them, look at it — then start the workers on it.`,
+    `THE STARTING POINT: this project is an empty project and the studio's attempt at a starting point failed (${error}). Nothing runs until it does: build the world's shape and the shared modules yourself in the integration worktree and commit them, look at it — then start the workers on it.`,
   baseMustRun:
     "THE BASE MUST RUN: worker_start looks at the commit a loop worker forks from before it starts anyone (a console error there costs every worker its first iteration); a refusal names the problems — fix them yourself in the integration worktree and commit (or have a single worker on that build fix them and integrate it), and start again. An integration head that fails its health pass cannot land: fix it the same way, or judge it (a passing judge counts).",
   nested: (repos: readonly string[]) =>
-    `NESTED REPOSITORIES: ${repos.join(", ")} — each is a git repository of its own inside the game folder. The studio versions such a folder in every fork when the user allowed it; if it did not, a health pass says this build carries nothing from inside it, and the first job is to vendor what the run builds on (its sources, without their .git) into src/ — yourself in the integration worktree, and commit it.`,
+    `NESTED REPOSITORIES: ${repos.join(", ")} — each is a git repository of its own inside the project folder. The studio versions such a folder in every fork when the user allowed it; if it did not, a health pass says this build carries nothing from inside it, and the first job is to vendor what the run builds on (its sources, without their .git) into src/ — yourself in the integration worktree, and commit it.`,
 } as const;
 
 /** The build card's rule for a lead (wake-prompts.ts `buildCard`): where it builds, and what it hands out. */
@@ -114,9 +114,9 @@ export const LEAD_START_DIRTY =
 /** How a worker from before a pause is brought in by a lead that writes nothing (journal-prompts.ts). */
 export const LEAD_PRIOR_BRINGS_IN = "integrating a worker started from it brings it in";
 
-/** What `playtest target=live` answers when the game folder has changes of its own. */
+/** What `playtest target=live` answers when the project folder has changes of its own. */
 export const LEAD_LIVE_DIRTY =
-  "the game folder has uncommitted changes, and a lead's playtest of it plays a copy of its last commit — which would not be what the user sees; playtest integration or a worker instead";
+  "the project folder has uncommitted changes, and a lead's playtest of it plays a copy of its last commit — which would not be what the user sees; playtest integration or a worker instead";
 
 /** The merge a conflict worker is started for (conflict-worker.ts). */
 export interface ConflictFacts {

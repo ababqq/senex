@@ -1,9 +1,9 @@
 /**
- * Learning from nights — the studio's memory of one game.
+ * Learning from nights — the studio's memory of one project.
  *
  * The harness already learned two things between runs: skills (skillopt, the blind pairwise
  * gate) and techniques (the recipe library, promoted and retired by check outcomes). Neither
- * remembered a *game*, so the second night on a game paid for the first night's mistakes again.
+ * remembered a *project*, so the second night on a project paid for the first night's mistakes again.
  * The first real director night lost eight of its twenty-one rounds to one inherited console
  * error and nothing anywhere wrote that down.
  *
@@ -28,12 +28,12 @@ import {
   ledgerFile,
   ledgerFromEvents,
   lessonsFile,
-  loadGameLessons,
+  loadProjectLessons,
   rarelyMeasurable,
   readLedger,
   refusalRecord,
   roundRecord,
-  saveGameLessons,
+  saveProjectLessons,
 } from "../../src/harness-seed/loop/ledger.ts";
 import { compileWorkerSpec, directorBrief } from "../../src/harness-seed/loop/director.ts";
 import { renderBrief } from "../../src/harness-seed/loop/library.ts";
@@ -55,7 +55,7 @@ async function regressionNight(): Promise<Array<Record<string, unknown>>> {
 
 describe("the ledger: one durable record per outcome", () => {
   it("reads a synthetic night back into records — judged, stopped, refused and the close itself", async () => {
-    const records = ledgerFromEvents(await regressionNight(), { game: "fixture-derby", gameKind: "three-vite" });
+    const records = ledgerFromEvents(await regressionNight(), { project: "fixture-derby", appKind: "three-vite" });
     const rounds = records.filter((r) => r.round > 0);
     assert.equal(rounds.length, 21, "one record per round the night judged");
     assert.equal(rounds.filter((r) => r.decision === "kept").length, 10);
@@ -64,12 +64,12 @@ describe("the ledger: one durable record per outcome", () => {
     const first = rounds[0]!;
     assert.equal(first.runId, "run_fixture123456");
     assert.equal(first.mode, "director");
-    assert.equal(first.gameKind, "three-vite");
+    assert.equal(first.appKind, "three-vite");
     assert.equal(first.part, "post");
     assert.equal(first.round, 1);
     assert.equal(first.rule, "broken");
     // The sentence is the verdict module's, so it carries no check id, sha or branch.
-    assert.match(first.because, /the game did not start after this build/);
+    assert.match(first.because, /the project did not start after this build/);
     assert.doesNotMatch(first.because, /[0-9a-f]{10}|attempt\//);
     // The night's own budget, read off the worker card that started that part.
     assert.equal(first.minutes, 75);
@@ -87,8 +87,8 @@ describe("the ledger: one durable record per outcome", () => {
   it("makes the same record live, from what the night has in its hand", () => {
     const stopped = roundRecord({
       runId: "run_x",
-      game: "skate",
-      gameKind: "studio-template",
+      project: "skate",
+      appKind: "studio-template",
       part: "plaza",
       title: "Plaza",
       round: 2,
@@ -127,7 +127,7 @@ describe("the ledger: one durable record per outcome", () => {
     assert.match(refused.because, /No builder could start/);
   });
 
-  it("appends, survives a half-written line, and hands the whole game back", async () => {
+  it("appends, survives a half-written line, and hands the whole project back", async () => {
     const workspace = await tmpDir("ledger-");
     await appendLedger(
       workspace,
@@ -163,18 +163,18 @@ describe("the ledger: one durable record per outcome", () => {
     assert.equal(records[1]!.rule, "landed");
     assert.match(
       ledgerFile(workspace, "Skate Prod"),
-      /library\/games\/skate-prod\.jsonl$/,
+      /library\/projects\/skate-prod\.jsonl$/,
       "the studio's own state, never the user's repo",
     );
   });
 });
 
-describe("the lessons a game's nights add up to", () => {
+describe("the lessons a project's nights add up to", () => {
   it("names the synthetic night's undone patterns, what its judges kept saying, and what worked", async () => {
     const workspace = await tmpDir("lessons-");
-    const records = ledgerFromEvents(await regressionNight(), { game: "fixture-derby", gameKind: "three-vite" });
+    const records = ledgerFromEvents(await regressionNight(), { project: "fixture-derby", appKind: "three-vite" });
     for (const record of records) await appendLedger(workspace, "fixture-derby", record);
-    const { file, lessons } = await saveGameLessons(
+    const { file, lessons } = await saveProjectLessons(
       workspace,
       "fixture-derby",
       await readLedger(workspace, "fixture-derby"),
@@ -183,7 +183,7 @@ describe("the lessons a game's nights add up to", () => {
     const text = await readFile(file, "utf8");
 
     // The pattern that cost that night: eight rounds against one build that would not run.
-    assert.match(lessons[0]!, /8 of 21 rounds were undone because the game did not start after the build/);
+    assert.match(lessons[0]!, /8 of 21 rounds were undone because the project did not start after the build/);
     assert.match(lessons[0]!, /Look at what a builder forks from/);
     // What its judges kept rejecting, from the gaps they wrote.
     assert.ok(
@@ -205,33 +205,33 @@ describe("the lessons a game's nights add up to", () => {
     assert.match(text, /## The runs behind them/);
     assert.match(text, /21 rounds, 10 kept, 11 undone/);
     // The file is derived; the ledger is the source, so the brief never parses markdown back.
-    assert.deepEqual(await loadGameLessons(workspace, "fixture-derby"), lessons.slice(0, 5));
+    assert.deepEqual(await loadProjectLessons(workspace, "fixture-derby"), lessons.slice(0, 5));
   });
 
   it("says nothing when there is nothing to say — one night, one kept round, no pattern", async () => {
     const workspace = await tmpDir("quiet-");
     await appendLedger(
       workspace,
-      "new-game",
+      "new-project",
       roundRecord({ runId: "r1", part: "a", round: 1, winner: "challenger", verdictSource: "checks" }),
     );
     await appendLedger(
       workspace,
-      "new-game",
+      "new-project",
       closeRecord({ runId: "r1", landed: true, because: "made live, a judge preferred it" }),
     );
-    assert.deepEqual(await loadGameLessons(workspace, "new-game"), [], "one good night is not a lesson");
+    assert.deepEqual(await loadProjectLessons(workspace, "new-project"), [], "one good night is not a lesson");
     assert.equal(lastTimeBlock([]), "", "and an empty list is no block at all");
   });
 });
 
 describe("the next night's briefs carry them", () => {
   const lessons = [
-    "8 of 21 rounds were undone because the game did not start after the build.",
-    'The judges on this game keep naming the same things: "floating" (6 rounds).',
+    "8 of 21 rounds were undone because the project did not start after the build.",
+    'The judges on this project keep naming the same things: "floating" (6 rounds).',
   ];
 
-  it("puts LAST TIME ON THIS GAME in the director's brief", () => {
+  it("puts LAST TIME ON THIS PROJECT in the director's brief", () => {
     const now = Date.now();
     const brief = directorBrief({
       run: { runId: "run_d", project: "fixture-derby", goal: "make the crashes hurt" },
@@ -239,15 +239,15 @@ describe("the next night's briefs carry them", () => {
       finalDeadline: now + 60 * 60_000,
       integrationWorktree: "/scratch/integration",
       baseCommit: "abcdef1234567890",
-      gameLessons: lessons,
+      projectLessons: lessons,
     } as never);
     assert.match(
       brief,
-      /LAST TIME ON THIS GAME \(what earlier runs on this exact game cost — do not pay for them again\):/,
+      /LAST TIME ON THIS PROJECT \(what earlier runs on this exact project cost — do not pay for them again\):/,
     );
-    assert.match(brief, /- 8 of 21 rounds were undone because the game did not start/);
-    assert.match(brief, /- The judges on this game keep naming the same things/);
-    // A game with no ledger yet is briefed exactly as it was before.
+    assert.match(brief, /- 8 of 21 rounds were undone because the project did not start/);
+    assert.match(brief, /- The judges on this project keep naming the same things/);
+    // A project with no ledger yet is briefed exactly as it was before.
     const first = directorBrief({
       run: { runId: "r", project: "p", goal: "g" },
       softDeadline: now + 1,
@@ -255,7 +255,7 @@ describe("the next night's briefs carry them", () => {
       integrationWorktree: "/w",
       baseCommit: null,
     } as never);
-    assert.doesNotMatch(first, /LAST TIME ON THIS GAME/);
+    assert.doesNotMatch(first, /LAST TIME ON THIS PROJECT/);
   });
 
   it("puts the same block in the builder's BRIEF.md, under the steering the user gave tonight", () => {
@@ -267,18 +267,21 @@ describe("the next night's briefs carry them", () => {
       comparison: null,
       steering: ["keep the camera where it is"],
       lessons: ["Capture after every meaningful change."],
-      gameLessons: lessons,
+      projectLessons: lessons,
     } as never);
-    assert.match(text, /## LAST TIME ON THIS GAME \(earlier runs on this exact game — do not pay for them again\)/);
+    assert.match(
+      text,
+      /## LAST TIME ON THIS PROJECT \(earlier runs on this exact project — do not pay for them again\)/,
+    );
     assert.match(text, /- 8 of 21 rounds were undone/);
-    // The game's own lessons outrank the general ones, and both sit below the user's steering.
+    // The project's own lessons outrank the general ones, and both sit below the user's steering.
     assert.ok(
-      text.indexOf("USER STEERING") < text.indexOf("LAST TIME ON THIS GAME"),
+      text.indexOf("USER STEERING") < text.indexOf("LAST TIME ON THIS PROJECT"),
       "the user still outranks the ledger",
     );
     assert.ok(
-      text.indexOf("LAST TIME ON THIS GAME") < text.indexOf("Lessons from past runs"),
-      "this game before every game",
+      text.indexOf("LAST TIME ON THIS PROJECT") < text.indexOf("Lessons from past runs"),
+      "this project before every project",
     );
   });
 });
@@ -287,8 +290,8 @@ describe("a check nobody can measure stops being written", () => {
   const records = [1, 2, 3].map((round) =>
     roundRecord({
       runId: "r1",
-      game: "skate",
-      gameKind: "studio-template",
+      project: "skate",
+      appKind: "studio-template",
       part: "plaza",
       round,
       winner: "incumbent",
@@ -304,12 +307,12 @@ describe("a check nobody can measure stops being written", () => {
     }),
   );
 
-  it("counts unmeasured rounds by the kind of game, not across every game at once", () => {
+  it("counts unmeasured rounds by the kind of project, not across every project at once", () => {
     assert.deepEqual(rarelyMeasurable(records, { kind: "studio-template" }), [{ id: "plaza-wet", rounds: 3 }]);
     assert.deepEqual(
       rarelyMeasurable(records, { kind: "phaser" }),
       [],
-      "another kind of game may well be able to read it",
+      "another kind of project may well be able to read it",
     );
     assert.deepEqual(rarelyMeasurable(records.slice(0, 2), { kind: "studio-template" }), [], "twice is a coincidence");
   });
@@ -350,7 +353,7 @@ describe("a check nobody can measure stops being written", () => {
         unmeasuredChecks: ["plaza-wet"],
         results,
       }),
-      { game: "skate", gameKind: "studio-template" },
+      { project: "skate", appKind: "studio-template" },
     );
     assert.deepEqual(asEmitted[0]!.unmeasuredChecks, ["plaza-wet"]);
     assert.deepEqual(rarelyMeasurable(asEmitted, { kind: "studio-template" }), [{ id: "plaza-wet", rounds: 3 }]);
@@ -358,7 +361,7 @@ describe("a check nobody can measure stops being written", () => {
     // measured nothing — neither true nor false is what "unmeasured" means.
     const older = ledgerFromEvents(
       night({ total: 2, passing: 1, unmeasured: 1, flips: [], regressions: [], results }),
-      { game: "skate", gameKind: "studio-template" },
+      { project: "skate", appKind: "studio-template" },
     );
     assert.deepEqual(older[0]!.unmeasuredChecks, ["plaza-wet"]);
     assert.deepEqual(rarelyMeasurable(older, { kind: "studio-template" }), [{ id: "plaza-wet", rounds: 3 }]);
@@ -418,7 +421,7 @@ describe("a check nobody can measure stops being written", () => {
 
 describe("what the morning card says the studio learned", () => {
   it("turns tonight's records into one sentence with no id in it", async () => {
-    const tonight = ledgerFromEvents(await regressionNight(), { game: "fixture-derby", gameKind: "three-vite" });
+    const tonight = ledgerFromEvents(await regressionNight(), { project: "fixture-derby", appKind: "three-vite" });
     const learned = learnedTonight(tonight);
     // No part of that night holds more than half of its ten kept rounds, so the sentence claims
     // no favourite: "most of them on X" is a majority's word, not the leader's.
@@ -473,7 +476,7 @@ describe("what the morning card says the studio learned", () => {
     );
     assert.match(
       learnedTonight(broken),
-      /Most of the work that was undone went the same way: the game did not start after the build/,
+      /Most of the work that was undone went the same way: the project did not start after the build/,
     );
     assert.equal(learnedTonight([]), "", "a night with no rounds learned nothing worth a line");
   });
@@ -643,20 +646,20 @@ function fakeEngine(rig: Rig, delegate: (request: DelegateRequest) => Promise<De
   } as never);
 }
 
-describe("two nights on one game, through the real core and harness", () => {
+describe("two nights on one project, through the real core and harness", () => {
   it("the first night's outcomes are in the second night's brief, and in every builder's", async () => {
     const rig = await startRig(
       { replies: [] },
       { previewPoolMax: 3, createHeadlessPreview: async () => makeFakePreview() },
     );
     rigs.push(rig);
-    const project = await rig.core.games.scaffold("learning-night", { title: "Learning night" });
+    const project = await rig.core.projects.scaffold("learning-night", { title: "Learning night" });
     const workspace = rig.core.layout.harnessWs;
 
-    // This game already had a night: a synthetic replay in its ledger.
+    // This project already had a night: a synthetic replay in its ledger.
     for (const record of ledgerFromEvents(await regressionNight(), {
-      game: project.name,
-      gameKind: "studio-template",
+      project: project.name,
+      appKind: "studio-template",
     })) {
       await appendLedger(workspace, project.name, record);
     }
@@ -668,8 +671,8 @@ describe("two nights on one game, through the real core and harness", () => {
         project.name,
         roundRecord({
           runId: "run_old",
-          game: project.name,
-          gameKind: "studio-template",
+          project: project.name,
+          appKind: "studio-template",
           part: "plaza",
           round,
           winner: "incumbent",
@@ -783,11 +786,15 @@ describe("two nights on one game, through the real core and harness", () => {
     );
 
     // ── the first night reads the ledger it inherited ──
-    assert.match(seen[0]!.prompt, /LAST TIME ON THIS GAME/, "the lead is told what this game already cost");
+    assert.match(seen[0]!.prompt, /LAST TIME ON THIS PROJECT/, "the lead is told what this project already cost");
     // Twenty-one rounds from the night the owner watched, three more seeded above.
-    assert.match(seen[0]!.prompt, /8 of 24 rounds were undone because the game did not start after the build/);
+    assert.match(seen[0]!.prompt, /8 of 24 rounds were undone because the project did not start after the build/);
     // And the builder gets the same five in the one file it is told to read first.
-    assert.match(String(results.workerBrief), /## LAST TIME ON THIS GAME/, String(results.workerBrief).slice(0, 400));
+    assert.match(
+      String(results.workerBrief),
+      /## LAST TIME ON THIS PROJECT/,
+      String(results.workerBrief).slice(0, 400),
+    );
     assert.match(String(results.workerBrief), /8 of 24 rounds were undone/);
 
     // The dry run warns about the check three earlier rounds could never read.
@@ -806,7 +813,7 @@ describe("two nights on one game, through the real core and harness", () => {
     assert.equal(stopped.decision, "stopped");
     assert.equal(stopped.part, "plaza");
     assert.equal(stopped.round, 1);
-    assert.equal(stopped.gameKind, "studio-template");
+    assert.equal(stopped.appKind, "studio-template");
     assert.match(stopped.briefDigest, /paint the plaza red and light it/);
     assert.equal(close.decision, "undone");
     assert.equal(close.rule, "not-landed");
@@ -815,16 +822,16 @@ describe("two nights on one game, through the real core and harness", () => {
     // The lessons file is written at the close, and the run's own report carries the line.
     const lessons = await readFile(lessonsFile(workspace, project.name), "utf8");
     // The lessons file is written after the night's own round joined the ledger: 24 + this one.
-    assert.match(lessons, /8 of 25 rounds were undone because the game did not start/);
+    assert.match(lessons, /8 of 25 rounds were undone because the project did not start/);
     assert.match(
       lessons,
-      /2 of 2 runs on this game made nothing live — the last one because the lead kept this build aside/,
+      /2 of 2 runs on this project made nothing live — the last one because the lead kept this build aside/,
       lessons,
     );
     const finishedOne = customEvents(logOne, "run_finished").find((e) => e.runId === runOne)!;
     assert.equal(typeof finishedOne.learned, "string", JSON.stringify(finishedOne.learned));
 
-    // ── the second night, on the same game ──
+    // ── the second night, on the same project ──
     const runTwo = rig.core.newRunId();
     await rig.core.dispatchRun({
       runId: runTwo,
@@ -843,22 +850,22 @@ describe("two nights on one game, through the real core and harness", () => {
     );
 
     assert.equal(seen.length, 2, "two director sessions");
-    assert.match(seen[1]!.prompt, /LAST TIME ON THIS GAME/);
+    assert.match(seen[1]!.prompt, /LAST TIME ON THIS PROJECT/);
     // The lines the SECOND night reads are ones the FIRST night wrote: its own round and its own
     // close are in the count (24 rounds and one night in the brief it read, 25 and two in this).
     assert.match(
       seen[1]!.prompt,
-      /8 of 25 rounds were undone because the game did not start/,
+      /8 of 25 rounds were undone because the project did not start/,
       seen[1]!.prompt.slice(0, 3000),
     );
     assert.match(
       seen[1]!.prompt,
-      /2 of 2 runs on this game made nothing live — the last one because the lead kept this build aside/,
+      /2 of 2 runs on this project made nothing live — the last one because the lead kept this build aside/,
       seen[1]!.prompt.slice(0, 3000),
     );
 
-    // ── a game whose nights happened before the ledger existed ──
-    // Emptied here the way history is empty for every game the studio ran before this file: the
+    // ── a project whose nights happened before the ledger existed ──
+    // Emptied here the way history is empty for every project the studio ran before this file: the
     // thread still holds those nights, so the next one reads them back rather than starting
     // blank (`ledgerFromEvents`, which until now nothing in the studio called).
     await writeFile(ledgerFile(workspace, project.name), "");
@@ -880,8 +887,8 @@ describe("two nights on one game, through the real core and harness", () => {
     );
 
     assert.equal(seen.length, 3, "three director sessions");
-    assert.match(seen[2]!.prompt, /LAST TIME ON THIS GAME/, seen[2]!.prompt.slice(0, 3000));
-    assert.match(seen[2]!.prompt, /2 of 2 runs on this game made nothing live/, seen[2]!.prompt.slice(0, 3000));
+    assert.match(seen[2]!.prompt, /LAST TIME ON THIS PROJECT/, seen[2]!.prompt.slice(0, 3000));
+    assert.match(seen[2]!.prompt, /2 of 2 runs on this project made nothing live/, seen[2]!.prompt.slice(0, 3000));
     // The replay is written down, so the night after this one reads a file and not a log again.
     const rebuilt = await readLedger(workspace, project.name);
     assert.ok(

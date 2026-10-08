@@ -56,7 +56,7 @@ export interface AssetLedger {
   /** A Genex create and the wait that finishes it are two Studio jobs joined only by this id. */
   byGeneration: Map<string, AssetInfo>;
   dropped: Set<AssetInfo>;
-  /** An open in-game check, by call, naming the Studio job it checks. */
+  /** An open in-project check, by call, naming the Studio job it checks. */
   checkByCall: Map<string, string>;
   foldedInto: Map<AssetInfo, AssetInfo>;
 }
@@ -218,7 +218,7 @@ export function assetCallReturned(ledger: AssetLedger, payload: Payload, at: str
   foldDerivedWork(ledger, job, payload);
 }
 
-/** An in-game check (`inspect_use`/`verify_use`) came back: it lands on the job it checked. */
+/** An in-project check (`inspect_use`/`verify_use`) came back: it lands on the job it checked. */
 function recordCheck(ledger: AssetLedger, checked: string, payload: Payload, at: string): void {
   const target = ledger.byJob.get(checked);
   if (!target) return;

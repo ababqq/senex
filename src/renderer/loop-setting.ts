@@ -2,7 +2,7 @@
  * A chat's Loop: whether the composer commissions a looping build and for how long. Each chat
  * keeps its own, and a running build shows the one its start record kept (`runLoopSetting`).
  *
- * A game chat is pinned to the last pick when it first opens, the same way its model is; every
+ * A project chat is pinned to the last pick when it first opens, the same way its model is; every
  * pick is also kept as the last pick, which seeds the next fresh chat.
  */
 import type { ComposerSendOptions } from "../shared/composer.ts";
@@ -74,7 +74,7 @@ export function storedChatLoop(storage: KeyValueStorage | null, threadId?: strin
   return (threadId ? ownLoop(storage, threadId) : null) ?? lastLoop(storage);
 }
 
-/** A game chat opens on its own Loop: the first time, the last pick becomes its own. */
+/** A project chat opens on its own Loop: the first time, the last pick becomes its own. */
 export function pinChatLoop(storage: KeyValueStorage | null, threadId: string): void {
   if (ownLoop(storage, threadId)) return;
   writeJson(storageKeyFor.threadLoop(threadId), lastLoop(storage), storage);
@@ -116,13 +116,13 @@ export function composerLoopView(input: {
 
 /** What a send carries besides its text: plan review, the pictures, and the Loop's commission. */
 export function composerExtras(input: {
-  gameMode: boolean;
+  projectMode: boolean;
   view: ComposerLoopView;
   reviewPlan: boolean;
   frames: PickedFrame[];
 }): ComposerExtras {
-  const { gameMode, view, frames } = input;
-  const editable = gameMode && view.editable;
+  const { projectMode, view, frames } = input;
+  const editable = projectMode && view.editable;
   const reviews = editable && input.reviewPlan;
   const commissions = editable && view.shown.on;
   return {
@@ -168,10 +168,10 @@ export function chatLoopExtras(input: {
   threadId: string;
   build: ComposerBuild | null | undefined;
   coordinating: boolean;
-  gameMode: boolean;
+  projectMode: boolean;
 }): ComposerExtras {
   const build = input.build ?? (input.coordinating ? RUNNING_BUILD : null);
   if (!reportCommissions(build)) return {};
   const view = composerLoopView({ own: storedChatLoop(input.storage, input.threadId), build });
-  return composerExtras({ gameMode: input.gameMode, view, reviewPlan: false, frames: [] });
+  return composerExtras({ projectMode: input.projectMode, view, reviewPlan: false, frames: [] });
 }

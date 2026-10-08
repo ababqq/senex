@@ -73,7 +73,7 @@ const local: EngineDescriptor = {
 };
 
 describe("what a chat opens with", () => {
-  it("a game chat keeps its own pick; a fresh one inherits the last pick, then its last turn's engine", () => {
+  it("a project chat keeps its own pick; a fresh one inherits the last pick, then its last turn's engine", () => {
     const store = storage({
       "studio.model.chat-a": "codex::gpt",
       "studio.model.last": "claude-code::opus",
@@ -90,7 +90,7 @@ describe("what a chat opens with", () => {
     );
   });
 
-  it("a game chat's effort falls back to its last turn's, then to the last effort picked anywhere; Studio's does not", () => {
+  it("a project chat's effort falls back to its last turn's, then to the last effort picked anywhere; Studio's does not", () => {
     const store = storage({ "studio.effort": "low" });
     assert.equal(composerOpening(store, { id: "g", meta: { kind: "game", lastEffort: "high" } }).effort, "high");
     assert.equal(composerOpening(store, { id: "g", meta: { kind: "game" } }).effort, "low");
@@ -106,7 +106,7 @@ describe("what a chat opens with", () => {
   });
 });
 
-describe("a game chat's own effort", () => {
+describe("a project chat's own effort", () => {
   it("the effort its last turn ran at beats the effort saved for its model", () => {
     const store = storage({ "studio.model.g": "codex::gpt", "studio.effort.codex::gpt": "medium" });
     assert.equal(composerOpening(store, { id: "g", meta: { kind: "game", lastEffort: "high" } }).effort, "high");
@@ -121,8 +121,8 @@ describe("a game chat's own effort", () => {
     assert.equal(composerOpening(store, { id: "g", meta: { kind: "game", lastEffort: "high" } }).effort, "low");
   });
 
-  // Intended flip (c4563ce): picking a model in a game chat used to adopt that model's saved effort.
-  it("picking another model keeps a game chat's effort; Studio adopts the model's saved one", () => {
+  // Intended flip (c4563ce): picking a model in a project chat used to adopt that model's saved effort.
+  it("picking another model keeps a project chat's effort; Studio adopts the model's saved one", () => {
     const store = storage({
       "studio.effort.claude-code::opus": "high",
       "studio.studioChat.effort.claude-code::opus": "high",
@@ -131,7 +131,7 @@ describe("a game chat's own effort", () => {
     assert.equal(effortOnModelPick(store, true, "claude-code::opus", "low"), "high");
   });
 
-  it("an effort picked in a game chat is the one it reopens with, over its last turn's and its model's", () => {
+  it("an effort picked in a project chat is the one it reopens with, over its last turn's and its model's", () => {
     const store = storage({ "studio.model.g": "codex::gpt", "studio.effort.codex::gpt": "medium" });
     rememberEffortPick(store, { threadId: "g", studio: false, modelKey: "codex::gpt" }, "low");
     assert.equal(composerOpening(store, { id: "g", meta: { kind: "game", lastEffort: "high" } }).effort, "low");
@@ -141,20 +141,20 @@ describe("a game chat's own effort", () => {
     assert.equal(composerOpening(store, { id: "g", meta: { kind: "game", lastEffort: "high" } }).effort, "high");
   });
 
-  it("an effort picked in Studio stays Studio's and never becomes a game chat's own", () => {
+  it("an effort picked in Studio stays Studio's and never becomes a project chat's own", () => {
     const store = storage();
     rememberEffortPick(store, { threadId: "s", studio: true, modelKey: "codex::gpt" }, "low");
     assert.equal(store.getItem("studio.threadEffort.s"), null);
     assert.equal(store.getItem("studio.studioChat.effort.codex::gpt"), "low");
   });
 
-  it("opening a game chat pins its effort, so a later per-model change does not move it", () => {
+  it("opening a project chat pins its effort, so a later per-model change does not move it", () => {
     const store = storage({ "studio.model.g": "codex::gpt", "studio.effort.codex::gpt": "medium" });
-    const game = { id: "g", meta: { kind: "game" as const } };
-    assert.equal(pinComposerOpening(store, game).effort, "medium");
+    const project = { id: "g", meta: { kind: "game" as const } };
+    assert.equal(pinComposerOpening(store, project).effort, "medium");
     assert.equal(store.getItem("studio.threadEffort.g"), "medium");
     store.setItem("studio.effort.codex::gpt", "high");
-    assert.equal(composerOpening(store, game).effort, "medium");
+    assert.equal(composerOpening(store, project).effort, "medium");
 
     const studioChat = { id: "s", meta: { kind: "studio" as const } };
     const studioStore = storage({
@@ -177,7 +177,7 @@ describe("what the composer derives", () => {
     assert.equal(view.selected, "claude-code::opus");
     assert.equal(view.effort, "high");
     assert.equal(view.effortApplies, true);
-    assert.equal(view.rolesApply, true, "a game chat on a session engine splits the work into roles");
+    assert.equal(view.rolesApply, true, "a project chat on a session engine splits the work into roles");
     assert.deepEqual(
       view.roleModels.map((m) => m.label),
       ["Default", "opus", "sonnet"],
@@ -300,10 +300,10 @@ describe("what a send carries", () => {
     effort: "low",
   });
   const roles = effectiveRoles(view, { planner: "opus", builder: "sonnet", judge: "sonnet" }, "low");
-  const game = { ...view, roles, preferences: { fast: true } };
+  const project = { ...view, roles, preferences: { fast: true } };
 
   it("runs the chat on the orchestrator, with the effort the model accepts and the preferences", () => {
-    assert.deepEqual(composerSendOptions(game, "claude-code::opus", { autopilot: true }), {
+    assert.deepEqual(composerSendOptions(project, "claude-code::opus", { autopilot: true }), {
       engine: "claude-code",
       model: "opus",
       effort: "low",
@@ -313,7 +313,7 @@ describe("what a send carries", () => {
 
   it("commissions a timed build with its roles, only while no build belongs to the chat", () => {
     const extras = { autopilot: { hours: 3, frames: [], reviewPlan: true }, reviewPlan: true };
-    const sent = composerSendOptions(game, "claude-code::opus", { autopilot: true, extras });
+    const sent = composerSendOptions(project, "claude-code::opus", { autopilot: true, extras });
     assert.equal(sent.reviewPlan, true);
     assert.deepEqual(
       sent.autopilot && {
@@ -325,11 +325,11 @@ describe("what a send carries", () => {
       { hours: 3, reviewPlan: true, planner: "opus", plannerEffort: "low" },
     );
     assert.equal(
-      composerSendOptions(game, "claude-code::opus", { autopilot: false, extras }).autopilot,
+      composerSendOptions(project, "claude-code::opus", { autopilot: false, extras }).autopilot,
       undefined,
       "a message to a running build is not a new commission",
     );
-    const noCap = composerSendOptions(game, "claude-code::opus", {
+    const noCap = composerSendOptions(project, "claude-code::opus", {
       autopilot: true,
       extras: { autopilot: { hours: null, frames: [] } },
     });
@@ -337,7 +337,7 @@ describe("what a send carries", () => {
   });
 
   it("a pick on another engine than the roles' sends that model, with no roles", () => {
-    const sent = composerSendOptions(game, "codex::gpt", {
+    const sent = composerSendOptions(project, "codex::gpt", {
       autopilot: true,
       extras: { autopilot: { hours: 1, frames: [] } },
     });
@@ -345,7 +345,7 @@ describe("what a send carries", () => {
     assert.equal(sent.model, "gpt");
     assert.equal(sent.autopilot?.roles, undefined);
     assert.deepEqual(
-      composerSendOptions({ ...game, roles: null, studio: true }, null, { autopilot: true }),
+      composerSendOptions({ ...project, roles: null, studio: true }, null, { autopilot: true }),
       { effort: "low", preferences: { fast: true } },
       "no model picked sends no engine",
     );
@@ -354,15 +354,15 @@ describe("what a send carries", () => {
 
 describe("what a chat's Loop is", () => {
   const view = resolveComposerModel({ studio: false, engines: [claude], modelKey: "claude-code::opus", effort: null });
-  const game = { ...view, roles: null, preferences: {} };
+  const project = { ...view, roles: null, preferences: {} };
   const infinite = { on: true, hours: null };
   const halfHour = { on: true, hours: 0.5 };
   /** What the chat's composer would send now, through the real send contract. */
   const sendFrom = (store: KeyValueStorage, threadId: string) =>
-    composerSendOptions(game, "claude-code::opus", {
+    composerSendOptions(project, "claude-code::opus", {
       autopilot: true,
       extras: composerExtras({
-        gameMode: true,
+        projectMode: true,
         view: composerLoopView({ own: storedChatLoop(store, threadId), build: null }),
         reviewPlan: false,
         frames: [],
@@ -442,7 +442,7 @@ describe("what a chat's Loop is", () => {
     const own = halfHour;
     const extrasFor = (state: "paused" | "finished") =>
       composerExtras({
-        gameMode: true,
+        projectMode: true,
         view: composerLoopView({ own, build: { state, loop: infinite } }),
         reviewPlan: true,
         frames: [],
@@ -452,7 +452,7 @@ describe("what a chat's Loop is", () => {
     const frames = [{ label: "a", mimeType: "image/png", data: "x" }];
     assert.deepEqual(
       composerExtras({
-        gameMode: false,
+        projectMode: false,
         view: composerLoopView({ own, build: null }),
         reviewPlan: true,
         frames,

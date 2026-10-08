@@ -44,7 +44,7 @@ import { readJournal } from "./run-journal.ts";
 import { followupAsk } from "./studio-prompts.ts";
 import { type ActiveRun, type RunReopen, StatusLane, type Studio } from "./studio-state.ts";
 import { clampRunHours } from "./config.ts";
-import { CLIP_GAME_TITLE } from "./text.ts";
+import { CLIP_PROJECT_TITLE } from "./text.ts";
 import type { AnyRecord, ForwardedCall, HarnessCtx, HarnessEvent, Host, HostCall } from "../types/harness.d.ts";
 import type { ModelPreferences, RunSpec } from "../types/host-api.d.ts";
 import type { QueueAction, SteerHandle } from "./message-queue.ts";
@@ -52,7 +52,7 @@ import type { QueueAction, SteerHandle } from "./message-queue.ts";
 /** The night an interview commissions when it names no length, in hours. */
 const DEFAULT_RUN_HOURS = 8;
 /** The folder a night builds in when neither the chat nor the interview names one. */
-const FALLBACK_PROJECT = "game";
+const FALLBACK_PROJECT = "project";
 /** A goal that says nothing: empty, or a missing value spelled out. */
 const EMPTY_GOALS = new Set(["", "undefined", "null"]);
 /** The session phase a stopped turn leaves on its thread (`session_activity`). */
@@ -61,7 +61,7 @@ const INTERRUPTED_PHASE = "interrupted";
 /** What the chat is told. */
 const MESSAGE = {
   studioThreadBuilds:
-    "Builds happen in a game's chat — this is the Studio's own chat, which never builds. Press Start a game in the sidebar, set the hours there, and describe a feeling.",
+    "Builds happen in a project's chat — this is the Studio's own chat, which never builds. Press Start a project in the sidebar, set the hours there, and describe a feeling.",
   noGoal:
     "the interview produced no usable goal — the intake tool call must carry a real `goal`; ask again instead of launching",
   alreadyBuilding: (project: string) =>
@@ -81,7 +81,7 @@ const MESSAGE = {
   planWindow:
     "Your Claude plan's window can pause it partway; it waits out the reset and resumes itself, or one tap on Resume.",
   connectionFirst:
-    " Your game doesn't have the studio's connection yet, so the first thing this build does is add it — without it nothing can tell whether a change made the game better.",
+    " Your project doesn't have the studio's connection yet, so the first thing this build does is add it — without it nothing can tell whether a change made the project better.",
 } as const;
 
 /** The run a message belongs to, when it names one (the queued action carries the same fields). */
@@ -246,14 +246,14 @@ async function coordinatorNight(host: Host, action: QueueAction, existing: RunRe
   return finishedNight(host, action.threadId, existing, action.messageId);
 }
 
-/** Does this run own the message's thread or the game the message is about? */
+/** Does this run own the message's thread or the project the message is about? */
 function ownsMessage(active: ActiveRun, action: QueueAction): boolean {
   if (active.threadId === action.threadId) return true;
   return Boolean(action.project) && active.run.project === action.project;
 }
 
 /**
- * The run a message is for: the one under way on its thread or game, else the thread's last one.
+ * The run a message is for: the one under way on its thread or project, else the thread's last one.
  * A run that has closed is the log's (finished or paused) even while its learning pass runs. Whether
  * the message keeps its commission is decided once the night it answers after is known
  * (`keepsCommission`).
@@ -285,8 +285,8 @@ function dropCommission(action: QueueAction): void {
 }
 
 function existingRun(action: QueueAction, active: ActiveRun | undefined, previousRun: RunRecord | null) {
-  // Older profiles recorded game runs in Studio. They remain history, never authority to
-  // route a new Studio question into that game's coordinator or start another build.
+  // Older profiles recorded project runs in Studio. They remain history, never authority to
+  // route a new Studio question into that project's coordinator or start another build.
   if (action.studioThread) return null;
   if (active) return active.run;
   // A New build queued before the composer dropped it still starts afresh.
@@ -696,7 +696,7 @@ async function failChatTurn(host: Host, ctx: HarnessCtx, turnId: string, err: an
 
 /**
  * Launch the night an interview commissioned. Throws the sentence the chat is owed when it cannot
- * start: no goal, a folder that refuses, or a build already running for this chat or game.
+ * start: no goal, a folder that refuses, or a build already running for this chat or project.
  */
 export async function launchFromIntake(
   studio: Studio,
@@ -706,22 +706,22 @@ export async function launchFromIntake(
 ): Promise<void> {
   const { host } = studio;
   requireGoal(spec);
-  const games = await host.call(HostMethod.GameList, {});
-  const project = intakeProject(action, spec, games);
-  if (!games.some((g) => g.name === project)) {
-    await ctx.call(HostMethod.GameScaffold, {
+  const projects = await host.call(HostMethod.ProjectList, {});
+  const project = intakeProject(action, spec, projects);
+  if (!projects.some((g) => g.name === project)) {
+    await ctx.call(HostMethod.ProjectScaffold, {
       name: project,
-      title: spec.goal?.slice(0, CLIP_GAME_TITLE) || project,
+      title: spec.goal?.slice(0, CLIP_PROJECT_TITLE) || project,
       threadId: action.threadId,
     });
   }
-  // What the folder itself refuses (nightRefusal): a page that cannot load, a game that is
+  // What the folder itself refuses (nightRefusal): a page that cannot load, a project that is
   // already compiled. Said in chat now, instead of found out at 3am.
-  const readiness = await host.call(HostMethod.GameValidate, { project }).catch(() => null);
-  const refusal = nightRefusal(games.find((g) => g.name === project) ?? null, readiness?.problems ?? []);
+  const readiness = await host.call(HostMethod.ProjectValidate, { project }).catch(() => null);
+  const refusal = nightRefusal(projects.find((g) => g.name === project) ?? null, readiness?.problems ?? []);
   if (refusal) throw new Error(refusal);
   const run = intakeRun(spec, action, project, readiness);
-  // A promise the night cannot keep is worse than no promise: a second Overnight for a game
+  // A promise the night cannot keep is worse than no promise: a second Overnight for a project
   // that already owns a run is refused below, and the only record of that refusal is an event
   // no chat surface renders. Ask the same question here, before anything is promised — once a
   // run that has closed there is past its learning pass, which a new night waits out.
@@ -768,8 +768,8 @@ function requireGoal(spec: AnyRecord): void {
  * slug once won over the binding and the run built in a second, empty folder — with the
  * user typing into the chat attached to the first.
  */
-function intakeProject(action: QueueAction, spec: AnyRecord, games: readonly { name: string }[]): string {
-  const bound = typeof action.project === "string" && games.some((g) => g.name === action.project);
+function intakeProject(action: QueueAction, spec: AnyRecord, projects: readonly { name: string }[]): string {
+  const bound = typeof action.project === "string" && projects.some((g) => g.name === action.project);
   if (bound) return action.project;
   const named = typeof spec.project === "string" ? spec.project.trim() : "";
   return named || FALLBACK_PROJECT;
@@ -802,7 +802,7 @@ function intakeRun(
     project,
     reference: spec.reference,
     budgets: intakeBudgets(spec),
-    // What the folder still needs, as `game.validate` found it a moment ago. Not a refusal —
+    // What the folder still needs, as `project.validate` found it a moment ago. Not a refusal —
     // `nightRefusal` above decides those — but the night's own first job: a page that never
     // loads the studio contract cannot be judged at all, so the run carries the fact and the
     // director installs it before anyone builds (M2.6, loop/director.ts `installContract`).
@@ -829,8 +829,8 @@ function commissionedWith(action: QueueAction): { effort?: string; preferences?:
 }
 
 /**
- * The one sentence a night owes the user before they walk away when their game cannot yet be
- * judged: the studio has to wire its own connection into the game before it can tell whether
+ * The one sentence a night owes the user before they walk away when their project cannot yet be
+ * judged: the studio has to wire its own connection into the project before it can tell whether
  * anything it changes is an improvement, and that is the first thing tonight does (M2.6). Said
  * here, in the chat, rather than discovered in the morning as "the other build could not be
  * observed" — the words no one outside the harness could read.

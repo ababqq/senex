@@ -11,7 +11,7 @@ export const STORAGE_KEYS = {
   chatWidth: "studio.chatWidth",
   previewView: "studio.previewView",
   activeThread: "studio.activeThread",
-  lastGameThread: "studio.lastGameThread",
+  lastProjectThread: "studio.lastProjectThread",
   reviewProject: "studio.reviewProject",
   effort: "studio.effort",
   lastModel: "studio.model.last",
@@ -22,8 +22,8 @@ export const STORAGE_KEYS = {
   autopilotHours: "studio.autopilotHours",
   autopilotReview: "studio.autopilotReview",
   terminalHeight: "studio.terminalHeight",
-  /** The Live game's sound switch (`panels/stage/game-sound.ts` owns the values). */
-  gameSound: "studio.gameSound",
+  /** The Live project's sound switch (`panels/stage/project-sound.ts` owns the values). */
+  projectSound: "studio.projectSound",
   appearance: "studio.appearance.v1",
   /** Home's background picture and effect (`home-backdrop/settings.ts` owns the format). */
   homeBackdrop: "studio.homeBackdrop.v1",
@@ -39,21 +39,21 @@ export const STORAGE_KEYS = {
   colorTweaker: "studio.dev.colorTweaker",
 } as const;
 
-/** Keys kept per thread, engine, model, game or run. */
+/** Keys kept per thread, engine, model, project or run. */
 export const storageKeyFor = {
-  /** A game chat's own model pick. */
+  /** A project chat's own model pick. */
   threadModel: (threadId: string): string => `studio.model.${threadId}`,
   /** The roles panel's picks, per engine (`stored-roles.ts` owns the format). */
   roles: (engineId: string): string => `studio.roles.${engineId}`,
-  /** Effort per model; Studio's assistant keeps its own apart from game chats. */
+  /** Effort per model; Studio's assistant keeps its own apart from project chats. */
   effort: (studio: boolean, modelKey: string | null): string =>
     `${studio ? "studio.studioChat" : "studio"}.effort.${modelKey}`,
   /** Model preferences (context size, …) per model, split the same way. */
   preferences: (studio: boolean, modelKey: string | null): string =>
     `${studio ? "studio.studioChat" : "studio"}.preferences.${modelKey}`,
-  /** A game chat's own Loop, as JSON (`loop-setting.ts` owns the format). */
+  /** A project chat's own Loop, as JSON (`loop-setting.ts` owns the format). */
   threadLoop: (threadId: string): string => `studio.loop.${threadId}`,
-  /** A game chat's own effort; the per-model effort only seeds fresh chats. */
+  /** A project chat's own effort; the per-model effort only seeds fresh chats. */
   threadEffort: (threadId: string): string => `studio.threadEffort.${threadId}`,
 } as const;
 

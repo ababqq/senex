@@ -16,7 +16,7 @@ import { preparationBudgetMs, wrapReserveMs } from "../../src/harness-seed/loop/
 
 const event = (id: number, data: EventData): EventEnvelope => ({
   id: String(id).padStart(6, "0"),
-  thread_id: "game",
+  thread_id: "project",
   turn_id: "turn",
   session_id: null,
   created_at: new Date().toISOString(),
@@ -71,7 +71,7 @@ test("real intake questions survive pagination and settle on either a choice rep
 
 test("host handoff diagnostics disappear while ordinary explanations and errors remain", () => {
   const technical =
-    "**test-4** (folder `AI Games/test-4`) — Claude Code (opus) · medium effort conducts the build interview itself and starts the run when it has what it needs.";
+    "**test-4** (folder `AI Projects/test-4`) — Claude Code (opus) · medium effort conducts the build interview itself and starts the run when it has what it needs.";
   assert.equal(isHandoffNarration(technical), true);
   assert.equal(
     isHandoffNarration(
@@ -109,7 +109,7 @@ test("only the direct answer to an interview question inherits its commissioning
   assert.equal(interviewForReply([question, answer, custom(3, "run_started", { runId: "r" })]), null);
 });
 
-test("new games inherit the last model while previous conversations keep their model", () => {
+test("new projects inherit the last model while previous conversations keep their model", () => {
   const values = new Map<string, string>();
   const storage = {
     getItem: (key: string) => values.get(key) ?? null,
@@ -128,7 +128,7 @@ test("new games inherit the last model while previous conversations keep their m
   );
 });
 
-test("Studio keeps its own model without changing the one new games inherit", () => {
+test("Studio keeps its own model without changing the one new projects inherit", () => {
   const values = new Map<string, string>();
   const storage = {
     getItem: (key: string) => values.get(key) ?? null,
@@ -136,48 +136,48 @@ test("Studio keeps its own model without changing the one new games inherit", ()
       values.set(key, value);
     },
   };
-  rememberChatModel(storage, "game", "claude-code::opus");
+  rememberChatModel(storage, "project", "claude-code::opus");
   assert.equal(
     storedChatModel(storage, "studio", { kind: "studio" }),
     "claude-code::opus",
-    "Studio starts from the last game pick",
+    "Studio starts from the last project pick",
   );
   rememberChatModel(storage, "studio", "codex::gpt-5.4", true);
   assert.equal(storedChatModel(storage, "studio", { kind: "studio" }), "codex::gpt-5.4");
   assert.equal(
     storedChatModel(storage, "new", { kind: "game" }),
     "claude-code::opus",
-    "a Studio pick is not inherited by new games",
+    "a Studio pick is not inherited by new projects",
   );
-  rememberChatModel(storage, "game", "ollama::local");
+  rememberChatModel(storage, "project", "ollama::local");
   assert.equal(
     storedChatModel(storage, "studio", { kind: "studio" }),
     "codex::gpt-5.4",
-    "a game pick leaves Studio alone",
+    "a project pick leaves Studio alone",
   );
   assert.notEqual(modelStoreKeys(true).effort("codex::gpt-5.4"), modelStoreKeys(false).effort("codex::gpt-5.4"));
 });
 
-test("a game chat keeps its own effort; the effort saved for a model only seeds fresh chats", () => {
+test("a project chat keeps its own effort; the effort saved for a model only seeds fresh chats", () => {
   const values = new Map<string, string>();
   const storage = {
     getItem: (key: string) => values.get(key) ?? null,
     setItem: (key: string, value: string) => void values.set(key, value),
     removeItem: (key: string) => void values.delete(key),
   };
-  const game = { kind: "game" } as const;
+  const project = { kind: "game" } as const;
   storage.setItem(modelStoreKeys(false).effort("codex::gpt"), "medium");
   rememberChatEffort(storage, "first", "low");
   storage.setItem(modelStoreKeys(false).effort("codex::gpt"), "high");
   assert.equal(
-    storedChatEffort(storage, { id: "first", meta: game }, "codex::gpt"),
+    storedChatEffort(storage, { id: "first", meta: project }, "codex::gpt"),
     "low",
     "outlives a per-model pick",
   );
-  assert.equal(storedChatEffort(storage, { id: "fresh", meta: game }, "codex::gpt"), "high");
+  assert.equal(storedChatEffort(storage, { id: "fresh", meta: project }, "codex::gpt"), "high");
   rememberChatEffort(storage, "first", null);
   assert.equal(
-    storedChatEffort(storage, { id: "first", meta: { ...game, lastEffort: "medium" } }, "codex::gpt"),
+    storedChatEffort(storage, { id: "first", meta: { ...project, lastEffort: "medium" } }, "codex::gpt"),
     "medium",
     "a cleared pick falls back to the chat's last turn",
   );
@@ -310,7 +310,7 @@ test("a running web lookup says it is looking something up", () => {
       kind: "assistant",
       role: "planner",
       delegationId: "d1",
-      data: { parts: [{ type: "tool_use", id: "w1", name: "WebSearch", input: { query: "boxing game feel" } }] },
+      data: { parts: [{ type: "tool_use", id: "w1", name: "WebSearch", input: { query: "boxing project feel" } }] },
     }),
   ]);
   const rows = entries.flatMap((e) => (e.kind === "tools" ? e.rows : []));

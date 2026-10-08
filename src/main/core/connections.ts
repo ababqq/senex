@@ -15,7 +15,7 @@ import { UiEvent } from "../../shared/ui-events.ts";
 import { CapabilityAudience, planningCapabilities } from "../planning-capabilities.ts";
 import type { StudioCore } from "../studio-core.ts";
 
-type ConnectionsCore = Pick<StudioCore, "mcp" | "plugins" | "games" | "append" | "emit" | "store">;
+type ConnectionsCore = Pick<StudioCore, "mcp" | "plugins" | "projects" | "append" | "emit" | "store">;
 type ConnectionSource = ConnectionSnapshot["sources"][number];
 
 /** A list of names, as a log record may or may not hold one. */
@@ -106,13 +106,13 @@ export class ConnectionService {
     const revision = this.#revision;
     const connections = await this.snapshot(threadId, project);
     const connectors = await this.#enabledConnectors(project);
-    const game = project ? (await this.#core.games.list()).find((g) => g.name === project) : undefined;
+    const entry = project ? (await this.#core.projects.list()).find((g) => g.name === project) : undefined;
     const text = planningCapabilities(
       revision,
       this.#core.plugins.list(),
       connections,
       connectors,
-      game?.shape.kind === "studio-template",
+      entry?.shape.kind === "studio-template",
       audience,
     );
     if (audience === CapabilityAudience.Conversation)
@@ -157,7 +157,7 @@ export class ConnectionService {
     return new Map(state).get(sessionKey(engine, session));
   }
 
-  /** The enabled connectors that reach this game, with the tool names a plan may name. */
+  /** The enabled connectors that reach this project, with the tool names a plan may name. */
   async #enabledConnectors(project: string | null | undefined) {
     const views = await this.#core.mcp.list(project ?? null);
     return views

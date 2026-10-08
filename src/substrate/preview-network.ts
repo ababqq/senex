@@ -1,9 +1,9 @@
 /**
- * The one place a game preview may reach beyond the studio's own servers: well-known public CDNs
+ * The one place a project preview may reach beyond the studio's own servers: well-known public CDNs
  * that serve libraries and fonts. Reads only (GET/HEAD over https on the default port), exact
  * host names, so a page can load `three` from jsdelivr but cannot post what an agent wrote into
  * it to a host of its own choosing. Used by the preview's request filter (main/page-serve.ts) and
- * by the page validation that tells the user what the preview cannot reach (game-workspace.ts).
+ * by the page validation that tells the user what the preview cannot reach (project-workspace.ts).
  */
 export const PREVIEW_CDN_HOSTS: ReadonlySet<string> = new Set([
   "cdn.jsdelivr.net",

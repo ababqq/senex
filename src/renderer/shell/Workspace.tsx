@@ -13,7 +13,7 @@ import { HomeLayer, useCoveredByHome } from "./HomeScreen.tsx";
 import type { WorkspaceProps } from "./use-shell.ts";
 import { WorkspaceStage } from "./WorkspaceStage.tsx";
 
-/** The chat column beside the stage (a game's build stage, or Studio's review), with home over both. */
+/** The chat column beside the stage (a project's build stage, or Studio's review), with home over both. */
 export const Workspace = memo(function Workspace(props: WorkspaceProps): JSX.Element {
   const { chrome } = props;
   const { pluginsOpen } = chrome;
@@ -59,11 +59,11 @@ function WorkspaceChat({ app, chrome, navigation, views, chat }: WorkspaceProps)
   const { activeThreadId, activeThread, status: threadStatus } = useThreadsView();
   const engines = useEngines((s) => s.list);
   const activeStatus = (activeThreadId && threadStatus[activeThreadId]) || null;
-  const games = useLibrary((s) => s.games);
+  const projects = useLibrary((s) => s.projects);
   const notify = app.notify;
-  const saveGameTitle = useCallback(
+  const saveProjectTitle = useCallback(
     (name: string, title: string) => {
-      void app.saveGame(name, { title }).catch(notifyProblem(notify));
+      void app.saveProject(name, { title }).catch(notifyProblem(notify));
     },
     [app, notify],
   );
@@ -79,14 +79,14 @@ function WorkspaceChat({ app, chrome, navigation, views, chat }: WorkspaceProps)
       stateEvents={chat.history.stateEvents}
       history={chat.history}
       engines={engines}
-      games={games}
+      projects={projects}
       activeThread={activeThread}
       status={activeStatus?.status ?? ""}
       busySince={activeStatus?.since ?? null}
       firstAsk={chat.firstAsk}
       onRename={app.renameThread}
-      onRenameGame={saveGameTitle}
-      onNewGame={navigation.newGame}
+      onRenameProject={saveProjectTitle}
+      onNewProject={navigation.newProject}
       onShowLive={views.showLive}
       onShowAssets={() => views.chooseStageView(StageView.Assets)}
       onShowBuilds={() => views.chooseStageView(StageView.Builds)}

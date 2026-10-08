@@ -1,6 +1,6 @@
 /**
  * `campaign run` (§4, §8.1, §10.5, §10.6, Rules 20, 21, 24), end to end and hermetic: fake lanes
- * replay the fixture streams (raw) or seed and edit a game with a lane report (Genex), a fake
+ * replay the fixture streams (raw) or seed and edit a project with a lane report (Genex), a fake
  * server and boot probe judge the canaries, and every row goes through the real ledger writer and
  * its guard. Covered: phase order, one live run per provider with the two providers side by side
  * (or serial), the canary gate (retry, abort, void), harness-failure replacements, a CLI change,
@@ -62,7 +62,7 @@ import {
   NOW,
   REGISTRY,
 } from "../fixtures/evals/campaign/world.ts";
-import { validateGameDir } from "../../src/substrate/game-validation.ts";
+import { validateProjectDir } from "../../src/substrate/project-validation.ts";
 import { EngineId } from "../../src/shared/providers.ts";
 
 const FIXTURES = path.resolve(import.meta.dirname, "../fixtures/evals");
@@ -492,7 +492,7 @@ describe("refusals and boundaries", () => {
     const genex = rows.find((row) => row.kind === RowKind.Build && row.lane.id === "genex-claude");
     assert.ok(raw && genex);
     assert.ok(fs.existsSync(path.join(runWorkRoot(w.layout, raw.runId), "project", "index.html")));
-    assert.ok(fs.existsSync(path.join(runWorkRoot(w.layout, genex.runId), "games", "game-1", "index.html")));
+    assert.ok(fs.existsSync(path.join(runWorkRoot(w.layout, genex.runId), "projects", "project-1", "index.html")));
     assert.ok(fs.existsSync(path.join(runWorkRoot(w.layout, genex.runId), "lane-report.json")));
   });
 
@@ -513,10 +513,10 @@ describe("refusals and boundaries", () => {
   });
 });
 
-/** What `validateGameDir` says of a stop-time snapshot, as the row records it; unknown without one. */
+/** What `validateProjectDir` says of a stop-time snapshot, as the row records it; unknown without one. */
 async function validateOf(dir: string): Promise<CheckResult> {
   if (!fs.existsSync(dir)) return CheckResult.Unknown;
-  return (await validateGameDir(dir)).ok ? CheckResult.Pass : CheckResult.Fail;
+  return (await validateProjectDir(dir)).ok ? CheckResult.Pass : CheckResult.Fail;
 }
 
 describe("the collected row's output and digests", () => {
@@ -548,7 +548,7 @@ describe("the seeded template's digest", () => {
     assert.ok(genex.length > 0);
     assert.ok(
       genex.every((row) => row.outcome.noBuild === null),
-      "an edited game is never template-untouched",
+      "an edited project is never template-untouched",
     );
   });
 });

@@ -19,7 +19,7 @@
  *
  * A connection is opened per project only when the project changes what the server sees (a
  * per-project launch, or a shared project root); every other connector runs one process for all
- * games. A connection with no lease and no call for `idleCloseMs` is closed, and the next use
+ * projects. A connection with no lease and no call for `idleCloseMs` is closed, and the next use
  * opens it again.
  */
 import {
@@ -477,7 +477,7 @@ export class McpRegistry {
   /**
    * Does the project change what this server sees? A per-project launch (its own working
    * directory and HOME) or a shared project root does; nothing else does, so such a connector is
-   * one process for every game rather than one per game touched.
+   * one process for every project rather than one per project touched.
    */
   #perProject(entry: Entry): boolean {
     return !!entry.launch?.perProject || !!entry.connector.shareProjectRoot;
@@ -491,8 +491,8 @@ export class McpRegistry {
   /**
    * The live connection to one connector, for one project.
    *
-   * A per-project connector's connections and schemas belong to their project: parallel games
-   * never close one another's process or reuse another game's roots, working directory or tool
+   * A per-project connector's connections and schemas belong to their project: parallel projects
+   * never close one another's process or reuse another project's roots, working directory or tool
    * list. Any other connector is shared.
    */
   async #connection(id: string, project: string | null = null): Promise<McpConnection> {

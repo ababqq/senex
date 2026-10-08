@@ -39,18 +39,18 @@ const MESSAGE = {
 } as const;
 
 /**
- * The publish toolbar item's status: no badge, only its tooltip, and whether the game has
+ * The publish toolbar item's status: no badge, only its tooltip, and whether the project has
  * something to publish (`attention`), which Studio draws in the accent.
  */
 const PUBLISH_STATUS = {
-  Uploading: (phase: string) => ({ title: `Publishing this game (${phase})`, attention: false }),
+  Uploading: (phase: string) => ({ title: `Publishing this project (${phase})`, attention: false }),
   Failed: { title: "The last publish failed. Open Publish to read why.", attention: true },
-  Live: { title: "This game is listed in the Genex gallery", attention: false },
-  Draft: { title: "This game has an unlisted draft page", attention: true },
-  Unpublished: { title: "Publish this game with a playable link", attention: true },
+  Live: { title: "This project is listed in the Genex gallery", attention: false },
+  Draft: { title: "This project has an unlisted draft page", attention: true },
+  Unpublished: { title: "Publish this project with a playable link", attention: true },
 } as const satisfies Record<string, PluginToolbarStatus | ((phase: string) => PluginToolbarStatus)>;
 
-/** Publish's status for a game's publish state: uploading, failed, listed, drafted, or never published. */
+/** Publish's status for a project's publish state: uploading, failed, listed, drafted, or never published. */
 export function publishButtonStatus(state: GenexPublishState): PluginToolbarStatus {
   const job = state.job?.state;
   if (job === GenexPublishJobState.Running || job === GenexPublishJobState.Unresolved)
@@ -149,7 +149,7 @@ async function approvalReview(genex: GenexTools, args: Args, ctx: Invocation) {
 
 type Action = (genex: GenexTools, args: Args, ctx: Invocation, service: Service) => Promise<unknown> | unknown;
 
-/** Wrap an action that needs a bound game. */
+/** Wrap an action that needs a bound project. */
 const withProject =
   (run: (genex: GenexTools, project: string, args: Args, service: Service) => Promise<unknown>): Action =>
   (genex, args, ctx, service) => {

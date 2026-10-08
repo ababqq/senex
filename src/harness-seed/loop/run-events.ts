@@ -197,7 +197,7 @@ export const RunMode = {
 } as const;
 export type RunMode = (typeof RunMode)[keyof typeof RunMode];
 
-/** What a run's bar is (`reference.kind`): stills of a real game, or a described feeling. Never rename a value. */
+/** What a run's bar is (`reference.kind`): stills of a real project, or a described feeling. Never rename a value. */
 export const ReferenceKind = {
   Reference: "reference",
   Direction: "direction",

@@ -1,5 +1,5 @@
 /**
- * Opening a file the chat names. Markdown and images of the game open beside the chat, as do
+ * Opening a file the chat names. Markdown and images of the project open beside the chat, as do
  * the images someone sent; any surface can ask and the shell owns the stage. Every other file
  * opens in its app through main, and the shell reports what went wrong (renderer/chat-files.ts
  * finds the names).

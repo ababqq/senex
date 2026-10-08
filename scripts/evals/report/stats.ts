@@ -469,8 +469,8 @@ export function bootstrapCi(
   return percentileInterval(estimates, options.level ?? 0.95);
 }
 
-/** One Bradley–Terry game: `scoreA` is 1 when `a` won, 0 when `b` won, 0.5 for a tie. */
-export interface BtGame {
+/** One Bradley–Terry project: `scoreA` is 1 when `a` won, 0 when `b` won, 0.5 for a tie. */
+export interface BtProject {
   a: string;
   b: string;
   scoreA: number;
@@ -479,7 +479,7 @@ export interface BtGame {
 /** A Bradley–Terry fit: strengths normalised to geometric mean 1, so P(i beats j) = sᵢ / (sᵢ + sⱼ). */
 export interface BradleyTerry {
   strengths: Record<string, number>;
-  /** Percentile bootstrap intervals over resampled games; null below `BOOTSTRAP_MIN_N` games or without a seed. */
+  /** Percentile bootstrap intervals over resampled projects; null below `BOOTSTRAP_MIN_N` projects or without a seed. */
   intervals: Record<string, Interval> | null;
   converged: boolean;
   iterations: number;
@@ -487,18 +487,18 @@ export interface BradleyTerry {
   degenerate: string[];
 }
 
-function winsAndMeetings(items: readonly string[], games: readonly BtGame[]) {
+function winsAndMeetings(items: readonly string[], projects: readonly BtProject[]) {
   const wins = new Map(items.map((item) => [item, 0]));
   const losses = new Map(items.map((item) => [item, 0]));
   const meetings = new Map<string, number>();
   const key = (x: string, y: string) => `${x}\u0000${y}`;
-  for (const game of games) {
-    wins.set(game.a, (wins.get(game.a) ?? 0) + game.scoreA);
-    wins.set(game.b, (wins.get(game.b) ?? 0) + 1 - game.scoreA);
-    losses.set(game.a, (losses.get(game.a) ?? 0) + 1 - game.scoreA);
-    losses.set(game.b, (losses.get(game.b) ?? 0) + game.scoreA);
-    meetings.set(key(game.a, game.b), (meetings.get(key(game.a, game.b)) ?? 0) + 1);
-    meetings.set(key(game.b, game.a), (meetings.get(key(game.b, game.a)) ?? 0) + 1);
+  for (const project of projects) {
+    wins.set(project.a, (wins.get(project.a) ?? 0) + project.scoreA);
+    wins.set(project.b, (wins.get(project.b) ?? 0) + 1 - project.scoreA);
+    losses.set(project.a, (losses.get(project.a) ?? 0) + 1 - project.scoreA);
+    losses.set(project.b, (losses.get(project.b) ?? 0) + project.scoreA);
+    meetings.set(key(project.a, project.b), (meetings.get(key(project.a, project.b)) ?? 0) + 1);
+    meetings.set(key(project.b, project.a), (meetings.get(key(project.b, project.a)) ?? 0) + 1);
   }
   const met = (x: string, y: string) => meetings.get(key(x, y)) ?? 0;
   return { wins, losses, met };
@@ -512,8 +512,8 @@ function normaliseGeometric(strengths: Map<string, number>): Map<string, number>
 }
 
 /** The MM iterations (Hunter 2004) of the Bradley–Terry maximum likelihood. */
-function fitStrengths(items: readonly string[], games: readonly BtGame[]) {
-  const { wins, losses, met } = winsAndMeetings(items, games);
+function fitStrengths(items: readonly string[], projects: readonly BtProject[]) {
+  const { wins, losses, met } = winsAndMeetings(items, projects);
   let strengths = new Map(items.map((item) => [item, 1]));
   for (let iteration = 1; iteration <= BRADLEY_TERRY_MAX_ITERATIONS; iteration += 1) {
     const next = new Map<string, number>();
@@ -539,31 +539,31 @@ function logDistance(x: number | undefined, y: number | undefined): number {
 
 function bradleyTerryIntervals(
   items: readonly string[],
-  games: readonly BtGame[],
+  projects: readonly BtProject[],
   options: ResampleOptions,
 ): Record<string, Interval> {
   const random = seededRandom(options.seed);
   const draws = new Map(items.map((item) => [item, [] as number[]]));
   for (let i = 0; i < (options.resamples ?? BOOTSTRAP_RESAMPLES); i += 1) {
-    const fit = fitStrengths(items, resample(games, random));
+    const fit = fitStrengths(items, resample(projects, random));
     for (const item of items) draws.get(item)?.push(fit.strengths.get(item) ?? 0);
   }
   const level = options.level ?? 0.95;
   return Object.fromEntries(items.map((item) => [item, percentileInterval(draws.get(item) ?? [], level)]));
 }
 
-/** A Bradley–Terry fit over pairwise games, with seeded bootstrap intervals when `resampling` is given. */
+/** A Bradley–Terry fit over pairwise projects, with seeded bootstrap intervals when `resampling` is given. */
 export function bradleyTerry(
   items: readonly string[],
-  games: readonly BtGame[],
+  projects: readonly BtProject[],
   resampling?: ResampleOptions,
 ): BradleyTerry {
-  const fit = fitStrengths(items, games);
+  const fit = fitStrengths(items, projects);
   const degenerate = items.filter((item) => (fit.wins.get(item) ?? 0) === 0 || (fit.losses.get(item) ?? 0) === 0);
-  const canResample = resampling !== undefined && games.length >= BOOTSTRAP_MIN_N;
+  const canResample = resampling !== undefined && projects.length >= BOOTSTRAP_MIN_N;
   return {
     strengths: Object.fromEntries(fit.strengths),
-    intervals: canResample ? bradleyTerryIntervals(items, games, resampling) : null,
+    intervals: canResample ? bradleyTerryIntervals(items, projects, resampling) : null,
     converged: fit.converged,
     iterations: fit.iterations,
     degenerate,

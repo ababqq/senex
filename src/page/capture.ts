@@ -1,11 +1,11 @@
 /**
  * The end-of-frame photograph (M4.9a).
  *
- * The rule this file exists to enforce is: never re-render to take a picture. A game with a
+ * The rule this file exists to enforce is: never re-render to take a picture. A project with a
  * post-processing composer draws its world into a target and its last pass is what the user
  * sees, so a capture that re-renders from (scene, camera) photographs a frame the player never
  * looked at — no bloom, no tone map, no grade — and the judge then argues with the screenshot.
- * So the capture waits for the END of a frame the game drew itself and reads the canvas in the
+ * So the capture waits for the END of a frame the project drew itself and reads the canvas in the
  * same JS turn, which is exactly as long as a WebGL drawing buffer survives without
  * `preserveDrawingBuffer`.
  *
@@ -30,7 +30,7 @@ export const CAPTURE_RACE_MS = 250;
 export const ASYNC_TICKS = 8;
 export const ASYNC_TICK_MS = 16;
 
-/** The context kinds a three game draws its world on. */
+/** The context kinds a three project draws its world on. */
 const THREE_KINDS = new Set(["webgl", "webgl2", "webgpu"]);
 
 /** A colour that paints nothing, whatever the page meant by it. */
@@ -56,7 +56,7 @@ export interface CaptureDeps {
   frozen?: () => boolean;
   start?: () => unknown;
   pause?: () => unknown;
-  gameCapture?: () => Foreign;
+  projectCapture?: () => Foreign;
   debugCamera?: (name: string) => unknown;
   currentCamera?: () => Foreign;
   computedStyle?: (element: Foreign) => Foreign;
@@ -247,13 +247,13 @@ function pickedSummary(picked: Picked, kind: Foreign) {
 const NOTED = ["source", "reason", "picked", "background", "composited", "drawCalls", "ladder", "backend", "kind"];
 
 /**
- * What a game's own `capture()` did — recorded here so the picture's provenance is not lost.
- * The template photographs its own render for a game that passed `render`, and without this
+ * What a project's own `capture()` did — recorded here so the picture's provenance is not lost.
+ * The template photographs its own render for a project that passed `render`, and without this
  * the studio read back the record of a capture that never happened: no draw count, and a
  * reason left over from before the page had drawn anything.
  */
 function note(c: Capturing, patch: Foreign) {
-  const clean: Record<string, Foreign> = { source: "game", ladder: ["game"], canvases: [] };
+  const clean: Record<string, Foreign> = { source: "project", ladder: ["project"], canvases: [] };
   if (patch && typeof patch === "object") {
     for (const key of NOTED) if (patch[key] !== undefined) clean[key] = patch[key];
   }
@@ -272,12 +272,12 @@ const pixelSize = (canvas: Foreign) => ({
 });
 
 /**
- * Composite a picture a game took itself over the page's own background, and record it.
+ * Composite a picture a project took itself over the page's own background, and record it.
  *
- * The template photographs its own render — for a game that passed `render`, and for a
+ * The template photographs its own render — for a project that passed `render`, and for a
  * viewpoint the harness placed, which the page's own next frame would undo — and a raw
  * `toDataURL` of a canvas made with `alpha: true`, three's default, encodes as black wherever
- * nothing was drawn. That is the very thing this file exists to prevent, so a game's own
+ * nothing was drawn. That is the very thing this file exists to prevent, so a project's own
  * picture goes over the same background as one the shim took. Returns the composited picture,
  * or the one it was given when the page cannot be resolved to one colour.
  */
@@ -293,7 +293,11 @@ async function paint(c: Capturing, dataUrl: Foreign, patch: Record<string, Forei
       ...extra,
     });
   if (!isImage(dataUrl)) {
-    keep({ reason: patch.reason ?? "the game's own capture produced no image", composited: false, background: null });
+    keep({
+      reason: patch.reason ?? "the project's own capture produced no image",
+      composited: false,
+      background: null,
+    });
     return null;
   }
   const colour = picked.canvas ? background(c, picked.canvas) : { ok: false, reason: NO_CANVAS };
@@ -327,13 +331,13 @@ function composite(c: Capturing, source: Foreign, colour: Foreign, width: Foreig
 }
 
 /**
- * Photograph the frame the game drew. Returns a `data:image/png` string, or null with a
+ * Photograph the frame the project drew. Returns a `data:image/png` string, or null with a
  * reason in `captureInfo()`. `options.allowResume` lets the ladder start a frozen page for
  * one frame — a look never does that, a deliberate recovery may.
  */
 async function capture(c: Capturing, options = {}) {
-  // The ladder calls the game's own `capture()`, and the template's own `capture()` calls
-  // back into this one when the game has no render of its own. One of them has to stop.
+  // The ladder calls the project's own `capture()`, and the template's own `capture()` calls
+  // back into this one when the project has no render of its own. One of them has to stop.
   if (c.busy) return null;
   c.busy = true;
   try {
@@ -360,11 +364,11 @@ interface Climb {
   allowResume: boolean;
 }
 
-// A WebGPU game renders ASYNCHRONOUSLY: `renderAsync` returns a promise, so the render pass
+// A WebGPU project renders ASYNCHRONOUSLY: `renderAsync` returns a promise, so the render pass
 // is recorded after the animation callback has already returned and the counters, read in
 // the same turn, still say nothing was drawn. Unlike a WebGL drawing buffer, a WebGPU canvas
 // keeps its picture across turns, so waiting for the pass costs nothing — and it is the only
-// way to photograph `setAnimationLoop(async () => …)`, which is how a WebGPU game is written.
+// way to photograph `setAnimationLoop(async () => …)`, which is how a WebGPU project is written.
 async function awaitAsyncDraw(c: Capturing, climb: Climb): Promise<boolean> {
   climb.ladder.push("async");
   for (let tick = 0; tick < ASYNC_TICKS; tick++) {
@@ -376,14 +380,14 @@ async function awaitAsyncDraw(c: Capturing, climb: Climb): Promise<boolean> {
 
 /**
  * Whether the frame drew, once the page's own frame showed nothing: climbs the ladder until it
- * does — an asynchronous WebGPU frame, the game's own capture (whose picture is the answer when
+ * does — an asynchronous WebGPU frame, the project's own capture (whose picture is the answer when
  * it takes one), the debug camera, and, only when allowed, one resumed frame.
  */
 async function climbLadder(c: Capturing, climb: Climb): Promise<boolean | string> {
   const grew = () => drawnSoFar(c) > climb.before;
   if (climb.kind === "webgpu" && (await awaitAsyncDraw(c, climb))) return true;
-  climb.ladder.push("game");
-  const own = await Promise.resolve(guarded(() => c.deps.gameCapture?.(), null)).catch(() => null);
+  climb.ladder.push("project");
+  const own = await Promise.resolve(guarded(() => c.deps.projectCapture?.(), null)).catch(() => null);
   if (isImage(own)) return own;
   if (grew()) return true;
   climb.ladder.push("camera");
@@ -402,7 +406,7 @@ async function climbLadder(c: Capturing, climb: Climb): Promise<boolean | string
 // (the WebGPU fixture photographed black while the window showed a lit field). Its own
 // `toDataURL` does return the frame — so the frame is read directly, and composited only if
 // the context was configured transparent. It usually is: `alphaMode: "premultiplied"` is
-// what three's own WebGPU renderer configures unless the game asked for an opaque canvas,
+// what three's own WebGPU renderer configures unless the project asked for an opaque canvas,
 // and a PNG encodes those transparent pixels as black, which is the black frame this whole
 // file exists to prevent. The read is decoded and painted over the page's background; a
 // page that cannot decode declines, and the compositor takes that frame instead.
@@ -513,7 +517,7 @@ function captureInfo(c: Capturing): CaptureInfo {
  *
  * `deps` is everything this needs from the page: `canvases()` (the shim's one `getContext`
  * record), `rendererCanvas()` (what the hook saw the world drawn on), `afterFrame(fn)`,
- * `pumpFrame(dt)`, `draws()`, `frozen()`, `start()`, `pause()`, `gameCapture()`,
+ * `pumpFrame(dt)`, `draws()`, `frozen()`, `start()`, `pause()`, `projectCapture()`,
  * `debugCamera(name)`, `currentCamera()`, `computedStyle(el)`, `parentOf(el)`,
  * `createCanvas()`, `decode(dataUrl)`, `setTimeout`/`clearTimeout` and `raceMs`.
  */
@@ -540,7 +544,7 @@ export function createFrameCapture(deps: CaptureDeps = {}) {
       kind: null,
       /** How many pictures this object has recorded. A caller reads it either side of a capture
        * to learn whether the record it is holding describes the frame it just asked for, or a
-       * frame somebody else took — a game with its own `capture()` never comes through here. */
+       * frame somebody else took — a project with its own `capture()` never comes through here. */
       count: 0,
     },
   };

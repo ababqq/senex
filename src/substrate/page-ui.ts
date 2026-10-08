@@ -1,19 +1,19 @@
 /**
  * What the studio can see of the page that is NOT the canvas (M4.5a).
  *
- * The studio's eyes were a WebGL canvas, so a game whose menu, car select, pause screen, loader
+ * The studio's eyes were a WebGL canvas, so a project whose menu, car select, pause screen, loader
  * or HUD lives in the DOM was invisible to every builder pass and every judge: the picture came
  * back black and the verdict argued with a screen the player could see perfectly well. This
- * module is the probe that says how much of the window the page's own DOM paints over the game,
+ * module is the probe that says how much of the window the page's own DOM paints over the project,
  * plus the small ladder that turns `surface: "auto"` into one of the two real surfaces.
  *
  * It is deliberately Electron-free: the probe is a string the preview evaluates in the page, the
  * folding of its untrusted answer is a pure function, and the surface choice is a pure ladder
  * over four callbacks. All three are testable under `node --test` with no window at all.
  *
- * `domUi()` in `src/page/hook.ts` stays the source for the `no-dom-ui` CHECK — what a game
+ * `domUi()` in `src/page/hook.ts` stays the source for the `no-dom-ui` CHECK — what a project
  * declares about itself. `PAGE_UI_PROBE` is the source for the EYES — what the studio decides to
- * photograph. Both live in the studio so they cannot drift apart per game.
+ * photograph. Both live in the studio so they cannot drift apart per project.
  */
 import { isJsonObject } from "./fsx.ts";
 import { isEffectivelyBlack, type PixelStats } from "./pixel-stats.ts";
@@ -46,9 +46,9 @@ export interface PageUiCanvas {
 export interface PageUi {
   /** Up to {@link PAGE_UI_MAX_ENTRIES} named elements, spelled as `domUi()` spells them. */
   entries: string[];
-  /** Fraction of the window painted by DOM UI that sits over the game, 0–1. */
+  /** Fraction of the window painted by DOM UI that sits over the project, 0–1. */
   coverage: number;
-  /** Where the game is drawn, or null on a page with no canvas at all. */
+  /** Where the project is drawn, or null on a page with no canvas at all. */
   canvas: PageUiCanvas | null;
   viewport: { width: number; height: number };
   /** Whether the DOM, not the canvas, is what the player is mostly looking at. */
@@ -63,7 +63,7 @@ export interface PageUi {
  *  - ancestor de-duplication, so a menu and its eight buttons are counted once, not nine times;
  *  - any element that CONTAINS a canvas is skipped — a styled full-page wrapper is not UI;
  *  - an element counts toward coverage only when it INTERSECTS the canvas rectangle, so a
- *    page-sized gradient or a letterboxing frame beside the game cannot flip a game that has no
+ *    page-sized gradient or a letterboxing frame beside the project cannot flip a project that has no
  *    DOM UI at all.
  *
  * The canvases are collected ONCE and containment is tested against that list, rather than a
@@ -96,8 +96,8 @@ export const PAGE_UI_PROBE = `(() => {
       }
       return true;
     };
-    // One pass over the canvases: the union rectangle the game is drawn on, and every element
-    // that contains one. A wrapper around the game is scenery, not interface.
+    // One pass over the canvases: the union rectangle the project is drawn on, and every element
+    // that contains one. A wrapper around the project is scenery, not interface.
     const wrappers = new Set();
     let box = null;
     let count = 0;
@@ -241,7 +241,7 @@ export function resolveSurface(opts: { page?: boolean; surface?: CaptureSurface 
   return opts.page === true ? CaptureSurface.Page : CaptureSurface.Canvas;
 }
 
-/** With the DOM over the game, the picture the player sees is the compositor's, not the canvas's. */
+/** With the DOM over the project, the picture the player sees is the compositor's, not the canvas's. */
 export function autoWantsPage(ui: PageUi | null): boolean {
   return ui?.uiPrimary === true;
 }
@@ -249,7 +249,7 @@ export function autoWantsPage(ui: PageUi | null): boolean {
 /**
  * The other half of `auto`: the case where the CANVAS eye is the broken one. No frame at all, or
  * a frame that is effectively black on a page that does have a canvas, means the canvas read
- * gave the studio nothing — a WebGPU or multi-canvas game that would otherwise be judged black
+ * gave the studio nothing — a WebGPU or multi-canvas project that would otherwise be judged black
  * all night. The compositor sees those frames, so `auto` asks it.
  */
 export function blankCanvasWantsPage(stats: PixelStats | null, ui: PageUi | null): boolean {
@@ -334,7 +334,7 @@ export async function chooseCapture<T>(asked: CaptureSurface, ladder: CaptureLad
 /**
  * What a `PreviewPort.pageUi()` hands back. It is deliberately untyped: the answer comes from a
  * page an agent wrote, through a port that may be a fake or an older seed, so every caller folds
- * it with {@link readPageUi} rather than trusting a shape. `GamePreview.pageUi()` itself returns
+ * it with {@link readPageUi} rather than trusting a shape. `ProjectPreview.pageUi()` itself returns
  * the folded {@link PageUi}.
  */
 export type PageUiAnswer = unknown;

@@ -76,7 +76,7 @@ export function ComposerSpecimen(){
  const appliedRoles=withRoleEfforts(roles,choices,model.split('::')[0]!,appliedEffort);
  return <section data-composer-specimen className="space-y-3"><h2 className="text-name">Prompt composer</h2>
   <SpecimenSwitches chat={conversationKey} onChat={setConversationKey} build={buildId} onBuild={setBuildId} />
-  <div className="w-full max-w-[388px]"><PromptBar placeholder="Create a game" conversationKey={conversationKey} build={build} coordinating={build?.state===RunState.Running} model={{choices,selected:model,onPick:setModel,effort:appliedEffort,efforts,onEffort:setEffort,roles:appliedRoles,onRoles:setRoles}} stoppable={running} onStop={()=>{setRunning(false);setStops(n=>n+1);}} onCompact={()=>setCompacts(n=>n+1)} onSend={(text,extras)=>{setSent(JSON.stringify({text,extras,roles:appliedRoles,effort:appliedEffort}));setRunning(true);}} /></div>
+  <div className="w-full max-w-[388px]"><PromptBar placeholder="Create a project" conversationKey={conversationKey} build={build} coordinating={build?.state===RunState.Running} model={{choices,selected:model,onPick:setModel,effort:appliedEffort,efforts,onEffort:setEffort,roles:appliedRoles,onRoles:setRoles}} stoppable={running} onStop={()=>{setRunning(false);setStops(n=>n+1);}} onCompact={()=>setCompacts(n=>n+1)} onSend={(text,extras)=>{setSent(JSON.stringify({text,extras,roles:appliedRoles,effort:appliedEffort}));setRunning(true);}} /></div>
   <output id="composer-settings" data-running={running} data-stops={stops} data-compacts={compacts} data-effort={appliedEffort} data-roles={JSON.stringify(appliedRoles)} className="text-xs text-ink-3">{sent}</output>
  </section>;
 }

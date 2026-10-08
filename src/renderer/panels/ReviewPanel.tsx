@@ -13,11 +13,11 @@ import {
   type JSX,
   type ReactNode,
 } from "react";
-import type { EventEnvelope, GameProject, SelfChange, StagedProposal } from "../types.ts";
+import type { EventEnvelope, Project, SelfChange, StagedProposal } from "../types.ts";
 import type { RunOutcomeKind, StudioActivityItem } from "../../shared/studio-activity.ts";
 import { useRunSummary } from "../use-run-summary.ts";
 import { Button } from "../ui/Button.tsx";
-import { GameAvatar } from "../ui/GameAvatar.tsx";
+import { ProjectAvatar } from "../ui/ProjectAvatar.tsx";
 import { Icon } from "../ui/icons.tsx";
 import { Switch } from "../ui/switch.tsx";
 import { EmptyState } from "../ui/EmptyState.tsx";
@@ -42,12 +42,12 @@ const SKILLOPT_EVENTS = "skillopt.";
 
 interface Props {
   events: EventEnvelope[];
-  games: GameProject[];
+  projects: Project[];
   onStagedCount: (count: number) => void;
   onPlayCommit: (project: string, commit: string) => void;
-  onOpenGame: (project: string) => void;
-  onNewGame: () => void;
-  /** Back to the game chat the person was last in, ready to type. */
+  onOpenProject: (project: string) => void;
+  onNewProject: () => void;
+  /** Back to the project chat the person was last in, ready to type. */
   onStartBuilding: () => void;
 }
 
@@ -55,18 +55,18 @@ const OUTCOME: Record<RunOutcomeKind, { label: string; tone: string; sentence: s
   running: {
     label: "Running",
     tone: "bg-accent-tint text-accent-ink",
-    sentence: "Harness is still building. The game chat shows its progress.",
+    sentence: "Harness is still building. The project chat shows its progress.",
   },
   delivered: { label: "New build", tone: "bg-green-tint text-green", sentence: "A new build is ready to play." },
   none: {
     label: "No build",
     tone: "bg-orange-tint text-orange",
-    sentence: "No new build was delivered. Your game is as you left it.",
+    sentence: "No new build was delivered. Your project is as you left it.",
   },
   failed: {
     label: "Failed",
     tone: "bg-red-tint text-red",
-    sentence: "The run stopped because of an error. Your game is as you left it.",
+    sentence: "The run stopped because of an error. Your project is as you left it.",
   },
   stopped: {
     label: "Stopped",
@@ -390,16 +390,16 @@ function ActivityHeader({
 
 function RunRow({
   item,
-  games,
+  projects,
   onPlayCommit,
-  onOpenGame,
+  onOpenProject,
 }: {
   item: StudioActivityItem;
-  games: GameProject[];
+  projects: Project[];
   onPlayCommit: Props["onPlayCommit"];
-  onOpenGame: Props["onOpenGame"];
+  onOpenProject: Props["onOpenProject"];
 }): JSX.Element {
-  const game = games.find((candidate) => candidate.name === item.project);
+  const project = projects.find((candidate) => candidate.name === item.project);
   const outcome = OUTCOME[item.outcome ?? "unknown"];
   const running = item.outcome === "running";
   return (
@@ -408,10 +408,10 @@ function RunRow({
       label={`${item.title}, ${outcome.label}`}
       header={
         <>
-          <GameAvatar cover={game?.cover} />
+          <ProjectAvatar cover={project?.cover} />
           <RowText
             title={item.title}
-            meta={`${game?.title ?? item.project} · ${running ? "started " : ""}${when(item.at)}`}
+            meta={`${project?.title ?? item.project} · ${running ? "started " : ""}${when(item.at)}`}
           />
         </>
       }
@@ -427,25 +427,25 @@ function RunRow({
         </Pill>
       }
     >
-      <RunDetails item={item} game={game} onPlayCommit={onPlayCommit} onOpenGame={onOpenGame} />
+      <RunDetails item={item} entry={project} onPlayCommit={onPlayCommit} onOpenProject={onOpenProject} />
     </ExpandRow>
   );
 }
 
 function RecentRuns({
   runs,
-  games,
+  projects,
   limit,
   onMore,
   onPlayCommit,
-  onOpenGame,
+  onOpenProject,
 }: {
   runs: StudioActivityItem[];
-  games: GameProject[];
+  projects: Project[];
   limit: number;
   onMore: () => void;
   onPlayCommit: Props["onPlayCommit"];
-  onOpenGame: Props["onOpenGame"];
+  onOpenProject: Props["onOpenProject"];
 }): JSX.Element | null {
   if (!runs.length) return null;
   return (
@@ -455,7 +455,13 @@ function RecentRuns({
       </h2>
       <ListCard>
         {runs.slice(0, limit).map((item) => (
-          <RunRow key={item.id} item={item} games={games} onPlayCommit={onPlayCommit} onOpenGame={onOpenGame} />
+          <RunRow
+            key={item.id}
+            item={item}
+            projects={projects}
+            onPlayCommit={onPlayCommit}
+            onOpenProject={onOpenProject}
+          />
         ))}
       </ListCard>
       {runs.length > limit && (
@@ -644,23 +650,23 @@ function ActivityNotices({
   );
 }
 
-/** The first look at Harness says what it is; the way on is the game, not another game. */
+/** The first look at Harness says what it is; the way on is the project, not another project. */
 function ActivityEmpty({
-  hasGames,
-  onNewGame,
+  hasProjects,
+  onNewProject,
   onStartBuilding,
 }: {
-  hasGames: boolean;
-  onNewGame: () => void;
+  hasProjects: boolean;
+  onNewProject: () => void;
   onStartBuilding: () => void;
 }): JSX.Element {
-  const action = hasGames ? (
+  const action = hasProjects ? (
     <Button variant="default" onClick={onStartBuilding}>
       Start building
     </Button>
   ) : (
-    <Button variant="default" onClick={onNewGame}>
-      New game
+    <Button variant="default" onClick={onNewProject}>
+      New project
     </Button>
   );
   return (
@@ -678,11 +684,11 @@ function ActivityEmpty({
 
 export function ReviewPanel({
   events,
-  games,
+  projects,
   onStagedCount,
   onPlayCommit,
-  onOpenGame,
-  onNewGame,
+  onOpenProject,
+  onNewProject,
   onStartBuilding,
 }: Props): JSX.Element {
   const activity = useActivity(onStagedCount, events.at(-1)?.id);
@@ -707,7 +713,11 @@ export function ReviewPanel({
     >
       <ActivityHeader learning={learning} onLearning={switchLearning} />
       {empty ? (
-        <ActivityEmpty hasGames={games.length > 0} onNewGame={onNewGame} onStartBuilding={onStartBuilding} />
+        <ActivityEmpty
+          hasProjects={projects.length > 0}
+          onNewProject={onNewProject}
+          onStartBuilding={onStartBuilding}
+        />
       ) : (
         <div className="mx-auto flex w-full max-w-3xl flex-col gap-9 px-5 py-6 @min-[700px]:px-8">
           <ActivityNotices activity={activity} problem={problem} />
@@ -724,11 +734,11 @@ export function ReviewPanel({
           )}
           <RecentRuns
             runs={runs}
-            games={games}
+            projects={projects}
             limit={limit}
             onMore={() => setLimit((value) => value + RUNS_PAGE)}
             onPlayCommit={onPlayCommit}
-            onOpenGame={onOpenGame}
+            onOpenProject={onOpenProject}
           />
           <LearnedSection
             learned={learned}
@@ -747,14 +757,14 @@ export function ReviewPanel({
 
 function RunDetails({
   item,
-  game,
+  entry: entry,
   onPlayCommit,
-  onOpenGame,
+  onOpenProject,
 }: {
   item: StudioActivityItem;
-  game?: GameProject;
+  entry?: Project;
   onPlayCommit: Props["onPlayCommit"];
-  onOpenGame: Props["onOpenGame"];
+  onOpenProject: Props["onOpenProject"];
 }) {
   const project = item.project ?? null;
   const summary = useRunSummary(project, item.runId ?? null);
@@ -789,9 +799,13 @@ function RunDetails({
             Play build
           </Button>
         )}
-        {game && project && (
-          <Button variant="ghost" aria-label={`Open game chat for ${game.title}`} onClick={() => onOpenGame(project)}>
-            Open game chat
+        {entry && project && (
+          <Button
+            variant="ghost"
+            aria-label={`Open project chat for ${entry.title}`}
+            onClick={() => onOpenProject(project)}
+          >
+            Open project chat
           </Button>
         )}
       </div>

@@ -4,7 +4,7 @@
  * launch's preflight never refuses them. The raw fixture lanes (B/C) resolve the stub CLIs in
  * `tests/fixtures/evals/bin`, never the machine's own. Run through the real raw lane runner and a
  * real process group, each stub replays a recorded, redacted stream with its receive timing, writes
- * the recorded game and its CLI's transcript into the eval home, and the typed guards find nothing
+ * the recorded project and its CLI's transcript into the eval home, and the typed guards find nothing
  * wrong. No provider, network or app is started.
  */
 import assert from "node:assert/strict";
@@ -57,7 +57,7 @@ const evalCase: EvalCase = {
   id: "mini-golf",
   number: 3,
   label: "Mini golf",
-  brief: "Make a one-hole mini golf game.",
+  brief: "Make a one-hole mini golf project.",
   mode: CaseMode.Build,
   exposure: CaseExposure.None,
   exposureReason: null,

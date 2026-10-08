@@ -17,7 +17,7 @@ import type { PermissionGrant, ToolPermissionEvent } from "../../src/shared/perm
 
 const ask = (fields: Partial<ToolPermissionEvent>): Partial<ToolPermissionEvent> => ({
   requestId: "r1",
-  project: "game",
+  project: "project",
   threadId: "t1",
   state: "pending",
   input: {},
@@ -39,7 +39,7 @@ describe("permissionTitleWords", () => {
       "Claude wants to run a command",
     );
     assert.equal(
-      permissionTitleWords(ask({ tool: "Edit", input: { file_path: "/Users/me/game/src/main.ts" } })),
+      permissionTitleWords(ask({ tool: "Edit", input: { file_path: "/Users/me/project/src/main.ts" } })),
       "Claude wants to edit main.ts",
     );
     assert.equal(
@@ -83,13 +83,16 @@ describe("permissionTitleWords", () => {
 
 describe("alwaysWords", () => {
   it("names the command prefix a Bash rule allows, and where", () => {
-    assert.equal(alwaysWords([rule("Bash(npm test:*)")]), "Always allow npm test commands in this game");
+    assert.equal(alwaysWords([rule("Bash(npm test:*)")]), "Always allow npm test commands in this project");
     assert.equal(alwaysWords([rule("Bash(npm test *)", "chat")]), "Always allow npm test commands in this chat");
-    assert.equal(alwaysWords([rule("Bash(git push origin main)")]), "Always allow this command in this game");
+    assert.equal(alwaysWords([rule("Bash(git push origin main)")]), "Always allow this command in this project");
   });
 
   it("reads Claude Code's absolute rule paths as plain folders", () => {
-    assert.equal(alwaysWords([rule("Read(//Users/me/refs/**)")]), "Always allow reading /Users/me/refs in this game");
+    assert.equal(
+      alwaysWords([rule("Read(//Users/me/refs/**)")]),
+      "Always allow reading /Users/me/refs in this project",
+    );
     assert.equal(
       alwaysWords([rule("Edit(//Users/me/shared/**)", "chat")]),
       "Always allow editing /Users/me/shared in this chat",
@@ -99,10 +102,10 @@ describe("alwaysWords", () => {
   it("names a domain, a tool, a mode and a folder", () => {
     assert.equal(
       alwaysWords([rule("WebFetch(domain:docs.godotengine.org)")]),
-      "Always allow docs.godotengine.org in this game",
+      "Always allow docs.godotengine.org in this project",
     );
-    assert.equal(alwaysWords([rule("WebSearch")]), "Always allow WebSearch in this game");
-    assert.equal(alwaysWords([rule("mcp__sprites__make_sprite")]), "Always allow make sprite in this game");
+    assert.equal(alwaysWords([rule("WebSearch")]), "Always allow WebSearch in this project");
+    assert.equal(alwaysWords([rule("mcp__sprites__make_sprite")]), "Always allow make sprite in this project");
     assert.equal(alwaysWords([{ kind: "mode", mode: "acceptEdits" }]), "Allow all edits in this chat");
     assert.equal(
       alwaysWords([{ kind: "directory", path: "/Users/me/refs" }]),
@@ -117,7 +120,7 @@ describe("alwaysWords", () => {
         { kind: "directory", path: "/tmp/out" },
         { kind: "mode", mode: "acceptEdits" },
       ]),
-      "Always allow npm run build commands in this game, and always allow /tmp/out in this chat, and allow all edits in this chat",
+      "Always allow npm run build commands in this project, and always allow /tmp/out in this chat, and allow all edits in this chat",
     );
   });
 });
@@ -150,8 +153,8 @@ describe("permissionLineWords", () => {
       "Allowed · npm test",
     );
     assert.equal(
-      permissionLineWords(ask({ ...allowed, tool: "Edit", input: { file_path: "/games/isle/src/main.js" } })),
-      "Allowed · /games/isle/src/main.js",
+      permissionLineWords(ask({ ...allowed, tool: "Edit", input: { file_path: "/projects/isle/src/main.js" } })),
+      "Allowed · /projects/isle/src/main.js",
     );
     assert.equal(
       permissionLineWords(ask({ ...allowed, tool: "WebFetch", input: { url: "https://threejs.org/docs/" } })),
@@ -223,7 +226,7 @@ describe("bypassPermissionsWords", () => {
     for (const platform of ["win32", "linux"])
       assert.equal(
         bypassPermissionsWords(platform),
-        "Claude will run commands and change files anywhere on this computer without asking. Rewind restores only the game folder.",
+        "Claude will run commands and change files anywhere on this computer without asking. Rewind restores only the project folder.",
         platform,
       );
   });
@@ -236,21 +239,21 @@ describe("Settings → Permissions: what is always allowed, by action", () => {
       ["Bash(git status)", "Run git status"],
       ["WebFetch(domain:threejs.org)", "Open pages on threejs.org"],
       ["Read(//Users/you/refs/**)", "Read files in ~/refs"],
-      ["Edit(//Users/you/Games/kart/**)", "Edit files in ~/Games/kart"],
+      ["Edit(//Users/you/Projects/kart/**)", "Edit files in ~/Projects/kart"],
       ["Read(src/**)", "Read files in src"],
       ["mcp__genex__make_sound", "mcp__genex__make_sound"],
     ];
     for (const [rule, words] of cases) assert.equal(permissionRuleWords(rule), words, rule);
   });
 
-  it("groups each action once, with every game that allows it, the most shared first", () => {
+  it("groups each action once, with every project that allows it, the most shared first", () => {
     const actions = allowedActions([
       { project: "angler", title: "Island Angler", rules: ["Bash(npm test:*)", "Bash(npm install:*)"] },
       { project: "rally", title: "Neon Rally", rules: ["Bash(npm install:*)", "WebFetch(domain:kenney.nl)"] },
       { project: "gone", title: "", rules: [] },
     ]);
     assert.deepEqual(
-      actions.map((action) => [action.rule, action.games.map((game) => game.project)]),
+      actions.map((action) => [action.rule, action.projects.map((project) => project.project)]),
       [
         ["Bash(npm install:*)", ["angler", "rally"]],
         ["Bash(npm test:*)", ["angler"]],

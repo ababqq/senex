@@ -1,7 +1,7 @@
 import { MODEL_PICKER_WORDS } from "../words.ts";
 /**
  * The composer's model: which model this chat sends with, at what effort, with which roles and
- * preferences. A game chat keeps its own model and effort; roles are kept per engine and
+ * preferences. A project chat keeps its own model and effort; roles are kept per engine and
  * preferences per model, and the last picks seed a fresh chat.
  *
  * The rules are pure (`composerOpening`, `resolveComposerModel`, and the effort writes
@@ -33,8 +33,8 @@ import type { ComposerSendOptions } from "../../shared/composer.ts";
 import type { ComposerExtras, ComposerModelProps, ModelChoice, RoleGroup, RoleRecord } from "../ui/PromptBar.tsx";
 
 /**
- * What a chat opens with: its own remembered model (a fresh game chat inherits the last pick, and
- * Studio keeps its own), and its effort — for a game chat its own pick, else the effort its last
+ * What a chat opens with: its own remembered model (a fresh project chat inherits the last pick, and
+ * Studio keeps its own), and its effort — for a project chat its own pick, else the effort its last
  * turn ran at, else the one saved for its model, else the last picked anywhere
  * (`storedChatEffort`); Studio's is the one saved for its model.
  */
@@ -49,14 +49,14 @@ export function composerOpening(
 }
 
 /**
- * Opens a chat on its `composerOpening` and pins it: a game chat keeps the model and effort it
+ * Opens a chat on its `composerOpening` and pins it: a project chat keeps the model and effort it
  * opened with, even when the per-model ones change later.
  */
 export function pinComposerOpening(
   storage: KeyValueStorage,
   thread: { id: string; meta: ThreadMeta },
 ): { modelKey: string | null; effort: string | null } {
-  const studio = thread.meta.kind !== ThreadKind.Game;
+  const studio = thread.meta.kind !== ThreadKind.Project;
   const opening = composerOpening(storage, thread);
   if (opening.modelKey) rememberChatModel(storage, thread.id, opening.modelKey, studio);
   if (!studio && opening.effort) rememberChatEffort(storage, thread.id, opening.effort);
@@ -65,7 +65,7 @@ export function pinComposerOpening(
 
 /**
  * The effort a chat takes when a model is picked in it: Studio adopts the one saved for that
- * model; a game chat keeps its own, at the new model's nearest level (`resolveComposerModel`).
+ * model; a project chat keeps its own, at the new model's nearest level (`resolveComposerModel`).
  */
 export function effortOnModelPick(
   storage: KeyValueStorage,
@@ -77,7 +77,7 @@ export function effortOnModelPick(
 }
 
 /**
- * Keeps an effort picked in a chat: a game chat's as its own, and every chat's as its model's,
+ * Keeps an effort picked in a chat: a project chat's as its own, and every chat's as its model's,
  * which still seeds fresh chats on that model. Null forgets both.
  */
 export function rememberEffortPick(
@@ -108,7 +108,7 @@ export interface ComposerModelView {
   plannerEffort: string | undefined;
   /** Whether the effort control applies: some role's model has a reasoning dial. */
   effortApplies: boolean;
-  /** Game chats on a session engine split the work into roles. */
+  /** Project chats on a session engine split the work into roles. */
   rolesApply: boolean;
   roleModels: Array<{ id: string; label: string }>;
   /** The other signed-in subscriptions' models, offered to workers and judges (never the orchestrator). */
@@ -270,7 +270,7 @@ export interface ComposerModel extends ComposerModelView {
   bar: ComposerModelProps;
   /** Select a model without the preset and sign-in side effects of a pick (Continue on a local model). */
   setModelKey(key: string | null): void;
-  /** A send remembers the model it went with, for this chat and (a game chat's) for the next new one. */
+  /** A send remembers the model it went with, for this chat and (a project chat's) for the next new one. */
   remember(threadId: string, key: string): void;
 }
 
@@ -286,7 +286,7 @@ export function useComposerModel({
   storage?: KeyValueStorage;
 }): ComposerModel {
   const threadId = thread?.id;
-  const studio = thread?.meta.kind !== ThreadKind.Game;
+  const studio = thread?.meta.kind !== ThreadKind.Project;
   const [pick, setPick] = useState<{ thread?: string; key: string | null }>({ key: null });
   const [roles, setRoles] = useState<RoleRecord | null>(null);
   const [effort, setEffort] = useState<string | null>(() => storage.getItem(STORAGE_KEYS.effort) || null);
@@ -301,7 +301,7 @@ export function useComposerModel({
   );
   const { selected, selectedEngine, rolesApply } = view;
 
-  // A chat opens on its own pick, and a game chat keeps the model and effort it opened with.
+  // A chat opens on its own pick, and a project chat keeps the model and effort it opened with.
   // Keyed on the chat alone: a pick made in it must not be re-read.
   // biome-ignore lint/correctness/useExhaustiveDependencies: the opening is read once per chat
   useEffect(() => {

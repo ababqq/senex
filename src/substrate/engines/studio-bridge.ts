@@ -365,7 +365,7 @@ export class StudioBridge {
       "",
       ...lines,
       "",
-      `Never edit, commit or delete anything under ${BRIDGE_DIR}/ — it is the studio's, not the game's.`,
+      `Never edit, commit or delete anything under ${BRIDGE_DIR}/ — it is the studio's, not the project's.`,
     ].join("\n");
   }
 

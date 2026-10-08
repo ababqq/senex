@@ -2,7 +2,7 @@
  * The prober's small pure rules, ported from genex-demo with their tests: the probe budget (a probe
  * always writes its evidence inside the grader's deadline), the capture breaker (a dead screenshot
  * path stops costing wall clock), the capture lane (a timed-out capture cannot overlap the next),
- * WebGL context losses a game survived, the reviewed dark phase, and the boot observation codes.
+ * WebGL context losses a project survived, the reviewed dark phase, and the boot observation codes.
  * No browser, no real clock.
  */
 import assert from "node:assert/strict";
@@ -109,7 +109,7 @@ test("the measured shape: three reads in a row waiting out their timeout mark th
   assert.equal(r.reads, 8);
 });
 
-test("the sentence names each budget decision and never reads as a verdict on the game", () => {
+test("the sentence names each budget decision and never reads as a verdict on the project", () => {
   assert.equal(
     budgetSentence({
       budgetMs: 1_080_000,
@@ -133,7 +133,7 @@ test("the sentence names each budget decision and never reads as a verdict on th
   assert.match(s, /marked unresponsive at 45000ms/);
   assert.match(s, /look phase was skipped/);
   assert.match(s, /shortened by 180s/);
-  assert.match(s, /none of it is a verdict on the game/);
+  assert.match(s, /none of it is a verdict on the project/);
 });
 
 /* ------------------------------------------------------------ capture breaker */
@@ -231,7 +231,7 @@ test("the time budget gates every kind once the wall clock inside failed shots i
   assert.notEqual(s.budgetExhaustedAtMs, null);
 });
 
-test("the summary and the sentence say what was skipped and never claim the game did not respond", () => {
+test("the summary and the sentence say what was skipped and never claim the project did not respond", () => {
   const s = createCaptureBreaker();
   for (let i = 0; i < CAPTURE_FAILURE_STREAK; i++) recordShot(s, "page", false, i * 15_000, 15_000);
   shouldAttempt(s, "page", 46_000);
@@ -242,8 +242,8 @@ test("the summary and the sentence say what was skipped and never claim the game
   const sentence = captureBreakerSentence(s) ?? "";
   assert.match(sentence, /page screenshots were suspended/);
   assert.match(sentence, /2 capture\(s\) were skipped/);
-  assert.match(sentence, /evidence-insufficient rather than as a game that did not respond/);
-  assert.doesNotMatch(sentence, /the game did not respond\./);
+  assert.match(sentence, /evidence-insufficient rather than as a project that did not respond/);
+  assert.doesNotMatch(sentence, /the project did not respond\./);
 });
 
 /* ------------------------------------------------------------ capture lane */
@@ -286,16 +286,16 @@ test("rejection releases the lane and reports unavailable evidence", async () =>
 
 /* ------------------------------------------------------------ context loss */
 
-test("THE MEASURED CASE: a throwaway capability context dies and the game renders on", () => {
-  // Measured on a small golf game: two contexts created 5ms apart; the 300x150
+test("THE MEASURED CASE: a throwaway capability context dies and the project renders on", () => {
+  // Measured on a small golf project: two contexts created 5ms apart; the 300x150
   // probe context is discarded at 1599ms; rAF ran to 110147ms without a drop.
   const v = classifyContextLosses([{ t: 1599, kind: "webglcontextlost" }], 110_146.8);
-  assert.equal(v.fatal.length, 0, "a game that rendered 108s past the event did not fail");
+  assert.equal(v.fatal.length, 0, "a project that rendered 108s past the event did not fail");
   assert.equal(v.survived.length, 1);
   assert.match(v.survived[0].why, /not the one rendering/);
 });
 
-test("a loss the game recovers from is the survival kit working, not a defect", () => {
+test("a loss the project recovers from is the survival kit working, not a defect", () => {
   const v = classifyContextLosses(
     [
       { t: 4000, kind: "webglcontextlost" },
@@ -371,16 +371,16 @@ function sample(low: number, high: number) {
 const review = {
   files: ["frames/dark.png"],
   phase: "darkest playable phase",
-  gameplayReadable: true,
-  note: "Gameplay objects and traversal inspected independently of HUD",
+  interactionReadable: true,
+  note: "Interaction objects and traversal inspected independently of HUD",
 };
 test("dark-phase floor uses real 4x4 measurement; no change to historical median", () => {
   assert.equal(darkPhaseAcceptance([sample(3, 13)], review).result, "fail");
   assert.equal(darkPhaseAcceptance([sample(20, 60)], review).result, "pass");
   assert.equal(darkPhaseAcceptance([sample(240, 255)], review).result, "fail");
 });
-test("bright HUD cannot override unreadable gameplay; absent evidence remains unknown", () => {
-  assert.equal(darkPhaseAcceptance([sample(20, 230)], { ...review, gameplayReadable: false }).result, "fail");
+test("bright HUD cannot override unreadable interaction; absent evidence remains unknown", () => {
+  assert.equal(darkPhaseAcceptance([sample(20, 230)], { ...review, interactionReadable: false }).result, "fail");
   assert.equal(darkPhaseAcceptance([sample(20, 60)]).result, "unknown");
   assert.equal(darkPhaseAcceptance([], review).result, "unknown");
 });

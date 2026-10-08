@@ -53,7 +53,7 @@ export function createStudioBridge(ipc: BridgeIpc): StudioApi {
   return {
     performanceMark: (mark) => invoke("studio:performance.mark", mark),
     ...threadCalls(bridge),
-    ...gameCalls(bridge),
+    ...projectCalls(bridge),
     ...runCalls(bridge),
     ...studioCalls(bridge),
     ...pluginCalls(bridge),
@@ -88,36 +88,36 @@ function threadCalls(bridge: BridgeCalls) {
     threadEvents: (threadId) => invoke("studio:thread.events", { threadId }),
     chatPage: (threadId, before) => invoke("studio:chat.page", { threadId, before }),
     threads: () => invoke("studio:threads"),
-    newGameThread: (project) => invoke("studio:thread.new", project ? { project } : {}),
-    threadForGame: (project) => invoke("studio:thread.forGame", { project }),
+    newProjectThread: (project) => invoke("studio:thread.new", project ? { project } : {}),
+    threadForProject: (project) => invoke("studio:thread.forProject", { project }),
     renameThread: (threadId, title) => invoke("studio:thread.rename", { threadId, title }),
     compactThread: (threadId, options) => invoke("studio:compact", { threadId, ...options }),
     messageImages: (threadId, messageId) => invoke("studio:message-images", { threadId, messageId }),
-    readGameFile: (threadId, path) => invoke("studio:game-file.read", { threadId, path }),
-    revealGameFile: (threadId, path) => invoke("studio:game-file.reveal", { threadId, path }),
+    readProjectFile: (threadId, path) => invoke("studio:project-file.read", { threadId, path }),
+    revealProjectFile: (threadId, path) => invoke("studio:project-file.reveal", { threadId, path }),
     resolveChatFiles: (threadId, refs) => invoke("studio:chat-files.resolve", { threadId, refs }),
     openChatFile: (threadId, ref) => invoke("studio:chat-file.open", { threadId, ref }),
     onEvent: (listener) => subscribe("studio:event", listener),
   } satisfies Partial<StudioApi>;
 }
 
-/** The library: games, their folders, assets and history. */
-function gameCalls(bridge: BridgeCalls) {
+/** The library: projects, their folders, assets and history. */
+function projectCalls(bridge: BridgeCalls) {
   const { invoke } = bridge;
   return {
-    archiveGame: (project) => invoke("studio:game.archive", { project }),
-    createGame: (title, options) =>
-      invoke("studio:game.create", { title, ...(options?.parent === undefined ? {} : { parent: options.parent }) }),
-    nameGame: (request) => invoke("studio:game.name", request),
-    pickGameLocation: () => invoke("studio:game.location.pick"),
-    chooseGamesRoot: () => invoke("studio:games-root.choose"),
-    updateGame: (project, patch) => invoke("studio:game.update", { project, patch }),
-    removeGame: (project) => invoke("studio:game.remove", { project }),
-    games: () => invoke("studio:games"),
+    archiveProject: (project) => invoke("studio:project.archive", { project }),
+    createProject: (title, options) =>
+      invoke("studio:project.create", { title, ...(options?.parent === undefined ? {} : { parent: options.parent }) }),
+    nameProject: (request) => invoke("studio:project.name", request),
+    pickProjectLocation: () => invoke("studio:project.location.pick"),
+    chooseProjectsRoot: () => invoke("studio:projects-root.choose"),
+    updateProject: (project, patch) => invoke("studio:project.update", { project, patch }),
+    removeProject: (project) => invoke("studio:project.remove", { project }),
+    projects: () => invoke("studio:projects"),
     snapshots: () => invoke("studio:snapshots"),
     selfChanges: () => invoke("studio:selfchanges"),
     studioActivity: () => invoke("studio:activity"),
-    exportGame: (project) => invoke("studio:export", { project }),
+    exportProject: (project) => invoke("studio:export", { project }),
     revealProject: (project, file) => invoke("studio:reveal-project", { project, ...(file ? { file } : {}) }),
     pickProject: () => invoke("studio:project.pick"),
     inspectFolder: (dir) => invoke("studio:project.inspect", { dir }),
@@ -125,12 +125,12 @@ function gameCalls(bridge: BridgeCalls) {
     openProject: (name) => invoke("studio:project.open", { name }),
     rollback: (snapshotId) => invoke("studio:rollback", { snapshotId }),
     undoChange: (snapshotId) => invoke("studio:selfchange.undo", { snapshotId }),
-    readReferenceStills: (project) => invoke("studio:game.references", { project }),
-    previewProjectAsset: (p) => invoke("studio:game.asset.preview", p),
-    presentProjectAssets: (p) => invoke("studio:game.asset.present", p),
-    projectModelRigs: (p) => invoke("studio:game.asset.rigs", p),
-    projectAssets: (project) => invoke("studio:game.assets", { project }),
-    readProjectAsset: (p) => invoke("studio:game.asset.still", p),
+    readReferenceStills: (project) => invoke("studio:project.references", { project }),
+    previewProjectAsset: (p) => invoke("studio:project.asset.preview", p),
+    presentProjectAssets: (p) => invoke("studio:project.asset.present", p),
+    projectModelRigs: (p) => invoke("studio:project.asset.rigs", p),
+    projectAssets: (project) => invoke("studio:project.assets", { project }),
+    readProjectAsset: (p) => invoke("studio:project.asset.still", p),
     installPackages: (project) => invoke("studio:packages.install", { project }),
   } satisfies Partial<StudioApi>;
 }
@@ -297,7 +297,7 @@ function terminalCalls(bridge: BridgeCalls) {
   } satisfies Partial<StudioApi>;
 }
 
-/** The game view. */
+/** The project view. */
 function previewCalls(bridge: BridgeCalls) {
   const { invoke } = bridge;
   return {

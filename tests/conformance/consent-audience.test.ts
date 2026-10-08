@@ -4,7 +4,7 @@ import { coreLite } from "../helpers/core-lite.ts";
 import { consentAudience } from "../../src/main/core/consent-audience.ts";
 import { CustomEvent, customEventData } from "../../src/shared/custom-events.ts";
 
-it("routes a worker approval to its run, never to another chat of the same game", async () => {
+it("routes a worker approval to its run, never to another chat of the same project", async () => {
   const { core } = await coreLite();
   const parent = await core.store.createThread({ metadata: { project: "chess" } });
   const other = await core.store.createThread({ metadata: { project: "chess" } });

@@ -118,7 +118,7 @@ async function planRequest(core: PlanCore, x: PlanFacts, engineId: string, ask: 
   const { revision, text: capabilities } = await x.capabilityFacts(thread, project, CapabilityAudience.Planning);
   await core.append(
     [
-      // Not `customEventData`: the log records "no game" as null, which the shared payload type lacks.
+      // Not `customEventData`: the log records "no project" as null, which the shared payload type lacks.
       {
         type: EventKind.Custom,
         event_type: CustomEvent.PlanningCapabilitiesApplied,

@@ -11,7 +11,7 @@ import { chatFileWords, problemWords } from "../words.ts";
 type Beside = { threadId: string; target: BesideTarget; returnTo: StageView };
 
 /**
- * A file or image opened from the chat is a tab of that chat's game until it is closed; closing
+ * A file or image opened from the chat is a tab of that chat's project until it is closed; closing
  * it returns the stage to the view it came from.
  */
 function useBeside(app: Studio, chooseStageView: (view: StageView) => void) {

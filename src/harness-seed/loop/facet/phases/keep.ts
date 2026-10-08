@@ -59,7 +59,7 @@ export async function keepOrRollBack(loop: FacetLoop, round: FacetRound): Promis
 /** The challenger won: it becomes the incumbent — committed and kept reachable, or snapshotted as healthy. */
 async function keepWinner(loop: FacetLoop, round: FacetRound): Promise<void> {
   const { ctx, facet, git, gitOptions, gitWhere, integration, keepReachable, result, run, worktree } = loop;
-  // The game's declared demos (not the ones the capture happened to photograph): what
+  // The project's declared demos (not the ones the capture happened to photograph): what
   // integration must not lose.
   result.demos = Array.isArray(round.evidence.registeredDemos) ? [...round.evidence.registeredDemos] : [];
   if (worktree) {
@@ -115,7 +115,7 @@ async function retainAttemptOnRef(loop: FacetLoop, round: FacetRound): Promise<b
 }
 
 /**
- * Live mode: the lost attempt is kept in a snapshot and the game restored to the incumbent's — the
+ * Live mode: the lost attempt is kept in a snapshot and the project restored to the incumbent's — the
  * builder's notes survive it. Answers whether it was kept; one that was not is not restored over.
  */
 async function retainAttemptSnapshot(loop: FacetLoop, round: FacetRound): Promise<boolean> {

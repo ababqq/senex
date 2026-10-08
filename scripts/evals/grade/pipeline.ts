@@ -209,7 +209,7 @@ export interface CampaignGrade {
 
 /** Evidence with nothing in it: a run that was never probed. */
 export const NO_EVIDENCE: EvidenceRefs = {
-  gameOrigin: "",
+  projectOrigin: "",
   frames: [],
   consoleSummaryPath: "",
   networkSummaryPath: "",
@@ -273,13 +273,13 @@ export function gradingPinsFor(deps: GradingDeps, probe: ProbeResult | null): Gr
   };
 }
 
-/** Why the default vendor folder cannot serve a template game, or null when it can. */
+/** Why the default vendor folder cannot serve a template project, or null when it can. */
 export async function vendorRefusal(deps: Pick<GradingDeps, "vendorDir">): Promise<GradeRefusal | null> {
   return (await vendorReady(deps.vendorDir)) ? null : GradeRefusal.VendorMissing;
 }
 
 /**
- * The vendor folder a run's game is served with, as the canary serves it: a Genex run with an app
+ * The vendor folder a run's project is served with, as the canary serves it: a Genex run with an app
  * build gets that build's own (its three.js and studio hook), anything else the default. Null when
  * the Genex run's build is missing: it is never served the checkout's vendor in its place.
  */
@@ -846,7 +846,7 @@ export async function readLatestCalibration(
 /** What the calibration prober is built from (§8.8): the grading server and probers, and the template's digest. */
 export interface CalibrationProberDeps extends ServeSetting, FinalProber {
   serve: ServeSnapshot;
-  /** `workspaceDigest` of the game template as calibration copies it, so its untouched copy is typed. */
+  /** `workspaceDigest` of the project template as calibration copies it, so its untouched copy is typed. */
   templateDigest: string;
   /** A fresh folder under the evidence root; each fixture's frames go to `<evidenceDir>/<fixture>`. */
   evidenceDir: string;

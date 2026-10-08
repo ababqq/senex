@@ -65,7 +65,7 @@ describe("the words for a screen", () => {
   it("says what the agent is doing on the node and what it did on the trail", () => {
     assert.equal(screenDoing({ deed: ScreenDeed.Press, keys: ["space"] }), "Pressing Space");
     assert.equal(screenDoing({ deed: ScreenDeed.Look }), "Looking around");
-    assert.equal(screenDoing({ deed: ScreenDeed.Load }), "Opening the game");
+    assert.equal(screenDoing({ deed: ScreenDeed.Load }), "Opening the project");
     assert.equal(screenDone({ deed: ScreenDeed.Press, keys: ["ArrowRight"] }), "Pressed →");
     assert.equal(screenDone({ deed: ScreenDeed.Click }), "Clicked");
     assert.equal(screenDoing(undefined), "Playing", "a frame from before deeds had codes");
@@ -127,10 +127,10 @@ describe("which screen a node shows", () => {
     frame({ handle: "lead", role: "director", facetId: "director", at: 9 }),
     frame({ handle: "other-part", facetId: "coins", at: 7 }),
     frame({ handle: "other-run", runId: "run_b", at: 8 }),
-    frame({ handle: "other-game", project: "kart", at: 9 }),
+    frame({ handle: "other-project", project: "kart", at: 9 }),
   ];
   const state: AgentScreensState = { frames, trails: {} };
-  it("a step shows the newest screen of its part's agent in its run and game, never the lead's", () => {
+  it("a step shows the newest screen of its part's agent in its run and project, never the lead's", () => {
     assert.equal(partFrameOf(state, "pond", "run_a", "jump-pad")?.handle, "new");
     assert.equal(partFrameOf(state, "pond", "run_a", "coins")?.handle, "other-part");
     assert.equal(partFrameOf(state, "pond", "run_a", "director"), undefined);

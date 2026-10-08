@@ -15,7 +15,7 @@ Settings shows CLI versions; connected rows list picker models; Account rechecks
 keeping names stale. Unavailable picks block sends; without models, Connect AI model replaces the
 model pill. New models may need a CLI update; listing does not prove access.
 
-Each chat keeps its model, effort and Loop; fresh games inherit the last picks. One effort
+Each chat keeps its model, effort and Loop; fresh projects inherit the last picks. One effort
 serves every role: the slider offers the main agent's levels and others use their closest level.
 Workers and Reviewers run only in Loop. A new main-agent model keeps worker/reviewer picks.
 
@@ -32,7 +32,7 @@ Ollama uses a loaded model's reported runtime context, not its theoretical maxim
 model's planning budget is an estimate marked unknown. Tools and images require reported
 capability; unsupported requests fail before inference.
 
-Game files, instructions, reference images and enabled tools contribute through their
+Project files, instructions, reference images and enabled tools contribute through their
 channels ([tool setup](assets-plugins.md)). Enabling a plugin never signs in or authorizes paid
 generation. Credentials stay in protected storage, never in messages, logs or documentation.
 
@@ -43,12 +43,12 @@ effort and Send/Stop only.
 
 Every chat's pill after Mode picks **Auto** (Recommended; stops only dangerous actions),
 **Manual**, **Accept edits**, **Plan** or **Bypass permissions** (confirmed first; Rewind restores
-only the game folder); modes the engine cannot honour are greyed with why (Codex: Auto, Plan,
+only the project folder); modes the engine cannot honour are greyed with why (Codex: Auto, Plan,
 Bypass; Bonsai: no Bypass; Ollama: Auto). A chat keeps its mode; new chats take the last Auto,
 Manual or Accept edits. Claude's chat and build lead work anywhere on your Mac with your access;
 unattended builds keep their sandbox ([details](../tool-permissions.md)).
 
-Adopted folders do not supply Claude settings/hooks until explicitly trusted in Open Game.
+Adopted folders do not supply Claude settings/hooks until explicitly trusted in Open Project.
 Read deny rules also cover sensitive system/account locations. Codex read restrictions are
 advisory, not whole-disk isolation.
 

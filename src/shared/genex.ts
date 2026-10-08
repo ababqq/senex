@@ -25,35 +25,35 @@ export const GenexAction = {
 } as const;
 
 /**
- * The Genex SDK packages a game may add, each at the exact version Studio installs. The agent names
+ * The Genex SDK packages a project may add, each at the exact version Studio installs. The agent names
  * a package; the version always comes from here. Multiplayer's card asks for `^0.16.0`.
  */
-export const GENEX_GAME_PACKAGES = {
+export const GENEX_PROJECT_PACKAGES = {
   "@genex-ai/multiplayer": "0.16.1",
   "@genex-ai/embed-sdk": "0.30.0",
 } as const;
-/** A Genex SDK package a game may add. */
-export type GenexGamePackage = keyof typeof GENEX_GAME_PACKAGES;
+/** A Genex SDK package a project may add. */
+export type GenexProjectPackage = keyof typeof GENEX_PROJECT_PACKAGES;
 /** Whether a name is one of those packages: an own key, never an inherited one. */
-export function isGenexGamePackage(name: unknown): name is GenexGamePackage {
-  return typeof name === "string" && Object.hasOwn(GENEX_GAME_PACKAGES, name);
+export function isGenexProjectPackage(name: unknown): name is GenexProjectPackage {
+  return typeof name === "string" && Object.hasOwn(GENEX_PROJECT_PACKAGES, name);
 }
 
 /**
- * What a game's own `package.json` tells Genex when it is published: the Genex SDK versions it
+ * What a project's own `package.json` tells Genex when it is published: the Genex SDK versions it
  * depends on (sign-in support is `@genex-ai/embed-sdk`) and its `genex` settings. The CLI reads
  * these from the folder it runs in, and Studio runs it in a copy of its own, so the host reads
- * them from the game and the publish copy carries them.
+ * them from the project and the publish copy carries them.
  */
-export interface GenexGameManifest {
-  dependencies: Partial<Record<GenexGamePackage, string>>;
+export interface GenexProjectManifest {
+  dependencies: Partial<Record<GenexProjectPackage, string>>;
   genex?: { matchmaking?: Record<string, unknown>; mobileControls?: boolean };
 }
 
-/** The longest name a game is listed under on Genex. */
+/** The longest name a project is listed under on Genex. */
 export const GENEX_TITLE_MAX_CHARS = 60;
 
-/** A name to list a game under: one line, trimmed, no leading dashes, at most the cap; null when nothing is left. */
+/** A name to list a project under: one line, trimmed, no leading dashes, at most the cap; null when nothing is left. */
 export function cleanGenexTitle(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const line = value
@@ -65,7 +65,7 @@ export function cleanGenexTitle(value: unknown): string | null {
   return /[\p{L}\p{N}]/u.test(title) ? title : null;
 }
 
-/** The name a game is offered under before its owner picks one: its folder name, as words. */
+/** The name a project is offered under before its owner picks one: its folder name, as words. */
 export function defaultGenexTitle(project: string): string {
   const words = project
     .split(/[-_\s]+/)
@@ -160,7 +160,7 @@ export const GenexPublishStatusOperation = { Status: "status", Wait: "wait", Che
 export type GenexPublishStatusOperation =
   (typeof GenexPublishStatusOperation)[keyof typeof GenexPublishStatusOperation];
 
-/** Which page a publish attempt puts the game on (`GenexPublishJob.kind`). Persisted: never rename a value. */
+/** Which page a publish attempt puts the project on (`GenexPublishJob.kind`). Persisted: never rename a value. */
 export const GenexPublishKind = {
   /** The unlisted draft page. */
   Draft: "draft",
@@ -169,14 +169,14 @@ export const GenexPublishKind = {
 } as const;
 export type GenexPublishKind = (typeof GenexPublishKind)[keyof typeof GenexPublishKind];
 
-/** Whether Genex lists a hosted game (`GenexPublishState.status`). Genex's own values: never rename one. */
+/** Whether Genex lists a hosted project (`GenexPublishState.status`). Genex's own values: never rename one. */
 export const GenexHostedStatus = {
   Draft: "draft",
   Published: "published",
 } as const;
 export type GenexHostedStatus = (typeof GenexHostedStatus)[keyof typeof GenexHostedStatus];
 
-/** How far a delivered asset's use in the game is established (`GenexJob.use.stage`). Persisted: never rename a value. */
+/** How far a delivered asset's use in the project is established (`GenexJob.use.stage`). Persisted: never rename a value. */
 export const GenexUseStage = {
   Unconfirmed: "unconfirmed",
   Integrated: "integrated",
@@ -268,14 +268,14 @@ export interface GenexPublishJob {
   finishedAt?: string;
   error?: string;
   export?: { files: number };
-  /** The name a gallery publish lists the game under. */
+  /** The name a gallery publish lists the project under. */
   title?: string;
-  /** The sign-in SDK version this upload ships, as the game's package.json names it. */
+  /** The sign-in SDK version this upload ships, as the project's package.json names it. */
   embedSdkVersion?: string;
   /** How many times this attempt uploaded the build: a draft that fails its test is uploaded once more. */
   uploads?: number;
 }
-/** What Studio knows about this game's Genex pages. Never a credential, never the user's game folder. */
+/** What Studio knows about this project's Genex pages. Never a credential, never the user's project folder. */
 export interface GenexPublishState {
   version: 1;
   project: string;
@@ -283,7 +283,7 @@ export interface GenexPublishState {
   terms?: { accepted: boolean; acceptUrl: string };
   slug?: string;
   projectId?: string;
-  /** The name Studio last listed the game under; absent when Studio never sent one. */
+  /** The name Studio last listed the project under; absent when Studio never sent one. */
   title?: string;
   status?: GenexHostedStatus;
   draftUrl?: string;

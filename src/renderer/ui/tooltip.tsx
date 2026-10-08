@@ -77,8 +77,8 @@ function TooltipContent(props: TooltipContentProps) {
 }
 
 /**
- * The tooltip as it opens beside its trigger. Live's game is a native view that paints over the
- * whole page, so no z-index lifts a tooltip above it: one that would reach over the game shifts or
+ * The tooltip as it opens beside its trigger. Live's project is a native view that paints over the
+ * whole page, so no z-index lifts a tooltip above it: one that would reach over the project shifts or
  * turns to keep off it instead (renderer/native-view.ts).
  */
 function PlacedTooltipContent({ className, sideOffset = 0, children, ...props }: TooltipContentProps) {

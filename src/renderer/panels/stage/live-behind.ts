@@ -3,7 +3,7 @@
  * watches it (`stage.ts` holds the rules): a night's newest healthy build, a change main holds for
  * Live (`live.behind`) and a build found broken mark Reload, and Reload brings them in — or, for
  * what main holds, the person leaving Live does. The empty scaffold still takes the night's first
- * healthy build at once: it has no game to lose.
+ * healthy build at once: it has no project to lose.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { LiveBehindEvent } from "../../../shared/live-behind.ts";
@@ -31,7 +31,7 @@ export interface LiveBehindInput extends StageWatch {
   threadId: string | null;
   graph: RunGraphModel | null;
   selectedRun: string | null;
-  /** The person stopped the game: nothing waiting goes in on its own, which would start it again. */
+  /** The person stopped the project: nothing waiting goes in on its own, which would start it again. */
   stopped: boolean;
   loadLive: (target: string, load: () => Promise<unknown>) => Promise<unknown>;
   onView: (view: StageView) => void;
@@ -39,7 +39,7 @@ export interface LiveBehindInput extends StageWatch {
 }
 
 /**
- * What main says of this game's Live (`live.behind`): what it holds for Reload, and the build Live
+ * What main says of this project's Live (`live.behind`): what it holds for Reload, and the build Live
  * shows whichever path loaded it. Read once on mount, so a renderer that reloaded (or mounted after
  * the event) still knows; then kept by the events, and an event that lands before the read answers
  * wins over it (`laterOf`).
@@ -85,7 +85,7 @@ export function useLiveBehind(input: LiveBehindInput): {
   currentProject.current = project;
   const pending = useRef(false);
   const failedHead = useRef<string | null>(null);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: a new game or conversation forgets a build that failed to load
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a new project or conversation forgets a build that failed to load
   useEffect(() => {
     failedHead.current = null;
   }, [project, threadId]);
@@ -95,7 +95,7 @@ export function useLiveBehind(input: LiveBehindInput): {
   // or in a review, so a build already on the stage is never offered again.
   const shownBuild = useMemo<ShownBuild | null>(() => (live?.shows ? { head: live.shows } : null), [live?.shows]);
 
-  /** Load into Live for this game, once at a time; `after` runs when this game is still the one on the stage. */
+  /** Load into Live for this project, once at a time; `after` runs when this project is still the one on the stage. */
   const intoLive = useCallback(
     async (load: () => Promise<unknown>, after: () => void, onError: (err: unknown) => void): Promise<void> => {
       if (!project || pending.current) return;
@@ -181,7 +181,7 @@ export function useLiveBehind(input: LiveBehindInput): {
   return { shownBuild, behind, showBuild, reload };
 }
 
-/** Nobody is watching a game in Live: what waits goes in now, so Live is current when they come back. */
+/** Nobody is watching a project in Live: what waits goes in now, so Live is current when they come back. */
 function useUnseenChanges(unseen: LiveBehind | null, apply: (what: LiveBehind) => Promise<void>): void {
   const key = unseen ? `${unseen.reason}:${unseen.head ?? ""}:${unseen.note ?? ""}` : null;
   const latest = useRef(unseen);

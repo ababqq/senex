@@ -13,13 +13,13 @@
  * The rectangles are laid out in that order, five to a row, with fixed card sizes per kind, so
  * the same ledger always draws the same canvas.
  */
-import { type AssetKind, type AssetSource, assetKind, type ProjectAsset } from "../shared/game-assets.ts";
+import { type AssetKind, type AssetSource, assetKind, type ProjectAsset } from "../shared/project-assets.ts";
 
 /** The sources the studio names itself (`AssetSource`); any other source is a plugin id. */
 const Source = {
   Genex: "genex",
   Blender: "blender",
-  /** files nobody generated: dropped into the game folder by hand */
+  /** files nobody generated: dropped into the project folder by hand */
   Imported: "imported",
 } as const satisfies Record<string, AssetSource>;
 

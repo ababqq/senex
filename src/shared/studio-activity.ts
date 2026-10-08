@@ -183,7 +183,7 @@ const improvementItem: ItemReader = ({ event, event_type, payload: p, restored }
     detail:
       words(p.rationale) ||
       words(p.reason) ||
-      "Updated Studio instructions. Future game results have not been verified.",
+      "Updated Studio instructions. Future project results have not been verified.",
     ...(summary.length ? { summary } : {}),
     ...(p.approvedBy === "auto" || p.approvedBy === "human" ? { approvedBy: p.approvedBy } : {}),
     ...(snapshotId ? { snapshotId } : {}),
@@ -199,7 +199,7 @@ function selfChangeTitle(event_type: string, p: Record<string, unknown>): string
 
 /**
  * A change the agent made to its own instructions, skills or tools. Nobody approved it, so it
- * asks for a look until it is undone: text in a game file can steer what the agent rewrites.
+ * asks for a look until it is undone: text in a project file can steer what the agent rewrites.
  */
 const selfChangeItem: ItemReader = ({ event, event_type, payload: p, restored }) => {
   if (!agentChangedFile(event_type, p)) return null;
@@ -388,7 +388,7 @@ function runItem(run: ActivityRun, suppliedSummary?: RunSummary): StudioActivity
     kind: "run",
     project: run.project,
     runId: run.runId,
-    title: run.goal || "Game run",
+    title: run.goal || "Project run",
     runOutcome: summaryOutcome(summary),
     outcome: runOutcomeKind(summary.execution, summary.landed),
     ...(report ? { report } : {}),
@@ -398,7 +398,7 @@ function runItem(run: ActivityRun, suppliedSummary?: RunSummary): StudioActivity
   };
 }
 
-/** Compact facts from the complete log, independent of the selected game and notification tail. */
+/** Compact facts from the complete log, independent of the selected project and notification tail. */
 export function studioActivity(events: EventEnvelope[]): StudioActivityItem[] {
   const items: StudioActivityItem[] = [];
   const runs = new Map<string, ActivityRun>();

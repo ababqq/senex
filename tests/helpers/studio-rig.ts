@@ -33,11 +33,11 @@ export interface FakePreview extends PreviewPort {
   reloads: number;
   screenshots: number;
   consoleLines: Array<{ at: number; level: string; message: string }>;
-  /** Lines the *studio* put on the game's console (`note`) — a build that failed before the page could load. */
+  /** Lines the *studio* put on the project's console (`note`) — a build that failed before the page could load. */
   notes: Array<{ level: string; message: string; loadError: boolean }>;
   calls: Array<{ method: string; arg: unknown }>;
   inputs: unknown[];
-  /** Demo names `preview.call {method:"demos"}` reports; unset means the game declares none. */
+  /** Demo names `preview.call {method:"demos"}` reports; unset means the project declares none. */
   demoNames?: string[];
   /** Camera names `preview.call {method:"cameras"}` reports; unset means the classic trio only. */
   cameraNames?: string[];
@@ -46,7 +46,7 @@ export interface FakePreview extends PreviewPort {
    * miss returns `next` (the state) — exactly what a page without the v2 contract would do.
    */
   evaluations: Array<{ match: string; value: unknown }>;
-  /** Extra `__studio` methods the fake game exposes (`eye`, `inspect`, `audio`, …). */
+  /** Extra `__studio` methods the fake project exposes (`eye`, `inspect`, `audio`, …). */
   studioMethods: Record<string, (arg: unknown) => unknown>;
   /** Every crop and diff the loop asked for, so a test can prove a vision check looked at a crop. */
   crops: Array<{ file: string; crop: unknown }>;
@@ -110,7 +110,7 @@ export function makeFakePreview(): FakePreview {
       preview.loads.push(project);
       preview.loadRoot = root ?? null;
       preview.loadEntry = entry ?? null;
-      return `game://${project}/${entry ?? "index.html"}`;
+      return `project://${project}/${entry ?? "index.html"}`;
     },
     async reload() {
       preview.reloads++;
@@ -244,7 +244,7 @@ export function makeFakePreview(): FakePreview {
       return { ok: true, applied: actions?.length ?? 0, width: 800, height: 600 };
     },
     // Kept apart from `consoleLines` and `next.__loadError`, which in this rig say what the
-    // *game* did: a note the studio wrote must not be counted as the game's own error by an
+    // *project* did: a note the studio wrote must not be counted as the project's own error by an
     // evidence pass. What a caller can assert here is that the studio said it at all.
     note(level, message, options) {
       preview.notes.push({ level, message, loadError: options?.loadError === true });
@@ -339,7 +339,7 @@ export async function startRig(
 
 /**
  * Wait until a predicate over the studio's whole log holds, or fail loudly. The whole log,
- * because work lands in the thread it belongs to — runs and builds in their game's thread,
+ * because work lands in the thread it belongs to — runs and builds in their project's thread,
  * studio business in the studio thread — and a test should see the story wherever it happened.
  */
 export async function waitForLog(

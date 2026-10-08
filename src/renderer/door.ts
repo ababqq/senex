@@ -30,7 +30,7 @@ export function clockAfter(hours: number, now: number): string {
 /** The hours control's own promise: what happens, when it ends, and what it needs from you. */
 export function hoursPromise(hours: number | null, now: number): string {
   const end = clockAfter(hours ?? HOURS_CEILING, now);
-  const work = "Hours — workers build while you're away, and a reviewer keeps only what improves the game.";
+  const work = "Hours — workers build while you're away, and a reviewer keeps only what improves the project.";
   return hours === null
     ? `${work} No cap: it runs until its reviewers are satisfied and stops by about ${end} whatever happens. Keep the app open.`
     : `${work} It builds until about ${end}. Keep the app open.`;

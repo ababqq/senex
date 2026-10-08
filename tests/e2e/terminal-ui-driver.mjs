@@ -133,7 +133,7 @@ const fixture = (project) => ({
   args: [script],
   cwd: fixtureDir,
   env: { HOME: fixtureDir, PATH: "/usr/bin:/bin", LANG: "en_US.UTF-8" },
-  title: "Fixture game",
+  title: "Fixture project",
   kind: "shell",
   project,
 });
@@ -157,7 +157,7 @@ async function acceptance() {
     wc.on("console-message", (details) => {
       if (details.level === 3) errors.push(details.message);
     });
-    // The fixture reloads the window onto its game thread before its runtime starts
+    // The fixture reloads the window onto its project thread before its runtime starts
     // (controller.json): a Prompt on the page before that reload is gone a moment later.
     const started = () => fs.existsSync(path.join(profile, "controller.json"));
     const promptReady = `(()=>{const p=document.querySelector('[aria-label="Prompt"]');return p&&!p.disabled&&!p.closest('[inert]')&&getComputedStyle(p).visibility==='visible';})()`;
@@ -172,13 +172,13 @@ async function acceptance() {
       const view = native();
       return Boolean(view?.getVisible() && view.getBounds().width > 0);
     };
-    // Main hides the game view whenever the stage covers it; a hide between two reads is a blink
+    // Main hides the project view whenever the stage covers it; a hide between two reads is a blink
     // the reads alone would miss, so every hide is timed.
     let lastHidden = -1;
-    const gameView = native();
-    if (gameView) {
-      const setVisible = gameView.setVisible.bind(gameView);
-      gameView.setVisible = (visible) => {
+    const projectView = native();
+    if (projectView) {
+      const setVisible = projectView.setVisible.bind(projectView);
+      projectView.setVisible = (visible) => {
         if (!visible) lastHidden = performance.now();
         return setVisible(visible);
       };
@@ -194,13 +194,13 @@ async function acceptance() {
     );
     const before = await js(`document.querySelector('[aria-label="Prompt"]').getBoundingClientRect().top`);
     const blocked = await js(
-      `window.studio.terminalOpen('fixture-game').then(()=>false,e=>e.message.includes('unsupported-in-fixture'))`,
+      `window.studio.terminalOpen('fixture-project').then(()=>false,e=>e.message.includes('unsupported-in-fixture'))`,
     );
     check("fixture blocks the actual project shell", blocked);
     replace("studio:terminal.open", (payload) => terminals.open(fixture(payload.project)));
-    // Live keeps the game view hidden behind its loader until the page settles; only a game
+    // Live keeps the project view hidden behind its loader until the page settles; only a project
     // already on the stage can show whether the terminal leaves it there.
-    if (!(await until(nativeVisible))) throw new Error("Fixture game did not reach the stage");
+    if (!(await until(nativeVisible))) throw new Error("Fixture project did not reach the stage");
     const start = performance.now();
     await click('[aria-label="Toggle terminal"]');
     check(
@@ -218,15 +218,15 @@ async function acceptance() {
       { before, ...chatAfter },
     );
     const beside = shownSince(start);
-    check("game remains visible beside terminal", beside.visible && !beside.hiddenSince, beside);
+    check("project remains visible beside terminal", beside.visible && !beside.hiddenSince, beside);
     if (native()) {
       check(
-        "game has no terminal bridge",
+        "project has no terminal bridge",
         await native().webContents.executeJavaScript(`typeof window.studio === 'undefined'`),
       );
       // A hidden view has no surface to capture, and the throw would cut the remaining checks.
       if (beside.visible)
-        fs.writeFileSync(path.join(out, "game.png"), (await native().webContents.capturePage()).toPNG());
+        fs.writeFileSync(path.join(out, "project.png"), (await native().webContents.capturePage()).toPNG());
     }
     await command("hello 🌱");
     check(
@@ -331,7 +331,7 @@ async function acceptance() {
     await capture("after-burst");
     timings.burstMs = Math.round(performance.now() - burstAt);
     const during = shownSince(burstAt);
-    check("game stays visible during output", during.visible && !during.hiddenSince, during);
+    check("project stays visible during output", during.visible && !during.hiddenSince, during);
     await command("tree");
     check(
       "fixture starts an owned child",

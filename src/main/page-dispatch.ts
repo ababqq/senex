@@ -1,23 +1,23 @@
 /**
- * Fire the same events the game would get from a human, even if Chromium will not focus us.
+ * Fire the same events the project would get from a human, even if Chromium will not focus us.
  * `injectInput` is how a paused `step()` playthrough still sees held keys.
  *
  * The page half of the preview's input dispatch, as source text: preview.ts evaluates it inside
- * the game page with `executeJavaScript`, and the conformance suite evaluates the same string
+ * the project page with `executeJavaScript`, and the conformance suite evaluates the same string
  * against a fake page (tests/conformance/page-shim.test.ts).
  */
 export const PAGE_DISPATCH = `(payload) => {
   const studio = window.__studio;
-  /* One look, three roads. It reaches a game through the contract's own injectInput, through
+  /* One look, three roads. It reaches a project through the contract's own injectInput, through
      the synthetic move the shim aims at the element it faked the lock on, and (in a window that
-     hears native input at all) through the browser's own trusted move — and a game that carries
+     hears native input at all) through the browser's own trusted move — and a project that carries
      the contract AND accumulates mousemove, which the studio's own contract does, added the
      same delta once per road: every camera turned two or three times as far as it was told to.
      The de-duplication belongs where the roads MEET, which is the contract's own accumulator
-     (game-template/src/studio.js counts the beats injectInput has already given it), not here:
-     a two-line \`installStudio({ renderer, player })\` game turns its camera from a plain
+     (project-template/src/studio.js counts the beats injectInput has already given it), not here:
+     a two-line \`installStudio({ renderer, player })\` project turns its camera from a plain
      mousemove listener and has no accumulator at all, so this move must keep its real delta or
-     that game never turns again. */
+     that project never turns again. */
   if (studio && typeof studio.injectInput === "function" && payload.studio) studio.injectInput(payload.studio);
   const canvas = document.querySelector("canvas");
   const mouseTarget = canvas || document;

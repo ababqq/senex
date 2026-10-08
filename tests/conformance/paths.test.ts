@@ -19,15 +19,15 @@ import {
 
 describe("isInside and isBelow: lexical containment", () => {
   const table: Array<[root: string, target: string, inside: boolean, below: boolean, why: string]> = [
-    ["/games/pond", "/games/pond", true, false, "the root itself is inside, not below"],
-    ["/games/pond", "/games/pond/src/main.js", true, true, "a file under it"],
-    ["/games/pond", "/games/pondering", false, false, "a sibling that shares the prefix"],
-    ["/games/pond", "/games/pond-2/x", false, false, "a sibling with a dash"],
-    ["/games/pond", "/games", false, false, "the parent"],
-    ["/games/pond", "/games/pond/../rift", false, false, "a `..` that climbs out is resolved first"],
-    ["/games/pond", "/games/pond/a/../../pond/b", true, true, "a `..` that comes back in"],
-    ["/games/pond/", "/games/pond/b", true, true, "a trailing separator on the root"],
-    ["/games/pond", "/games/pond/..hidden", true, true, "a name that merely starts with two dots"],
+    ["/projects/pond", "/projects/pond", true, false, "the root itself is inside, not below"],
+    ["/projects/pond", "/projects/pond/src/main.js", true, true, "a file under it"],
+    ["/projects/pond", "/projects/pondering", false, false, "a sibling that shares the prefix"],
+    ["/projects/pond", "/projects/pond-2/x", false, false, "a sibling with a dash"],
+    ["/projects/pond", "/projects", false, false, "the parent"],
+    ["/projects/pond", "/projects/pond/../rift", false, false, "a `..` that climbs out is resolved first"],
+    ["/projects/pond", "/projects/pond/a/../../pond/b", true, true, "a `..` that comes back in"],
+    ["/projects/pond/", "/projects/pond/b", true, true, "a trailing separator on the root"],
+    ["/projects/pond", "/projects/pond/..hidden", true, true, "a name that merely starts with two dots"],
     ["/", "/etc/passwd", false, false, "the filesystem root contains only itself (fails closed)"],
     ["/", "/", true, false, "…and itself"],
   ];
@@ -38,9 +38,9 @@ describe("isInside and isBelow: lexical containment", () => {
     });
   }
   it("resolves relative paths against the same working folder on both sides", () => {
-    assert.equal(isInside("games", "games/pond"), true);
-    assert.equal(isInside("games", path.join(process.cwd(), "games", "pond")), true);
-    assert.equal(isInside("games", "other/pond"), false);
+    assert.equal(isInside("projects", "projects/pond"), true);
+    assert.equal(isInside("projects", path.join(process.cwd(), "projects", "pond")), true);
+    assert.equal(isInside("projects", "other/pond"), false);
   });
 });
 
@@ -78,7 +78,7 @@ describe("containedReal: a relative path resolved through links, strictly under 
     // The native realpath, as containedReal uses: on Windows it also expands 8.3 short names (RUNNER~1).
     const top = realpathSync.native(mkdtempSync(path.join(os.tmpdir(), "paths-")));
     t.after(() => rmSync(top, { recursive: true, force: true }));
-    const root = path.join(top, "game");
+    const root = path.join(top, "project");
     mkdirSync(path.join(root, "assets"), { recursive: true });
     writeFileSync(path.join(root, "assets", "ship.glb"), "glb");
     writeFileSync(path.join(top, "secret.txt"), "secret");
@@ -87,7 +87,7 @@ describe("containedReal: a relative path resolved through links, strictly under 
     symlinkSync(path.join(root, "assets", "ship.glb"), path.join(root, "alias.glb"));
     symlinkSync(path.join(top, "missing"), path.join(root, "dangling"));
     // The root reached through a link of its own resolves to the same real root.
-    symlinkSync(root, path.join(top, "game-link"));
+    symlinkSync(root, path.join(top, "project-link"));
     return { top, root };
   }
 
@@ -96,7 +96,7 @@ describe("containedReal: a relative path resolved through links, strictly under 
     assert.equal(await containedReal(root, "assets/ship.glb"), path.join(root, "assets", "ship.glb"));
     assert.equal(await containedReal(root, "alias.glb"), path.join(root, "assets", "ship.glb"));
     assert.equal(
-      await containedReal(path.join(top, "game-link"), "assets/ship.glb"),
+      await containedReal(path.join(top, "project-link"), "assets/ship.glb"),
       path.join(root, "assets", "ship.glb"),
     );
   });
@@ -117,7 +117,7 @@ describe("containedReal: a relative path resolved through links, strictly under 
 
 describe("relativizeWorkspace: tool inputs read relative to the workspace", () => {
   it("strips a POSIX workspace from paths and commands, and names the workspace itself '.'", () => {
-    const cwd = "/Users/ada/AI Games/hi";
+    const cwd = "/Users/ada/AI Projects/hi";
     assert.equal(relativizeWorkspace(`${cwd}/src/a.js`, cwd, "darwin"), "src/a.js");
     assert.equal(
       relativizeWorkspace(`cd "${cwd}" && node ${cwd}/src/main.js`, `${cwd}/`, "darwin"),
@@ -130,9 +130,9 @@ describe("relativizeWorkspace: tool inputs read relative to the workspace", () =
     );
   });
   it("on Windows strips the workspace in either slash spelling and before either separator", () => {
-    const cwd = "C:\\Users\\Ada\\AI Games\\hi";
+    const cwd = "C:\\Users\\Ada\\AI Projects\\hi";
     assert.equal(relativizeWorkspace(`${cwd}\\src\\a.js`, cwd, "win32"), "src\\a.js");
-    assert.equal(relativizeWorkspace("C:/Users/Ada/AI Games/hi/src/a.js", cwd, "win32"), "src/a.js");
+    assert.equal(relativizeWorkspace("C:/Users/Ada/AI Projects/hi/src/a.js", cwd, "win32"), "src/a.js");
     assert.equal(relativizeWorkspace(`cd /d "${cwd}"`, `${cwd}\\`, "win32"), 'cd /d "."');
     assert.equal(relativizeWorkspace("/tmp/ws/src/a.js", "/tmp/ws", "win32"), "src/a.js");
   });

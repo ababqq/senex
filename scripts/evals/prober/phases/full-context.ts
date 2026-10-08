@@ -8,7 +8,7 @@
  * fallback need a real mouse (`ProbePage.mouse`, a `ProbeMouse`), which a page MAY carry. Without one a drag goes out as
  * synthetic pointer events (`dispatchLookDeltasInPage`, the quick probe's own drag), a hover move is
  * skipped and counted, and the look phase records that it had no fallback to try, so a missing
- * mechanism never reads as a game that ignored input.
+ * mechanism never reads as a project that ignored input.
  */
 import type { ProbePhase } from "../../vocabulary.ts";
 import {

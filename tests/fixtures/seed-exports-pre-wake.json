@@ -12,7 +12,7 @@
     "loop/chat-session.ts": ["buildContractorBrief","buildInterviewBrief","isContinueAsk","isResumeFailure","lastContractorSession","nameFromAsk","originalAsk","resolveChatProject"],
     "loop/run-events.ts": ["EventKind","ExecutionStatus","FAILURE_LOG_EVERY_MS","InterviewMode","JournalPhase","REFERENCE_MIN_STILLS","ReferenceKind","RunEvent","RunMode","RunState","SteeringSource","appendRun","logFailure","resetFailureLog","saveJournal","writeRunArtifact"],
     "loop/time.ts": ["CANCEL_POLL_MS","HOUR_MS","MINUTE_MS","SECOND_MS","minutes","sleep","sleepUnlessCancelled"],
-    "loop/text.ts": ["CLIP_BRIEF","CLIP_DETAIL","CLIP_GAME_TITLE","CLIP_QUOTE","CLIP_REASON","clip","clipMarked","hasText","sharesStem"],
+    "loop/text.ts": ["CLIP_BRIEF","CLIP_DETAIL","CLIP_PROJECT_TITLE","CLIP_QUOTE","CLIP_REASON","clip","clipMarked","hasText","sharesStem"],
     "loop/git.ts": ["GIT","LABEL_SHA_LENGTH","SHORT_SHA_LENGTH","commitAll","gitAt","gitExec","gitlinks","headOf","isAncestor","landIntegration","mergeNoFf","rawFailure","refArg","resetClean","shortFailure","shortSha","unversionedNested","updateRef"]
   }
 }

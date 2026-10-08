@@ -1,8 +1,8 @@
 /**
  * The self test and the smoke park their shown window off the visible desktop so capturePage has a
  * real compositor surface without taking over the screen. Windows' native occlusion tracking marks
- * such a window as hidden and stops requestAnimationFrame, so a game in it stood at frame 0 on the
- * Windows runner ("a scaffolded game animates without anyone calling start(): frame 0 -> 0").
+ * such a window as hidden and stops requestAnimationFrame, so a project in it stood at frame 0 on the
+ * Windows runner ("a scaffolded project animates without anyone calling start(): frame 0 -> 0").
  * Test launches on Windows turn occlusion tracking off; a normal launch never changes it.
  */
 import assert from "node:assert/strict";

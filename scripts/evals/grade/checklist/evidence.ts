@@ -1,6 +1,6 @@
 /**
  * Turn the prober's evidence references into what a grader may see (Rule 18): frames witnessed after
- * the entrance, on the game's own origin, evenly subsampled to eight, plus the console and network
+ * the entrance, on the project's own origin, evenly subsampled to eight, plus the console and network
  * summaries cut to 4 kB each. Every file is read through its real path inside the evidence root, and
  * only PNG, JPEG or WebP bytes are ever handed to a provider: a path that escapes the root, a link
  * that leads out of it, or a file that is not an image is dropped before anything is read.
@@ -22,7 +22,7 @@ export const SUMMARY_CAP_BYTES = 4 * 1024;
 /** A frame larger than this is not read (the evidence store's own per-frame cap). */
 export const MAX_FRAME_BYTES = 5 * 1024 * 1024;
 
-/** Frames taken before the entrance show a title or loading screen, never the game (Rule 18). */
+/** Frames taken before the entrance show a title or loading screen, never the project (Rule 18). */
 const PRE_ENTRANCE_PHASES: ReadonlySet<ProbePhase> = new Set([ProbePhase.Boot, ProbePhase.IdleBaseline]);
 /** How many leading bytes identify an image. */
 const SNIFF_BYTES = 12;
@@ -37,12 +37,12 @@ export interface GraderEvidence {
 }
 
 /**
- * The frames a grader may see, in time order: taken after the entrance, and on the origin the game
- * was served on (`EvidenceRefs.gameOrigin`, what the prober opened), never another.
+ * The frames a grader may see, in time order: taken after the entrance, and on the origin the project
+ * was served on (`EvidenceRefs.projectOrigin`, what the prober opened), never another.
  */
-export function witnessedFrames(frames: readonly FrameRef[], gameOrigin: string): FrameRef[] {
+export function witnessedFrames(frames: readonly FrameRef[], projectOrigin: string): FrameRef[] {
   const inOrder = [...frames].sort((a, b) => a.atMs - b.atMs);
-  return inOrder.filter((frame) => frame.origin === gameOrigin && !PRE_ENTRANCE_PHASES.has(frame.phase));
+  return inOrder.filter((frame) => frame.origin === projectOrigin && !PRE_ENTRANCE_PHASES.has(frame.phase));
 }
 
 /** Up to `max` items, evenly spaced over the whole list so the sample covers the whole session. */
@@ -121,7 +121,7 @@ export async function loadGraderEvidence(
   evidenceRoot: string,
   labelPrefix = "frame",
 ): Promise<GraderEvidence> {
-  const chosen = pickFrames(witnessedFrames(refs.frames, refs.gameOrigin));
+  const chosen = pickFrames(witnessedFrames(refs.frames, refs.projectOrigin));
   const frames: MessageImage[] = [];
   let refusedFrames = 0;
   for (const [index, frame] of chosen.entries()) {

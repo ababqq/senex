@@ -61,7 +61,7 @@ function quickResult(booted: boolean, playable: boolean, servedVia: ServedVia): 
     rendererMode: RendererMode.Software,
     servedVia,
     evidence: {
-      gameOrigin: "",
+      projectOrigin: "",
       frames: [],
       consoleSummaryPath: "",
       networkSummaryPath: "",

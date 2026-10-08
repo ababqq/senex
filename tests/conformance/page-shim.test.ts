@@ -1,14 +1,14 @@
 /**
  * The page shim's pure logic (M4.1) — the stepper, the timer queue, the seeded generator, the
  * pointer-lock arithmetic and the merging facade, all under node with no browser and no
- * Electron. Everything here is what makes `step(960)` mean the same thing to a game that never
+ * Electron. Everything here is what makes `step(960)` mean the same thing to a project that never
  * heard of the studio as it does to the template.
  */
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { PAGE_DISPATCH } from "../../src/main/page-dispatch.ts";
-import { GAME_DISABLED_BLINK_FEATURES, gameViewPreferences } from "../../src/main/game-view.ts";
-import { installStudio, makeRng } from "../../src/game-template/src/studio.js";
+import { PROJECT_DISABLED_BLINK_FEATURES, projectViewPreferences } from "../../src/main/project-view.ts";
+import { installStudio, makeRng } from "../../src/project-template/src/studio.js";
 import {
   AUTO_RESUME_MS,
   DEFAULT_SHIM_OPTIONS,
@@ -175,9 +175,9 @@ describe("the virtual clock", () => {
     // Nine, not ten: the loop was cancelled in the first frame before its turn came, exactly as
     // a browser skips a callback cancelled during its own frame. Before the entries stayed
     // reachable while they ran, the cancel found nothing, the cancelled callback ran anyway and
-    // re-queued a second chain: nineteen calls, and a game at twice its rate for the rest of the run.
+    // re-queued a second chain: nineteen calls, and a project at twice its rate for the rest of the run.
     assert.equal(loops, 9, "the cancelled callback ran anyway and the loop forked");
-    assert.equal(r.clock.pendingRaf(), 2, "one resume chain and one game loop, never two of either");
+    assert.equal(r.clock.pendingRaf(), 2, "one resume chain and one project loop, never two of either");
   });
 
   it("gives an async animation callback its microtask before the next frame", async () => {
@@ -191,7 +191,7 @@ describe("the virtual clock", () => {
     r.clock.wrappers.requestAnimationFrame(loop);
     const result = await r.clock.step(10 * FRAME_MS);
     assert.equal(result.frames, 10);
-    // A synchronous stepper charged ten frames to a game that had drawn one, and said nothing.
+    // A synchronous stepper charged ten frames to a project that had drawn one, and said nothing.
     assert.equal(drawn, 10, `an awaiting loop drew ${drawn} of the 10 frames it was charged for`);
     assert.equal(result.idle, 0);
   });
@@ -216,7 +216,7 @@ describe("the virtual clock", () => {
     const result = await r.clock.step(1000);
     assert.equal(result.frames, 60);
     // Unclamped this chain was a new handle every time, so the interval cap never saw it and the
-    // frame budget (512 a frame) was the only bound: eight minutes of game logic in one step().
+    // frame budget (512 a frame) was the only bound: eight minutes of project logic in one step().
     assert.ok(fires <= 61 && fires >= 59, `a setTimeout(fn, 0) chain fired ${fires} times in one simulated second`);
     assert.equal(NESTED_TIMER_MIN_MS, 4);
   });
@@ -242,12 +242,12 @@ describe("the virtual clock", () => {
     const order: string[] = [];
     r.clock.afterFrame(() => order.push("after"));
     const loop = () => {
-      order.push("game");
+      order.push("project");
       r.clock.wrappers.requestAnimationFrame(loop);
     };
     r.clock.wrappers.requestAnimationFrame(loop);
     r.wallFrame();
-    assert.deepEqual(order, ["game", "after"]);
+    assert.deepEqual(order, ["project", "after"]);
   });
 
   it("starts a page nobody is stepping any more", () => {
@@ -272,7 +272,7 @@ describe("the virtual clock", () => {
 
 describe("determinism", () => {
   it("is the same generator the template ships", () => {
-    // Same seed, same stream: a game seeded by the shim and one seeded by its own contract
+    // Same seed, same stream: a project seeded by the shim and one seeded by its own contract
     // must photograph the same frame.
     for (const seed of [0, 1, 42, 0x9e3779b9, 2 ** 32 - 1]) {
       const shim = mulberry32(seed);
@@ -341,27 +341,27 @@ describe("the __studio facade", () => {
     attached: () => false,
   });
 
-  it("keeps every method a game defined, and fills in the ones it did not", () => {
+  it("keeps every method a project defined, and fills in the ones it did not", () => {
     const target: Record<string, unknown> = {};
     installFacade(target, own());
-    const game = Object.freeze({ inspect: () => "game-inspect", cameras: () => ["front"], hud: "game-hud" });
+    const project = Object.freeze({ inspect: () => "project-inspect", cameras: () => ["front"], hud: "project-hud" });
     assert.doesNotThrow(() => {
-      (target as { __studio: unknown }).__studio = game;
+      (target as { __studio: unknown }).__studio = project;
     });
     const studio = target.__studio as Record<string, (arg?: unknown) => unknown> & {
       __shim: boolean;
-      __game: unknown;
+      __project: unknown;
       hud: string;
     };
-    assert.equal(studio.inspect(), "game-inspect");
+    assert.equal(studio.inspect(), "project-inspect");
     assert.deepEqual(studio.cameras(), ["front"]);
     assert.equal(studio.capture(), "shim-capture");
-    assert.equal(studio.hud, "game-hud");
+    assert.equal(studio.hud, "project-hud");
     assert.equal(studio.__shim, true);
-    assert.equal(studio.__game, game);
+    assert.equal(studio.__project, project);
     assert.deepEqual(studio.state(), { from: "shim" });
     assert.deepEqual(studio.ready("declared"), { ready: true, why: "declared" });
-    assert.equal(Object.isFrozen(game), true, "the facade must never write to the game's object");
+    assert.equal(Object.isFrozen(project), true, "the facade must never write to the project's object");
   });
 
   it("keeps a method the contract never named, because the harness reaches those by name", () => {
@@ -383,13 +383,13 @@ describe("the __studio facade", () => {
     assert.equal(studio.inspect(), "shim-inspect");
   });
 
-  it("never lets a hostile getter on the game's object throw at the studio", () => {
-    const game = {
+  it("never lets a hostile getter on the project's object throw at the studio", () => {
+    const project = {
       get inspect() {
         throw new Error("no");
       },
     };
-    const facade = createFacade({ own: own(), getAssigned: () => game }) as unknown as Record<string, () => unknown>;
+    const facade = createFacade({ own: own(), getAssigned: () => project }) as unknown as Record<string, () => unknown>;
     assert.equal(facade.inspect(), "shim-inspect");
   });
 });
@@ -461,33 +461,33 @@ describe("the studio's own globals", () => {
   });
 });
 
-describe("what a game page's renderer is given", () => {
-  const prefs = gameViewPreferences("game-session", false);
+describe("what a project page's renderer is given", () => {
+  const prefs = projectViewPreferences("project-session", false);
 
   it("has no on-device speech recognition, whose missing binder kills the whole renderer", () => {
     // Both, never one (2026-09-23): OnDeviceWebSpeechAvailable alone leaves
     // install({ processLocally: true }) killing the page, and InstallOnDeviceSpeechRecognition
     // alone leaves available() and a processLocally start() doing it.
     assert.ok(
-      GAME_DISABLED_BLINK_FEATURES.includes("OnDeviceWebSpeechAvailable"),
+      PROJECT_DISABLED_BLINK_FEATURES.includes("OnDeviceWebSpeechAvailable"),
       "available() and processLocally are back",
     );
-    assert.ok(GAME_DISABLED_BLINK_FEATURES.includes("InstallOnDeviceSpeechRecognition"), "install() is back");
+    assert.ok(PROJECT_DISABLED_BLINK_FEATURES.includes("InstallOnDeviceSpeechRecognition"), "install() is back");
     assert.deepEqual(
       prefs.disableBlinkFeatures.split(","),
-      [...GAME_DISABLED_BLINK_FEATURES],
-      "the game view does not apply the list",
+      [...PROJECT_DISABLED_BLINK_FEATURES],
+      "the project view does not apply the list",
     );
   });
 
-  it("keeps the sandbox it had, on the game session, and never gets a preload", () => {
-    assert.equal(prefs.session, "game-session");
+  it("keeps the sandbox it had, on the project session, and never gets a preload", () => {
+    assert.equal(prefs.session, "project-session");
     assert.deepEqual(
       [prefs.sandbox, prefs.contextIsolation, prefs.nodeIntegration, prefs.webSecurity],
       [true, true, false, true],
     );
-    assert.ok(!("preload" in prefs), "a game page must never get a preload");
-    assert.equal(gameViewPreferences("s", true).offscreen, true);
+    assert.ok(!("preload" in prefs), "a project page must never get a preload");
+    assert.equal(projectViewPreferences("s", true).offscreen, true);
   });
 });
 
@@ -496,7 +496,7 @@ describe("the studio's input dispatch", () => {
   const dispatch = new Function(`return (${PAGE_DISPATCH});`)() as (payload: unknown) => boolean;
 
   /** A page with the shim's clock, a canvas, and whatever contract the test hands it. */
-  function page(game: Record<string, unknown> | null) {
+  function page(project: Record<string, unknown> | null) {
     const moved: Array<{ dx: number; dy: number }> = [];
     const canvas = { dispatchEvent: () => true };
     const globals = globalThis as unknown as Record<string, unknown>;
@@ -527,7 +527,7 @@ describe("the studio's input dispatch", () => {
         look: { x: input?.look?.dx ?? 0, y: 0 },
       }),
     } as never);
-    if (game) (window as { __studio: unknown }).__studio = game;
+    if (project) (window as { __studio: unknown }).__studio = project;
     globals.window = window;
     globals.document = { querySelector: () => canvas, activeElement: null };
     globals.MouseEvent = class {};
@@ -538,9 +538,9 @@ describe("the studio's input dispatch", () => {
 
   it("hands the look to the contract once and still moves the mouse with its real delta", () => {
     const looks: number[] = [];
-    // Both roads run: the contract is told, and the synthetic move keeps its movement — a game
+    // Both roads run: the contract is told, and the synthetic move keeps its movement — a project
     // that reads `movementX` itself and never reads `ctx.look` is the only thing that move is
-    // for (tests/fixtures/games/bundled-ts turns its camera from a plain mousemove listener).
+    // for (tests/fixtures/projects/bundled-ts turns its camera from a plain mousemove listener).
     // The de-duplication lives in the accumulator where the roads meet, not here.
     const p = page({
       injectInput: (input: { look?: { dx: number } }) => {
@@ -590,7 +590,7 @@ describe("the studio's input dispatch", () => {
 describe("the contract's own look accumulator, where the roads meet", () => {
   /**
    * One look reaches a page carrying the studio's own contract by up to three roads:
-   * `injectInput`, the synthetic move the studio dispatches for games with their own listener,
+   * `injectInput`, the synthetic move the studio dispatches for projects with their own listener,
    * and — in an attended window — the browser's trusted move. All three used to feed the one
    * accumulator, so every camera turned two or three times as far as it was told to.
    */

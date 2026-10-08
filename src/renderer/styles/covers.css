@@ -1,5 +1,5 @@
-/* Game cover spheres: a still image, and over it the sphere's own canvas once it has painted. */
-.game-avatar {
+/* Project cover spheres: a still image, and over it the sphere's own canvas once it has painted. */
+.project-avatar {
   width: 28px;
   height: 28px;
   object-fit: cover;
@@ -8,17 +8,17 @@
   outline: 1px solid var(--image-outline);
   outline-offset: -1px;
 }
-.game-avatar-shader {
+.project-avatar-shader {
   position: relative;
   display: inline-block;
   overflow: hidden;
 }
 /* Voxel's blocks stand proud of the ball: a ring around them would break into gaps. */
-.game-avatar[data-edge="ragged"] {
+.project-avatar[data-edge="ragged"] {
   outline: none;
 }
-.game-avatar-shader > img,
-.game-cover-canvas {
+.project-avatar-shader > img,
+.project-cover-canvas {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -26,17 +26,17 @@
   border-radius: inherit;
   pointer-events: none;
 }
-.game-avatar-shader > img {
+.project-avatar-shader > img {
   object-fit: cover;
 }
 /* Legacy custom covers painted as a flat field keep their glass lens. */
-.game-cover-lens {
+.project-cover-lens {
   position: relative;
   isolation: isolate;
   overflow: hidden;
   border-radius: 50%;
 }
-.game-cover-lens::after {
+.project-cover-lens::after {
   content: "";
   position: absolute;
   inset: 0;
@@ -49,14 +49,14 @@
     inset 0 1px 1px #ffffff38,
     inset 0 -1px 2px #0007;
 }
-.game-cover-preview {
+.project-cover-preview {
   display: grid;
   place-items: center;
   padding: 24px;
   border-radius: var(--radius-control);
   background: var(--inset);
 }
-.game-cover-preview .game-avatar {
+.project-cover-preview .project-avatar {
   width: 160px;
   height: 160px;
 }

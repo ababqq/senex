@@ -7,14 +7,14 @@
     </picture>
   </a>
 </p>
-<p align="center">Desktop app for game dev with AI.</p>
+<p align="center">Desktop app for project dev with AI.</p>
 <p align="center">
   <a href="https://github.com/genex-games/genex-desktop/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/genex-games/genex-desktop?style=flat-square" /></a>
   <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/github/license/genex-games/genex-desktop?style=flat-square" /></a>
   <a href="https://github.com/genex-games/genex-desktop/actions/workflows/check.yml"><img alt="Build status" src="https://img.shields.io/github/actions/workflow/status/genex-games/genex-desktop/check.yml?branch=dev&style=flat-square&label=build" /></a>
 </p>
 
-<p align="center"><img src=".github/banner.png" alt="Genex: a game built in chat, with its assets beside it" width="100%"></p>
+<p align="center"><img src=".github/banner.png" alt="Genex: a project built in chat, with its assets beside it" width="100%"></p>
 
 ---
 
@@ -33,15 +33,15 @@ Genex is early: expect rough edges, and tell us about them in
 
 → Use your Claude Code or ChatGPT subscription\
 → Or run local models\
-→ Multi-agent game dev: mix Opus and GPT models across the main agent, workers and reviewers\
+→ Multi-agent project dev: mix Opus and GPT models across the main agent, workers and reviewers\
 → Make 3D assets locally with the Blender plugin\
 → Meshy, Tripo, ElevenLabs and more through the Genex tools router\
 → Export anywhere, or publish to the web\
 → Unity and Unreal plugins soon\
-→ Native C++ games soon
+→ Native C++ projects soon
 
 > [!TIP]
-> Have a tool your games need? [Build a plugin](#build-a-plugin) and put it in the Genex
+> Have a tool your projects need? [Build a plugin](#build-a-plugin) and put it in the Genex
 > Marketplace for everyone.
 
 ### Contributing
@@ -56,14 +56,14 @@ npm ci
 npm run studio:dev -- start --profile first-run --fixture app-basics
 ```
 
-The fixture runs the app with scripted models and sample games, so it needs no account. Read
+The fixture runs the app with scripted models and sample projects, so it needs no account. Read
 [CONTRIBUTING.md](CONTRIBUTING.md) before you open a pull request; coding agents start at
 [AGENTS.md](AGENTS.md).
 
 ### Build a plugin
 
 Plugins give Genex's agents new tools: an asset generator, an engine bridge, a service your
-game talks to. The Blender and Genex tools that ship with the app are plugins too. From a Genex
+project talks to. The Blender and Genex tools that ship with the app are plugins too. From a Genex
 checkout:
 
 ```bash

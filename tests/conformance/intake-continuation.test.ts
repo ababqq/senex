@@ -30,10 +30,10 @@ for (const mode of ["autopilot", "loop"] as const)
           };
         },
       });
-      await rig.core.games.scaffold("fishing-intake");
-      const thread = await rig.core.createGameThread("fishing-intake");
+      await rig.core.projects.scaffold("fishing-intake");
+      const thread = await rig.core.createProjectThread("fishing-intake");
       const options = { thread, engine: "codex", model: "gpt-5.6-sol", [mode]: { hours: 1 } };
-      await rig.core.sendUserMessage("Create a fishing game", options);
+      await rig.core.sendUserMessage("Create a fishing project", options);
       await waitForLog(rig.core, (events) =>
         events.some((e) => e.data.type === "custom" && e.data.event_type === "contractor_session"),
       );

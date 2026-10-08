@@ -12,8 +12,8 @@ export const CLIP_DETAIL = 200;
 export const CLIP_QUOTE = 120;
 /** A brief, an ask or a plan step handed on to another session. */
 export const CLIP_BRIEF = 400;
-/** A scaffolded game's title, taken from the ask or the goal that named it. */
-export const CLIP_GAME_TITLE = 48;
+/** A scaffolded project's title, taken from the ask or the goal that named it. */
+export const CLIP_PROJECT_TITLE = 48;
 /** The shortest stem that makes two words one: "tree" and "trees" are, "a" and "an" are not. */
 const MIN_STEM = 4;
 

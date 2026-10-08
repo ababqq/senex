@@ -218,7 +218,7 @@ const READOUT_DEFECT = /\b(?:probe|readout|reports?|reporting|state|console|logs
 
 /**
  * The probe expression that would have measured a defect the camera cannot see. "the live probe
- * reports speedKept 0.069 while the HUD shows 4 km/h" names a number in the game's own state,
+ * reports speedKept 0.069 while the HUD shows 4 km/h" names a number in the project's own state,
  * and the check that catches it is arithmetic, not a crop. Returns null when the text names no
  * path — then the ledger keeps the sentence and nothing pretends to measure it.
  */
@@ -232,7 +232,7 @@ export function suggestedProbe(text: unknown): string | null {
   const named = dotted ?? /\b([a-z_$][\w$]*(?:[A-Z]|_)[\w$]*)\b/.exec(source)?.[1] ?? null;
   if (!named) return null;
   const path = /^(?:state|early)\./.test(named) ? named : `state.${named}`;
-  // The number the judge read is the bar the fix has to clear; without one, "the game reports it
+  // The number the judge read is the bar the fix has to clear; without one, "the project reports it
   // at all" is the honest check. A bare name keeps its guessed parent — the builder owns the tree.
   const observed =
     new RegExp(

@@ -162,7 +162,7 @@ test("later context samples retain the recorded checkpoint time only for the sam
 
 test("local resume validates identity before any disk read; model changes cannot race an active session", async () => {
   const root = await tmpDir("context-resume-"),
-    cwd = path.join(root, "game");
+    cwd = path.join(root, "project");
   await mkdir(cwd);
   let release!: () => void, started!: () => void;
   const ready = new Promise<void>((resolve) => (started = resolve)),
@@ -235,7 +235,7 @@ function mirroredSession(engine: EngineId, requestedModel: string | undefined) {
     core: core as unknown as StudioCore,
     threadId: "chat",
     requestThreadId: "chat",
-    project: "game",
+    project: "project",
     engineId: engine,
     requestedModel,
     activityScope: { delegationId: "lead", role: SessionActivityRole.Planner },

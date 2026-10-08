@@ -23,7 +23,7 @@ try {
     stderr = "";
   child.stdout.on("data", (chunk) => (stdout += chunk));
   child.stderr.on("data", (chunk) => (stderr += chunk));
-  console.log("Driving a fixture game with the computer tool in an isolated app…");
+  console.log("Driving a fixture project with the computer tool in an isolated app…");
   const timer = setTimeout(() => child.kill("SIGKILL"), 180_000);
   let code;
   try {

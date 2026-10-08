@@ -17,9 +17,9 @@ a defect outside the list is described in full.
 - `[noise-as-texture]` tiling noise standing in for a material.
 - `[z-fight]` flickering or striped coplanar surfaces.
 - `[blown]` highlights or light pools clipped to white; a washed-out frame with no black point.
-- `[dead-input]` state that shows the scripted controls did nothing: the numbers the GAME line
-  names as this game's input evidence are unchanged between the early state and the late one.
-  Never report it when the GAME line says the class does not apply to this game.
+- `[dead-input]` state that shows the scripted controls did nothing: the numbers the PROJECT line
+  names as this project's input evidence are unchanged between the early state and the late one.
+  Never report it when the PROJECT line says the class does not apply to this project.
 - `[blob]` something organic — a tree canopy, a bush, hay, an animal, smoke — built as a smooth or
   faceted solid (sphere, icosahedron, capsule, lump) so it reads as a boulder, an egg or a loaf:
   no leaf silhouette, no light through it, no parts. A tree whose crown is a ball on a post is

@@ -380,7 +380,7 @@ describe("what the chat's own session is told and handed after a night", () => {
     });
     assert.equal(studio.cancels.has(THREAD), true, "the Stop is kept");
     assert.equal(studio.activeRuns.size + studio.startingRuns.size, 0, "nothing was reserved");
-    assert.ok(!calls.some((c) => c.method === "game.list"), "the night never started");
+    assert.ok(!calls.some((c) => c.method === "project.list"), "the night never started");
     await sleep(0);
     const told = calls.filter((c) => c.method === "events.append").map((c) => JSON.stringify(c.params.batch));
     assert.ok(
@@ -419,7 +419,7 @@ describe("the chat's own session after a finished build, with Loop on (reopen-ru
     recorded?: Recorded[];
     ok?: boolean;
     engine?: string;
-    /** The session changed the game's sources in its turn. */
+    /** The session changed the project's sources in its turn. */
     edits?: boolean;
   }
 
@@ -442,9 +442,9 @@ describe("the chat's own session after a finished build, with Loop on (reopen-ru
       unknown: { value: null },
       handlers: {
         "events.messages": () => [{ role: "user", content: "add enemies" }],
-        "game.list": () => [{ name: "plaza", title: "Plaza" }],
-        // The folder did not change, unless the session edits the game: then a preview pass looks at it.
-        "game.contentStamp": () =>
+        "project.list": () => [{ name: "plaza", title: "Plaza" }],
+        // The folder did not change, unless the session edits the project: then a preview pass looks at it.
+        "project.contentStamp": () =>
           edits && stamps++ > 0 ? { all: "edited", source: "edited" } : { all: "same", source: "same" },
         "preview.ready": () => ({ ready: true }),
         "preview.status": () => ({}),
@@ -646,7 +646,7 @@ describe("the chat's own session after a finished build, with Loop on (reopen-ru
 
   it("A12. the note after a finished build: the session's own work with Loop off, the reopen with it on; a paused build's is unchanged", () => {
     const own = afterNightNote(finished as never, "claude-code");
-    assert.match(own, /you do yourself, here in the game folder/);
+    assert.match(own, /you do yourself, here in the project folder/);
     assert.doesNotMatch(own, /New build|you do not start one/);
     assert.doesNotMatch(own, /reopen_run/);
 
@@ -681,8 +681,8 @@ describe("the chat's own session after a finished build, with Loop on (reopen-ru
         threadId: THREAD,
         handlers: {
           "events.messages": () => [{ role: "user", content: "add enemies" }],
-          "game.list": () => [{ name: "plaza", title: "Plaza" }],
-          "game.contentStamp": () => ({ all: "same", source: "same" }),
+          "project.list": () => [{ name: "plaza", title: "Plaza" }],
+          "project.contentStamp": () => ({ all: "same", source: "same" }),
           "turn.append": () => null,
           "engine.delegate": () => {
             throw Object.assign(new Error("usage limit reached"), { kind: "rate_limit", fallbacks: ["ollama"] });
@@ -725,8 +725,8 @@ describe("the chat's own session after a finished build, with Loop on (reopen-ru
         handlers: {
           "engine.describe": () => [{ id: "claude-code", kind: "delegated", label: "Claude Code" }],
           "events.messages": () => [{ role: "user", content: "add enemies" }],
-          "game.list": () => [{ name: "plaza", title: "Plaza" }],
-          "game.contentStamp": () => ({ all: "same", source: "same" }),
+          "project.list": () => [{ name: "plaza", title: "Plaza" }],
+          "project.contentStamp": () => ({ all: "same", source: "same" }),
           "engine.delegate": (params) => {
             requests.push(params as Handed);
             return { ok: true, engine: "claude-code", turns: 1, usage: {}, sessionId: "chat-1", summary: "On it." };

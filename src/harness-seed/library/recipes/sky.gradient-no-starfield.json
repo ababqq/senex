@@ -22,7 +22,7 @@
       "note": "sky background a vertical gradient #0d1b2e → #2f5d8c, never a starfield; stars to the zenith lost a 20-iteration facet"
     },
     {
-      "source": "skills/game-contract.md (deployed, 1 Sep 2026)",
+      "source": "skills/project-contract.md (deployed, 1 Sep 2026)",
       "note": "sky/ambient oscillation guard: pin a two-stop gradient with explicit hex at init and do not touch it between iterations"
     },
     {

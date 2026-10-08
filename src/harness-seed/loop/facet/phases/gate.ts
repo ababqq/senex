@@ -35,7 +35,7 @@ export async function openRound(loop: FacetLoop, round: FacetRound): Promise<Rou
   }
   // Enough time for a whole round, not merely to begin one. A round this worker cannot finish
   // is worth less than the accepted build it already has: the turn is cut mid-edit, the judge
-  // sees half a game, and the round is lost. Stopping here keeps what it made and says so.
+  // sees half a project, and the round is lost. Stopping here keeps what it made and says so.
   round.tooLate = tooLateToStart({ leftMs: deadline - Date.now(), ...roundEstimate() });
   if (round.tooLate) {
     stopWith(result, StopCode.TooLate, round.tooLate);

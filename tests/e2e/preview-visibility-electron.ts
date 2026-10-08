@@ -4,13 +4,13 @@ import { mkdtempSync } from "node:fs";
 import os from "node:os";
 import type { EventEmitter } from "node:events";
 import path from "node:path";
-import { onSoundShortcut } from "../../src/main/game-sound.ts";
-import { GamePreview, registerGameScheme } from "../../src/main/preview.ts";
+import { onSoundShortcut } from "../../src/main/project-sound.ts";
+import { ProjectPreview, registerProjectScheme } from "../../src/main/preview.ts";
 import { PreviewPool } from "../../src/substrate/preview-pool.ts";
 
 const root = mkdtempSync(path.join(os.tmpdir(), "studio-preview-visibility-"));
 app.setPath("userData", path.join(root, "profile"));
-registerGameScheme();
+registerProjectScheme();
 app.on("window-all-closed", () => {});
 const events: unknown[] = [];
 const checks: { name: string; ok: boolean }[] = [];
@@ -49,8 +49,8 @@ async function main() {
           mark(event, { mode, id: win.id });
         });
       }
-      const port = new GamePreview({
-        gamesRoot: root,
+      const port = new ProjectPreview({
+        projectsRoot: root,
         vendorDir: path.join(process.cwd(), "dist/resources/vendor"),
         partition: `visibility-${mode}`,
         offscreen,
@@ -139,8 +139,8 @@ async function main() {
             mark(event, { index, id: win.id });
           });
         }
-        const port = new GamePreview({
-          gamesRoot: root,
+        const port = new ProjectPreview({
+          projectsRoot: root,
           vendorDir: path.join(process.cwd(), "dist/resources/vendor"),
           partition: `visibility-parallel-${index}`,
           offscreen: true,
@@ -179,8 +179,8 @@ async function main() {
  */
 async function checkStandIn(): Promise<void> {
   const liveWin = new BrowserWindow({ width: 320, height: 240, show: false });
-  const live = new GamePreview({
-    gamesRoot: root,
+  const live = new ProjectPreview({
+    projectsRoot: root,
     vendorDir: path.join(process.cwd(), "dist/resources/vendor"),
     partition: "visibility-live",
   });
@@ -210,8 +210,8 @@ async function checkStandIn(): Promise<void> {
         });
       }
       windows.push(win);
-      const port = new GamePreview({
-        gamesRoot: root,
+      const port = new ProjectPreview({
+        projectsRoot: root,
         vendorDir: path.join(process.cwd(), "dist/resources/vendor"),
         partition: "visibility-stand-in",
         offscreen: true,
@@ -264,8 +264,8 @@ async function checkMutedAgentWindow(): Promise<void> {
     skipTaskbar: true,
     webPreferences: { offscreen: true },
   });
-  const port = new GamePreview({
-    gamesRoot: root,
+  const port = new ProjectPreview({
+    projectsRoot: root,
     vendorDir: path.join(process.cwd(), "dist/resources/vendor"),
     partition: "visibility-muted",
     offscreen: true,
@@ -286,7 +286,7 @@ async function checkMutedAgentWindow(): Promise<void> {
     check("live: the switch turns the speakers on", !wc.isAudioMuted());
     port.setAudioMuted(true);
     check("live: and off again", wc.isAudioMuted());
-    // ⌥⌘M while the game has the keyboard reaches the studio, once, and never the page.
+    // ⌥⌘M while the project has the keyboard reaches the studio, once, and never the page.
     await port.evaluate("(window.keys=0, addEventListener('keydown',()=>window.keys++), true)");
     let toggles = 0;
     onSoundShortcut(wc, () => toggles++);
@@ -295,9 +295,9 @@ async function checkMutedAgentWindow(): Promise<void> {
     wc.sendInputEvent({ type: "keyDown", keyCode: "M" });
     await pause(300);
     mark("sound-shortcut", { toggles, pageKeys: Number(await port.evaluate("window.keys")) });
-    check("live: ⌥⌘M in the game toggles the sound once", toggles === 1);
+    check("live: ⌥⌘M in the project toggles the sound once", toggles === 1);
     check(
-      "live: the game never sees ⌥⌘M, and still gets its own keys",
+      "live: the project never sees ⌥⌘M, and still gets its own keys",
       Number(await port.evaluate("window.keys")) === 1,
     );
   } finally {

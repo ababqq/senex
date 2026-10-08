@@ -2,7 +2,7 @@
 
 Notes for the external developer. Root rules are in [AGENTS.md](../AGENTS.md); house terms
 are in the [glossary](../docs/agent/glossary.md). Never add developer `AGENTS.md` or `CLAUDE.md`
-files inside `harness-seed/` or `game-template/`: `scripts/build.mjs` copies both trees into
+files inside `harness-seed/` or `project-template/`: `scripts/build.mjs` copies both trees into
 every user's workspace, where in-app engines read them.
 `tests/conformance/agent-instructions.test.ts` enforces this.
 
@@ -37,13 +37,13 @@ every user's workspace, where in-app engines read them.
   fails without the fix. Run `npm run verify:harness`; see the
   [incident recipe](../docs/agent/recipes.md#harness-incident-fix).
 
-## game-template
+## project-template
 
-- The starting project of every new game. `CLAUDE.md`, `CLAUDE.own.md`, `NOTES*.md` and
+- The starting project of every new project. `CLAUDE.md`, `CLAUDE.own.md`, `NOTES*.md` and
   `docs/CONTRACT.md` are payload for in-app builders.
 - `src/studio.js` installs `window.__studio`, the contract the harness and preview use to
-  inspect, step and capture a game. Never remove a method.
-- A change affects every new game. Run `npm run test:shapes:e2e` when the contract or boot
+  inspect, step and capture a project. Never remove a method.
+- A change affects every new project. Run `npm run test:shapes:e2e` when the contract or boot
   path changes.
 
 ## main and substrate
@@ -75,7 +75,7 @@ every user's workspace, where in-app engines read them.
   folder beside it (`panels/inspector/`, `panels/run-graph/`, `panels/stage/`, `panels/plugins/`,
   `panels/connectors/`); `App.tsx` keeps the shell's in `shell/`, `panels/ChatPanel.tsx` the
   chat's in `chat/`.
-- `page/` is shipped into every served game page; it must not assume the game's code shape.
+- `page/` is shipped into every served project page; it must not assume the project's code shape.
 - Stage and panel controls expose `data-*` selectors listed in
   [the feature map](../docs/agent/feature-map.md); keep existing selectors and aria-labels
   stable because smoke runners use them.

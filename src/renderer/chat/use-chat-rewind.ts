@@ -39,7 +39,7 @@ function restorePictures(threadId: string, result: RewindResult): void {
 }
 
 const restoredWords = (files: number): string =>
-  files === 1 ? "Restored 1 game file." : `Restored ${files} game files.`;
+  files === 1 ? "Restored 1 project file." : `Restored ${files} project files.`;
 
 export interface ChatRewind {
   /** Whether a user bubble (by entry id) offers Rewind now. */

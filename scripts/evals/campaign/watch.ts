@@ -1,10 +1,10 @@
 /**
- * The snapshot watcher around one run (Rule 22, M1.4). A raw lane's game folder is known before it
- * starts (`<workRoot>/project`), so it is watched from the start. A Genex lane's game folder is
- * made by the app when the chat seeds its template, so the campaign polls the games folder until a
- * seeded game appears and watches it from then on. The template's digest, which `template-untouched`
+ * The snapshot watcher around one run (Rule 22, M1.4). A raw lane's project folder is known before it
+ * starts (`<workRoot>/project`), so it is watched from the start. A Genex lane's project folder is
+ * made by the app when the chat seeds its template, so the campaign polls the projects folder until a
+ * seeded project appears and watches it from then on. The template's digest, which `template-untouched`
  * is judged against at stop, is not taken here: the app's lane takes it the moment the chat is bound
- * to the game (`EvalLaneReport.templateDigest`), before any edit a poll could miss. When the run
+ * to the project (`EvalLaneReport.templateDigest`), before any edit a poll could miss. When the run
  * stops the watcher always takes the read-only final clone, the only thing "no build" and the canary
  * are read from.
  */
@@ -13,19 +13,19 @@ import path from "node:path";
 import { SECOND_MS } from "../../../src/shared/duration.ts";
 import { type CloneTree, createSnapshotWatcher, type Every, type SnapshotWatcher } from "../watch/snapshots.ts";
 
-/** How often a Genex run's games folder is polled for its seeded game. */
+/** How often a Genex run's projects folder is polled for its seeded project. */
 export const SEED_POLL_MS = SECOND_MS;
 /** The snapshot folder inside a run's work root; both lane runners name it so. */
 export const SNAPSHOTS_DIR = "snapshots";
 /** The page a seeded template always has. */
 const SEEDED_PAGE = "index.html";
 
-/** Where the game is: a folder known up front (raw lanes), or one to find under a games folder (Genex). */
-export type GameLocation = { gameRoot: string } | { gamesRoot: string };
+/** Where the project is: a folder known up front (raw lanes), or one to find under a projects folder (Genex). */
+export type ProjectLocation = { projectRoot: string } | { projectsRoot: string };
 
 /** What a run's watch needs. */
-export interface GameWatchOptions {
-  location: GameLocation;
+export interface ProjectWatchOptions {
+  location: ProjectLocation;
   snapshotDir: string;
   /** When the prompt was sent, on the `now` clock. */
   startedAtMs: number;
@@ -37,14 +37,14 @@ export interface GameWatchOptions {
 }
 
 /** What the watch saw when the run stopped. */
-export interface GameWatchResult {
-  /** The read-only final clone, or null when the run never made a game folder. */
+export interface ProjectWatchResult {
+  /** The read-only final clone, or null when the run never made a project folder. */
   finalDir: string | null;
 }
 
 /** A running watch; `stop` takes the final clone (of `projectDir` when nothing was found before). */
-export interface GameWatch {
-  stop(projectDir: string | null): Promise<GameWatchResult>;
+export interface ProjectWatch {
+  stop(projectDir: string | null): Promise<ProjectWatchResult>;
 }
 
 const isDir = (dir: string): Promise<boolean> =>
@@ -53,13 +53,13 @@ const isDir = (dir: string): Promise<boolean> =>
     () => false,
   );
 
-/** The first game folder under `gamesRoot` whose template has been seeded (it holds `index.html`). */
-export async function seededGameDir(gamesRoot: string): Promise<string | null> {
-  const entries = await readdir(gamesRoot, { withFileTypes: true }).catch(() => []);
+/** The first project folder under `projectsRoot` whose template has been seeded (it holds `index.html`). */
+export async function seededProjectDir(projectsRoot: string): Promise<string | null> {
+  const entries = await readdir(projectsRoot, { withFileTypes: true }).catch(() => []);
   const names = entries.filter((entry) => entry.isDirectory()).map((entry) => entry.name);
   for (const name of names.sort()) {
-    const page = await stat(path.join(gamesRoot, name, SEEDED_PAGE)).catch(() => null);
-    if (page?.isFile()) return path.join(gamesRoot, name);
+    const page = await stat(path.join(projectsRoot, name, SEEDED_PAGE)).catch(() => null);
+    if (page?.isFile()) return path.join(projectsRoot, name);
   }
   return null;
 }
@@ -71,16 +71,16 @@ const everyInterval: Every = (tick, ms) => {
   return () => clearInterval(timer);
 };
 
-/** Start watching one run's game. */
-export function watchGame(options: GameWatchOptions): GameWatch {
+/** Start watching one run's project. */
+export function watchProject(options: ProjectWatchOptions): ProjectWatch {
   const every = options.every ?? everyInterval;
   let watcher: SnapshotWatcher | null = null;
   let finding: Promise<void> | null = null;
   let cancelPoll: (() => void) | null = null;
 
-  const begin = (gameRoot: string): void => {
+  const begin = (projectRoot: string): void => {
     watcher = createSnapshotWatcher({
-      gameRoot,
+      projectRoot,
       snapshotDir: options.snapshotDir,
       startedAtMs: options.startedAtMs,
       now: options.now,
@@ -91,19 +91,19 @@ export function watchGame(options: GameWatchOptions): GameWatch {
     watcher.start();
   };
 
-  const look = async (gamesRoot: string): Promise<void> => {
-    const dir = await seededGameDir(gamesRoot);
+  const look = async (projectsRoot: string): Promise<void> => {
+    const dir = await seededProjectDir(projectsRoot);
     if (!dir || watcher) return;
     begin(dir);
     cancelPoll?.();
     cancelPoll = null;
   };
 
-  if ("gameRoot" in options.location) begin(options.location.gameRoot);
+  if ("projectRoot" in options.location) begin(options.location.projectRoot);
   else {
-    const { gamesRoot } = options.location;
+    const { projectsRoot } = options.location;
     cancelPoll = every(() => {
-      finding ??= look(gamesRoot)
+      finding ??= look(projectsRoot)
         .catch(() => {})
         .finally(() => {
           finding = null;
@@ -118,7 +118,7 @@ export function watchGame(options: GameWatchOptions): GameWatch {
       if (!watcher && projectDir && (await isDir(projectDir))) begin(projectDir);
       const active: SnapshotWatcher | null = watcher;
       if (!active) return { finalDir: null };
-      const root = "gameRoot" in options.location ? options.location.gameRoot : null;
+      const root = "projectRoot" in options.location ? options.location.projectRoot : null;
       if (root && !(await isDir(root))) {
         // The lane never made its folder: stop the timer; the final clone has nothing to take.
         await active.stop().catch(() => null);

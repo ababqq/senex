@@ -31,7 +31,7 @@ function toolFacts(manifest: PluginManifest) {
 }
 
 /**
- * What this game's builders can use, for a session that cannot call those tools itself: planning
+ * What this project's builders can use, for a session that cannot call those tools itself: planning
  * and the chat's run coordinator. Without it they read plugin instructions for tools they do not
  * have and tell the user the plugin is unavailable.
  * Deliberately projects only public declarations. Never serialize plugin settings or MCP config.
@@ -47,7 +47,7 @@ export function planningCapabilities(
   return [
     audience === CapabilityAudience.Planning
       ? "Host-provided execution capabilities (planning is tool-free; these are available to authorized builders, not callable in this planning step). Account unlocked means saved credentials are available, not that remote authorization or credit admission has been verified. Execution rechecks current permissions."
-      : "Host-provided capabilities of this game's builders. Plugins are installed and enabled for all games, but you cannot call them in this conversation; the builders use them when the work starts, resumes or continues. When the user asks what is available, answer from this list instead of from the tools you can call. Account unlocked means saved credentials are available, not that remote authorization or credit admission has been verified. Execution rechecks current permissions.",
+      : "Host-provided capabilities of this project's builders. Plugins are installed and enabled for all projects, but you cannot call them in this conversation; the builders use them when the work starts, resumes or continues. When the user asks what is available, answer from this list instead of from the tools you can call. Account unlocked means saved credentials are available, not that remote authorization or credit admission has been verified. Execution rechecks current permissions.",
     "Do not claim that remote authorization or generation worked without evidence. A status question must not start or resume a build.",
     JSON.stringify({
       revision,

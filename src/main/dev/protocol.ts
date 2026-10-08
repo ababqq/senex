@@ -41,8 +41,8 @@ export type DevErrorCode = (typeof DevErrorCode)[keyof typeof DevErrorCode];
 export const DevReadiness = { Ready: "ready", NotReady: "not-ready" } as const;
 export type DevReadiness = (typeof DevReadiness)[keyof typeof DevReadiness];
 
-/** What an operation acts on: the studio window or the game view. */
-export const DevSurface = { Desktop: "desktop", Game: "game" } as const;
+/** What an operation acts on: the studio window or the project view. */
+export const DevSurface = { Desktop: "desktop", Project: "project" } as const;
 export type DevSurface = (typeof DevSurface)[keyof typeof DevSurface];
 
 /** Where `logs` reads: a surface's console, the core's events, the harness or the launch's own streams. */
@@ -64,11 +64,11 @@ export const DevMethod = {
   Key: "key",
   Select: "select",
   Scroll: "scroll",
-  GameInput: "game.input",
+  ProjectInput: "project.input",
   GraphDrag: "graph.drag",
   WindowResize: "window.resize",
   FixtureGraph: "fixture.graph",
-  GameState: "game.state",
+  ProjectState: "project.state",
   Capture: "capture",
   Logs: "logs",
   CpuStart: "cpu.start",
@@ -150,7 +150,7 @@ export const operationSchema = z.discriminatedUnion("method", [
     selector: selector.optional(),
     scope: selector.optional(),
   }),
-  operation(DevMethod.GameInput, {
+  operation(DevMethod.ProjectInput, {
     actions: z
       .array(input)
       .min(1)
@@ -172,7 +172,7 @@ export const operationSchema = z.discriminatedUnion("method", [
     durationMs: z.number().int().min(GRAPH_DRAG_MIN_MS).max(GRAPH_DRAG_MAX_MS),
   }),
   operation(DevMethod.FixtureGraph, { action: z.enum(GraphFixtureAction) }),
-  operation(DevMethod.GameState, {}),
+  operation(DevMethod.ProjectState, {}),
   operation(DevMethod.Capture, { surface, name }),
   operation(DevMethod.Logs, {
     surface: z.enum(DevLogSurface),

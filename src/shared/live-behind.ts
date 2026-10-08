@@ -5,11 +5,11 @@
 
 /** Why Live is behind what it could show. */
 export const LiveBehindReason = {
-  /** The game folder changed since Live loaded it. */
+  /** The project folder changed since Live loaded it. */
   Changed: "changed",
   /** A build of a run is ready to play. */
   Build: "build",
-  /** The build Live shows was found not to run; Reload goes back to the game folder. */
+  /** The build Live shows was found not to run; Reload goes back to the project folder. */
   Broken: "broken",
 } as const;
 export type LiveBehindReason = (typeof LiveBehindReason)[keyof typeof LiveBehindReason];
@@ -26,6 +26,6 @@ export interface LiveBehindEvent {
   commit: string | null;
   /** A builder's own words about the change (its checkpoint note), when it gave some. */
   note: string | null;
-  /** The build Live shows now, by commit: null for the game folder (or a build whose commit is not known). */
+  /** The build Live shows now, by commit: null for the project folder (or a build whose commit is not known). */
   shows: string | null;
 }

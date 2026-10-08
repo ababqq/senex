@@ -31,7 +31,7 @@ export interface TranscriptContext {
   activeRunId: string | null;
   /** The chat's run that is paused (Resume belongs to it), if any. */
   pausedRunId: string | null;
-  /** The chat's game, for a morning card that did not record its own. */
+  /** The chat's project, for a morning card that did not record its own. */
   project: string | null;
   /** The chat itself, whose saved attachments a message's pictures are read from. */
   threadId: string | null;
@@ -49,7 +49,7 @@ export interface TranscriptContext {
   canRewind?: (entryId: string) => boolean;
   /** Rewind the chat to before this bubble (stable, so memoized bubbles keep still). */
   onRewind?: (entryId: string) => void;
-  /** Where a command a reply offers runs: this chat's game. Absent in Studio, whose replies offer none. */
+  /** Where a command a reply offers runs: this chat's project. Absent in Studio, whose replies offer none. */
   commands?: { threadId: string; project: string };
 }
 
@@ -147,7 +147,7 @@ function CompactionEntry({ messages, summary }: { messages: number | null; summa
   );
 }
 
-/** A reply: its Markdown, and Run and Copy under a one-line shell command it offers in a game's chat. */
+/** A reply: its Markdown, and Run and Copy under a one-line shell command it offers in a project's chat. */
 function AssistantEntry({
   entry,
   commands,

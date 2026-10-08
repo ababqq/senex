@@ -7,8 +7,8 @@
  * expensive, and a latency measured at one-second resolution cannot be compared with 200 ms: when
  * the sampler resolved more coarsely than half the target, "late" is indistinguishable from "sampled
  * late" and the row is `unknown` with `gates: false`. And on a software rasteriser (S5) the render
- * loop's cadence says nothing about the game, so the row never gates there either. No verb response
- * at all is `unknown`, never a fail: the primary verb is game-specific and this probe only guesses.
+ * loop's cadence says nothing about the project, so the row never gates there either. No verb response
+ * at all is `unknown`, never a fail: the primary verb is project-specific and this probe only guesses.
  */
 import { CheckResult, ProbeRow, type RendererMode } from "../../vocabulary.ts";
 import type { ProbeSample } from "../instrument.ts";
@@ -78,8 +78,8 @@ export function ackRow(input: AckRowInput): Check {
   const sent = verbs.filter((v) => v.sent).map((v) => v.verb);
   if (!best.length) {
     const detail = sent.length
-      ? `None of the verbs that went out (${sent.join(", ")}) produced a pixel or audio change above the threshold within ${ackWindowMs}ms.${refused} The primary verb is game-specific and this probe only tries these, so this is unknown rather than a failure.`
-      : `No acknowledgement verb went out at all:${refused} Nothing here observed how the game responds.`;
+      ? `None of the verbs that went out (${sent.join(", ")}) produced a pixel or audio change above the threshold within ${ackWindowMs}ms.${refused} The primary verb is project-specific and this probe only tries these, so this is unknown rather than a failure.`
+      : `No acknowledgement verb went out at all:${refused} Nothing here observed how the project responds.`;
     return machineRow(
       ProbeRow.L2ActionAcknowledged200ms,
       CheckResult.Unknown,

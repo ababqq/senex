@@ -1,6 +1,6 @@
 /**
  * Attach, don't install (M4.2a): the page the studio composes, and the renderer hook that reads a
- * game's scene, camera and renderer off the frames it actually draws.
+ * project's scene, camera and renderer off the frames it actually draws.
  *
  * Everything here is the pure half — the rewrite as strings, the world choice as numbers, the
  * prototype-chain trap over fake classes, the bounded walk over a synthetic graph. The four real
@@ -16,7 +16,7 @@ import {
   HOOK_TAG,
   SHIM_TAG,
   isThreeUrl,
-  rewriteGameHtml,
+  rewriteProjectHtml,
   shouldRewrite,
   threeHookModule,
   threeHookUrl,
@@ -37,19 +37,19 @@ import {
   wrapRenderer,
 } from "../../src/page/hook.ts";
 
-const DOC = "game://sweep/index.html";
-const TEMPLATE = fs.readFileSync(path.resolve("src/game-template/index.html"), "utf8");
+const DOC = "project://sweep/index.html";
+const TEMPLATE = fs.readFileSync(path.resolve("src/project-template/index.html"), "utf8");
 const FIXTURES = path.resolve("tests/fixtures/pages");
 const page = (name: string) => fs.readFileSync(path.join(FIXTURES, name), "utf8");
 
 describe("the page the studio composes", () => {
   it("points three and three/webgpu at the studio's wrapper and leaves every other key alone", () => {
-    const { html, reach, hooked } = rewriteGameHtml(TEMPLATE, { documentUrl: DOC });
+    const { html, reach, hooked } = rewriteProjectHtml(TEMPLATE, { documentUrl: DOC });
     assert.equal(reach, "import-map");
     assert.deepEqual(Object.keys(hooked).sort(), ["three", "three/webgpu"]);
-    assert.equal(hooked.three, threeHookUrl("game://sweep/vendor/three.module.js", "three"));
-    assert.equal(hooked["three/webgpu"], threeHookUrl("game://sweep/vendor/three.webgpu.js", "three/webgpu"));
-    // The keys that still resolve to the game's own copies are byte-identical.
+    assert.equal(hooked.three, threeHookUrl("project://sweep/vendor/three.module.js", "three"));
+    assert.equal(hooked["three/webgpu"], threeHookUrl("project://sweep/vendor/three.webgpu.js", "three/webgpu"));
+    // The keys that still resolve to the project's own copies are byte-identical.
     for (const line of [
       '"three/tsl": "/vendor/three.tsl.js"',
       '"three/addons/": "/vendor/three/examples/jsm/"',
@@ -61,28 +61,28 @@ describe("the page the studio composes", () => {
   });
 
   it("keeps the hook after the whole map and before every module script", () => {
-    const { html } = rewriteGameHtml(TEMPLATE, { documentUrl: DOC });
+    const { html } = rewriteProjectHtml(TEMPLATE, { documentUrl: DOC });
     const map = html.indexOf('<script type="importmap"');
     const mapEnd = html.indexOf("</script>", map);
     const hookAt = html.indexOf(HOOK_TAG);
-    const gameModule = html.indexOf('<script type="module"', hookAt + HOOK_TAG.length);
+    const projectModule = html.indexOf('<script type="module"', hookAt + HOOK_TAG.length);
     assert.ok(map >= 0 && hookAt > mapEnd, `hook at ${hookAt}, map ends at ${mapEnd}`);
-    assert.ok(gameModule > hookAt, "a module the game wrote must not load before the hook");
+    assert.ok(projectModule > hookAt, "a module the project wrote must not load before the hook");
     assert.equal(html.indexOf('<script type="module"'), hookAt, "the hook is the first module on the page");
     assert.ok(html.indexOf(SHIM_TAG) < map, "the shim is a classic script and runs first");
   });
 
   it("is idempotent — the studio's own page comes back unchanged", () => {
-    const once = rewriteGameHtml(TEMPLATE, { documentUrl: DOC });
-    const twice = rewriteGameHtml(once.html, { documentUrl: DOC });
+    const once = rewriteProjectHtml(TEMPLATE, { documentUrl: DOC });
+    const twice = rewriteProjectHtml(once.html, { documentUrl: DOC });
     assert.equal(twice.injected, false);
     assert.equal(twice.html, once.html);
     assert.equal(twice.reach, "none");
   });
 
   it("inserts the studio's five-key map into a page that has none, charset intact", () => {
-    const { html, reach, hooked } = rewriteGameHtml(page("vite-dist.html"), {
-      documentUrl: "game://corridor/index.html",
+    const { html, reach, hooked } = rewriteProjectHtml(page("vite-dist.html"), {
+      documentUrl: "project://corridor/index.html",
     });
     assert.equal(reach, "inserted-map");
     assert.deepEqual(Object.keys(hooked).sort(), ["three", "three/webgpu"]);
@@ -98,18 +98,18 @@ describe("the page the studio composes", () => {
     assert.ok(html.toLowerCase().indexOf("<meta charset") < CHARSET_BUDGET);
     assert.ok(html.indexOf(HOOK_TAG) > html.indexOf("data-studio-map"), "the hook still follows the map");
     // …and nothing is inserted when the caller says not to.
-    assert.equal(rewriteGameHtml(page("vite-dist.html"), { documentUrl: DOC, insertMap: false }).reach, "none");
+    assert.equal(rewriteProjectHtml(page("vite-dist.html"), { documentUrl: DOC, insertMap: false }).reach, "none");
   });
 
   it("rewrites a three URL inside an inline module, and never an external file", () => {
     const source = page("inline-url.html");
-    const { html, reach, hooked } = rewriteGameHtml(source, { documentUrl: "game://onefile/index.html" });
+    const { html, reach, hooked } = rewriteProjectHtml(source, { documentUrl: "project://onefile/index.html" });
     // The URL the page actually imports is the reach; the map inserted beside it answers only
     // for the keys nothing on the page has claimed.
     assert.equal(reach, "inline-url");
     assert.equal(hooked.three, threeHookUrl("https://cdn.example.com/three@0.180.0/build/three.module.js", "three"));
     assert.ok(html.includes(`from "${hooked.three}"`), "the three import was not rewritten");
-    // The addon beside it resolves to the game's own copy and is left exactly as written.
+    // The addon beside it resolves to the project's own copy and is left exactly as written.
     assert.ok(html.includes('from "https://cdn.example.com/three@0.180.0/examples/jsm/controls/OrbitControls.js"'));
     // A string that merely names the file is not an import and keeps its own text.
     assert.ok(html.includes('const label = "three.module.js";'));
@@ -127,7 +127,7 @@ describe("the page the studio composes", () => {
       "</script>",
       '<script type="module" src="/src/main.js"></script>',
     ].join("\n");
-    const { html, hooked } = rewriteGameHtml(scoped, { documentUrl: DOC });
+    const { html, hooked } = rewriteProjectHtml(scoped, { documentUrl: DOC });
     assert.ok(html.includes('"scopes": { "/legacy/": { "three": "/legacy/three.js" } }'), "a scope was rewritten");
     assert.deepEqual(Object.keys(hooked), ["three"]);
   });
@@ -144,11 +144,11 @@ describe("the page the studio composes", () => {
   });
 
   it("generates a wrapper that re-exports the real module, and refuses anything but a URL", () => {
-    const body = threeHookModule("game://sweep/vendor/three.module.js", "three")!;
-    assert.match(body, /^import \* as __t from "game:\/\/sweep\/vendor\/three\.module\.js";$/m);
-    assert.match(body, /^export \* from "game:\/\/sweep\/vendor\/three\.module\.js";$/m);
+    const body = threeHookModule("project://sweep/vendor/three.module.js", "three")!;
+    assert.match(body, /^import \* as __t from "project:\/\/sweep\/vendor\/three\.module\.js";$/m);
+    assert.match(body, /^export \* from "project:\/\/sweep\/vendor\/three\.module\.js";$/m);
     assert.match(body, /^import \{ hook \} from "\/vendor\/studio\/hook\.js";$/m);
-    assert.match(body, /^hook\(__t, "three", "game:\/\/sweep\/vendor\/three\.module\.js"\);$/m);
+    assert.match(body, /^hook\(__t, "three", "project:\/\/sweep\/vendor\/three\.module\.js"\);$/m);
     assert.equal(threeHookModule("/vendor/three.module.js", "three"), null, "a relative real is a 400");
     assert.equal(threeHookModule("", "three"), null);
     assert.equal(threeHookModule("javascript:alert(1)", "three"), null);
@@ -243,7 +243,7 @@ describe("the renderer hook", () => {
       }
     }
     class WebGPURenderer extends Renderer {}
-    hook({ WebGPURenderer }, "three/webgpu", "game://x/vendor/three.webgpu.js");
+    hook({ WebGPURenderer }, "three/webgpu", "project://x/vendor/three.webgpu.js");
 
     // The wrapper is the subclass's own property; the shared base is left as it was.
     assert.ok(
@@ -255,7 +255,7 @@ describe("the renderer hook", () => {
     const renderer = new WebGPURenderer() as WebGPURenderer & { domElement: unknown };
     renderer.domElement = canvas;
     const world = scene(9);
-    assert.equal(renderer.render(world, perspective), "drawn", "the game's own render must still run");
+    assert.equal(renderer.render(world, perspective), "drawn", "the project's own render must still run");
     endFrame();
     assert.equal(current()?.scene, world);
     assert.equal(current()?.renderer, renderer);
@@ -273,7 +273,7 @@ describe("the renderer hook", () => {
         this.render = (world: unknown) => void drew.push(world);
       }
     }
-    hook({ WebGLRenderer }, "three", "game://x/vendor/three.module.js");
+    hook({ WebGLRenderer }, "three", "project://x/vendor/three.module.js");
     const descriptor = Object.getOwnPropertyDescriptor(WebGLRenderer.prototype, "render");
     assert.equal(typeof descriptor?.get, "function", "the trap is an accessor on the prototype");
 
@@ -296,8 +296,8 @@ describe("the renderer hook", () => {
       }
     }
     const namespace = { WebGPURenderer: Renderer };
-    hook(namespace, "three/webgpu", "game://x/vendor/three.webgpu.js");
-    hook(namespace, "three/webgpu", "game://x/vendor/three.webgpu.js");
+    hook(namespace, "three/webgpu", "project://x/vendor/three.webgpu.js");
+    hook(namespace, "three/webgpu", "project://x/vendor/three.webgpu.js");
     const renderer = new Renderer();
     renderer.domElement = canvas;
     const world = scene(7);
@@ -307,7 +307,7 @@ describe("the renderer hook", () => {
     assert.equal(current()?.scene, world);
   });
 
-  it("takes the two-line install from a game whose three is its own", () => {
+  it("takes the two-line install from a project whose three is its own", () => {
     const renderer = {
       domElement: canvas,
       render(_world: unknown, _camera: unknown) {},
@@ -348,7 +348,7 @@ describe("the renderer hook", () => {
     const empty = inspect() as { available: boolean; reason: string; meshes: () => unknown };
     assert.equal(empty.available, false);
     assert.match(String(empty.reason), /no scene has been rendered yet/);
-    assert.throws(() => empty.meshes(), /the game's scene graph is not available/);
+    assert.throws(() => empty.meshes(), /the project's scene graph is not available/);
 
     const renderer = { domElement: canvas, render(_w: unknown, _c: unknown) {} };
     wrapRenderer(renderer);
@@ -448,11 +448,11 @@ describe("the two-line contract", () => {
     globals.window = stub;
     globals.document = doc;
     try {
-      const { installStudio } = await import("../../src/game-template/src/studio.js");
+      const { installStudio } = await import("../../src/project-template/src/studio.js");
       const renderer = { domElement: { width: 800, height: 600 }, render() {}, setRenderTarget() {} };
       const api = installStudio({ renderer, player: () => ({ x: 3, z: -4 }) }) as unknown as Record<string, unknown>;
 
-      // The clock verbs belong to the studio's shim: a game with no update() must not define
+      // The clock verbs belong to the studio's shim: a project with no update() must not define
       // them, or every step() would advance the page twice.
       for (const verb of ["step", "pause", "start", "seed"]) assert.equal(api[verb], undefined, verb);
       assert.equal(typeof api.state, "function");
@@ -473,7 +473,7 @@ describe("the two-line contract", () => {
       assert.deepEqual(
         (api.cameras as () => string[])(),
         ["default"],
-        "the view the game renders is a camera the studio can name",
+        "the view the project renders is a camera the studio can name",
       );
       assert.equal((api.debugCamera as (name: string) => { ok: boolean })("default").ok, true);
       assert.equal((api.inspect as () => { scene: unknown })().scene, world);

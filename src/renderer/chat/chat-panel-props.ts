@@ -1,7 +1,7 @@
 import type { RefObject } from "react";
 import type { ComposerSendOptions } from "../../shared/composer.ts";
 import type { Notify } from "../state/toasts.ts";
-import type { ConversationRecord, EngineDescriptor, EventEnvelope, GameProject } from "../types.ts";
+import type { ConversationRecord, EngineDescriptor, EventEnvelope, Project } from "../types.ts";
 import type { PromptBarHandle } from "../ui/PromptBar.tsx";
 
 /** The open chat's paging: whether earlier messages exist, and loading them. */
@@ -13,7 +13,7 @@ export interface ChatPanelProps {
   stateEvents: EventEnvelope[];
   history: ChatHistory;
   engines: EngineDescriptor[];
-  games: GameProject[];
+  projects: Project[];
   activeThread: ConversationRecord | null;
   status: string;
   busySince: number | null;
@@ -25,8 +25,8 @@ export interface ChatPanelProps {
   onToggleSidebar: () => void;
   onEnginesRefresh: () => void;
   onRename: (threadId: string, title: string) => void;
-  onRenameGame?: (project: string, title: string) => void;
-  onNewGame?: () => void;
+  onRenameProject?: (project: string, title: string) => void;
+  onNewProject?: () => void;
   /** Put the stage on Live — the morning card's own answer to "let me see it". */
   onShowLive?: () => void;
   onShowAssets?: () => void;
@@ -35,11 +35,11 @@ export interface ChatPanelProps {
   onOpenStudio?: () => void;
   /**
    * App's toast channel. The morning card's own buttons refuse for ordinary reasons — an edit of
-   * the user's own in the game folder, a builder still working there — and without this they
+   * the user's own in the project folder, a builder still working there — and without this they
    * refuse in silence.
    */
   onNotice: Notify;
   onSend: (text: string, options: ComposerSendOptions) => Promise<void>;
-  /** The composer, for App's shortcuts (⌘I) and for putting the cursor in a new game's chat. */
+  /** The composer, for App's shortcuts (⌘I) and for putting the cursor in a new project's chat. */
   composer?: RefObject<PromptBarHandle | null>;
 }

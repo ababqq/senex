@@ -82,7 +82,7 @@ const PLAN = {
   ],
   // Every trait is off unless the plan declares one (M4.4): a plan that says nothing gets no
   // HUD rule, no look check and no movement check, so the rig declares the kind it means.
-  game: { kind: "first-person" },
+  app: { kind: "first-person" },
   mainOwner: "water",
   base: null,
   integrationNotes: "one palette",
@@ -368,22 +368,22 @@ describe("facet loop v2: scoreboard, veto, memory, spikes, review", () => {
       "the prompt points at the brief instead of carrying the spike result twice",
     );
 
-    // The lost attempt is a real, reachable commit in the game's repo — on a ref of the
+    // The lost attempt is a real, reachable commit in the project's repo — on a ref of the
     // studio's own, so the user's `git branch` is still only their own (M2.7) — and its diff
     // summary reached the brief.
-    const gameDir = path.join(rig.core.layout.gamesRoot, "marshworld");
+    const projectDir = path.join(rig.core.layout.projectsRoot, "marshworld");
     const attempt = `refs/studio/runs/${runId}/attempts/water/2`;
-    const { stdout: branches } = await gitFile(["-C", gameDir, "branch", "--list"]);
+    const { stdout: branches } = await gitFile(["-C", projectDir, "branch", "--list"]);
     assert.doesNotMatch(branches, /attempt\//, branches);
-    const { stdout: refs } = await gitFile(["-C", gameDir, "for-each-ref", "--format=%(refname)", "refs/studio/"]);
+    const { stdout: refs } = await gitFile(["-C", projectDir, "for-each-ref", "--format=%(refname)", "refs/studio/"]);
     assert.match(refs, new RegExp(attempt));
     // The builder's own notes are committed with the round — under docs/notes/, not as an
-    // eighth NOTES file in the root of somebody's game (M2.7).
-    const { stdout: keptFiles } = await gitFile(["-C", gameDir, "ls-tree", "-r", "--name-only", attempt]);
+    // eighth NOTES file in the root of somebody's project (M2.7).
+    const { stdout: keptFiles } = await gitFile(["-C", projectDir, "ls-tree", "-r", "--name-only", attempt]);
     assert.match(keptFiles, /^docs\/notes\/NOTES\.water\.md$/m, keptFiles);
     assert.doesNotMatch(keptFiles, /^NOTES\.water\.md$/m, keptFiles);
     // The judge's words are the message, as written: nothing in them ran (HQ-1).
-    const { stdout: attemptMessage } = await gitFile(["-C", gameDir, "log", "-1", "--format=%s", attempt]);
+    const { stdout: attemptMessage } = await gitFile(["-C", projectDir, "log", "-1", "--format=%s", attempt]);
     assert.equal(
       attemptMessage.trim(),
       "facet water iteration 2: attempt (taste-veto) — taste veto: the water went milky `echo judged` $(echo twice)",
@@ -547,13 +547,13 @@ describe("the diet: every section reaches a worker once", () => {
     assert.match(prompt, /READ .*\.studio\/BRIEF\.md FIRST/);
     assert.match(prompt, /USER STEERING \(obey this over everything below\):/);
     assert.match(prompt, /THE MOVE THIS ITERATION \(mandatory\)/);
-    assert.match(prompt, /GAME GOAL: a plaza people want to skate/);
+    assert.match(prompt, /PROJECT GOAL: a plaza people want to skate/);
 
     for (const [what, pattern] of [
       ["the contract", /THE CONTRACT —/],
       ["identity features", /IDENTITY FEATURES/],
       ["done means", /DONE MEANS/],
-      ["file ownership", /FILE OWNERSHIP|YOUR SEAM IN THIS GAME/],
+      ["file ownership", /FILE OWNERSHIP|YOUR SEAM IN THIS PROJECT/],
       ["the integration note", /INTEGRATION: the merge brought sky in/],
       ["the spike result", /SPIKE RESULT: the technique works/],
       ["the defect ledger", /THE JUDGE'S DEFECT LEDGER/],

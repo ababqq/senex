@@ -64,7 +64,7 @@ export function isReopened(night: Pick<Night, "resume" | "priorJournal">): boole
 }
 
 /**
- * Where a reopened night stands. The game folder as it is now (`liveHead`: the start's snapshot
+ * Where a reopened night stands. The project folder as it is now (`liveHead`: the start's snapshot
  * took in every change since, uncommitted ones too) is its start either way. It forks there when
  * the finished build is in it — landed, then maybe changed by the chat since — and from the
  * finished build itself when it is not (not landed, the folder reset, or git cannot tell), which

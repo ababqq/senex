@@ -2,7 +2,7 @@
  * A snapshot made servable (§8.2 Serving, §8.3 per-snapshot serve). The snapshot is read-only
  * evidence, so it is never built where it stands: it is cloned (APFS `clonefile` through
  * `COPYFILE_FICLONE`) into a writable copy, and only the copy is built — the pattern of the
- * app's shadow build in `src/main/game-build.ts`.
+ * app's shadow build in `src/main/project-build.ts`.
  *
  * - No build script: the copy is served as written (`as-is`), or typed `no-entry` without a page.
  * - A build script and its output already there: served from the output (`as-is`).
@@ -17,14 +17,14 @@
  *   `no-dist`, so one run can never be graded on what another run's build left beside it.
  *
  * A built neighbour's `node_modules` is cloned instead of installing again while the
- * `package.json` + lockfile digest is unchanged, so a Vite game is not measured later than it
+ * `package.json` + lockfile digest is unchanged, so a Vite project is not measured later than it
  * was playable just because every snapshot paid for its own install.
  */
 import { constants } from "node:fs";
 import { chmod, cp, lstat, readdir, readFile, realpath, rm } from "node:fs/promises";
 import path from "node:path";
 import { createHash } from "node:crypto";
-import { REGISTRY_DOMAIN } from "../../../src/main/game-build.ts";
+import { REGISTRY_DOMAIN } from "../../../src/main/project-build.ts";
 import { MINUTE_MS } from "../../../src/shared/duration.ts";
 import { pathExists } from "../../../src/substrate/fsx.ts";
 import { declaresDependencies, detectProjectShape, readPackageManifest } from "../../../src/substrate/project-shape.ts";
@@ -105,7 +105,7 @@ export interface PreparedCopy {
   /** The folder holding the page to serve; null when there is none. */
   servedDir: string | null;
   servedVia: ServedVia;
-  /** The query the entry opens with, without `?` (`genex_local_test=1` for a Genex game). */
+  /** The query the entry opens with, without `?` (`genex_local_test=1` for a Genex project). */
   entryQuery: string;
   /** Why there is no build to grade, from this copy of the stop-time snapshot. */
   noBuild: NoBuild | null;

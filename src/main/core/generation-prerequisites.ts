@@ -7,7 +7,7 @@ import type { HarnessHostApi } from "../../shared/harness-api.ts";
 
 type Readiness = HarnessHostApi["plugins.preflightMultiplayer"]["result"];
 
-/** Capability readiness never asserts remote authentication, install approval, or hosted gameplay success. */
+/** Capability readiness never asserts remote authentication, install approval, or hosted interaction success. */
 export function multiplayerReadiness(facts: {
   manifest: boolean;
   install: boolean;
@@ -17,7 +17,7 @@ export function multiplayerReadiness(facts: {
   if (!facts.manifest)
     return {
       ready: false,
-      reason: "The game needs a regular package.json before SDK installation.",
+      reason: "The project needs a regular package.json before SDK installation.",
       hostedVerified: false,
     };
   if (!facts.install)
@@ -49,7 +49,7 @@ export function multiplayerReadiness(facts: {
 /** Read host-owned capability and account state without network access, credentials, installs or publishing. */
 export async function preflightMultiplayer(core: StudioCore, project: string, threadId?: string): Promise<Readiness> {
   const binding = await core.pluginBinding(project, threadId);
-  if (!binding) throw new Error("Open a game before checking prerequisites");
+  if (!binding) throw new Error("Open a project before checking prerequisites");
   const manifest = await lstat(path.join(binding.directory, "package.json")).catch(() => null);
   const tools = new Set(core.plugins.tools().map((tool) => tool.name));
   return multiplayerReadiness({

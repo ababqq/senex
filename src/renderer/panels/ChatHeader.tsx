@@ -1,6 +1,6 @@
 /**
- * The chat column's identity row — which game, how full the context is, and its file actions.
- * Rename lives here (click the title, or ⋯). One game has one chat, so there is no chat switcher.
+ * The chat column's identity row — which project, how full the context is, and its file actions.
+ * Rename lives here (click the title, or ⋯). One project has one chat, so there is no chat switcher.
  * Every gap between the controls drags the window.
  */
 import type { JSX, ReactNode, RefObject } from "react";
@@ -166,7 +166,7 @@ function ChatTitle({
           if (event.key === "Escape") onCancel();
         }}
         className="no-drag h-[30px] w-80 min-w-0 shrink rounded-control bg-field px-2 text-sm font-medium text-ink outline-none"
-        aria-label={project ? "Game name" : "Chat name"}
+        aria-label={project ? "Project name" : "Chat name"}
       />
     );
   if (isStudio) return <span className="chat-header-title">Harness</span>;
@@ -174,7 +174,7 @@ function ChatTitle({
     <button
       type="button"
       title={`Rename ${chatTitle}`}
-      aria-label={`Rename ${project ? "game" : "chat"}: ${chatTitle}`}
+      aria-label={`Rename ${project ? "project" : "chat"}: ${chatTitle}`}
       onClick={onEdit}
       className="no-drag chat-header-title"
     >
@@ -183,7 +183,7 @@ function ChatTitle({
   );
 }
 
-/** The ⋯ menu: export the game, rename the chat. Closing it returns focus to the rename field. */
+/** The ⋯ menu: export the project, rename the chat. Closing it returns focus to the rename field. */
 function ChatActions({
   input,
   exporting,
@@ -220,7 +220,7 @@ function ChatActions({
       >
         <DropdownMenuItem data-chat-action="export" disabled={!onExport || exporting} onSelect={() => onExport?.()}>
           <Icon name="export" />
-          {exporting ? "Exporting…" : "Export game…"}
+          {exporting ? "Exporting…" : "Export project…"}
         </DropdownMenuItem>
         <DropdownMenuItem data-chat-action="rename" onSelect={onRename}>
           <Icon name="rename" />

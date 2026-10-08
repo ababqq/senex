@@ -1,5 +1,5 @@
 /**
- * Permission store — the mode new chats start in and each game's "always allow" rules survive a
+ * Permission store — the mode new chats start in and each project's "always allow" rules survive a
  * restart, and a missing or damaged file reads as the defaults instead of failing a chat.
  */
 import assert from "node:assert/strict";
@@ -75,7 +75,7 @@ test("rules are added in order, once, forgotten one by one, and survive a reload
   assert.deepEqual(
     await new PermissionStore(file).all(),
     { pong: ["Bash(npm install:*)", "WebFetch(domain:x.com)"] },
-    "a game with no rules left is gone",
+    "a project with no rules left is gone",
   );
   const saved = JSON.parse(await readFile(file, "utf8"));
   assert.equal(saved.version, 1);

@@ -204,7 +204,7 @@ function routeEvent(feed: RunSummaryFeed, event: UiEvent, project: string, runId
     return;
   }
   if (event.type !== UiEvent.PreviewIdentity) return;
-  // Another game's preview says nothing about this run's; no preview at all clears it.
+  // Another project's preview says nothing about this run's; no preview at all clears it.
   const preview = event.payload;
   if (!preview || preview.project === project) feed.previewChanged(preview);
 }

@@ -40,7 +40,7 @@ function bubble(events: EventEnvelope[], text: string): { eventId: string; messa
 /** The chat as the harness reads it (`events.list`: without what a rewind withdrew). */
 const harnessEvents = (rig: Rig, threadId: string) =>
   (rig.core.api()["events.list"] as (p: unknown) => Promise<EventEnvelope[]>)({ threadId });
-/** Waits until a git ref exists in the game folder (checkpoints are taken beside the queue). */
+/** Waits until a git ref exists in the project folder (checkpoints are taken beside the queue). */
 async function refExists(dir: string, ref: string): Promise<void> {
   const deadline = Date.now() + 20_000;
   while (Date.now() < deadline) {
@@ -54,13 +54,13 @@ async function refExists(dir: string, ref: string): Promise<void> {
   throw new Error(`no ${ref}`);
 }
 
-it("rewinds a game chat: the message and its answer leave, files come back, and the next turn starts a fresh session", async () => {
+it("rewinds a project chat: the message and its answer leave, files come back, and the next turn starts a fresh session", async () => {
   const rig = await startRig();
   rigs.push(rig);
-  const project = "rewind-game";
-  await rig.core.games.scaffold(project);
-  const thread = await rig.core.createGameThread(project);
-  const dir = rig.core.games.dirFor(project);
+  const project = "rewind-project";
+  await rig.core.projects.scaffold(project);
+  const thread = await rig.core.createProjectThread(project);
+  const dir = rig.core.projects.dirFor(project);
   const delegations: DelegateRequest[] = [];
   let hold: ReturnType<typeof deferred> | null = null;
   rig.core.engines.register({
@@ -168,8 +168,8 @@ it("a message is never sent while its chat is rewinding, and a rewind without fi
   const rig = await startRig();
   rigs.push(rig);
   const project = "rewind-draft";
-  await rig.core.games.scaffold(project);
-  const thread = await rig.core.createGameThread(project);
+  await rig.core.projects.scaffold(project);
+  const thread = await rig.core.createProjectThread(project);
   rig.core.engines.register({
     id: "claude-code",
     label: "Claude",
@@ -203,9 +203,9 @@ it("follow-ups on hold leave with the message, its pictures come back, and the r
   const rig = await startRig();
   rigs.push(rig);
   const project = "rewind-held";
-  await rig.core.games.scaffold(project);
-  const thread = await rig.core.createGameThread(project);
-  const dir = rig.core.games.dirFor(project);
+  await rig.core.projects.scaffold(project);
+  const thread = await rig.core.createProjectThread(project);
+  const dir = rig.core.projects.dirFor(project);
   const delegations: DelegateRequest[] = [];
   const release = deferred();
   rig.core.engines.register({
@@ -308,13 +308,13 @@ it("a build after the message leaves the chat with it: files come back when it l
   const rig = await startRig();
   rigs.push(rig);
   const project = "rewind-after-build";
-  await rig.core.games.scaffold(project);
-  const thread = await rig.core.createGameThread(project);
-  const dir = rig.core.games.dirFor(project);
+  await rig.core.projects.scaffold(project);
+  const thread = await rig.core.createProjectThread(project);
+  const dir = rig.core.projects.dirFor(project);
   const turns = answeringEngine(rig);
   await rig.core.sendUserMessage("Make a village", { thread, engine: "claude-code" });
   await waitForLog(rig.core, handled(thread, 1), 20000, "the answer");
-  // A night built after it and paused without landing: the game's history did not move.
+  // A night built after it and paused without landing: the project's history did not move.
   await rig.core.append(
     [
       custom("run_started", { runId: "night", project, engine: "claude-code", goal: "A village" }),
@@ -364,9 +364,9 @@ it("rewound past a later build, the next message's run tools reach the build fro
   const rig = await startRig();
   rigs.push(rig);
   const project = "rewind-older-build";
-  await rig.core.games.scaffold(project);
-  const thread = await rig.core.createGameThread(project);
-  const dir = rig.core.games.dirFor(project);
+  await rig.core.projects.scaffold(project);
+  const thread = await rig.core.createProjectThread(project);
+  const dir = rig.core.projects.dirFor(project);
   const head = (await git(dir, ["rev-parse", "HEAD"])).trim();
   /** What the coordinator's run tools answered, per tool, once it is asked to use them. */
   const answers: Record<string, string>[] = [];
@@ -445,9 +445,9 @@ it("after a landed build, or with no saved copy, only the conversation rewinds a
   const rig = await startRig();
   rigs.push(rig);
   const project = "rewind-landed";
-  await rig.core.games.scaffold(project);
-  const thread = await rig.core.createGameThread(project);
-  const dir = rig.core.games.dirFor(project);
+  await rig.core.projects.scaffold(project);
+  const thread = await rig.core.createProjectThread(project);
+  const dir = rig.core.projects.dirFor(project);
   answeringEngine(rig);
   // A bubble from before the queue existed: no queue record, no checkpoint.
   await rig.core.append([{ type: "messages", messages: [{ role: "user", content: "Seeded question" }] }], thread);
@@ -462,7 +462,7 @@ it("after a landed build, or with no saved copy, only the conversation rewinds a
   });
   await rig.core.sendUserMessage("Make a village", { thread, engine: "claude-code" });
   await waitForLog(rig.core, handled(thread, 1), 20000, "the answer");
-  // A night landed after it: its commit moved the game's history.
+  // A night landed after it: its commit moved the project's history.
   await writeFile(path.join(dir, "landed.js"), "the night's work\n");
   await git(dir, ["add", "-A"]);
   await git(dir, ["commit", "-q", "-m", "land the night"]);
@@ -498,9 +498,9 @@ it("rewinding over a running build stops it first; the build leaves the chat and
   const rig = await startRig();
   rigs.push(rig);
   const project = "rewind-running";
-  await rig.core.games.scaffold(project);
-  const thread = await rig.core.createGameThread(project);
-  const dir = rig.core.games.dirFor(project);
+  await rig.core.projects.scaffold(project);
+  const thread = await rig.core.createProjectThread(project);
+  const dir = rig.core.projects.dirFor(project);
   const chatTurns: DelegateRequest[] = [];
   const coordinators: DelegateRequest[] = [];
   const workerStarted = deferred();
@@ -616,8 +616,8 @@ it("a build that does not close in time fails the rewind, and the queue its Stop
   );
   rigs.push(rig);
   const project = "rewind-stuck-build";
-  await rig.core.games.scaffold(project);
-  const thread = await rig.core.createGameThread(project);
+  await rig.core.projects.scaffold(project);
+  const thread = await rig.core.createProjectThread(project);
   const workerStarted = deferred();
   const releaseWorker = deferred();
   let building = false;
@@ -698,11 +698,11 @@ it("without a saved copy from before the message, a rewind asked to restore the 
   const rig = await startRig();
   rigs.push(rig);
   const project = "rewind-no-copy";
-  await rig.core.games.scaffold(project);
-  const thread = await rig.core.createGameThread(project);
-  const dir = rig.core.games.dirFor(project);
+  await rig.core.projects.scaffold(project);
+  const thread = await rig.core.createProjectThread(project);
+  const dir = rig.core.projects.dirFor(project);
   answeringEngine(rig);
-  // A bubble with no queue record: nothing ever saved the game before it.
+  // A bubble with no queue record: nothing ever saved the project before it.
   await rig.core.append([{ type: "messages", messages: [{ role: "user", content: "Seeded question" }] }], thread);
   await rig.core.append([{ type: "messages", messages: [{ role: "assistant", content: "Seeded answer" }] }], thread);
   const seeded = (await rig.core.store.listEvents(thread)).find((e) =>

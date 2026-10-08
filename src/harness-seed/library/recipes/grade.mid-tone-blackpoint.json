@@ -19,7 +19,7 @@
   "port": "Call pinGrade() once from the mainOwner’s src/main.js at boot and never re-tune it in later iterations; when a verdict says washed or flat, change the base hex of the largest surface (water/sky/ground) by a visible margin and re-screenshot the same default camera. Log measureGrade() in state() so the numbers are in the evidence.",
   "evidence": [
     {
-      "source": "skills/game-contract.md (deployed, 1 Sep 2026)",
+      "source": "skills/project-contract.md (deployed, 1 Sep 2026)",
       "note": "pin exposure/contrast once; no more than 5% of pixels above 0.9 luma (superseded by the 2% rule); fix the grade in one iteration, then only touch materials"
     },
     {

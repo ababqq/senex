@@ -4,7 +4,7 @@ import { LearningSummary } from "../chat/LearningSummary.tsx";
  * the user reads.
  *
  * What it replaced: "RUN · ended after 21 iterations — the director finished the run", under
- * thirty judge cards, over a night that had built, merged and judged a game. Everything here is
+ * thirty judge cards, over a night that had built, merged and judged a project. Everything here is
  * the answer to one of the three questions a person actually has at 8 am — what happened, what
  * does it look like now, and can I play it.
  */
@@ -20,7 +20,7 @@ import { ResultButton as Button } from "../ui/ResultButton.tsx";
 import { Markdown } from "../ui/Markdown.tsx";
 import { FileText } from "../ui/FileText.tsx";
 import { AssetResults } from "../chat/AssetResults.tsx";
-import type { AssetDeliveredPayload } from "../../shared/game-assets.ts";
+import type { AssetDeliveredPayload } from "../../shared/project-assets.ts";
 import { Presence, type PresenceChild } from "../ui/Presence.tsx";
 
 /** How long a finished build's card keeps the place of a result that has not come yet. */
@@ -65,11 +65,11 @@ export interface MorningCardProps {
   /** what the studio itself took from the night — its own ledger's one line, when it had one */
   learned?: string | null;
   project: string | null;
-  /** the merged build, when the night left one that is not the live game */
+  /** the merged build, when the night left one that is not the live project */
   commit: string | null;
   before: string | null;
   after: string | null;
-  /** what the run generated in its own workspace; only the files now in the game show */
+  /** what the run generated in its own workspace; only the files now in the project show */
   assets?: AssetDeliveredPayload[];
   /** stopped with a follow-up waiting: that message answers "what next", so the card only shows the result */
   handedOff?: boolean;
@@ -129,7 +129,7 @@ export function MorningCard({
   // A landed build the outcome already plays speaks for itself; the "because" line would repeat it.
   const showBecause = !handedOff && !(outcomeHasPlayback && outcome?.landed === true);
   const showLive = (): void => {
-    // A landed build is already the game folder; loading it puts the stage back on the real
+    // A landed build is already the project folder; loading it puts the stage back on the real
     // thing after a night in which a merged build may have been shown from a worktree.
     if (project) void window.studio.loadPreview(project).catch((err) => onNotice?.(problemWords(err), ToastTone.Error));
     onShowLive?.();
@@ -159,7 +159,7 @@ export function MorningCard({
     return (
       <Button
         key={action}
-        title="Load this build in the Live tab from a copy; your game folder stays as it is"
+        title="Load this build in the Live tab from a copy; your project folder stays as it is"
         onClick={() => {
           void window.studio.showBuild(project, commit).catch((err) => onNotice?.(problemWords(err), ToastTone.Error));
           onShowLive?.();

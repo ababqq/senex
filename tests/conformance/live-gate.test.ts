@@ -1,6 +1,6 @@
 /**
  * Live stays still while the person watches it (the user, 2026-09-28: "if I'm sitting in Live the
- * game must not update on its own when code changes; only Reload should be highlighted, with a
+ * project must not update on its own when code changes; only Reload should be highlighted, with a
  * changed tooltip"). The harness looks through a stand-in window of its own; what it loads there,
  * a checkpoint or a rewind only marks Live behind (`live.behind`), and the person's Reload brings
  * it in. The live evidence: a night's lead showed its integration build in Live and then landed
@@ -32,7 +32,7 @@ function fakePort() {
         throw new Error("the page did not load");
       }
       port.loads.push({ project, root: root ?? null });
-      return `game://${project}/${entry}`;
+      return `project://${project}/${entry}`;
     },
     async reload() {
       port.reloads++;
@@ -73,7 +73,7 @@ async function stage({ headless = true }: { headless?: boolean } = {}): Promise<
   const behind: Stage["behind"] = [];
   const lite = await coreLite({
     preview: live as never,
-    gamesRoot: await realpath(await tmpDir("studio-live-gate-")),
+    projectsRoot: await realpath(await tmpDir("studio-live-gate-")),
     previewPoolMax: 2,
     ...(headless
       ? {
@@ -88,9 +88,9 @@ async function stage({ headless = true }: { headless?: boolean } = {}): Promise<
       if (event.type === "live.behind") behind.push(event.payload as Stage["behind"][number]);
     },
   });
-  const project = await lite.core.games.scaffold("pong");
+  const project = await lite.core.projects.scaffold("pong");
   const api = lite.api() as unknown as Stage["api"];
-  // The person opens the game: the one load that is theirs.
+  // The person opens the project: the one load that is theirs.
   await lite.core.loadPreview({ project: "pong" });
   return { lite, live, hidden, behind, api, dir: project.dir };
 }
@@ -128,7 +128,7 @@ describe("Live's gate", () => {
     assert.equal(hidden.length, 1, "one stand-in, reused");
     assert.equal(hidden[0]!.loads.length, 2);
     assert.equal(hidden[0]!.inputs, 1);
-    // Nothing changed in the game folder, so nothing waits for Reload.
+    // Nothing changed in the project folder, so nothing waits for Reload.
     assert.deepEqual(behind, []);
   });
 
@@ -139,7 +139,7 @@ describe("Live's gate", () => {
     assert.equal(live.loads.length, 1);
   });
 
-  it("a changed game folder waits for Reload, with the builder's note, and Reload brings it in", async () => {
+  it("a changed project folder waits for Reload, with the builder's note, and Reload brings it in", async () => {
     const { lite, live, behind, api, dir } = await stage();
     await writeFile(path.join(dir, "jump.js"), "export const jump = 2;\n");
     await api["preview.load"]!({ project: "pong" });
@@ -150,7 +150,7 @@ describe("Live's gate", () => {
     assert.equal(behind.at(-1)?.note, "added a double jump");
     assert.equal(live.loads.length, 1);
     await lite.core.reloadLive();
-    assert.equal(live.loads.length, 2, "Reload loaded the game folder");
+    assert.equal(live.loads.length, 2, "Reload loaded the project folder");
     assert.deepEqual(behind.at(-1), { project: "pong", reason: null, commit: null, note: null, shows: null });
     // Now Live has it: the same folder offered again is not a change.
     await lite.core.offerLive({ project: "pong", root: null });
@@ -171,9 +171,9 @@ describe("Live's gate", () => {
     assert.deepEqual(behind.at(-1), { project: "pong", reason: null, commit: null, note: null, shows: head });
   });
 
-  it("another game's change is not Live's", async () => {
+  it("another project's change is not Live's", async () => {
     const { lite, behind } = await stage();
-    const other = await lite.core.games.scaffold("tetris");
+    const other = await lite.core.projects.scaffold("tetris");
     await writeFile(path.join(other.dir, "x.js"), "1\n");
     await lite.core.offerLive({ project: "tetris", root: null });
     assert.deepEqual(behind, []);
@@ -194,7 +194,7 @@ describe("Live's gate", () => {
   });
 });
 
-/** A run's build: a commit in an integration worktree of the game, as a night leaves it. */
+/** A run's build: a commit in an integration worktree of the project, as a night leaves it. */
 async function runBuild(lite: CoreLite, dir: string, runId = "run_x"): Promise<string> {
   const worktree = path.join(lite.core.layout.scratch, "autopilot", runId, "integration");
   await gitFile(["worktree", "add", "-q", "--detach", worktree, "HEAD"], { cwd: dir });
@@ -212,7 +212,7 @@ function liveOf(behind: Stage["behind"][number] | undefined) {
  * now, on every path, and a stage that mounts later reads it.
  */
 describe("what Live shows, whoever loaded it", () => {
-  it("Play from anywhere says which build Live shows, and the game folder says it shows none", async () => {
+  it("Play from anywhere says which build Live shows, and the project folder says it shows none", async () => {
     const { lite, live, behind, dir } = await stage();
     const head = await runBuild(lite, dir);
     await lite.core.showBuild("pong", head);
@@ -237,7 +237,7 @@ describe("what Live shows, whoever loaded it", () => {
     assert.equal(behind.at(-1)?.reason, null);
   });
 
-  it("answers a stage that mounts after the change, and refuses a payload that names no game", async () => {
+  it("answers a stage that mounts after the change, and refuses a payload that names no project", async () => {
     const { lite, api, dir } = await stage();
     await writeFile(path.join(dir, "jump.js"), "export const jump = 2;\n");
     await api["preview.load"]!({ project: "pong" });
@@ -261,13 +261,13 @@ describe("what Live shows, whoever loaded it", () => {
  * loads Live only for a message the person sent that is still unanswered, and only while Live is
  * out of their sight; otherwise Reload offers it. A session never takes Live, or the stand-in, by
  * name. The owner's session (2026-09-28): asked to change a title, the chat's own session after a
- * night edited the game, showed "live" itself, and Live reloaded under them — a message still
+ * night edited the project, showed "live" itself, and Live reloaded under them — a message still
  * waiting for its answer cannot tell "show me" from "change the title".
  */
 describe("the harness's other doors into Live", () => {
   async function finishedRun(lite: CoreLite, dir: string) {
     const head = await runBuild(lite, dir, "run_done");
-    const threadId = await lite.core.threadForGame("pong");
+    const threadId = await lite.core.threadForProject("pong");
     await lite.core.append(
       [
         {
@@ -336,8 +336,8 @@ describe("the harness's other doors into Live", () => {
   it("a landing that answers the person while they watch Live lands it and only offers it to Reload", async () => {
     const { lite, live, behind, dir } = await stage();
     const { head, tool, personSays } = await finishedRun(lite, dir);
-    const answer = String(await tool("land_build", await personSays("m-land", "put the build in my game")));
-    assert.match(answer, /^Landed [0-9a-f]{10} in the game folder \(merged\); Live was left/, answer);
+    const answer = String(await tool("land_build", await personSays("m-land", "put the build in my project")));
+    assert.match(answer, /^Landed [0-9a-f]{10} in the project folder \(merged\); Live was left/, answer);
     await gitFile(["merge-base", "--is-ancestor", head, "HEAD"], { cwd: dir });
     assert.equal(live.loads.length, 1, "Live did not move");
     assert.equal(behind.at(-1)?.reason, "changed");
@@ -347,8 +347,8 @@ describe("the harness's other doors into Live", () => {
     const { lite, live, dir } = await stage();
     const { tool, personSays } = await finishedRun(lite, dir);
     const bounds = previewIpc(lite)("studio:preview.bounds");
-    // Settings, the game search or a popover over the stage takes the native view's rectangle
-    // away; the person is still watching their game in Live.
+    // Settings, the project search or a popover over the stage takes the native view's rectangle
+    // away; the person is still watching their project in Live.
     await bounds({ x: 0, y: 0, width: 0, height: 0, watching: true });
     const covered = String(await tool("show_build", await personSays("m-covered")));
     assert.match(covered, /Reload button on the stage now offers this build/, covered);
@@ -360,31 +360,35 @@ describe("the harness's other doors into Live", () => {
     assert.equal(live.loads.length, 2);
   });
 
-  it("a show or landing the person asked for never puts its game in a Live that holds another one", async () => {
+  it("a show or landing the person asked for never puts its project in a Live that holds another one", async () => {
     const { lite, live, behind, dir } = await stage();
     const { tool, personSays } = await finishedRun(lite, dir);
-    await lite.core.games.scaffold("tetris");
+    await lite.core.projects.scaffold("tetris");
     await lite.core.loadPreview({ project: "tetris" });
     await lite.core.previewStageVisible(false);
     const heard = behind.length;
     const shown = String(await tool("show_build", await personSays("m-other")));
-    assert.match(shown, /Another game is open in Live/, shown);
-    const landed = String(await tool("land_build", await personSays("m-other-land", "put the build in my game")));
-    assert.match(landed, /^Landed [0-9a-f]{10} in the game folder \(merged\); another game is open in Live/, landed);
+    assert.match(shown, /Another project is open in Live/, shown);
+    const landed = String(await tool("land_build", await personSays("m-other-land", "put the build in my project")));
+    assert.match(
+      landed,
+      /^Landed [0-9a-f]{10} in the project folder \(merged\); another project is open in Live/,
+      landed,
+    );
     assert.deepEqual(
       live.loads.map((load) => load.project),
       ["pong", "tetris"],
-      "Live still holds the game the person opened",
+      "Live still holds the project the person opened",
     );
-    assert.equal(behind.length, heard, "nothing waits for a Reload that belongs to another game");
+    assert.equal(behind.length, heard, "nothing waits for a Reload that belongs to another project");
     assert.equal(lite.core.liveState("pong").reason, null);
   });
 
-  it("a landing nobody asked for lands the build and only offers the game folder to Reload", async () => {
+  it("a landing nobody asked for lands the build and only offers the project folder to Reload", async () => {
     const { lite, live, behind, dir } = await stage();
     const { head, tool } = await finishedRun(lite, dir);
     const answer = String(await tool("land_build"));
-    assert.match(answer, /^Landed [0-9a-f]{10} in the game folder \(merged\); Live was left/, answer);
+    assert.match(answer, /^Landed [0-9a-f]{10} in the project folder \(merged\); Live was left/, answer);
     await gitFile(["merge-base", "--is-ancestor", head, "HEAD"], { cwd: dir });
     assert.equal(live.loads.length, 1, "Live did not move");
     assert.equal(behind.at(-1)?.reason, "changed");
@@ -397,7 +401,7 @@ describe("the harness's other doors into Live", () => {
     const hidden: Array<ReturnType<typeof makeFakePreview>> = [];
     const lite = await coreLite({
       preview: live as never,
-      gamesRoot: await realpath(await tmpDir("studio-live-gate-")),
+      projectsRoot: await realpath(await tmpDir("studio-live-gate-")),
       previewPoolMax: 1,
       createHeadlessPreview: async () => {
         const port = makeFakePreview();
@@ -405,7 +409,7 @@ describe("the harness's other doors into Live", () => {
         return port as never;
       },
     });
-    const project = await lite.core.games.scaffold("pong");
+    const project = await lite.core.projects.scaffold("pong");
     await lite.core.loadPreview({ project: "pong" });
     for (const handle of ["live", "stand-in"]) {
       const tools = await lite.core._playtestToolsFor(

@@ -1,9 +1,9 @@
 import { Markdown } from "../ui/Markdown.tsx";
 import { Presence } from "../ui/Presence.tsx";
 
-const GREETING = "You can ask about Harness and its improvements here. Games are built in their own chats.";
+const GREETING = "You can ask about Harness and its improvements here. Projects are built in their own chats.";
 const QUESTIONS = [
-  "How does Harness build a game?",
+  "How does Harness build a project?",
   "How does Harness improve itself?",
   "What has it improved so far?",
 ];

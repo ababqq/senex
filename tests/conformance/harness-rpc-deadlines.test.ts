@@ -1,6 +1,6 @@
 /**
  * Harness call deadlines (B4): a host call nobody answers used to keep the harness awaiting it
- * forever, and the watchdog stays quiet while any call is in flight, so one game page whose
+ * forever, and the watchdog stays quiet while any call is in flight, so one project page whose
  * `state()` never returned froze a whole night unnoticed. Every call now has a class, and a class
  * with a deadline is answered with `RpcDeadline` once it passes (`substrate/rpc-deadlines.ts`).
  * These cases are about the host's bookkeeping, not containment, so the harness runs unsandboxed.
@@ -128,7 +128,7 @@ describe("harness call deadlines (B4)", () => {
       assert.equal(RPC_CLASSES[method], RpcClass.Page, method);
       assert.ok((rpcDeadlineMs(method) ?? 0) > 0, method);
     }
-    for (const method of [HostMethod.EventsList, HostMethod.ArtifactRead, HostMethod.GameRead]) {
+    for (const method of [HostMethod.EventsList, HostMethod.ArtifactRead, HostMethod.ProjectRead]) {
       assert.ok((rpcDeadlineMs(method) ?? 0) > 0, method);
     }
     for (const method of [HostMethod.EngineDelegate, HostMethod.EngineComplete, HostMethod.RunExec]) {

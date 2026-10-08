@@ -33,7 +33,7 @@ import { BLOCKED_BY_POLICY, probeRequestAllowed, serveOriginOf } from "./network
 import { chromiumArgs } from "./renderer.ts";
 import { ShotKind } from "./types.ts";
 
-/** The probe's viewport: a common laptop game window. */
+/** The probe's viewport: a common laptop project window. */
 export const PROBE_VIEWPORT = { width: 1280, height: 720 } as const;
 /** The desktop page's context. */
 const DESKTOP_CONTEXT: BrowserContextOptions = {

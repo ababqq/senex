@@ -1,15 +1,15 @@
 /**
  * The stage strip: one addressable row, so a check can prove every control in it stays uniquely
- * labelled — `control.ts` refuses an ambiguous selector at run time. The game's name and folder
+ * labelled — `control.ts` refuses an ambiguous selector at run time. The project's name and folder
  * live in the chat header; the rest of this strip drags the window.
  */
 import type { JSX } from "react";
-import { SOUND_SHORTCUT } from "../../../shared/game-sound.ts";
+import { SOUND_SHORTCUT } from "../../../shared/project-sound.ts";
 import type { PluginInfo } from "../../../shared/plugins.ts";
 import { kindChip } from "../../../shared/shape-words.ts";
 import type { BesideTarget } from "../../open-beside.ts";
 import type { LiveBehind, StageView } from "../../stage.ts";
-import type { GameProject } from "../../types.ts";
+import type { Project } from "../../types.ts";
 import { cn } from "../../ui/cn.ts";
 import { Icon } from "../../ui/icons.tsx";
 import { Shortcut } from "../../ui/Shortcut.tsx";
@@ -54,12 +54,12 @@ function viewItems(hasBuilds: boolean, buildsLive: boolean, beside: BesideTarget
 }
 
 /**
- * Reload. While Live is behind — the game changed, a build is ready — it carries the accent dot
+ * Reload. While Live is behind — the project changed, a build is ready — it carries the accent dot
  * and tint and says what it would bring; Live itself never changes until it is pressed. A new
  * reason breathes the ring once (`key`), except under reduced motion (theme.css).
  */
 function ReloadButton({ behind, onReload }: { behind: LiveBehind | null; onReload: () => void }): JSX.Element {
-  const label = behind ? liveBehindLabel(behind.reason, behind.note) : "Reload game";
+  const label = behind ? liveBehindLabel(behind.reason, behind.note) : "Reload project";
   return (
     <Tooltip>
       <TooltipTrigger asChild>
@@ -80,9 +80,9 @@ function ReloadButton({ behind, onReload }: { behind: LiveBehind | null; onReloa
           <Icon name="reload" size={15} />
         </button>
       </TooltipTrigger>
-      {/* Beside, not below: a tooltip under the strip would sit behind the native game view. */}
+      {/* Beside, not below: a tooltip under the strip would sit behind the native project view. */}
       <TooltipContent side="right" sideOffset={6} data-stage-reload-tip="">
-        {behind ? liveBehindWords(behind.reason) : "Reload game"}
+        {behind ? liveBehindWords(behind.reason) : "Reload project"}
         {behind?.note ? <span className="block max-w-72 opacity-75">{behind.note}</span> : null}
       </TooltipContent>
     </Tooltip>
@@ -93,7 +93,7 @@ function ReloadButton({ behind, onReload }: { behind: LiveBehind | null; onReloa
 const STRIP_ICON_BUTTON =
   "surface-glass grid size-8 shrink-0 cursor-pointer place-items-center rounded-lg text-foreground transition-colors duration-(--duration-quick) enabled:active:scale-[0.96] disabled:cursor-default disabled:opacity-50";
 
-/** What Play/Stop says for each state of the game. */
+/** What Play/Stop says for each state of the project. */
 const RUN_LABEL = {
   [LiveRun.Running]: STAGE_WORDS.stop,
   [LiveRun.Stopping]: STAGE_WORDS.stopping,
@@ -110,7 +110,7 @@ function RunGlyph({ run }: { run: LiveRun }): JSX.Element {
   );
 }
 
-/** Play/Stop: one button that stops the game (it then costs the machine nothing) and plays it again. */
+/** Play/Stop: one button that stops the project (it then costs the machine nothing) and plays it again. */
 function RunButton({ run, onToggle }: { run: LiveRun; onToggle: () => void }): JSX.Element {
   const busy = run === LiveRun.Starting || run === LiveRun.Stopping;
   return (
@@ -131,7 +131,7 @@ function RunButton({ run, onToggle }: { run: LiveRun; onToggle: () => void }): J
           </span>
         </button>
       </TooltipTrigger>
-      {/* Beside, not below: a tooltip under the strip would sit behind the native game view. */}
+      {/* Beside, not below: a tooltip under the strip would sit behind the native project view. */}
       <TooltipContent side="right" sideOffset={6}>
         {RUN_LABEL[run]}
       </TooltipContent>
@@ -139,7 +139,7 @@ function RunButton({ run, onToggle }: { run: LiveRun; onToggle: () => void }): J
   );
 }
 
-/** Full screen: the game over the whole screen; holding Esc, or the button in its corner, brings it back. */
+/** Full screen: the project over the whole screen; holding Esc, or the button in its corner, brings it back. */
 function FullScreenButton({ offered, onEnter }: { offered: boolean; onEnter: () => void }): JSX.Element {
   return (
     <Tooltip>
@@ -155,7 +155,7 @@ function FullScreenButton({ offered, onEnter }: { offered: boolean; onEnter: () 
           <Icon name="expand" size={15} />
         </button>
       </TooltipTrigger>
-      {/* Beside, not below: a tooltip under the strip would sit behind the native game view. */}
+      {/* Beside, not below: a tooltip under the strip would sit behind the native project view. */}
       <TooltipContent side="left" sideOffset={6}>
         {STAGE_WORDS.fullScreen}
       </TooltipContent>
@@ -163,14 +163,14 @@ function FullScreenButton({ offered, onEnter }: { offered: boolean; onEnter: () 
   );
 }
 
-/** The Live game's sound: one speaker, crossed out while it is off. */
+/** The Live project's sound: one speaker, crossed out while it is off. */
 function SoundButton({ on, onToggle }: { on: boolean; onToggle: () => void }): JSX.Element {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
         <button
           type="button"
-          aria-label="Game sound"
+          aria-label="Project sound"
           aria-pressed={on}
           data-stage-sound={on ? "on" : "off"}
           onClick={onToggle}
@@ -179,10 +179,10 @@ function SoundButton({ on, onToggle }: { on: boolean; onToggle: () => void }): J
           <Icon name={on ? "speaker" : "speaker-off"} size={15} />
         </button>
       </TooltipTrigger>
-      {/* Beside, not below: a tooltip under the strip would sit behind the native game view. */}
+      {/* Beside, not below: a tooltip under the strip would sit behind the native project view. */}
       <TooltipContent side="left" sideOffset={6}>
         <span className="flex items-center gap-2">
-          {on ? "Mute game" : "Unmute game"}
+          {on ? "Mute project" : "Unmute project"}
           <Shortcut>{SOUND_SHORTCUT}</Shortcut>
         </span>
       </TooltipContent>
@@ -192,7 +192,7 @@ function SoundButton({ on, onToggle }: { on: boolean; onToggle: () => void }): J
 
 /**
  * The strip over the stage: what the folder is, the view switcher, Play/Stop and Reload, then at
- * its end the game's sound, full screen and plugin buttons. An earlier build opens from its result
+ * its end the project's sound, full screen and plugin buttons. An earlier build opens from its result
  * card in the chat, not from here.
  */
 export function StageStrip({
@@ -208,12 +208,12 @@ export function StageStrip({
   run,
   fullScreen,
   sound,
-  emptyGame,
+  emptyProject,
   plugins,
   onNotice,
   onToolbarOpen,
 }: {
-  loaded: GameProject | null;
+  loaded: Project | null;
   project: string | null;
   hasBuilds: boolean;
   buildsLive: boolean;
@@ -225,12 +225,12 @@ export function StageStrip({
   onReload: () => void;
   /** Play/Stop (`live-run.ts`). */
   run: { state: LiveRun; toggle: () => void };
-  /** Full screen, offered while the running game is on the stage. */
+  /** Full screen, offered while the running project is on the stage. */
   fullScreen: { offered: boolean; enter: () => void };
-  /** The Live game's sound switch (`game-sound.ts`). */
+  /** The Live project's sound switch (`project-sound.ts`). */
   sound: { on: boolean; toggle: () => void };
-  /** The game has nothing in it yet: no plugin button's action is due. */
-  emptyGame: boolean;
+  /** The project has nothing in it yet: no plugin button's action is due. */
+  emptyProject: boolean;
   plugins: PluginInfo[];
   onNotice: Notify;
   onToolbarOpen: (open: boolean) => void;
@@ -251,13 +251,13 @@ export function StageStrip({
           {kindChip(loaded.shape.kind)}
         </span>
       ) : null}
-      {/* One segmented group for every loaded game; Builds joins it once there is a build to
-          draw, and Assets is always there — a game with no build still has files. Plugin buttons
-          follow it as siblings, so they are there for a game with no build either. */}
+      {/* One segmented group for every loaded project; Builds joins it once there is a build to
+          draw, and Assets is always there — a project with no build still has files. Plugin buttons
+          follow it as siblings, so they are there for a project with no build either. */}
       {project ? (
         <ViewSwitcher
           className="no-drag shrink-0"
-          label="Game view"
+          label="Project view"
           dataAttribute="data-stage-action"
           items={viewItems(hasBuilds, buildsLive, beside)}
           active={stageView}
@@ -273,7 +273,7 @@ export function StageStrip({
       <PluginToolbar
         plugins={plugins}
         project={project}
-        emptyGame={emptyGame}
+        emptyProject={emptyProject}
         onNotice={onNotice}
         onOpenChange={onToolbarOpen}
       />

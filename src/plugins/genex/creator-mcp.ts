@@ -10,12 +10,12 @@ import { SECOND_MS } from "../../shared/duration.ts";
 
 export const CREATOR_ENDPOINT = "https://mcp.genex.games/mcp";
 export const CREATOR_TOOLS = {
-  search_games: "Search the published Genex game catalog for references and remixable games.",
+  search_games: "Search the published Genex project catalog for references and remixable projects.",
   search_animations:
     "Search Genex animations for action IDs. Apply them with Studio genex__asset character.animate or creature.animate; other Genex commands run through genex__cli.",
-  my_games: "List games owned by the connected Genex account, with their status and links.",
+  my_games: "List projects owned by the connected Genex account, with their status and links.",
   generation_status:
-    "Read an existing Genex generation or list recent generations. This does not deliver files to the game. Retrieve files with Studio genex__asset operation wait and the generation ID; never generate again to check progress.",
+    "Read an existing Genex generation or list recent generations. This does not deliver files to the project. Retrieve files with Studio genex__asset operation wait and the generation ID; never generate again to check progress.",
 } as const;
 
 const BRIDGE_VERSION = "1.4.2";

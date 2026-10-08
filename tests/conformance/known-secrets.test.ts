@@ -42,7 +42,7 @@ test("the core's log redacts the credentials it holds, on the core and the harne
   assert.equal(written.match(/\[redacted\]/g)?.length, 8, written);
 });
 
-// Ordinary chat, prose and game code that only looks like a credential field. The log is kept for
+// Ordinary chat, prose and project code that only looks like a credential field. The log is kept for
 // good and replayed as the agent's context, so it keeps these byte for byte (review B1).
 const ORDINARY = [
   "Add a capability to jump twice",
@@ -50,10 +50,10 @@ const ORDINARY = [
   "Use the api_key field of the config",
   "Authorization: header docs",
   "const SPRITE_KEY=hero;",
-  "location.href = 'game.html?code=level2'",
+  "location.href = 'project.html?code=level2'",
 ];
 
-test("the log keeps ordinary chat and game code that only looks like a credential field (B1)", async () => {
+test("the log keeps ordinary chat and project code that only looks like a credential field (B1)", async () => {
   const { core } = await coreLite();
   const text = ORDINARY.join("\n");
   const batch: EventData[] = [
@@ -101,7 +101,7 @@ async function connectorWithConfig(): Promise<McpRegistry> {
     connector,
     {
       "env.BASE_URL": PUBLIC_URL,
-      "env.ALLOWED_DIR": "/Users/someone/Games",
+      "env.ALLOWED_DIR": "/Users/someone/Projects",
       "env.WEATHER_API_KEY": "weather-FAKE-api-key",
     },
     { trust: true },
@@ -109,18 +109,18 @@ async function connectorWithConfig(): Promise<McpRegistry> {
   return registry;
 }
 
-test("a connector's plain config values are not credentials: the log keeps them and a game using them exports (B2)", async () => {
+test("a connector's plain config values are not credentials: the log keeps them and a project using them exports (B2)", async () => {
   const { core } = await coreLite();
   const registry = await connectorWithConfig();
   try {
     core.mcp.secretValues = () => registry.secretValues();
     assert.deepEqual(
-      ["weather-FAKE-api-key", PUBLIC_URL, "/Users/someone/Games"].map((value) =>
+      ["weather-FAKE-api-key", PUBLIC_URL, "/Users/someone/Projects"].map((value) =>
         core.knownSecretValues().includes(value),
       ),
       [true, false, false],
     );
-    const said = (key: string) => `fetched ${PUBLIC_URL}/forecast into /Users/someone/Games/pong with ${key}`;
+    const said = (key: string) => `fetched ${PUBLIC_URL}/forecast into /Users/someone/Projects/pong with ${key}`;
     await core.append([
       {
         type: "custom",
@@ -135,35 +135,35 @@ test("a connector's plain config values are not credentials: the log keeps them 
       payload: { kind: "tool_result", data: said("[redacted]") },
     });
 
-    const game = await core.games.scaffold("forecast", { title: "Forecast" });
-    await rm(path.join(game.dir, "src"), { recursive: true });
-    await mkdir(path.join(game.dir, "src"));
-    await writeFile(path.join(game.dir, "index.html"), '<script type="module" src="./src/config.js"></script>\n');
-    await writeFile(path.join(game.dir, "src", "config.js"), `export const api = "${PUBLIC_URL}/forecast";\n`);
-    await writeFile(path.join(game.dir, "studio.json"), JSON.stringify({ exportFiles: ["index.html", "src"] }));
-    const result = await core.exportPublicCopy(game.name, path.join(core.layout.exports, "forecast"));
+    const project = await core.projects.scaffold("forecast", { title: "Forecast" });
+    await rm(path.join(project.dir, "src"), { recursive: true });
+    await mkdir(path.join(project.dir, "src"));
+    await writeFile(path.join(project.dir, "index.html"), '<script type="module" src="./src/config.js"></script>\n');
+    await writeFile(path.join(project.dir, "src", "config.js"), `export const api = "${PUBLIC_URL}/forecast";\n`);
+    await writeFile(path.join(project.dir, "studio.json"), JSON.stringify({ exportFiles: ["index.html", "src"] }));
+    const result = await core.exportPublicCopy(project.name, path.join(core.layout.exports, "forecast"));
     assert.ok(result.included.includes("src/config.js"));
   } finally {
     await registry.close();
   }
 });
 
-test("a public export refuses a game file that holds a credential the core holds, from the UI and the harness alike (SEC-6)", async () => {
+test("a public export refuses a project file that holds a credential the core holds, from the UI and the harness alike (SEC-6)", async () => {
   const lite = await coreLite();
   const { core } = lite;
-  const game = await core.games.scaffold("leaky", { title: "Leaky" });
+  const project = await core.projects.scaffold("leaky", { title: "Leaky" });
   // A page with no vendored library, so the only thing the exporter can object to is the value.
-  await rm(path.join(game.dir, "src"), { recursive: true });
-  await mkdir(path.join(game.dir, "src"));
-  await writeFile(path.join(game.dir, "index.html"), '<script type="module" src="./src/config.js"></script>\n');
-  await writeFile(path.join(game.dir, "src", "config.js"), `export const key = "${ENV_VALUE}";\n`);
-  await writeFile(path.join(game.dir, "studio.json"), JSON.stringify({ exportFiles: ["index.html", "src"] }));
+  await rm(path.join(project.dir, "src"), { recursive: true });
+  await mkdir(path.join(project.dir, "src"));
+  await writeFile(path.join(project.dir, "index.html"), '<script type="module" src="./src/config.js"></script>\n');
+  await writeFile(path.join(project.dir, "src", "config.js"), `export const key = "${ENV_VALUE}";\n`);
+  await writeFile(path.join(project.dir, "studio.json"), JSON.stringify({ exportFiles: ["index.html", "src"] }));
   const target = path.join(core.layout.exports, "leaky");
-  await assert.rejects(core.exportPublicCopy(game.name, target), (error: Error) => {
+  await assert.rejects(core.exportPublicCopy(project.name, target), (error: Error) => {
     assert.match(error.message, /config\.js/);
     assert.equal(error.message.includes(ENV_VALUE), false, "the refusal names the file, never the value");
     return true;
   });
-  await assert.rejects(lite.api()["game.export"]({ project: game.name }), /config\.js/);
+  await assert.rejects(lite.api()["project.export"]({ project: project.name }), /config\.js/);
   await assert.rejects(access(target), "nothing was published");
 });

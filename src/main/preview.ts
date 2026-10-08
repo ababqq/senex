@@ -2,10 +2,10 @@ import { previewVisibility } from "./preview-visibility.ts";
 import { CaptureSurface } from "../shared/preview-contract.ts";
 import { PreviewProfiler, type ProfileRequest } from "../substrate/preview-profiler.ts";
 /**
- * Game preview.
+ * Project preview.
  *
- * A `WebContentsView` with its **own session partition, no preload and no IPC bridge**: game code
- * has no path back into the app, which matters because the games are written by an agent that
+ * A `WebContentsView` with its **own session partition, no preload and no IPC bridge**: project code
+ * has no path back into the app, which matters because the projects are written by an agent that
  * rewrites its own instructions. All interaction is one-way, from the main process, through
  * `webContents` APIs.
  *
@@ -31,9 +31,9 @@ import {
   HttpStatus,
   MAX_REWRITE_BYTES,
   confinePreviewContents,
-  gameRequestAllowed,
+  projectRequestAllowed,
   previewNavigationAllowed,
-  rewriteGameHtml,
+  rewriteProjectHtml,
   routeHttp,
   servableProject,
   servedLocation,
@@ -47,7 +47,7 @@ import {
 } from "./page-serve.ts";
 import { PAGE_DISPATCH } from "./page-dispatch.ts";
 import { anchoredBounds } from "./preview-anchor.ts";
-import { gameViewPreferences } from "./game-view.ts";
+import { projectViewPreferences } from "./project-view.ts";
 import { capActions, type PreviewInputAction } from "../substrate/preview-input.ts";
 import { applyInputAction, type PageDispatch } from "./preview-input-driver.ts";
 import { cropImageFile, diffImageFiles, encodedImageStats, pairJpeg, resizeToJpeg } from "./preview-images.ts";
@@ -67,11 +67,11 @@ import type { PreviewPixelStats } from "./studio-core.ts";
 import { errorMessage } from "../shared/errors.ts";
 import { setTimeout as delay } from "node:timers/promises";
 
-/** What the preview's console tells the agent about the game view, and why a call is refused. */
+/** What the preview's console tells the agent about the project view, and why a call is refused. */
 const MESSAGE = {
   renderGone: (reason: string) => `render process gone: ${reason}`,
-  unresponsive: "game loop is unresponsive",
-  blocked: (what: string) => `the studio blocked ${what}: games run offline in the preview`,
+  unresponsive: "project loop is unresponsive",
+  blocked: (what: string) => `the studio blocked ${what}: projects run offline in the preview`,
   pageSurfaceFallback: (reason: string | null) =>
     `the page surface could not be photographed${reason === null ? "" : ` (${reason})`}; the canvas was photographed instead`,
   noFrame: "the page produced no frame to photograph",
@@ -105,32 +105,32 @@ export interface PreviewStatus {
 export interface PreviewLiveStatus {
   project: string | null;
   navigating: boolean;
-  /** The person stopped the game: its page is gone until Play (`resume`) brings it back. */
+  /** The person stopped the project: its page is gone until Play (`resume`) brings it back. */
   stopped: boolean;
   loadError: string | null;
   crashed: boolean;
   page: { complete: boolean; resources: number; state: Record<string, unknown> | null } | null;
 }
 
-export interface GamePreviewOptions {
-  /** Root of the game workspaces; `game://<project>/…` resolves inside it. */
-  gamesRoot: string;
-  /** Vendored libraries served at `game://<project>/vendor/…`. */
+export interface ProjectPreviewOptions {
+  /** Root of the project workspaces; `project://<project>/…` resolves inside it. */
+  projectsRoot: string;
+  /** Vendored libraries served at `project://<project>/vendor/…`. */
   vendorDir: string;
   partition?: string;
   consoleLimit?: number;
   /** GPU-backed offscreen surface for bounded, hidden profiling. */
   offscreen?: boolean;
-  /** Live lookup for folders that don't sit under `gamesRoot`. */
+  /** Live lookup for folders that don't sit under `projectsRoot`. */
   resolveRoot?: (project: string) => string;
-  /** An agent's window: silent from the moment it is made. The user hears only the game on Live. */
+  /** An agent's window: silent from the moment it is made. The user hears only the project on Live. */
   muted?: boolean;
   /** The app's default page-shim settings; a single `load` may override any of them. */
   shim?: Partial<ShimOptions>;
 }
 
-const SCHEME = "game";
-/** What a stopped game's view holds: an empty page, allowed by the game partition (`data:`). */
+const SCHEME = "project";
+/** What a stopped project's view holds: an empty page, allowed by the project partition (`data:`). */
 const STOPPED_PAGE = "data:text/html;charset=utf-8,";
 /** The pause before the one compositor retry a failed capture gets. */
 const COMPOSITOR_RETRY_MS = 250;
@@ -140,8 +140,8 @@ const FRAME_WAIT_MS = 400;
 const LIVE_PROBE_MS = 500;
 
 /**
- * Loopback ports for games served as `http://localhost:<port>/` — module-wide, because every
- * preview on the partition shares one protocol handler. A game with its own shape (a bundler's
+ * Loopback ports for projects served as `http://localhost:<port>/` — module-wide, because every
+ * preview on the partition shares one protocol handler. A project with its own shape (a bundler's
  * output, a platform SDK) expects the origin a local preview would have: the Genex SDK's
  * local-test mode, for one, accepts only a loopback origin. Same files, same containment.
  */
@@ -156,7 +156,7 @@ export function loopbackPortFor(project: string): number {
 }
 
 /** Register all privileged schemes together before ready: another call replaces the secure list. */
-export function registerGameScheme(otherSchemes: CustomScheme[] = []): void {
+export function registerProjectScheme(otherSchemes: CustomScheme[] = []): void {
   protocol.registerSchemesAsPrivileged([
     {
       scheme: SCHEME,
@@ -168,8 +168,8 @@ export function registerGameScheme(otherSchemes: CustomScheme[] = []): void {
 
 const CARD_STATS_SAMPLES = 4096;
 
-export class GamePreview {
-  readonly options: GamePreviewOptions;
+export class ProjectPreview {
+  readonly options: ProjectPreviewOptions;
   #view: WebContentsView | null = null;
   readonly #visibility = previewVisibility((visible) => {
     if (this.#view && !this.#view.webContents.isDestroyed()) this.#view.setVisible(visible);
@@ -182,7 +182,7 @@ export class GamePreview {
   #requestedBounds: Electron.Rectangle | null = null;
   /** Full screen: the whole window, whatever the stage's slot measures. */
   #fill: Electron.Rectangle | null = null;
-  /** The stopped game's address, kept for `resume`; null while the game runs. */
+  /** The stopped project's address, kept for `resume`; null while the project runs. */
   #stoppedUrl: string | null = null;
   #visibleBounds: Electron.Rectangle = { x: 0, y: 0, width: 960, height: 600 };
   /** The stage's slot as last measured, and the window size it was measured in. */
@@ -203,7 +203,7 @@ export class GamePreview {
   /**
    * The page-surface fallback says so once per load, not once per capture: the evidence pass
    * reads this same console ring buffer, and a window that cannot be composited would otherwise
-   * push out every line the game itself wrote.
+   * push out every line the project itself wrote.
    */
   #pageSurfaceNoted = false;
   #pointer = { x: 0, y: 0 };
@@ -214,7 +214,7 @@ export class GamePreview {
    * window and on document) and a picker toggled by "i" flipped shut again (computer smoke).
    */
   #nativeDelivery: boolean | null = null;
-  /** When set, `game://<project>/` is served from this directory instead of gamesRoot. */
+  /** When set, `project://<project>/` is served from this directory instead of projectsRoot. */
   #rootOverride: { project: string; dir: string } | null = null;
   /**
    * The real folder the page was loaded from (M1). Serving checks containment against this, not
@@ -224,11 +224,11 @@ export class GamePreview {
   #pinnedRoot: { project: string; dir: string; real: string | null } | null = null;
   /** The entry this port loaded — the primary rule for which response receives the studio shim. */
   #entryPath: string | null = null;
-  /** This load's shim overrides (the boot budget is the one that changes per game). */
+  /** This load's shim overrides (the boot budget is the one that changes per project). */
   #shimLoad: Partial<ShimOptions> | null = null;
   /** Whether this build's vendor directory carries the shim bundle at all. */
   #shimPresent: boolean | null = null;
-  /** Origins whose blocked request or navigation this load has already noted on the game's console. */
+  /** Origins whose blocked request or navigation this load has already noted on the project's console. */
   #blockedNoted = new Set<string>();
   /** How the studio reached this page's `three`, recorded when the entry was rewritten. */
   #reach: { reach: string; hooked: Record<string, string> } = { reach: "none", hooked: {} };
@@ -256,7 +256,7 @@ export class GamePreview {
     return this.#profiler.invalidate(reason);
   }
 
-  constructor(options: GamePreviewOptions) {
+  constructor(options: ProjectPreviewOptions) {
     this.options = options;
     this.#audioMuted = options.muted ?? false;
   }
@@ -268,38 +268,38 @@ export class GamePreview {
   /** Create the view and install the protocol handler on its partition. */
   create(): WebContentsView {
     if (this.#view) return this.#view;
-    const partition = this.options.partition ?? "game-preview";
-    const gameSession = session.fromPartition(partition);
-    this.#session = gameSession;
+    const partition = this.options.partition ?? "project-preview";
+    const projectSession = session.fromPartition(partition);
+    this.#session = projectSession;
 
-    // The game never gets to ask for the camera, the mic, or anything else. Pointer lock (and
+    // The project never gets to ask for the camera, the mic, or anything else. Pointer lock (and
     // fullscreen, which some engines request alongside it) is the one exception: first-person
-    // mouse-look is core gameplay, and denying it silently killed look controls for the user.
+    // mouse-look is core interaction, and denying it silently killed look controls for the user.
     const HUMAN_INPUT_PERMISSIONS = new Set(this.options.offscreen ? ["pointerLock"] : ["pointerLock", "fullscreen"]);
-    gameSession.setPermissionRequestHandler((_wc, permission, callback) =>
+    projectSession.setPermissionRequestHandler((_wc, permission, callback) =>
       callback(HUMAN_INPUT_PERMISSIONS.has(permission)),
     );
-    gameSession.setPermissionCheckHandler((_wc, permission) => HUMAN_INPUT_PERMISSIONS.has(permission));
+    projectSession.setPermissionCheckHandler((_wc, permission) => HUMAN_INPUT_PERMISSIONS.has(permission));
 
-    if (!gameSession.protocol.isProtocolHandled(SCHEME)) {
-      gameSession.protocol.handle(SCHEME, (request) => this.#serve(request));
+    if (!projectSession.protocol.isProtocolHandled(SCHEME)) {
+      projectSession.protocol.handle(SCHEME, (request) => this.#serve(request));
     }
-    // http://localhost:<port>/ is the same server under the origin a bundled game expects; any
+    // http://localhost:<port>/ is the same server under the origin a bundled project expects; any
     // other http request is a 403.
-    if (!gameSession.protocol.isProtocolHandled("http")) {
-      gameSession.protocol.handle("http", (request) => this.#serveLoopback(request));
+    if (!projectSession.protocol.isProtocolHandled("http")) {
+      projectSession.protocol.handle("http", (request) => this.#serveLoopback(request));
     }
-    // A game runs offline (SECUI-3): the partition may reach the studio's own server and nothing
-    // else, so what an agent wrote into a game cannot leave the machine when the studio loads it.
-    gameSession.webRequest.onBeforeRequest((details, callback) => {
-      const allowed = gameRequestAllowed(details.url, loopbackPorts, details.method);
+    // A project runs offline (SECUI-3): the partition may reach the studio's own server and nothing
+    // else, so what an agent wrote into a project cannot leave the machine when the studio loads it.
+    projectSession.webRequest.onBeforeRequest((details, callback) => {
+      const allowed = projectRequestAllowed(details.url, loopbackPorts, details.method);
       if (!allowed) this.#noteBlocked("request", details.url);
       callback(allowed ? {} : { cancel: true });
     });
 
     const view = new WebContentsView({
-      // Sandboxed, no preload, no on-device speech (`game-view.ts`).
-      webPreferences: gameViewPreferences(gameSession, this.options.offscreen ?? false),
+      // Sandboxed, no preload, no on-device speech (`project-view.ts`).
+      webPreferences: projectViewPreferences(projectSession, this.options.offscreen ?? false),
     });
     view.setBackgroundColor("#05070d");
     const wc = view.webContents;
@@ -310,7 +310,7 @@ export class GamePreview {
       void this.#profiler.invalidate("navigation changed");
     });
     wc.setWindowOpenHandler(() => ({ action: "deny" }));
-    // The page stays on game:// or its loopback origin: a remote page inside the studio's chrome,
+    // The page stays on project:// or its loopback origin: a remote page inside the studio's chrome,
     // which has no URL bar, is a sign-in form nobody can tell from the studio's own (SECUI-3).
     wc.on("will-navigate", (event) => {
       if (previewNavigationAllowed(event.url, loopbackPorts, { mainFrame: true })) return;
@@ -462,12 +462,12 @@ export class GamePreview {
   async #serveLoopback(request: Request): Promise<Response> {
     const url = new URL(request.url);
     const route = routeHttp(url, loopbackPorts);
-    // Never re-fetched from the main process: that sent a game's plain-http beacon off the machine.
+    // Never re-fetched from the main process: that sent a project's plain-http beacon off the machine.
     if (route.route === HttpRouteKind.Deny) return textResponse(HttpStatus.Forbidden);
     return this.#serveFile(route.project, url.pathname, request);
   }
 
-  /** One console line per blocked origin per load: the harness reads why a game's request failed. */
+  /** One console line per blocked origin per load: the harness reads why a project's request failed. */
   #noteBlocked(kind: "request" | "navigation", raw: string): void {
     let origin = raw;
     try {
@@ -494,13 +494,13 @@ export class GamePreview {
     // The wrapper module for this page's `three`: generated, never read off the disk. Its query
     // string carries the real module's URL, which the page's own import map named.
     if (relative === THREE_HOOK_PATH) return this.#serveThreeHook(request);
-    // Containment on real paths: a game (or a link planted in it) must not reach the harness
+    // Containment on real paths: a project (or a link planted in it) must not reach the harness
     // workspace or the user's disk (SECUI-2). A missing file is a 404.
     const served = await servedLocation(relative, {
       vendor: this.options.vendorDir,
-      gameRoot: () => this.#gameRoot(project),
+      projectRoot: () => this.#projectRoot(project),
       liveRoot: () => this.#liveRoot(project),
-      pinnedGameRoot: () => this.#pinnedFor(project),
+      pinnedProjectRoot: () => this.#pinnedFor(project),
     });
     if (!served.ok) return textResponse(served.status);
     const target = served.path;
@@ -538,7 +538,7 @@ export class GamePreview {
   ): Promise<string | null> {
     const isEntry = this.#entryPath !== null && samePath(relative, this.#entryPath);
     const dest = request?.headers.get("sec-fetch-dest") ?? null;
-    // The cheap verdict first: every asset, every module, every fetch a game makes is decided
+    // The cheap verdict first: every asset, every module, every fetch a project makes is decided
     // here without touching the disk again.
     if (!shouldRewrite(response.headers.get("content-type"), relative, isEntry, dest, null)) return null;
     if (!(await this.#shimAvailable())) return null;
@@ -554,7 +554,7 @@ export class GamePreview {
       return null;
     }
     const html = await response.text();
-    const result = rewriteGameHtml(html, { shim: this.#shimOptions(), documentUrl });
+    const result = rewriteProjectHtml(html, { shim: this.#shimOptions(), documentUrl });
     for (const note of result.notes) this.#push({ at: Date.now(), level: "warning", message: note });
     if (isEntry) this.#reach = { reach: result.reach, hooked: result.hooked };
     return result.injected ? result.html : html;
@@ -581,8 +581,8 @@ export class GamePreview {
       this.#shimPresent = await stat(path.resolve(this.options.vendorDir, SHIM_PATH.slice("vendor/".length)))
         .then(() => true)
         .catch(() => false);
-      // The studio's own console, not the game's: a rig with a bare vendor directory is the
-      // studio's problem, and the game's console is evidence a judge reads.
+      // The studio's own console, not the project's: a rig with a bare vendor directory is the
+      // studio's problem, and the project's console is evidence a judge reads.
       if (!this.#shimPresent)
         console.warn(
           "the studio shim is not in this build's vendor directory; the studio cannot pace this page's clock",
@@ -600,26 +600,26 @@ export class GamePreview {
   #pinnedFor(project: string): string | null {
     const pinned = this.#pinnedRoot;
     if (pinned?.project !== project) return null;
-    return pinned.dir === path.resolve(this.#gameRoot(project)) ? pinned.real : null;
+    return pinned.dir === path.resolve(this.#projectRoot(project)) ? pinned.real : null;
   }
 
-  #gameRoot(project: string): string {
+  #projectRoot(project: string): string {
     if (this.#rootOverride?.project === project) return this.#rootOverride.dir;
     return this.#liveRoot(project);
   }
 
-  /** The game's own folder, whatever worktree the preview is showing instead. */
+  /** The project's own folder, whatever worktree the preview is showing instead. */
   #liveRoot(project: string): string {
     try {
       if (this.options.resolveRoot) return this.options.resolveRoot(project);
     } catch {
       /* unknown name — fall through to the library path, which 404s cleanly */
     }
-    return path.resolve(this.options.gamesRoot, project);
+    return path.resolve(this.options.projectsRoot, project);
   }
 
   /**
-   * Serve `game://<project>/`. Pass `root` to play a review worktree; omit it to return to the
+   * Serve `project://<project>/`. Pass `root` to play a review worktree; omit it to return to the
    * live folder. Same hostname either way, so relative URLs and `/vendor` keep working.
    */
   async load(
@@ -641,7 +641,7 @@ export class GamePreview {
     await this.#session?.clearCache().catch(() => {});
     this.#project = project;
     this.#rootOverride = root ? { project, dir: path.resolve(root) } : null;
-    const servedDir = path.resolve(this.#gameRoot(project));
+    const servedDir = path.resolve(this.#projectRoot(project));
     this.#pinnedRoot = { project, dir: servedDir, real: await realpath(servedDir).catch(() => null) };
     this.#loadError = null;
     this.#crashed = false;
@@ -660,7 +660,7 @@ export class GamePreview {
   }
 
   /**
-   * Stop the game: a blank page takes its place, so none of its scripts, frames or sound run, and
+   * Stop the project: a blank page takes its place, so none of its scripts, frames or sound run, and
    * its address is kept for `resume`. The view, its session and its place on the stage stay.
    */
   async stop(): Promise<void> {
@@ -676,7 +676,7 @@ export class GamePreview {
     }
   }
 
-  /** Play a stopped game again: its page from the top, as it was served. Nothing to do while it runs. */
+  /** Play a stopped project again: its page from the top, as it was served. Nothing to do while it runs. */
   async resume(): Promise<void> {
     const url = this.#stoppedUrl;
     const wc = this.#view?.webContents;
@@ -697,7 +697,7 @@ export class GamePreview {
   }
 
   async reload(): Promise<void> {
-    // Reload on a stopped game plays it: reloading the blank page would show nothing.
+    // Reload on a stopped project plays it: reloading the blank page would show nothing.
     if (this.#stoppedUrl !== null) return this.resume();
     this.#nativeDelivery = null;
     this.#pageSurfaceNoted = false;
@@ -781,9 +781,9 @@ export class GamePreview {
         drawCalls: typeof info?.drawCalls === "number" ? info.drawCalls : null,
         captureReason: typeof info?.reason === "string" ? info.reason : null,
         kind: (info?.kind as PreviewPixelStats["kind"]) ?? null,
-        // Who took the picture, and by which rung. A frame the game supplied is evidence about
-        // the game's own claim, not about its canvas, and a check that counts draws must know.
-        provenance: info?.provenance === "shim" || info?.provenance === "game" ? info.provenance : null,
+        // Who took the picture, and by which rung. A frame the project supplied is evidence about
+        // the project's own claim, not about its canvas, and a check that counts draws must know.
+        provenance: info?.provenance === "shim" || info?.provenance === "project" ? info.provenance : null,
         ladder: Array.isArray(info?.ladder) ? info.ladder.slice(0, 8).map((rung) => String(rung)) : null,
       },
       // What was PHOTOGRAPHED, not how it was read: a compositor frame is the whole page, and
@@ -850,7 +850,7 @@ export class GamePreview {
   }
 
   /**
-   * The whole surface question in one place (M4.5a). `canvas` is what the game draws, `page` is
+   * The whole surface question in one place (M4.5a). `canvas` is what the project draws, `page` is
    * the compositor frame with every DOM element on it — the menu, the loader, the HTML HUD —
    * and `auto` asks the page what it looks like before it decides. Only `auto` costs a probe,
    * and the probe can never fail a capture: every rung of the ladder falls toward a picture.
@@ -878,7 +878,7 @@ export class GamePreview {
   }
 
   /**
-   * What the page's own DOM paints over the game. `null` means the page could not be probed —
+   * What the page's own DOM paints over the project. `null` means the page could not be probed —
    * never that it has no UI. This is the second eye: a car select, a pause screen or a loader
    * that lives in the DOM is invisible to a canvas read, and used to be judged as a black frame.
    */
@@ -1016,7 +1016,7 @@ export class GamePreview {
 
   /**
    * `capturePage()` returns the compositor's last *presented* frame, not the canvas. A WebGL
-   * draw made synchronously (a `debugCamera` switch on a paused game) isn't presented until the
+   * draw made synchronously (a `debugCamera` switch on a paused project) isn't presented until the
    * next compositor commit, so a capture racing it grabs the previous camera's pixels — one run
    * lost 10 of 36 iterations to "close.jpg ≡ default.jpg". Two rAFs guarantee the draw was
    * committed and presented; the timeout keeps a hidden window (no rAF) from hanging a capture.
@@ -1050,7 +1050,7 @@ export class GamePreview {
   }
 
   /**
-   * Evaluate in the game's main world. The result is untrusted data — it is produced by code the
+   * Evaluate in the project's main world. The result is untrusted data — it is produced by code the
    * agent wrote — so it is size-capped and only ever handled as JSON.
    */
   async evaluate(expression: string, maxChars = 64_000): Promise<unknown> {
@@ -1101,7 +1101,7 @@ export class GamePreview {
   }
 
   /**
-   * Is this game connected to the studio, and how? The page half comes from the hook — what it
+   * Is this project connected to the studio, and how? The page half comes from the hook — what it
    * wrapped, what it has seen rendered, which scene and camera the last judged frame used — and
    * the studio's half from the serve layer, which knows how it reached the page's `three` and
    * whether the load failed before any of it ran.
@@ -1137,7 +1137,7 @@ export class GamePreview {
     try {
       await view.webContents.executeJavaScript(GL_PROBE, true);
     } catch {
-      /* a game that is still booting will get the probe on the next load */
+      /* a project that is still booting will get the probe on the next load */
     }
   }
 
@@ -1191,7 +1191,7 @@ export class GamePreview {
   }
 
   /**
-   * Drive the game the way a player does: keys, clicks, look. Chromium `sendInputEvent` plus
+   * Drive the project the way a player does: keys, clicks, look. Chromium `sendInputEvent` plus
    * DOM events plus `__studio.injectInput`, so a paused `step()` playthrough still sees WASD.
    */
   async input(actions: PreviewInputAction[]): Promise<{ ok: boolean; applied: number; width: number; height: number }> {
@@ -1305,7 +1305,7 @@ export class GamePreview {
         ];
   }
 
-  /** A line the studio itself puts on the game's console — a build that failed before the page could load. */
+  /** A line the studio itself puts on the project's console — a build that failed before the page could load. */
   note(level: string, message: string, options: { loadError?: boolean } = {}): void {
     this.#push({ at: Date.now(), level, message });
     if (options.loadError) this.#loadError = message;

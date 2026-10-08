@@ -1,6 +1,6 @@
 /**
  * The stage's loader never flashes: a load that finishes within the first moments shows nothing,
- * one that shows the loader keeps it up long enough to be read, and it fades out before the game
+ * one that shows the loader keeps it up long enough to be read, and it fades out before the project
  * is uncovered.
  */
 import assert from "node:assert/strict";

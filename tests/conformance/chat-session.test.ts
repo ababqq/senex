@@ -1,6 +1,6 @@
 /**
  * Chat = one folder + one contractor session. These helpers are the load-bearing shape:
- * a follow-up never guesses a sibling game, and "keep going" without a session still
+ * a follow-up never guesses a sibling project, and "keep going" without a session still
  * carries the original ask instead of briefing a blank new job.
  */
 import assert from "node:assert/strict";
@@ -28,15 +28,15 @@ describe("chat session helpers", () => {
     assert.equal(isContinueAsk("I want a rainy night city"), false);
   });
 
-  it("never guesses a project from preview or newest-game", () => {
-    const games = [
-      { name: "older", dir: "/games/older" },
-      { name: "newer", dir: "/games/newer" },
+  it("never guesses a project from preview or newest-project", () => {
+    const projects = [
+      { name: "older", dir: "/projects/older" },
+      { name: "newer", dir: "/projects/newer" },
     ];
-    assert.equal(resolveChatProject({}, games), null);
-    assert.equal(resolveChatProject({ project: "missing" }, games), null);
-    assert.equal(resolveChatProject({ newProject: true, project: "older" }, games), null);
-    assert.equal(resolveChatProject({ project: "older" }, games), "older");
+    assert.equal(resolveChatProject({}, projects), null);
+    assert.equal(resolveChatProject({ project: "missing" }, projects), null);
+    assert.equal(resolveChatProject({ newProject: true, project: "older" }, projects), null);
+    assert.equal(resolveChatProject({ project: "older" }, projects), "older");
   });
 
   it("skips keep-going lines when finding the original ask", () => {
@@ -58,11 +58,11 @@ describe("chat session helpers", () => {
         { role: "assistant", content: "Handing this to the contractor." },
         { role: "user", content: "Keep going" },
       ] as ChatMessage[],
-      folderLabel: "AI Games/blame",
+      folderLabel: "AI Projects/blame",
     });
     assert.match(brief, /Make Blame!/);
     assert.match(brief, /Latest instruction:\nKeep going/);
-    assert.match(brief, /this workspace \(folder `AI Games\/blame`\)/);
+    assert.match(brief, /this workspace \(folder `AI Projects\/blame`\)/);
     assert.doesNotMatch(brief, /You are resuming your own session/);
   });
 
@@ -71,7 +71,7 @@ describe("chat session helpers", () => {
       ask: "Keep going",
       messages: [{ role: "user", content: "Make Blame!" }] as ChatMessage[],
       resume: true,
-      folderLabel: "AI Games/blame",
+      folderLabel: "AI Projects/blame",
     });
     assert.match(brief, /resuming your own session/i);
     assert.doesNotMatch(brief, /Original request/);
@@ -110,7 +110,7 @@ describe("chat session helpers", () => {
   it("talks like a person first: small talk gets a short reply, no tools and nothing about the studio", () => {
     for (const brief of [
       buildContractorBrief({ ask: "Hello", fresh: true }),
-      buildContractorBrief({ ask: "hi", ownShape: true, shape: { main: "src/game.ts" } }),
+      buildContractorBrief({ ask: "hi", ownShape: true, shape: { main: "src/project.ts" } }),
     ]) {
       const talk = brief.search(/greeting/i);
       assert.ok(talk >= 0, "the brief says how to answer a greeting");
@@ -123,16 +123,16 @@ describe("chat session helpers", () => {
     );
   });
 
-  it("briefs a brand-new game's first message as a blank page, and a built one's as code to continue", () => {
-    const fresh = buildContractorBrief({ ask: "Hello", fresh: true, folderLabel: "AI Games/untitled-game" });
+  it("briefs a brand-new project's first message as a blank page, and a built one's as code to continue", () => {
+    const fresh = buildContractorBrief({ ask: "Hello", fresh: true, folderLabel: "AI Projects/untitled-project" });
     assert.doesNotMatch(fresh, /existing code/);
     assert.match(fresh, /nothing has been built/i);
-    assert.match(buildContractorBrief({ ask: "Hello", folderLabel: "AI Games/arena" }), /existing code/);
+    assert.match(buildContractorBrief({ ask: "Hello", folderLabel: "AI Projects/arena" }), /existing code/);
   });
 });
 
-describe("a chat's first message in a game", () => {
-  /** The brief a game's first message is delegated with, its folder at `commits` commits and `changes` uncommitted. */
+describe("a chat's first message in a project", () => {
+  /** The brief a project's first message is delegated with, its folder at `commits` commits and `changes` uncommitted. */
   async function briefFor({
     commits,
     changes = "",
@@ -149,8 +149,8 @@ describe("a chat's first message in a game", () => {
       handlers: {
         "events.messages": () => [...prior, { role: "user", content: "Hello" }],
         "events.list": () => [],
-        "game.list": () => [{ name: "untitled-game", title: "Untitled game", dir: "/g/untitled-game" }],
-        "game.contentStamp": () => ({ all: "same", source: "same" }),
+        "project.list": () => [{ name: "untitled-project", title: "Untitled project", dir: "/g/untitled-project" }],
+        "project.contentStamp": () => ({ all: "same", source: "same" }),
         "run.exec": (params) => {
           const command = String(params.command);
           if (command.includes("rev-list")) return { code: 0, stdout: `${commits}\n`, stderr: "" };
@@ -169,12 +169,12 @@ describe("a chat's first message in a game", () => {
       text: "Hello",
       engine: "claude-code",
       engineLabel: "Claude Code",
-      project: "untitled-game",
+      project: "untitled-project",
     });
     return prompts[0] ?? "";
   }
 
-  it("is a blank page when nothing has been made in the game since the studio made it", async () => {
+  it("is a blank page when nothing has been made in the project since the studio made it", async () => {
     assert.match(await briefFor({ commits: "1" }), /nothing has been built/i);
   });
 
@@ -182,7 +182,7 @@ describe("a chat's first message in a game", () => {
     assert.match(await briefFor({ commits: "3" }), /existing code/);
     assert.match(await briefFor({ commits: "1", changes: " M src/main.js\n" }), /existing code/);
     assert.doesNotMatch(
-      await briefFor({ commits: "1", prior: [{ role: "user", content: "Make a fishing game" }] }),
+      await briefFor({ commits: "1", prior: [{ role: "user", content: "Make a fishing project" }] }),
       /nothing has been built/i,
     );
   });

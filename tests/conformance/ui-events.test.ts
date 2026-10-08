@@ -24,8 +24,8 @@ import { coreLite } from "../helpers/core-lite.ts";
 import { stringVocabularies, vocabularyValues } from "../helpers/vocabulary-scan.ts";
 
 const SRC = path.resolve(import.meta.dirname, "../../src");
-// Code shipped into the games themselves: its emitters are the game's, not the studio's.
-const NOT_STUDIO = new Set(["game-template", "page", "node_modules"]);
+// Code shipped into the projects themselves: its emitters are the project's, not the studio's.
+const NOT_STUDIO = new Set(["project-template", "page", "node_modules"]);
 
 async function studioSources(): Promise<string[]> {
   const entries = await readdir(SRC, { recursive: true, withFileTypes: true });
@@ -106,10 +106,10 @@ test("contract: every literal name passed to emit, notify or pushUiEvent in src 
 test("StudioCore.emit hands the renderer the name and payload unchanged", async () => {
   const heard: UiEvent[] = [];
   const { core } = await coreLite({ init: false, onUiEvent: (event) => heard.push(event) });
-  core.emit("game.changed", { project: "pong", file: "src/main.js" });
+  core.emit("project.changed", { project: "pong", file: "src/main.js" });
   core.emit("engines.changed", {});
   assert.deepEqual(heard, [
-    { type: "game.changed", payload: { project: "pong", file: "src/main.js" } },
+    { type: "project.changed", payload: { project: "pong", file: "src/main.js" } },
     { type: "engines.changed", payload: {} },
   ]);
 });
@@ -171,7 +171,7 @@ test("the guards: a known name, a UI event, a family of names", () => {
 function typecheckOnly(core: StudioCore, event: UiEvent): void {
   core.emit("delegation.started", { project: "pong", engine: "codex", active: 1 });
   // @ts-expect-error a name outside the map
-  core.emit("game.renamed", {});
+  core.emit("project.renamed", {});
   // @ts-expect-error a payload that is not its name's
   core.emit("run.summary.changed", { project: "pong" });
   // @ts-expect-error a required field missing

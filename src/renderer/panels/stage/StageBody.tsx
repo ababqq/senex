@@ -1,4 +1,4 @@
-/** What fills the stage's rectangle when it is not the running game: setup, the loader, an empty game, Builds, Assets or a file. */
+/** What fills the stage's rectangle when it is not the running project: setup, the loader, an empty project, Builds, Assets or a file. */
 import type { JSX } from "react";
 import type { RunGraph as RunGraphModel } from "../../run-graph.ts";
 import { readyToPlay } from "../../run-steps.ts";
@@ -32,10 +32,12 @@ export function StageEmpty({
   );
 }
 
-/** No game is open: teach setup when nothing can run yet, else point at the sidebar. */
-export function NoGame({ showSetup }: { showSetup: boolean }): JSX.Element {
+/** No project is open: teach setup when nothing can run yet, else point at the sidebar. */
+export function NoProject({ showSetup }: { showSetup: boolean }): JSX.Element {
   if (!showSetup)
-    return <StageEmpty art="none" title="Your game appears here" subtitle="Start or open a game from the sidebar." />;
+    return (
+      <StageEmpty art="none" title="Your project appears here" subtitle="Start or open a project from the sidebar." />
+    );
   return (
     <div className="hatch absolute inset-0 grid place-items-center overflow-y-auto p-8">
       <ModelSetup />
@@ -67,7 +69,7 @@ export function ModelSetup(): JSX.Element {
  * A night is building in its builders' own copies. Once it has a build ready to play, the one thing
  * a person waiting here wants is to press Play latest; until then, the way to watch it being made.
  */
-function BuildingGame({
+function BuildingProject({
   graph,
   project,
   onWatch,
@@ -82,7 +84,7 @@ function BuildingGame({
   return (
     <StageEmpty
       art="building"
-      title="Building your game"
+      title="Building your project"
       subtitle={head ? "The latest build is ready to play." : "It shows up here as soon as it runs."}
       action={
         head ? (
@@ -98,11 +100,11 @@ function BuildingGame({
 }
 
 /**
- * The game's folder has nothing in it yet. While a night runs, this folder being empty is not the
+ * The project's folder has nothing in it yet. While a night runs, this folder being empty is not the
  * whole story: the work is happening in the builders' own copies, and the user is one click from
  * watching it — or, once a build is ready, from playing it.
  */
-export function EmptyGame({
+export function EmptyProject({
   graph,
   project,
   onWatch,
@@ -113,9 +115,9 @@ export function EmptyGame({
   onWatch: () => void;
   onPlay: (head: string) => Promise<void>;
 }): JSX.Element {
-  if (graph?.active) return <BuildingGame graph={graph} project={project} onWatch={onWatch} onPlay={onPlay} />;
+  if (graph?.active) return <BuildingProject graph={graph} project={project} onWatch={onWatch} onPlay={onPlay} />;
   return (
-    <StageEmpty art="idea" title="Ready for your first idea" subtitle="Describe your game in the chat to begin." />
+    <StageEmpty art="idea" title="Ready for your first idea" subtitle="Describe your project in the chat to begin." />
   );
 }
 
@@ -140,16 +142,16 @@ export function PlanningBuild({ since }: { since?: number }): JSX.Element {
 export function LiveLoading({ leaving }: { leaving: boolean }): JSX.Element {
   return (
     <div data-live-loading className="absolute inset-0 grid place-items-center p-8">
-      <StageLoading label="Loading game" leaving={leaving} />
+      <StageLoading label="Loading project" leaving={leaving} />
     </div>
   );
 }
 
 /**
- * The person stopped the game. While a night builds, the stage is what it is for a building game
- * (the crane, Play latest or Watch progress); otherwise it says the game is stopped, with Play.
+ * The person stopped the project. While a night builds, the stage is what it is for a building project
+ * (the crane, Play latest or Watch progress); otherwise it says the project is stopped, with Play.
  */
-export function StoppedGame({
+export function StoppedProject({
   graph,
   project,
   onWatch,
@@ -162,8 +164,13 @@ export function StoppedGame({
   onPlay: (head: string) => Promise<void>;
   onResume: () => void;
 }): JSX.Element {
-  if (graph?.active) return <BuildingGame graph={graph} project={project} onWatch={onWatch} onPlay={onPlay} />;
+  if (graph?.active) return <BuildingProject graph={graph} project={project} onWatch={onWatch} onPlay={onPlay} />;
   return (
-    <StageEmpty art="stopped" title="Game stopped" subtitle="" action={<PlayButton label="Play" onPlay={onResume} />} />
+    <StageEmpty
+      art="stopped"
+      title="Project stopped"
+      subtitle=""
+      action={<PlayButton label="Play" onPlay={onResume} />}
+    />
   );
 }

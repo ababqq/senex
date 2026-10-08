@@ -153,7 +153,7 @@ export interface ProductDefaults {
 
 /**
  * Run inside the evaluated checkout: import its Loop and permission modules with no storage and no
- * window, and report the commission a fresh game chat's composer sends, the default permission mode,
+ * window, and report the commission a fresh project chat's composer sends, the default permission mode,
  * and any global the imports added (a module that adds one is not pure).
  */
 const DEFAULTS_SCRIPT = `
@@ -165,7 +165,7 @@ const loop = await import(at(${JSON.stringify(DEFAULT_MODULES.loop)}));
 const permissions = await import(at(${JSON.stringify(DEFAULT_MODULES.permissions)}));
 const addedGlobals = Object.getOwnPropertyNames(globalThis).filter((name) => !before.has(name));
 const view = loop.composerLoopView({ own: loop.lastLoop(null), build: null });
-const extras = loop.composerExtras({ gameMode: true, view, reviewPlan: false, frames: [] });
+const extras = loop.composerExtras({ projectMode: true, view, reviewPlan: false, frames: [] });
 const send = extras.autopilot && typeof loop.autopilotSendOptions === "function"
   ? loop.autopilotSendOptions(extras.autopilot, null)
   : null;
@@ -241,12 +241,12 @@ export async function productDefaults(checkout: string, run: CommandRunner = sys
 }
 
 /**
- * Where a Genex run keeps its profile, games, spec and report under a root: its lane root while it
+ * Where a Genex run keeps its profile, projects, spec and report under a root: its lane root while it
  * runs (the app's `workRoot`), its work root once the scheduler moved them. Its logs stay in the work root.
  */
 export function genexPaths(workRoot: string): {
   userDataRoot: string;
-  gamesRoot: string;
+  projectsRoot: string;
   specPath: string;
   reportPath: string;
   stdoutPath: string;
@@ -255,7 +255,7 @@ export function genexPaths(workRoot: string): {
   const at = (name: string) => path.join(workRoot, name);
   return {
     userDataRoot: at("userdata"),
-    gamesRoot: at("games"),
+    projectsRoot: at("projects"),
     specPath: at("lane-spec.json"),
     reportPath: at("lane-report.json"),
     stdoutPath: at("stdout.log"),
@@ -289,7 +289,7 @@ export function laneSpec(
     answerPolicy: request.answerPolicy,
     maxAnswers: request.maxAnswers,
     codexHostSkillSuppression: request.lane.engine === EngineId.Codex,
-    gamesRoot: paths.gamesRoot,
+    projectsRoot: paths.projectsRoot,
     userDataRoot: paths.userDataRoot,
     workRoot: request.laneRoot,
     homes: request.homes,
@@ -390,7 +390,7 @@ export function reportHarnessFailure(
   return null;
 }
 
-/** Exits that mean the app's lane runner refused or failed before it could report (not the game crashing). */
+/** Exits that mean the app's lane runner refused or failed before it could report (not the project crashing). */
 const APP_FAILED_EXITS: ReadonlySet<number | null> = new Set([EVAL_LANE_EXIT.Refused, EVAL_LANE_EXIT.Failed]);
 
 /** The failure of a launch that left no report: a refusal or a failed lane runner is the app's; anything else is not typed. */
@@ -457,11 +457,11 @@ export async function runGenexAppLane(request: LaneRunRequest, deps: GenexLaneDe
   if (!build) throw new Error("a Genex lane needs an eval app build");
   const paths = genexPaths(request.laneRoot);
   const logs = genexPaths(request.workRoot);
-  const artifacts = genexArtifacts(request, paths.gamesRoot);
+  const artifacts = genexArtifacts(request, paths.projectsRoot);
   if (!request.live)
     return genexResult(request, artifacts, { at: deps.supervisor.clock.now(), railFired: false }, null);
   await createRunWorkspace(request.workRoot, deps.home, request.laneRoot);
-  await mkdir(paths.gamesRoot, { recursive: true });
+  await mkdir(paths.projectsRoot, { recursive: true });
   const executables = request.lane.fixture ? undefined : await laneExecutables(deps.resolveCli);
   const spec = laneSpec(request, await productDefaults(build.dir, deps.run), executables);
   await writeFile(paths.specPath, `${JSON.stringify(spec, null, 2)}\n`, "utf8");

@@ -20,7 +20,7 @@ import { removeTree } from "../helpers/tmp.ts";
 import type { EventData, EventEnvelope } from "../../src/substrate/types.ts";
 const event = (id: number, data: EventData): EventEnvelope => ({
   id: String(id).padStart(6, "0"),
-  thread_id: "game",
+  thread_id: "project",
   turn_id: "turn",
   session_id: null,
   created_at: new Date(id).toISOString(),
@@ -34,7 +34,7 @@ test("history pages are bounded, ordered, gap-free, stable during appends, and p
     const store = await EventStore.open(root);
     const thread = await store.createThread();
     await store.appendEvents(thread, [
-      { type: "custom", event_type: "run_started", payload: { runId: "long-build", project: "game" } },
+      { type: "custom", event_type: "run_started", payload: { runId: "long-build", project: "project" } },
     ]);
     for (let batch = 0; batch < 4; batch++)
       await store.appendEvents(
@@ -136,7 +136,7 @@ test("a worker's context reading on the chat's model cannot evict the main sessi
   const said = (id: number) =>
     event(id, { type: EventKind.Messages, messages: [{ role: "assistant", content: `Step ${id}` }] });
   // The main session measured itself, then a base builder and a playtester on the same model
-  // mirrored theirs into the game thread, and the chat went on long past one history page.
+  // mirrored theirs into the project thread, and the chat went on long past one history page.
   const log = [
     reading(1, undefined, 1_000),
     reading(2, SessionActivityRole.Planner, 40_000),
@@ -261,7 +261,7 @@ test("tools reconcile by identity and never infer success from missing mirrored 
     event(1, {
       type: "tool_requested",
       tool_call_id: "a",
-      request: { name: "read_file", arguments: { path: "game.ts" } },
+      request: { name: "read_file", arguments: { path: "project.ts" } },
     }),
     event(2, {
       type: "tool_requested",
@@ -300,7 +300,7 @@ test("parallel plugin calls match their own outcomes and delivered assets stay v
     }),
     custom(3, "plugin_tool", { callId: "b", pluginName: "Images", ok: false, error: "Generation failed" }),
     custom(4, "asset_delivered", {
-      project: "game",
+      project: "project",
       source: "images",
       jobId: "a",
       at: "now",
@@ -315,21 +315,21 @@ test("parallel plugin calls match their own outcomes and delivered assets stay v
   assert.equal(new Set(entries.map((e) => e.id)).size, entries.length);
 });
 
-test("build-workspace deliveries wait for their run result; game-folder deliveries show where they land", () => {
+test("build-workspace deliveries wait for their run result; project-folder deliveries show where they land", () => {
   const file = (name: string) => [
     { file: `assets/genex/0d99db96-677f-436b-abcf-5da04d1e06cf/${name}`, kind: "audio", bytes: 4 },
   ];
   const entries = toEntries([
     custom(1, "asset_delivered", {
-      project: "game",
+      project: "project",
       source: "genex",
       jobId: "chat",
       at: "now",
-      workspace: "game",
+      workspace: "project",
       files: file("chat.mp3"),
     }),
     custom(2, "asset_delivered", {
-      project: "game",
+      project: "project",
       source: "genex",
       jobId: "director",
       at: "now",
@@ -338,16 +338,16 @@ test("build-workspace deliveries wait for their run result; game-folder deliveri
       files: file("kick.mp3"),
     }),
     custom(3, "asset_delivered", {
-      project: "game",
+      project: "project",
       source: "genex",
       jobId: "legacy",
       at: "now",
       runId: "run_a",
       files: file("whistle.mp3"),
     }),
-    custom(4, "run_finished", { runId: "run_a", project: "game", landed: false, stoppedBecause: "paused" }),
+    custom(4, "run_finished", { runId: "run_a", project: "project", landed: false, stoppedBecause: "paused" }),
     custom(5, "asset_delivered", {
-      project: "game",
+      project: "project",
       source: "genex",
       jobId: "resumed",
       at: "now",
@@ -355,9 +355,9 @@ test("build-workspace deliveries wait for their run result; game-folder deliveri
       workspace: "build",
       files: file("crowd.mp3"),
     }),
-    custom(6, "run_finished", { runId: "run_a", project: "game", landed: true }),
+    custom(6, "run_finished", { runId: "run_a", project: "project", landed: true }),
     custom(7, "asset_delivered", {
-      project: "game",
+      project: "project",
       source: "genex",
       jobId: "orphan",
       at: "now",
@@ -380,11 +380,11 @@ test("build-workspace deliveries wait for their run result; game-folder deliveri
 
 test("a run's earlier result card is superseded by its later close, so only the latest offers Resume", () => {
   const entries = toEntries([
-    custom(1, "run_started", { runId: "r", project: "game" }),
-    custom(2, "run_finished", { runId: "r", project: "game", landed: true }),
-    custom(3, "run_registered", { runId: "r", project: "game", resumed: true }),
-    custom(4, "run_finished", { runId: "r", project: "game", executionStatus: "paused" }),
-    custom(5, "autopilot_paused", { runId: "r", project: "game" }),
+    custom(1, "run_started", { runId: "r", project: "project" }),
+    custom(2, "run_finished", { runId: "r", project: "project", landed: true }),
+    custom(3, "run_registered", { runId: "r", project: "project", resumed: true }),
+    custom(4, "run_finished", { runId: "r", project: "project", executionStatus: "paused" }),
+    custom(5, "autopilot_paused", { runId: "r", project: "project" }),
   ]);
   const results = entries.flatMap((e) => (e.kind === "morning" ? [e] : []));
   assert.deepEqual(
@@ -463,7 +463,7 @@ test("cancelled plans stay at their recorded position when a later conversation 
   const rows = toEntries([
     custom(1, "plan_review", { id: "plan", state: "cancelled" }),
     event(2, { type: "messages", messages: [{ role: "user", content: "Build something else" }] }),
-    event(3, { type: "messages", messages: [{ role: "assistant", content: "The new game is ready." }] }),
+    event(3, { type: "messages", messages: [{ role: "assistant", content: "The new project is ready." }] }),
   ]);
   assert.deepEqual(
     rows.map((row) => row.kind),
@@ -619,9 +619,9 @@ test("a Stop with a follow-up waiting hands over to it; a plain Stop shows one s
       runId: "r",
       stoppedBecause: "stopped by the user",
       executionStatus: "paused",
-      project: "game",
+      project: "project",
     }),
-    custom(id + 1, "autopilot_paused", { runId: "r", project: "game" }),
+    custom(id + 1, "autopilot_paused", { runId: "r", project: "project" }),
   ];
   const handed = toEntries([custom(0, "run_started", { runId: "r" }), ...queued, ...stop(3)]);
   assert.equal(
@@ -693,12 +693,12 @@ test("another delegation's end does not end the reply in progress", () => {
 test("the live tail keeps the loaded array when nothing new arrived for this thread", () => {
   const loaded = [event(1, { type: "error", message: "a" }), event(2, { type: "error", message: "b" })];
   const other = { ...event(3, { type: "error", message: "other chat" }), thread_id: "other" };
-  assert.equal(withLiveTail(loaded, [], "game"), loaded, "no live events");
-  assert.equal(withLiveTail(loaded, [other], "game"), loaded, "another chat's event is not news here");
-  assert.equal(withLiveTail(loaded, [loaded[0]!, loaded[1]!], "game"), loaded, "events already on the page");
+  assert.equal(withLiveTail(loaded, [], "project"), loaded, "no live events");
+  assert.equal(withLiveTail(loaded, [other], "project"), loaded, "another chat's event is not news here");
+  assert.equal(withLiveTail(loaded, [loaded[0]!, loaded[1]!], "project"), loaded, "events already on the page");
   const fresh = event(4, { type: "error", message: "new" });
   assert.deepEqual(
-    withLiveTail(loaded, [other, fresh], "game").map((e) => e.id),
+    withLiveTail(loaded, [other, fresh], "project").map((e) => e.id),
     [loaded[0]!.id, loaded[1]!.id, fresh.id],
   );
 });
@@ -712,7 +712,7 @@ test("routine narration folds by what its record says, not by the words written 
           ? `line:${entry.tag}`
           : entry.kind,
     );
-  const run = { runId: "r", project: "game", facetId: "sky", facetTitle: "Sky" };
+  const run = { runId: "r", project: "project", facetId: "sky", facetTitle: "Sky" };
   // A lead's decision is only its sentence (no structured outcome yet), so its words still decide.
   assert.deepEqual(
     lines([

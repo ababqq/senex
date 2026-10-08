@@ -1,6 +1,6 @@
 /**
  * Every dialog the app shell opens — the open-folder sheet, Settings, search, and a
- * game's rename, delete and cover — with their open state in one local reducer. Dialogs are UI,
+ * project's rename, delete and cover — with their open state in one local reducer. Dialogs are UI,
  * not studio state: they live here, not in a store. App opens them through `useAppDialogs()`.
  */
 import type { JSX, RefObject } from "react";
@@ -17,11 +17,11 @@ import { useEngines, useLibrary, useThreads } from "../state/hooks.ts";
 import { rootLabelChanged } from "../state/library.ts";
 import { type Studio, studio } from "../state/studio.ts";
 import { notifyProblem } from "../state/toasts.ts";
-import type { FolderInspection, GameProject } from "../types.ts";
-import { GameCoverDialog } from "./GameCoverDialog.tsx";
-import { DeleteGameDialog, RenameGameDialog } from "./GameDialogs.tsx";
-import { GameSearchDialog } from "./GameSearchDialog.tsx";
-import { OpenGameSheet } from "./OpenGameSheet.tsx";
+import type { FolderInspection, Project } from "../types.ts";
+import { ProjectCoverDialog } from "./ProjectCoverDialog.tsx";
+import { DeleteProjectDialog, RenameProjectDialog } from "./ProjectDialogs.tsx";
+import { ProjectSearchDialog } from "./ProjectSearchDialog.tsx";
+import { OpenProjectSheet } from "./OpenProjectSheet.tsx";
 import { SettingsDialog } from "./SettingsDialog.tsx";
 
 export interface DialogsState {
@@ -29,7 +29,7 @@ export interface DialogsState {
   settingsOpen: boolean;
   /** The Settings section last shown; reopening Settings returns to it. */
   settingsSection: SettingsSection;
-  game: { kind: "rename" | "delete" | "cover"; game: GameProject } | null;
+  project: { kind: "rename" | "delete" | "cover"; project: Project } | null;
   /** The picked folder, as it is on disk, while the open sheet asks what to do with it. */
   picked: FolderInspection | null;
   /** The sheet's answer is being carried out. */
@@ -37,10 +37,10 @@ export interface DialogsState {
 }
 
 export type DialogAction =
-  | { type: "search" | "close-search" | "close-settings" | "close-game" }
+  | { type: "search" | "close-search" | "close-settings" | "close-project" }
   | { type: "settings"; section?: SettingsSection }
   | { type: "section"; section: SettingsSection }
-  | { type: "game"; kind: "rename" | "delete" | "cover"; game: GameProject }
+  | { type: "project"; kind: "rename" | "delete" | "cover"; project: Project }
   | { type: "picked"; inspection: FolderInspection }
   | { type: "dismiss-picked" }
   | { type: "opening"; opening: boolean }
@@ -50,7 +50,7 @@ export const initialDialogs: DialogsState = {
   searching: false,
   settingsOpen: false,
   settingsSection: SettingsSection.Providers,
-  game: null,
+  project: null,
   picked: null,
   opening: false,
 };
@@ -67,10 +67,10 @@ export function dialogsReducer(state: DialogsState, action: DialogAction): Dialo
       return { ...state, settingsSection: action.section };
     case "close-settings":
       return { ...state, settingsOpen: false };
-    case "game":
-      return { ...state, game: { kind: action.kind, game: action.game } };
-    case "close-game":
-      return { ...state, game: null };
+    case "project":
+      return { ...state, project: { kind: action.kind, project: action.project } };
+    case "close-project":
+      return { ...state, project: null };
     // Home's Open a folder… found a folder: the sheet takes over.
     case "picked":
       return { ...state, picked: action.inspection };
@@ -115,7 +115,7 @@ export function useAppDialogs(): AppDialogs {
   return { state, dispatch, settingsReturnFocus, openSettings };
 }
 
-/** Carry out the open sheet's answer: adopt the folder and open the game. */
+/** Carry out the open sheet's answer: adopt the folder and open the project. */
 function openPickedFolder(
   app: Studio,
   { state, dispatch }: AppDialogs,
@@ -128,8 +128,8 @@ function openPickedFolder(
   void adoptPickedFolder(app.api, picked.dir, choice)
     .then((opened) => {
       dispatch({ type: "opened" });
-      void app.library.refreshGames();
-      // A folder with a game of its own is told what the studio found and that it kept it.
+      void app.library.refreshProjects();
+      // A folder with a project of its own is told what the studio found and that it kept it.
       if (opened.built) app.notify(openedWords(opened.title, opened.shape));
       onEnterProject(opened.name);
     })
@@ -142,27 +142,27 @@ export function AppDialogs({
   firstAsks,
   onEnterProject,
   onSelectThread,
-  onSelectGame,
-  onRemoveGame,
+  onSelectProject,
+  onRemoveProject,
 }: {
   dialogs: AppDialogs;
   firstAsks: Record<string, string>;
-  /** Delete a game; App moves the room when the stage held it. */
-  onRemoveGame: (name: string) => Promise<void>;
-  /** Open a game (and, for a game just made, put the cursor in its composer). */
+  /** Delete a project; App moves the room when the stage held it. */
+  onRemoveProject: (name: string) => Promise<void>;
+  /** Open a project (and, for a project just made, put the cursor in its composer). */
   onEnterProject: (name: string, focusComposer?: boolean) => void;
   onSelectThread: (threadId: string) => void;
-  onSelectGame: (name: string) => void;
+  onSelectProject: (name: string) => void;
 }): JSX.Element {
   const { state, dispatch } = dialogs;
-  const games = useLibrary((s) => s.games);
+  const projects = useLibrary((s) => s.projects);
   const rootLabel = useLibrary((s) => s.rootLabel);
   const threads = useThreads((s) => s.records);
   const engines = useEngines((s) => s.list);
   const app = studio();
   const openPicked = (choice: OpenChoice): void => openPickedFolder(app, dialogs, choice, onEnterProject);
 
-  const dialogGame = state.game;
+  const dialogProject = state.project;
   return (
     <>
       {state.settingsOpen && (
@@ -175,43 +175,43 @@ export function AppDialogs({
           // The store's own refresh: one function for the app's life. Settings keys an effect on it,
           // so a new closure per render would re-read the engines on every update while it is open.
           onEnginesRefresh={app.engines.refresh}
-          gamesRootLabel={rootLabel}
-          onGamesRoot={(label) => app.library.setState((s) => rootLabelChanged(s, label), true)}
+          projectsRootLabel={rootLabel}
+          onProjectsRoot={(label) => app.library.setState((s) => rootLabelChanged(s, label), true)}
         />
       )}
       {state.searching && (
-        <GameSearchDialog
-          games={games}
+        <ProjectSearchDialog
+          projects={projects}
           threads={threads}
           firstAsks={firstAsks}
           onDismiss={() => dispatch({ type: "close-search" })}
-          onSelectGame={onSelectGame}
+          onSelectProject={onSelectProject}
           onSelectThread={onSelectThread}
         />
       )}
-      {dialogGame?.kind === "rename" && (
-        <RenameGameDialog
-          game={dialogGame.game}
-          onSave={(patch) => app.saveGame(dialogGame.game.name, patch)}
-          onDismiss={() => dispatch({ type: "close-game" })}
+      {dialogProject?.kind === "rename" && (
+        <RenameProjectDialog
+          project={dialogProject.project}
+          onSave={(patch) => app.saveProject(dialogProject.project.name, patch)}
+          onDismiss={() => dispatch({ type: "close-project" })}
         />
       )}
-      {dialogGame?.kind === "delete" && (
-        <DeleteGameDialog
-          game={dialogGame.game}
-          onDelete={() => onRemoveGame(dialogGame.game.name)}
-          onDismiss={() => dispatch({ type: "close-game" })}
+      {dialogProject?.kind === "delete" && (
+        <DeleteProjectDialog
+          project={dialogProject.project}
+          onDelete={() => onRemoveProject(dialogProject.project.name)}
+          onDismiss={() => dispatch({ type: "close-project" })}
         />
       )}
-      {dialogGame?.kind === "cover" && (
-        <GameCoverDialog
-          game={dialogGame.game}
-          onSave={(patch) => app.saveGame(dialogGame.game.name, patch)}
-          onDismiss={() => dispatch({ type: "close-game" })}
+      {dialogProject?.kind === "cover" && (
+        <ProjectCoverDialog
+          project={dialogProject.project}
+          onSave={(patch) => app.saveProject(dialogProject.project.name, patch)}
+          onDismiss={() => dispatch({ type: "close-project" })}
         />
       )}
       {state.picked ? (
-        <OpenGameSheet
+        <OpenProjectSheet
           // Another folder is another question: the sheet starts again on the row `inspect`
           // suggested for it, with its primary button focused.
           key={state.picked.dir}

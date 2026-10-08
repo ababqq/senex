@@ -1,6 +1,6 @@
 /**
  * A hermetic campaign world for the scheduler and CLI tests: an evals home under a caller's root,
- * fake lanes that replay the fixture streams (raw) or seed and edit a game with a lane report
+ * fake lanes that replay the fixture streams (raw) or seed and edit a project with a lane report
  * (Genex), the real canary judge over a fake server and a scripted boot probe, manual watch timers
  * and the real ledger writer. Every value is invented; nothing touches a provider or the network.
  */
@@ -74,7 +74,7 @@ export interface LaneScript {
   cliVersion?: (request: LaneRunRequest, index: number) => string;
   /** A Genex run that seeds and never edits. */
   untouched?: (request: LaneRunRequest) => boolean;
-  /** A Genex run whose agent edits the seeded game at once, before the campaign's seed poll could land. */
+  /** A Genex run whose agent edits the seeded project at once, before the campaign's seed poll could land. */
   editsAtOnce?: (request: LaneRunRequest) => boolean;
   /** A raw run that writes no page. */
   noPage?: (request: LaneRunRequest) => boolean;
@@ -175,19 +175,19 @@ async function fakeRawLane(ctx: WorldContext, request: LaneRunRequest, index: nu
 
 /**
  * A Genex lane: the app seeds the template and reports its digest (as the real lane does when the
- * chat is bound), the campaign's seed poll finds the game and starts the watcher, then the agent
+ * chat is bound), the campaign's seed poll finds the project and starts the watcher, then the agent
  * edits it (or not; or at once, before any poll).
  */
 async function fakeGenexLane(ctx: WorldContext, request: LaneRunRequest, index: number): Promise<LaneRunResult> {
   await createRunWorkspace(request.workRoot, ctx.userHome, request.laneRoot);
-  const gameDir = path.join(request.laneRoot, "games", "game-1");
-  await mkdir(gameDir, { recursive: true });
-  await writeFile(path.join(gameDir, "index.html"), TEMPLATE_PAGE);
-  const templateDigest = await workspaceDigest(gameDir);
-  const edit = () => writeFile(path.join(gameDir, "index.html"), "<canvas id=game></canvas>");
+  const projectDir = path.join(request.laneRoot, "projects", "project-1");
+  await mkdir(projectDir, { recursive: true });
+  await writeFile(path.join(projectDir, "index.html"), TEMPLATE_PAGE);
+  const templateDigest = await workspaceDigest(projectDir);
+  const edit = () => writeFile(path.join(projectDir, "index.html"), "<canvas id=project></canvas>");
   const atOnce = ctx.script.editsAtOnce?.(request) === true;
   if (atOnce) await edit();
-  // The seed poll ends once the snapshot watcher runs on the seeded game.
+  // The seed poll ends once the snapshot watcher runs on the seeded project.
   for (let tries = 0; tries < 200 && ctx.timers.has(SEED_POLL_MS); tries++) {
     ctx.timers.fire(SEED_POLL_MS);
     await delay(2);
@@ -195,10 +195,10 @@ async function fakeGenexLane(ctx: WorldContext, request: LaneRunRequest, index: 
   if (!atOnce && !ctx.script.untouched?.(request)) await edit();
   const startedAt = ctx.now();
   const reportPath = path.join(request.laneRoot, "lane-report.json");
-  const report = { ...laneReport(request, gameDir, startedAt, ctx.now()), templateDigest };
+  const report = { ...laneReport(request, projectDir, startedAt, ctx.now()), templateDigest };
   await writeFile(reportPath, JSON.stringify(report));
   const eventLogDir = path.join(request.laneRoot, "userdata");
-  return fakeResult(ctx, request, index, { projectDir: gameDir, streamPath: null, startedAt, eventLogDir, reportPath });
+  return fakeResult(ctx, request, index, { projectDir: projectDir, streamPath: null, startedAt, eventLogDir, reportPath });
 }
 
 /** The lane runner: counts how many runs of each provider (and in all) overlap, then runs the fake lane. */

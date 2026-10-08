@@ -22,7 +22,7 @@
       "note": "learned over run_mthlnp75kmex, rituals, 5 rejections: 0.4–0.6 units ahead, sprites 0.02–0.08, 5–15 per puff, opacity ≤0.35, shrink over 2–3 s; >10% of frame is a blob"
     },
     {
-      "source": "skills/game-contract.md (deployed, 1 Sep 2026)",
+      "source": "skills/project-contract.md (deployed, 1 Sep 2026)",
       "note": "first-person controller is a mode toggle, not the default camera; debugCamera must override it and re-render synchronously"
     }
   ],

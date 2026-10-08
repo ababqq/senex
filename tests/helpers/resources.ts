@@ -22,7 +22,7 @@ export async function makeResources({ tsc = true }: { tsc?: boolean } = {}): Pro
   await mkdir(dir, { recursive: true });
   await cp(path.join(src, "harness-seed"), path.join(dir, "harness-seed"), { recursive: true });
   await cp(path.join(src, "harness-boot"), path.join(dir, "harness-boot"), { recursive: true });
-  await cp(path.join(src, "game-template"), path.join(dir, "game-template"), { recursive: true });
+  await cp(path.join(src, "project-template"), path.join(dir, "project-template"), { recursive: true });
   await buildPlugins(path.dirname(src), dir, { dependencies: false });
   // Headless rigs must never contact the real account service after a fixture unlock.
   // genex-creator-mcp.test.ts exercises the actual packaged bridge separately.

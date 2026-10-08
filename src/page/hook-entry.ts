@@ -3,7 +3,7 @@
  * ahead of a map disables it.
  *
  * It exists so the hook is on every page, including a page whose `three` never passes through the
- * import map at all (a bundled game, which reaches the hook through
+ * import map at all (a bundled project, which reaches the hook through
  * `installStudio({ renderer, player })` and therefore needs `window.__studioHook` to be there).
  * The import is a URL, left alone by the bundler, so this entry and the wrapper module the serve
  * layer generates load the SAME module record — one hook, one set of records, one world.

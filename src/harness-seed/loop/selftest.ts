@@ -315,11 +315,11 @@ const SELFTEST_STEPS: readonly SelftestStep[] = [
     "harness-owned checks ride on every plan; judge defects become checks",
     () => {
       // Every trait is off until a kind (or an explicit flag) declares it, so each of these
-      // says which game it is talking about; a spec with no game carries no harness check.
+      // says which project it is talking about; a spec with no project carries no harness check.
       const firstPerson = { kind: "first-person" };
       const spec = withHarnessChecks(
         normalizeFacetSpec({ id: "gun", intent: "a gun", checks: [{ id: "single-hud", kind: "scene", js: "true" }] }),
-        { ownsMain: true, game: firstPerson },
+        { ownsMain: true, app: firstPerson },
       );
       check(
         "four harness checks, no duplicate",
@@ -332,18 +332,18 @@ const SELFTEST_STEPS: readonly SelftestStep[] = [
       );
       check(
         "input checks only for the main owner",
-        withHarnessChecks({ id: "x", checks: [], cameras: [] }, { ownsMain: false, game: firstPerson }).checks
-          .length === 2,
+        withHarnessChecks({ id: "x", checks: [], cameras: [] }, { ownsMain: false, app: firstPerson }).checks.length ===
+          2,
       );
       check(
-        "a game that declares nothing carries no harness check",
+        "a project that declares nothing carries no harness check",
         withHarnessChecks({ id: "x", checks: [], cameras: [] }, { ownsMain: true }).checks.length === 0,
       );
       check(
-        "a game without a HUD or mouse look gets no such checks",
+        "a project without a HUD or mouse look gets no such checks",
         withHarnessChecks(
           { id: "x", checks: [] as Check[], cameras: [] },
-          { ownsMain: true, game: { ...firstPerson, hud: false, mouseLook: false } },
+          { ownsMain: true, app: { ...firstPerson, hud: false, mouseLook: false } },
         )
           .checks.map((c) => c.id)
           .join(",") === "keys-move-player",
@@ -419,13 +419,13 @@ const SELFTEST_STEPS: readonly SelftestStep[] = [
         tags: ["ragdoll", "death", "enemy"],
         intent: "x",
         scope: "project",
-        project: "game-a",
+        project: "project-a",
         check: { id: "ragdoll-death" },
       })!;
       check(
         "project-scoped recipe stays home unless exact",
-        scoreRecipe(scoped, { id: "enemy-death", kind: "demo", ask: "ragdoll" }, { project: "game-b" }) === 0 &&
-          scoreRecipe(scoped, { id: "ragdoll-death", kind: "demo" }, { project: "game-b" }) > 0,
+        scoreRecipe(scoped, { id: "enemy-death", kind: "demo", ask: "ragdoll" }, { project: "project-b" }) === 0 &&
+          scoreRecipe(scoped, { id: "ragdoll-death", kind: "demo" }, { project: "project-b" }) > 0,
       );
       applyRecipeOutcome(recipe, { checkId: "mirror-rt", flipped: true });
       applyRecipeOutcome(recipe, { checkId: "mirror-rt", flipped: true });

@@ -57,7 +57,7 @@ describe("PLG-2: plugin tool parameter types on Claude Code", () => {
     const seen: Array<Record<string, unknown>> = [];
     await engine.delegate({
       prompt: "build",
-      cwd: "/tmp/game-workspace",
+      cwd: "/tmp/project-workspace",
       liveTools: [TOOL],
       onLiveTool: async (_name, received) => {
         validateArguments(TOOL, received);

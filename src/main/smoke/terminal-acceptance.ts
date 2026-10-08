@@ -8,7 +8,7 @@ import { TerminalKind } from "../../shared/terminal.ts";
 import { StudioPlatform } from "../../shared/boot.ts";
 import { terminalShell } from "../terminal-shell.ts";
 
-/** The POSIX shell the fixture runs in: `/bin/sh`, or on Windows the Git Bash a game's terminal opens. */
+/** The POSIX shell the fixture runs in: `/bin/sh`, or on Windows the Git Bash a project's terminal opens. */
 function fixtureShell(): string {
   if (process.platform !== StudioPlatform.Windows) return "/bin/sh";
   return terminalShell(StudioPlatform.Windows)?.file ?? "/bin/sh";
@@ -50,7 +50,7 @@ export async function runTerminalAcceptance(
       env: { HOME: cwd, PATH: "/usr/bin:/bin", ...windowsBasics() },
       title: "Packaged terminal fixture",
       kind: TerminalKind.Shell,
-      project: "fixture-game",
+      project: "fixture-project",
     });
     check(
       "packaged native PTY and helper run from unpacked resources",

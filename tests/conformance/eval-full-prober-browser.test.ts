@@ -1,5 +1,5 @@
 /**
- * The full prober in REAL headless Chromium, over the prober's synthetic fixture game served from
+ * The full prober in REAL headless Chromium, over the prober's synthetic fixture project served from
  * 127.0.0.1. Opt-in: it launches a browser, so it runs only with `STUDIO_BROWSER_TESTS=1` and a
  * Playwright Chromium matching the installed Playwright already on disk (browsers are never
  * downloaded here). Everything it proves about the rows is proven hermetically by
@@ -38,12 +38,12 @@ function skipReason(): SkipReason | false {
   return executable && fs.existsSync(executable) ? false : SkipReason.NoChromium;
 }
 
-const GAME_DIR = path.resolve(import.meta.dirname, "../fixtures/evals/prober/game");
+const PROJECT_DIR = path.resolve(import.meta.dirname, "../fixtures/evals/prober/project");
 /** The only files the fixture server answers; anything else is a 404. */
 const SERVED: Record<string, { file: string; type: string }> = {
   "/": { file: "index.html", type: "text/html" },
   "/index.html": { file: "index.html", type: "text/html" },
-  "/game.js": { file: "game.js", type: "text/javascript" },
+  "/project.js": { file: "project.js", type: "text/javascript" },
 };
 const SHORT_SOAK_MS = 30_000;
 /** A chosen budget for the short soak (the default floor, `probeBudgetMs`, would also hold it). */
@@ -59,7 +59,7 @@ describe("the full prober in Chromium", { skip: skipReason() }, () => {
         res.writeHead(404).end();
         return;
       }
-      res.writeHead(200, { "content-type": entry.type }).end(fs.readFileSync(path.join(GAME_DIR, entry.file)));
+      res.writeHead(200, { "content-type": entry.type }).end(fs.readFileSync(path.join(PROJECT_DIR, entry.file)));
     });
     await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
     url = `http://127.0.0.1:${(server.address() as AddressInfo).port}/index.html`;

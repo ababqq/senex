@@ -15,7 +15,7 @@ const INFINITY =
   "M12 12c-2-2.6-3.6-4-5.4-4a4 4 0 0 0 0 8c1.8 0 3.4-1.4 5.4-4zm0 0c2 2.6 3.6 4 5.4 4a4 4 0 0 0 0-8c-1.8 0-3.4 1.4-5.4 4z";
 
 const glyphs = {
-  "new-game": (
+  "new-project": (
     <>
       <path d="M11 4.5H7.5a3 3 0 0 0-3 3v9a3 3 0 0 0 3 3h9a3 3 0 0 0 3-3V13" />
       <path className="a-ink" pathLength={1} d="M7.8 16.4c1-.9 2-.9 3 0" />
@@ -200,7 +200,7 @@ const glyphs = {
       <path d="M20.2 15.2l-4-4a1.5 1.5 0 0 0-2.1 0L5.5 19.3" />
     </>
   ),
-  // A camera the game is seen through: the lens closes like a shutter.
+  // A camera the project is seen through: the lens closes like a shutter.
   camera: (
     <>
       <path d="M3.5 9.5A2.5 2.5 0 0 1 6 7h2.2l1.3-2h5l1.3 2H18a2.5 2.5 0 0 1 2.5 2.5V17a2.5 2.5 0 0 1-2.5 2.5H6A2.5 2.5 0 0 1 3.5 17z" />
@@ -369,7 +369,7 @@ const glyphs = {
       <path className="a-l1" pathLength={1} d="M19 13.5v-3" />
     </>
   ),
-  // The Live game's sound: the waves draw out from the speaker.
+  // The Live project's sound: the waves draw out from the speaker.
   speaker: (
     <>
       <path d={SPEAKER} />

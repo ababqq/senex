@@ -81,7 +81,7 @@ const ProfileState = {
   Finished: "finished",
 } as const;
 
-/** Which tree the live game holds after an interrupted adoption (`optimization.reconcile`). Wire values. */
+/** Which tree the live project holds after an interrupted adoption (`optimization.reconcile`). Wire values. */
 const RetainedTree = {
   Candidate: "candidate",
   Baseline: "baseline",
@@ -167,7 +167,7 @@ export interface OptimizationOptions {
 
 /**
  * A profiler that could not arm because the renderer had not finished `init()` yet is not a
- * missing capability — it is a WebGPU game still booting (M4.9). It gets its own reason code so
+ * missing capability — it is a WebGPU project still booting (M4.9). It gets its own reason code so
  * the stage is `skipped` with a sentence the reader can act on, instead of being filed with a
  * studio that cannot profile at all.
  */
@@ -197,7 +197,7 @@ export function emptyOptimization(
     outcome: reason ? OptimizationOutcome.Skipped : null,
     reasonCode: reason ? OptimizationReason.BaselineUnverified : null,
     reason,
-    summary: reason ?? "Waiting for the assembled game",
+    summary: reason ?? "Waiting for the assembled project",
     baseline: null,
     candidate: null,
     retainedRevision: null,
@@ -538,11 +538,11 @@ async function artifact({ ctx, run }: Stage, name: string, value: unknown) {
   });
 }
 
-/** What the game was left on, said after a stage that did not improve it. */
+/** What the project was left on, said after a stage that did not improve it. */
 function keptSummary({ result, checkpoint }: Stage, reasonCode: string): string {
   if (result.candidateAdopted) return "Verified candidate kept.";
   if (LIVE_PRESERVED.includes(reasonCode)) return "Current live files preserved.";
-  if (checkpoint.baseline?.verified) return "Pre-optimization game kept.";
+  if (checkpoint.baseline?.verified) return "Pre-optimization project kept.";
   return "Existing run verification outcome unchanged.";
 }
 
@@ -623,7 +623,7 @@ async function refuseToStart(stage: Stage): Promise<OptimizationResult | null> {
       stage,
       OptimizationOutcome.Skipped,
       OptimizationReason.BaselineUnverified,
-      "Assembled game has not passed final verification",
+      "Assembled project has not passed final verification",
     );
   if (ctx.cancelled)
     return finish(stage, OptimizationOutcome.Interrupted, OptimizationReason.Cancelled, "Stopped before optimization");
@@ -893,7 +893,7 @@ async function briefWorker(stage: Stage): Promise<OptimizationResult | null> {
     diagnostics: stage.diagnostics,
   });
   await artifact(stage, "brief.md", stage.brief);
-  await callBounded(stage, HostMethod.GameWrite, {
+  await callBounded(stage, HostMethod.ProjectWrite, {
     project: run.project,
     candidateId: candidate.candidateId,
     file: ".studio/BRIEF.md",
@@ -937,7 +937,7 @@ async function runWorker(stage: Stage): Promise<void> {
 /** A delegated builder owns the candidate's sources for one bounded session. */
 async function delegateWorker(stage: Stage): Promise<void> {
   const { candidate, checkpoint, run, threadId } = stage;
-  const files = await callBounded(stage, HostMethod.GameTree, {
+  const files = await callBounded(stage, HostMethod.ProjectTree, {
     project: run.project,
     candidateId: candidate.candidateId,
   });
@@ -1008,8 +1008,8 @@ async function reviewCandidate(stage: Stage): Promise<OptimizationResult | null>
       "No source optimization proposed",
     );
   const spec = { id: STAGE_ID, owns: frozen.changedFiles, checks: [] };
-  // A game the user brought is judged by the contract rules only (M4.6): its own Math.random
-  // and its own clock are the game, and a single one of them used to discard the whole
+  // A project the user brought is judged by the contract rules only (M4.6): its own Math.random
+  // and its own clock are the project, and a single one of them used to discard the whole
   // optimized candidate.
   const violations = mechanicalReview(frozen.diff, spec, { ownsMain: true, template: run.ownShape !== true });
   if (violations.length)
@@ -1219,7 +1219,7 @@ async function adoptCandidate(stage: Stage): Promise<OptimizationResult> {
     stage,
     OptimizationOutcome.Improved,
     OptimizationReason.VerifiedGain,
-    "Measured improvement retained with appearance and gameplay preserved",
+    "Measured improvement retained with appearance and interaction preserved",
   );
 }
 

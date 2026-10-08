@@ -113,7 +113,7 @@ async function retireJudgeChecks(loop: FacetLoop, round: FacetRound): Promise<vo
 
 /**
  * "Passed" means solved, so the defect never re-grows. "Unanswerable" means the question was
- * wrong, not the game: the complaint stays in the ledger for the builder, and only this wording
+ * wrong, not the project: the complaint stays in the ledger for the builder, and only this wording
  * of it is blocked from opening the same dead question again.
  */
 function rememberRetiredDefect({ spec }: FacetLoop, check: AnyRecord, why: string): void {
@@ -165,7 +165,7 @@ async function growFromDefects(loop: FacetLoop, round: FacetRound): Promise<void
   }
 }
 
-/** The grown check joins the spec, and its camera joins the facet's cameras when it is one of the game's own. */
+/** The grown check joins the spec, and its camera joins the facet's cameras when it is one of the project's own. */
 function addGrownCheck({ spec }: FacetLoop, grown: Check): void {
   spec.checks.push(grown);
   const camera = grown.camera;

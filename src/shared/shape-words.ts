@@ -1,23 +1,23 @@
 /**
- * A project's shape, in the words a person reads — and the choices the Open Game sheet offers.
+ * A project's shape, in the words a person reads — and the choices the Open Project sheet offers.
  *
  * `ProjectShape` is the studio's own vocabulary — `three-vite`, `engine-export`, `serve: "dist"`
- * — and it reaches three surfaces at once: the Open Game sheet, the toast that says what was
+ * — and it reaches three surfaces at once: the Open Project sheet, the toast that says what was
  * opened, and the stage header. One table, so all three say the same thing. The sheet's rows are
  * here too, as data: what a folder offers is worth testing without a window. (The harness's own
  * status vocabulary is a different job and lives in `renderer/words.ts`; nothing here reads a run.)
  */
-import type { FolderInspection, ProjectKind, ProjectShape } from "./game-project.ts";
+import type { FolderInspection, ProjectKind, ProjectShape } from "./project-folder.ts";
 
 /** For each kind: the phrase that finishes "This folder holds …", and the stage header's chip. */
 const KINDS: Record<ProjectKind, { phrase: string; chip: string }> = {
-  "studio-template": { phrase: "a game made from the Genex starter", chip: "studio starting point" },
-  "three-vite": { phrase: "a 3D game with its own build", chip: "3D · own build" },
-  "three-modules": { phrase: "a 3D game that runs as written", chip: "3D · runs as written" },
-  canvas2d: { phrase: "a 2D canvas game", chip: "2D canvas" },
-  phaser: { phrase: "a Phaser game", chip: "Phaser" },
-  "engine-export": { phrase: "a game exported from a game engine", chip: "engine export" },
-  "own-script": { phrase: "a game with its own scripts", chip: "own scripts" },
+  "studio-template": { phrase: "a project made from the Genex starter", chip: "studio starting point" },
+  "three-vite": { phrase: "a 3D project with its own build", chip: "3D · own build" },
+  "three-modules": { phrase: "a 3D project that runs as written", chip: "3D · runs as written" },
+  canvas2d: { phrase: "a 2D canvas project", chip: "2D canvas" },
+  phaser: { phrase: "a Phaser project", chip: "Phaser" },
+  "engine-export": { phrase: "a project exported from a project engine", chip: "engine export" },
+  "own-script": { phrase: "a project with its own scripts", chip: "own scripts" },
 };
 
 /** What this folder holds, as a phrase: "This folder holds …". */
@@ -48,7 +48,7 @@ export function openedWords(title: string, shape: ProjectShape): string {
  * harness refuses the night in its own words (`loop/main.ts` `nightRefusal`).
  */
 export const ENGINE_EXPORT_REFUSAL =
-  "This game was exported from a game engine. Genex can open it, play it and take screenshots — it cannot edit or judge a game that is already compiled. To have builders work on it, open the folder with the project's own scenes and scripts.";
+  "This project was exported from a project engine. Genex can open it, play it and take screenshots — it cannot edit or judge a project that is already compiled. To have builders work on it, open the folder with the project's own scenes and scripts.";
 
 /** Whether an overnight build can be started on this shape at all. */
 export function canBuildOvernight(kind: ProjectKind): boolean {
@@ -61,17 +61,17 @@ export interface OpenChoice {
   trustProjectSettings?: boolean;
   subdir?: string;
   template?: boolean;
-  /** Set on any row that keeps a folder holding a game of its own as a repository — see `nestedWords`. */
+  /** Set on any row that keeps a folder holding a project of its own as a repository — see `nestedWords`. */
   versionNested?: boolean;
 }
 
 /**
- * Keeping a folder whose game is a repository of its own is a decision with a consequence, so
+ * Keeping a folder whose project is a repository of its own is a decision with a consequence, so
  * the row that does it says the consequence and pressing it *is* the consent (decision 1,
  * 2026-09-08). Git records such a folder as a pointer, not as files: until the studio may add
- * those files to the folder's history, a night can read and run the game but nothing it changes
+ * those files to the folder's history, a night can read and run the project but nothing it changes
  * inside it can ever be made live — which is exactly how a night's work was lost (2026-09-07).
- * The game's own history is not deleted; it is renamed and kept beside it.
+ * The project's own history is not deleted; it is renamed and kept beside it.
  */
 export function nestedWords(nested: string[]): string[] {
   if (nested.length === 0) return [];
@@ -83,12 +83,12 @@ export function nestedWords(nested: string[]): string[] {
   ];
 }
 
-/** One row of the Open Game sheet: a game that was found, or the folder itself. */
+/** One row of the Open Project sheet: a project that was found, or the folder itself. */
 export interface OpenOption {
   /** The candidate's `rel`; "." for the picked folder itself. */
   id: string;
   label: string;
-  /** What it is: "a 3D game with its own build", or what would happen to an empty folder. */
+  /** What it is: "a 3D project with its own build", or what would happen to an empty folder. */
   headline: string;
   /** How it runs, or what starting here means. */
   detail: string;
@@ -105,12 +105,12 @@ export interface OpenOption {
 }
 
 /**
- * The sheet's rows for a picked folder, the one it would open first: every game found in it or
- * one level under it (decision 1, 2026-09-08 — the nested game is offered as *the* game), then
- * the folder itself, which is either a new game or the parent kept exactly as it is.
+ * The sheet's rows for a picked folder, the one it would open first: every project found in it or
+ * one level under it (decision 1, 2026-09-08 — the nested project is offered as *the* project), then
+ * the folder itself, which is either a new project or the parent kept exactly as it is.
  */
 export function openOptions(inspection: FolderInspection): OpenOption[] {
-  // The game the studio would open leads, whatever order the folder was read in: the row that is
+  // The project the studio would open leads, whatever order the folder was read in: the row that is
   // selected must be the row the eye lands on first.
   const found = [...inspection.candidates].sort(
     (a, b) => Number(b.rel === inspection.suggested) - Number(a.rel === inspection.suggested),
@@ -144,32 +144,32 @@ export function openOptions(inspection: FolderInspection): OpenOption[] {
         ...(candidate.rel === "." ? {} : { subdir: candidate.rel }),
         ...(preflight.nested.length > 0 ? { versionNested: true } : {}),
       },
-      button: candidate.rel === "." ? "Open this game" : `Open ${candidate.rel}/`,
+      button: candidate.rel === "." ? "Open this project" : `Open ${candidate.rel}/`,
     };
   });
-  // `starter` is empty when the folder is a game of its own — its own row above says it.
+  // `starter` is empty when the folder is a project of its own — its own row above says it.
   if (inspection.starter.length > 0) {
     const beside = inspection.candidates.length > 0;
     options.push({
       id: ".",
       label: "This folder",
-      headline: beside ? "no game of its own" : "an empty folder",
+      headline: beside ? "no project of its own" : "an empty folder",
       detail: beside
-        ? "the game inside it stays exactly where it is"
-        : "Genex adds a starter game, then you describe the one you want",
+        ? "the project inside it stays exactly where it is"
+        : "Genex adds a starter project, then you describe the one you want",
       facts: [
-        ...(beside ? ["No starter game is written beside the game you already have."] : []),
+        ...(beside ? ["No starter project is written beside the project you already have."] : []),
         ...nestedWords(inspection.nested),
       ],
       problems: [],
       writes: inspection.starter,
       engineExport: false,
-      // Keeping the parent must never drop a second index.html beside somebody's real game.
+      // Keeping the parent must never drop a second index.html beside somebody's real project.
       choice: {
         ...(beside ? { template: false } : {}),
         ...(inspection.nested.length > 0 ? { versionNested: true } : {}),
       },
-      button: beside ? "Keep this folder" : "Start a game here",
+      button: beside ? "Keep this folder" : "Start a project here",
     });
   }
   return options;

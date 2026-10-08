@@ -17,7 +17,7 @@ import {
   EngineError,
   type EngineStatus,
 } from "../../substrate/engines/types.ts";
-import { GAME_NAME_SYSTEM_PROMPT } from "../core/game-naming-prompts.ts";
+import { PROJECT_NAME_SYSTEM_PROMPT } from "../core/project-naming-prompts.ts";
 import { FIXTURE_MODEL } from "./fixture-kit.ts";
 import { setTimeout as sleep } from "node:timers/promises";
 import { ReasoningEffort } from "../../shared/model-preferences.ts";
@@ -25,11 +25,11 @@ import { ReasoningEffort } from "../../shared/model-preferences.ts";
 const DAY_MS = 24 * HOUR_MS;
 const FIXTURE_ENGINES = [EngineId.Ollama, EngineId.ClaudeCode, EngineId.Codex] as const;
 const READY_STATUS: EngineStatus = { code: EngineStatusCode.Ready, detail: "AG-933 fixture; no account or network" };
-/** How long naming a game takes, so home's Naming step can be seen. */
+/** How long naming a project takes, so home's Naming step can be seen. */
 const NAMING_DELAY_MS = 2500;
 /** How long a scripted plan takes to come back, so its progress can be seen. */
 const PLAN_DELAY_MS = 1200;
-/** Pauses between streamed pieces: a Studio reply, a slow one, and a game chat's. */
+/** Pauses between streamed pieces: a Studio reply, a slow one, and a project chat's. */
 const STUDIO_PIECE_MS = 25;
 const SLOW_PIECE_MS = 60;
 const STREAM_PIECE_MS = 35;
@@ -41,9 +41,9 @@ const LONG_REPLY_SECTIONS = 12;
 /** What the fixture engines answer and refuse, word for word. */
 const MESSAGE = {
   plainReply: "Fixture response. No new build was started.",
-  gameName: "Tiny Island Fishing",
+  projectName: "Tiny Island Fishing",
   studioReply:
-    "Fixture Studio reply: game chats build games. This conversation explains Studio, its runs, and the instruction changes in Activity.",
+    "Fixture Studio reply: project chats build projects. This conversation explains Studio, its runs, and the instruction changes in Activity.",
   studioFollowUp: "Fixture follow-up: the earlier conversation and recorded Studio activity are still in context.",
   streamedReply:
     "The bridge is ready. **You can cross the river now.** I kept the path level with the river bank and added rails along both sides. The village lights are warm and the cover is ready in Assets. You can try the crossing in the preview. The water keeps moving beneath it.",
@@ -53,7 +53,7 @@ const MESSAGE = {
   commandReply:
     "Converting the engine recordings needs ffmpeg, and my sandbox can’t download it. Run this once, then I’ll convert them:\n\n```bash\nbrew install ffmpeg\n```",
 } as const;
-/** The marker whose game-chat reply is long and code-heavy, streamed fast: what drawing a long reply costs. */
+/** The marker whose project-chat reply is long and code-heavy, streamed fast: what drawing a long reply costs. */
 const LONG_STREAM_MARKER = "fixture:stream-long";
 /** The marker that keeps a fixture session working until a real Stop. */
 const PENDING_MARKER = "fixture:pending";
@@ -150,10 +150,10 @@ function reply(id: EngineId, content: string, usage: Record<string, number> = {}
 }
 
 async function completeFixture(id: EngineId, request: CompleteRequest) {
-  // A game started from home is named first, whatever markers its request carries.
-  if (request.systemPrompt === GAME_NAME_SYSTEM_PROMPT) {
+  // A project started from home is named first, whatever markers its request carries.
+  if (request.systemPrompt === PROJECT_NAME_SYSTEM_PROMPT) {
     await sleep(NAMING_DELAY_MS, undefined, { signal: request.signal }).catch(() => {});
-    return reply(id, MESSAGE.gameName);
+    return reply(id, MESSAGE.projectName);
   }
   const latestUser = request.messages.findLast((message) => message.role === "user")?.content ?? "";
   if (latestUser.includes(PENDING_MARKER)) await pending(request.signal, id);
@@ -206,7 +206,7 @@ async function streamPieces(
   }
 }
 
-/** A game chat's reply, streamed as a coordinator's text deltas arrive; the whole text is its summary. */
+/** A project chat's reply, streamed as a coordinator's text deltas arrive; the whole text is its summary. */
 async function streamCoordinatorReply(id: EngineId, request: DelegateRequest, content: string): Promise<string> {
   for (const delta of content.match(new RegExp(`[\\s\\S]{1,${LONG_PIECE_CHARS}}`, "g")) ?? []) {
     if (request.signal?.aborted) throw new EngineError(EngineFailureKind.Aborted, id, "Fixture streaming stopped");
@@ -230,7 +230,7 @@ async function planReply(id: EngineId, transcript: string) {
     ...Array.from(
       { length: 12 },
       (_, i) =>
-        `${i + 1}. Check the camera and the cube controls inside the existing game. Keep the scene responsive when the window changes size.`,
+        `${i + 1}. Check the camera and the cube controls inside the existing project. Keep the scene responsive when the window changes size.`,
     ),
   ].join("\n");
   return reply(id, plan);

@@ -32,14 +32,14 @@ import type { ExecAnswer, Trim } from "../git.ts";
  */
 export type FacetLoopOptions = AnyRecord;
 
-/** What a facet loop is for: one part of the game, or the merged game (which runs every demo and always gets its play session). */
+/** What a facet loop is for: one part of the project, or the merged project (which runs every demo and always gets its play session). */
 export const FacetRole = {
   Facet: "facet",
   Integration: "integration",
 } as const;
 export type FacetRole = (typeof FacetRole)[keyof typeof FacetRole];
 
-/** The studio contract module a game carries beside its entry (`installStudio`). */
+/** The studio contract module a project carries beside its entry (`installStudio`). */
 export const STUDIO_CONTRACT = "src/studio.js";
 
 /** A preview lock that locks nothing: a pooled port needs none. */
@@ -98,7 +98,7 @@ export interface FacetEnvironment extends FacetOptions {
   legacy: boolean;
   workdir: string | null;
   budgets: AnyRecord;
-  game: AnyRecord | null;
+  app: AnyRecord | null;
   critic: string;
   facetSetup: AnyRecord | null;
   result: AnyRecord;
@@ -203,7 +203,7 @@ export interface ResumableState {
 export interface RoundCounters {
   /** The rollback anchor. Worktree mode: the detached HEAD it was created at. */
   incumbentCommit: string | null;
-  /** Live mode: a game-scope snapshot, the gauntlet's own idiom. */
+  /** Live mode: a project-scope snapshot, the gauntlet's own idiom. */
   incumbentSnapshot: AnyRecord | null;
   engineFailures: number;
   observationOutages: number;
@@ -383,7 +383,7 @@ function optionDefaults(): Omit<FacetOptions, "runThreadId" | "facetThreadId" | 
     previewLock: NO_LOCK,
     maxIterations: DEFAULT_MAX_ITERATIONS,
     /**
-     * What one round on this game has cost the run so far (the director's median), for a worker
+     * What one round on this project has cost the run so far (the director's median), for a worker
      * that has not finished a round of its own yet. Null means nothing has been measured, and a
      * worker is never refused its first round on a guess.
      */
@@ -392,7 +392,7 @@ function optionDefaults(): Omit<FacetOptions, "runThreadId" | "facetThreadId" | 
     /** Has anyone asked this facet to stop? `true`, or `{ by: "director"|"user", reason }`. */
     finishRequested: async () => false,
     ownsMain: true,
-    /** The project's shape (game-workspace ProjectShape) and whether it is the game's own, not the template's. */
+    /** The project's shape (project-workspace ProjectShape) and whether it is the project's own, not the template's. */
     shape: null,
     ownShape: false,
     /** "facet" or "integration" — the integration facet always gets the playtester. */
@@ -471,21 +471,21 @@ function freshResult(facet: AnyRecord, options: FacetOptions): AnyRecord {
 
 /**
  * Which critic reviews this part: the one its director named (`critic=screen` for a UI or HUD
- * part), else its game kind's. A HUD worker in a soccer game was otherwise asked why its
+ * part), else its project kind's. A HUD worker in a soccer project was otherwise asked why its
  * scoreboard did not feel like a real place.
  */
-export function partCritic(spec: AnyRecord, game: AnyRecord | null): string {
+export function partCritic(spec: AnyRecord, app: AnyRecord | null): string {
   const named = typeof spec.critic === "string" && Object.hasOwn(CRITIC_PRINCIPLES, spec.critic);
-  return named ? spec.critic : criticFor(game);
+  return named ? spec.critic : criticFor(app);
 }
 
 /** The facet's spec and what the loop derives from it and the run: the critic, the setup, where it works. */
 function facetOf(options: FacetOptions, raw: FacetLoopOptions) {
   const { run, worktree, projectDir } = options;
   const spec = Array.isArray(raw.facet?.checks) ? raw.facet : normalizeFacetSpec(raw.facet ?? {}, 0);
-  // What kind of game this is, and therefore which critic can answer it: a place a player walks
+  // What kind of project this is, and therefore which critic can answer it: a place a player walks
   // through, or a screen that has to read. Stamped on the run at launch (M4.4).
-  const game = run.game ?? null;
+  const app = run.app ?? null;
   return {
     spec,
     facet: spec,
@@ -494,8 +494,8 @@ function facetOf(options: FacetOptions, raw: FacetLoopOptions) {
     legacy: spec.checks.filter((c: AnyRecord) => c.origin !== CheckOrigin.Harness).length === 0,
     workdir: worktree ?? projectDir,
     budgets: run.budgets ?? {},
-    game,
-    critic: partCritic(spec, game),
+    app: app,
+    critic: partCritic(spec, app),
     // The state this facet is about: its own setup when the director gave it one, else the run's.
     facetSetup: spec.setup === undefined ? (run.setup ?? null) : spec.setup,
     result: freshResult(spec, options),
@@ -561,7 +561,7 @@ function recorders(ctx: HarnessCtx, critic: string, options: FacetOptions) {
   };
 }
 
-/** The rollback anchor. Worktree mode: the detached HEAD it was created at. Live mode: a game-scope snapshot, the gauntlet's own idiom. */
+/** The rollback anchor. Worktree mode: the detached HEAD it was created at. Live mode: a project-scope snapshot, the gauntlet's own idiom. */
 async function incumbentAnchor(
   ctx: HarnessCtx,
   env: { worktree: string | null; run: AnyRecord; facet: AnyRecord; git: (command: string) => Promise<string> },

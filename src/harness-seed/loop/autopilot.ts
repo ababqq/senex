@@ -27,7 +27,7 @@ import {
   expandCheckGrammar,
   loadCatalogue,
   normalizeFacetSpec,
-  normalizeGameTraits,
+  normalizeAppTraits,
   recordCatalogueOutcomes,
   renderCatalogueForPlanner,
   renderCheckGrammar,
@@ -39,7 +39,7 @@ import {
 } from "./spec.ts";
 import { learningOn } from "./learning.ts";
 import { renderScoutForPlanner, runScout, setupVerifyExpr } from "./scout.ts";
-import { KIND_NAMES, readDeclaredGame, writeDeclaredGame } from "./kinds.ts";
+import { KIND_NAMES, readDeclaredApp, writeDeclaredApp } from "./kinds.ts";
 import * as library from "./library.ts";
 import { renderScoreboard, summarizeScoreboard } from "./checks.ts";
 import { bestStyleDistance } from "./style.ts";
@@ -130,14 +130,14 @@ const MAX_PLAN_FACETS = 6;
 const MAX_REFERENCE_STILLS = 12;
 const REFERENCE_MAX_PX = 1024;
 
-/** How long the inherited-console read waits for the game to say it is up, and how often it asks. */
+/** How long the inherited-console read waits for the project to say it is up, and how often it asks. */
 const INHERITED_SETTLE_MS = 6 * SECOND_MS;
 const STUDIO_UP_POLL_MS = 500;
-/** The beat after the game is up: its first shader error is logged a frame later. */
+/** The beat after the project is up: its first shader error is logged a frame later. */
 const INHERITED_BEAT_MS = 1.2 * SECOND_MS;
 
 /** The facet a one-facet plan builds: the whole goal. */
-const WHOLE_GAME_FACET = "whole-game";
+const WHOLE_PROJECT_FACET = "whole-project";
 /** The facet the merged build gets (its journal entry, worktree, thread and role). */
 const INTEGRATION_FACET = "integration";
 /** The base builder's facet id, capture label and build phase. */
@@ -152,11 +152,11 @@ const DROPPED_CHECKS_NAMED = 3;
 const BASE_NOTES_CHARS = 2_000;
 const MAX_BASE_FILES = 12;
 const MAX_GENRES = 4;
-/** A whole-game facet folded from several: its checks, identity features, cameras and milestones. */
-const MAX_WHOLE_GAME_CHECKS = 14;
-const WHOLE_GAME_IDENTITY = 6;
-const WHOLE_GAME_CAMERAS = 8;
-const WHOLE_GAME_MILESTONES = 5;
+/** A whole-project facet folded from several: its checks, identity features, cameras and milestones. */
+const MAX_WHOLE_PROJECT_CHECKS = 14;
+const WHOLE_PROJECT_IDENTITY = 6;
+const WHOLE_PROJECT_CAMERAS = 8;
+const WHOLE_PROJECT_MILESTONES = 5;
 /** The integration facet's identity features and cameras, gathered from every facet. */
 const INTEGRATION_IDENTITY = 8;
 const INTEGRATION_CAMERAS = 10;
@@ -202,15 +202,15 @@ const OutagePhase = {
 } as const;
 
 /**
- * Who said what kind of game this is (`gameFrom` on the plan): the scout that drove it, the
+ * Who said what kind of project this is (`appFrom` on the plan): the scout that drove it, the
  * user's studio.json, or the plan's own declaration. Journaled with the plan: never rename a value.
  */
-const GameSource = {
+const AppSource = {
   Scout: "scout",
   StudioJson: "studio.json",
   Plan: "plan",
 } as const;
-type GameSource = (typeof GameSource)[keyof typeof GameSource];
+type AppSource = (typeof AppSource)[keyof typeof AppSource];
 
 /** The NOTES.md heading under which steering that arrived too late to be built is kept. */
 const STEERING_BACKLOG_HEADING = "## Steering backlog";
@@ -247,13 +247,13 @@ export function concurrencyProfile(
 }
 
 /**
- * What the game already logged when the studio opened it, before anyone in this run touched it.
+ * What the project already logged when the studio opened it, before anyone in this run touched it.
  * Every pass forgives these — a night once threw its whole merge away at the last gate for one
- * shader line that was in the game when the run began.
+ * shader line that was in the project when the run began.
  *
  * `preview.load` resolves at did-finish-load: before the first frame, before a shader compiles.
  * Read on the next line, the baseline came back empty for exactly the deferred error it exists
- * to forgive, and the base pass then voided the build for inheriting it. So: wait for the game
+ * to forgive, and the base pass then voided the build for inheriting it. So: wait for the project
  * to say it is up (or a short beat, when it never does), then read.
  */
 export async function inheritedConsoleAfterLoad(
@@ -273,7 +273,7 @@ export async function inheritedConsoleAfterLoad(
     if (up || Date.now() >= until) break;
     await sleep(STUDIO_UP_POLL_MS);
   }
-  // Even a game that is up logs its first shader error a frame later.
+  // Even a project that is up logs its first shader error a frame later.
   await sleep(beatMs);
   return ((await ctx.call(HostMethod.PreviewConsole, { sinceMs: 0, ...h }).catch(() => [])) ?? [])
     .filter((entry: AnyRecord | null) => entry?.level === "error")
@@ -323,20 +323,20 @@ export function makeLock(): () => Promise<() => void> {
 }
 
 /**
- * What the plan says the game IS (M4.4). One kind from the table in kinds.ts; the three traits
+ * What the plan says the project IS (M4.4). One kind from the table in kinds.ts; the three traits
  * the harness adds its own checks for are named in the explanation below and left OUT of the
  * shape, because a planner copies this line as it stands. Printed as `"hud":false,
  * "mouseLook":false,"keyboardMove":false` they were copied through as declarations, and an
- * explicit false outranks the kind's own traits — so a first-person game arrived declaring it
+ * explicit false outranks the kind's own traits — so a first-person project arrived declaring it
  * has no HUD, no mouse look and no keyboard movement, and the four harness-owned checks that
  * kind exists to bring were dropped from every board with nothing said. Absent, each trait
  * takes the declared kind's own value; a plan that declares no kind is still assumed nothing.
  */
-const GAME_DECLARATION = `"game":{"kind":"<one of ${KIND_NAMES.join(", ")}, or null>","playScript":null}`;
+const APP_DECLARATION = `"app":{"kind":"<one of ${KIND_NAMES.join(", ")}, or null>","playScript":null}`;
 
 /** The same declaration, said in words, for the planner that reads the shape line above. */
-const GAME_EXPLANATION =
-  "`genres` names the genre groups of the catalogue that apply (what the run learns is filed under them); `game` declares what the game IS — its `kind` (one of the names above). The kind carries whether the game has a HUD, mouse look and keyboard movement; add the booleans `hud`, `mouseLook`, `keyboardMove` beside it ONLY where this game differs from its kind, and remember that `false` is a declaration too — it takes that check off every board. With no kind and no trait nothing is assumed: the harness adds its own checks only for what the game can pass, and drives that kind's play script before every judgement. `playScript` overrides that script with your own actions; `craft` names the craft recipe packs this game needs.";
+const PROJECT_EXPLANATION =
+  "`genres` names the genre groups of the catalogue that apply (what the run learns is filed under them); `project` declares what the project IS — its `kind` (one of the names above). The kind carries whether the project has a HUD, mouse look and keyboard movement; add the booleans `hud`, `mouseLook`, `keyboardMove` beside it ONLY where this project differs from its kind, and remember that `false` is a declaration too — it takes that check off every board. With no kind and no trait nothing is assumed: the harness adds its own checks only for what the project can pass, and drives that kind's play script before every judgement. `playScript` overrides that script with your own actions; `craft` names the craft recipe packs this project needs.";
 
 /**
  * The check vocabulary, for a planner whose skill file predates typed specs (an install whose
@@ -346,7 +346,7 @@ const GAME_EXPLANATION =
 const V2_SCHEMA_FALLBACK = [
   "",
   "## Typed specs (v2 — this overrides any older output shape above)",
-  `Output JSON only: {"genres":["fps"],${GAME_DECLARATION},"craft":[],"facets":[{"id","title","intent","owns":[],"identity":[],"cameras":[],"checks":[…],"budgetShare"}],"mainOwner":"…","base":{"notes":"","files":[{"path","purpose"}]},"integrationNotes":"","assumptions":[]}`,
+  `Output JSON only: {"genres":["fps"],${APP_DECLARATION},"craft":[],"facets":[{"id","title","intent","owns":[],"identity":[],"cameras":[],"checks":[…],"budgetShare"}],"mainOwner":"…","base":{"notes":"","files":[{"path","purpose"}]},"integrationNotes":"","assumptions":[]}`,
   "Every facet has `intent` (the prose brief) AND 4–10 `checks`, most of them mechanical:",
   // One grammar (M4.8a). The fallback deliberately omits `metric`: this path has no reference
   // stills behind it, and a kind the planner writes with no evaluator underneath is a check
@@ -356,7 +356,7 @@ const V2_SCHEMA_FALLBACK = [
     helpers: false,
   }),
   'Mark 2–4 checks per facet weight:"identity"; hard:true for techniques known to need a spike. eye:spawn, eye:here, eye:down, eye:back are harness-owned cameras.',
-  GAME_EXPLANATION,
+  PROJECT_EXPLANATION,
 ].join("\n");
 
 /**
@@ -366,7 +366,7 @@ const V2_SCHEMA_FALLBACK = [
  */
 const PROBE_GRAMMAR = ["PROBES:", renderCheckGrammar({ kinds: [CheckKind.Probe], helpers: true })].join("\n");
 
-const PLAN_SHAPE = `Output JSON only: {"genres":["<genre>"],${GAME_DECLARATION},"craft":[],"facets":[{"id","title","intent","owns":[],"identity":[],"cameras":[],"checks":[{"id","kind","weight","hard",…}],"milestones":[{"id","what","check":{…}|null}],"budgetShare"}],"mainOwner":"<facet id>","base":{"notes":"","files":[{"path","purpose"}]},"integrationNotes":"","assumptions":[]}`;
+const PLAN_SHAPE = `Output JSON only: {"genres":["<genre>"],${APP_DECLARATION},"craft":[],"facets":[{"id","title","intent","owns":[],"identity":[],"cameras":[],"checks":[{"id","kind","weight","hard",…}],"milestones":[{"id","what","check":{…}|null}],"budgetShare"}],"mainOwner":"<facet id>","base":{"notes":"","files":[{"path","purpose"}]},"integrationNotes":"","assumptions":[]}`;
 
 /**
  * Turn the ask into a facet plan of typed specs with the trainable planner skill and the check
@@ -380,16 +380,16 @@ export async function decompose(
     run,
     profile,
     scout = null,
-    storedGame = null,
+    storedApp = null,
     ownShape = false,
-  }: { run: Run; profile: AnyRecord; scout?: AnyRecord | null; storedGame?: AnyRecord | null; ownShape?: boolean },
+  }: { run: Run; profile: AnyRecord; scout?: AnyRecord | null; storedApp?: AnyRecord | null; ownShape?: boolean },
 ): Promise<AnyRecord> {
-  const known = knownGameOf(scout, storedGame);
+  const known = knownAppOf(scout, storedApp);
   const skill = await readPlannerSkill(ctx);
   const catalogue = await loadCatalogue(ctx.workspace);
-  const catalogueText = renderCatalogueForPlanner(catalogue, { game: known.game, screen: !ownShape });
+  const catalogueText = renderCatalogueForPlanner(catalogue, { app: known.app, screen: !ownShape });
   // The craft recipes as a menu (M4.7): technique, not law — the planner picks the packs this
-  // game needs. An install whose library predates them simply gets nothing.
+  // project needs. An install whose library predates them simply gets nothing.
   const craftRecipes = await library.loadRecipes(ctx.workspace).catch(() => []);
   const backlog = await previousSteering(ctx, run);
   const single = singleFacetPlan(run, known);
@@ -415,28 +415,28 @@ export async function decompose(
 /** The craft recipe packs the library offers the planner. */
 type CraftRecipes = Awaited<ReturnType<typeof library.loadRecipes>>;
 
-/** What kind of game this is before the planner answers, and who said so. */
-interface KnownGame {
-  game: AnyRecord | null;
-  from: GameSource | null;
+/** What kind of project this is before the planner answers, and who said so. */
+interface KnownApp {
+  app: AnyRecord | null;
+  from: AppSource | null;
 }
 
 /**
- * What kind of game this is, as far as anyone knows BEFORE the planner answers: the scout
+ * What kind of project this is, as far as anyone knows BEFORE the planner answers: the scout
  * drove it, or studio.json says. The catalogue and the craft menus are gated on that — the
  * plan's own declaration arrives too late to choose what the planner is offered.
  */
-function knownGameOf(scout: AnyRecord | null, storedGame: AnyRecord | null): KnownGame {
+function knownAppOf(scout: AnyRecord | null, storedApp: AnyRecord | null): KnownApp {
   const scoutSawIt = scout?.kind || scout?.play?.length;
   if (scout && scoutSawIt) {
-    const game = normalizeGameTraits({
+    const app = normalizeAppTraits({
       ...(scout.kind ? { kind: scout.kind } : {}),
       ...(scout.play ? { playScript: scout.play } : {}),
     });
-    return { game, from: GameSource.Scout };
+    return { app: app, from: AppSource.Scout };
   }
-  if (storedGame) return { game: normalizeGameTraits(storedGame), from: GameSource.StudioJson };
-  return { game: null, from: null };
+  if (storedApp) return { app: normalizeAppTraits(storedApp), from: AppSource.StudioJson };
+  return { app: null, from: null };
 }
 
 /**
@@ -468,8 +468,8 @@ function craftMenu(craftRecipes: CraftRecipes): string {
  */
 async function previousSteering(ctx: HarnessCtx, run: Run): Promise<string[]> {
   try {
-    const games = await ctx.call(HostMethod.GameList, {});
-    const dir = games.find((g) => g.name === run.project)?.dir;
+    const projects = await ctx.call(HostMethod.ProjectList, {});
+    const dir = projects.find((g) => g.name === run.project)?.dir;
     if (!dir) return [];
     return parseSteeringBacklog(await readFile(path.join(dir, "NOTES.md"), "utf8").catch(() => ""));
   } catch {
@@ -478,22 +478,22 @@ async function previousSteering(ctx: HarnessCtx, run: Run): Promise<string[]> {
 }
 
 /** The degenerate plan: one facet for the whole goal. */
-function singleFacetPlan(run: Run, known: KnownGame): AnyRecord {
+function singleFacetPlan(run: Run, known: KnownApp): AnyRecord {
   return {
     facets: [
       normalizeFacetSpec(
-        { id: WHOLE_GAME_FACET, title: run.goal.slice(0, FACET_TITLE_CHARS), intent: run.goal, budgetShare: 1 },
+        { id: WHOLE_PROJECT_FACET, title: run.goal.slice(0, FACET_TITLE_CHARS), intent: run.goal, budgetShare: 1 },
         0,
       ),
     ],
-    mainOwner: WHOLE_GAME_FACET,
+    mainOwner: WHOLE_PROJECT_FACET,
     base: null,
     integrationNotes: "",
     assumptions: [],
     validation: [],
     genres: [],
-    game: known.game,
-    gameFrom: known.from,
+    app: known.app,
+    appFrom: known.from,
   };
 }
 
@@ -640,7 +640,7 @@ function planProblems(validation: readonly string[], missingChecks: readonly str
   ].join("\n");
 }
 
-/** The plan as the run keeps it: facets sized and named once, the base, the game it declares. */
+/** The plan as the run keeps it: facets sized and named once, the base, the project it declares. */
 function finishPlan({
   raw,
   facets: planned,
@@ -648,7 +648,7 @@ function finishPlan({
   scout,
   run,
   known,
-}: PlannerAnswer & { scout: AnyRecord | null; run: Run; known: KnownGame }): AnyRecord {
+}: PlannerAnswer & { scout: AnyRecord | null; run: Run; known: KnownApp }): AnyRecord {
   let facets = planned;
   // The scout's builder count is the ceiling (computer use, 2026-09-07): a plan that split one scene into six
   // anyway is folded back — the first N by share, and at one builder a single facet that
@@ -666,12 +666,12 @@ function finishPlan({
     assumptions.push(
       `dropped ${validation.length} unusable check(s) from the plan: ${validation.slice(0, DROPPED_CHECKS_NAMED).join("; ")}${validation.length > DROPPED_CHECKS_NAMED ? "; …" : ""}`,
     );
-  const declared = declaredGame(raw);
+  const declared = declaredApp(raw);
   return {
     facets,
     genres: planGenres(raw),
-    game: declared ?? known.game,
-    gameFrom: declared ? GameSource.Plan : known.from,
+    app: declared ?? known.app,
+    appFrom: declared ? AppSource.Plan : known.from,
     mainOwner: mainOwnerOf(raw, facets),
     base: planBase(raw),
     integrationNotes: typeof raw?.integrationNotes === "string" ? raw.integrationNotes : "",
@@ -733,14 +733,14 @@ function planGenres(raw: AnyRecord | null): string[] {
 }
 
 /**
- * The game the plan itself declares, when it declares anything. The four declaration sources,
- * in order: what the planner said, then the scout's kind, then studio.json's nested game block,
+ * The project the plan itself declares, when it declares anything. The four declaration sources,
+ * in order: what the planner said, then the scout's kind, then studio.json's nested project block,
  * then nothing. Only the first is written back.
  */
-function declaredGame(raw: AnyRecord | null): AnyRecord | null {
-  const game = raw?.game;
-  if (!isPlainRecord(game)) return null;
-  const declared = normalizeGameTraits(game);
+function declaredApp(raw: AnyRecord | null): AnyRecord | null {
+  const project = raw?.app;
+  if (!isPlainRecord(project)) return null;
+  const declared = normalizeAppTraits(project);
   const declaresAnything =
     declared.kind || declared.hud || declared.mouseLook || declared.keyboardMove || declared.playScript;
   return declaresAnything ? declared : null;
@@ -766,7 +766,7 @@ export function clampFacets(facets: AnyRecord[], ceiling: number, run: Pick<Run,
   const checks: AnyRecord[] = [];
   for (const facet of facets) {
     for (const check of facet.checks ?? []) {
-      if (seenChecks.has(check.id) || checks.length >= MAX_WHOLE_GAME_CHECKS) continue;
+      if (seenChecks.has(check.id) || checks.length >= MAX_WHOLE_PROJECT_CHECKS) continue;
       seenChecks.add(check.id);
       checks.push(check);
     }
@@ -775,14 +775,14 @@ export function clampFacets(facets: AnyRecord[], ceiling: number, run: Pick<Run,
   return [
     normalizeFacetSpec(
       {
-        id: WHOLE_GAME_FACET,
+        id: WHOLE_PROJECT_FACET,
         title: first.title,
         intent: run.goal,
         owns: union("owns"),
-        identity: union("identity").slice(0, WHOLE_GAME_IDENTITY),
-        cameras: union("cameras").slice(0, WHOLE_GAME_CAMERAS),
+        identity: union("identity").slice(0, WHOLE_PROJECT_IDENTITY),
+        cameras: union("cameras").slice(0, WHOLE_PROJECT_CAMERAS),
         checks,
-        milestones: facets.flatMap((f) => f.milestones ?? []).slice(0, WHOLE_GAME_MILESTONES),
+        milestones: facets.flatMap((f) => f.milestones ?? []).slice(0, WHOLE_PROJECT_MILESTONES),
         budgetShare: 1,
       },
       0,
@@ -832,7 +832,7 @@ function integrationSpec(
       id: INTEGRATION_FACET,
       title: "Integration",
       intent:
-        `The merged game: every facet's identity features present together, seams reconciled (palette, scale, lighting, spawn), nothing a facet registered lost. ${plan.integrationNotes ?? ""}`.trim(),
+        `The merged project: every facet's identity features present together, seams reconciled (palette, scale, lighting, spawn), nothing a facet registered lost. ${plan.integrationNotes ?? ""}`.trim(),
       brief: plan.integrationNotes ?? "",
       owns: [],
       identity: plan.facets.flatMap((f: AnyRecord) => f.identity ?? []).slice(0, INTEGRATION_IDENTITY),
@@ -840,7 +840,7 @@ function integrationSpec(
       checks: checks as Check[],
       budgetShare: 0,
     },
-    { role: INTEGRATION_FACET, game: plan.game, screen },
+    { role: INTEGRATION_FACET, app: plan.app, screen },
   );
 }
 
@@ -907,10 +907,10 @@ async function openPipeline(pipeline: Pipeline): Promise<PipelineEnd> {
   // re-decomposed, completed facets return their recorded results instantly, only unfinished
   // work runs live.
   pipeline.priorJournal = resume ? await readJournal(ctx, threadId, run.runId) : null;
-  // The project's own shape: a game the user brought (Vite, TypeScript, its own build and its
+  // The project's own shape: a project the user brought (Vite, TypeScript, its own build and its
   // own UI) keeps its entry and its screen; the studio builds it before every preview.
-  const games = await ctx.call(HostMethod.GameList, {}).catch(() => []);
-  const projectDescriptor = games.find((g: AnyRecord) => g.name === run.project) ?? null;
+  const projects = await ctx.call(HostMethod.ProjectList, {}).catch(() => []);
+  const projectDescriptor = projects.find((g: AnyRecord) => g.name === run.project) ?? null;
   pipeline.projectDescriptor = projectDescriptor;
   pipeline.ownShape = projectDescriptor?.built === true;
   pipeline.shape = projectDescriptor?.shape ?? { entry: "index.html", main: "src/main.js", build: null };
@@ -919,15 +919,15 @@ async function openPipeline(pipeline: Pipeline): Promise<PipelineEnd> {
 /** The look before the plan, the plan and its boards; a saved finalization resumes here, and a one-facet plan is the single path. */
 async function planFacets(pipeline: Pipeline): Promise<PipelineEnd> {
   const { ctx, described, ownShape, previewPoolMax, priorJournal, run } = pipeline;
-  pipeline.storedGame = null;
+  pipeline.storedApp = null;
   const plan = priorJournal?.plan ?? (await newPlan(pipeline));
   pipeline.plan = plan;
   stampRunFromPlan(run, plan, ownShape);
   // A kind the plan itself declared is written back into the user's studio.json once, so the
-  // next night on this game starts knowing it. A scout's guess is never written.
-  const planDeclaredGame = !priorJournal?.plan && plan.gameFrom === GameSource.Plan && plan.game;
-  if (planDeclaredGame) {
-    await writeDeclaredGame(ctx, run.project, plan.game, { from: GameSource.Plan }).catch(() => {});
+  // next night on this project starts knowing it. A scout's guess is never written.
+  const planDeclaredApp = !priorJournal?.plan && plan.appFrom === AppSource.Plan && plan.app;
+  if (planDeclaredApp) {
+    await writeDeclaredApp(ctx, run.project, plan.app, { from: AppSource.Plan }).catch(() => {});
   }
   addHarnessBoards(pipeline, plan);
   // Parallelism sized to the plan and the preview pool, not a constant (WP6).
@@ -942,19 +942,19 @@ async function planFacets(pipeline: Pipeline): Promise<PipelineEnd> {
 
 /**
  * A fresh plan: the look before it (computer use, 2026-09-07) — a read-only session opens the
- * game with the computer tool, plays to the state the brief is about, and says how many builders
+ * project with the computer tool, plays to the state the brief is about, and says how many builders
  * the ask deserves — then the planner. A direct engine or a failed scout leaves the planner to
  * the brief alone, and the decision card says so.
  */
 async function newPlan(pipeline: Pipeline): Promise<AnyRecord> {
   const { ctx, ownShape, run } = pipeline;
-  const scouted = ctx.cancelled ? null : await scoutTheGame(pipeline);
+  const scouted = ctx.cancelled ? null : await scoutTheProject(pipeline);
   const scout = scouted?.report ?? null;
-  // studio.json's nested `game` block — the third declaration source, and the file the plan's
+  // studio.json's nested `project` block — the third declaration source, and the file the plan's
   // own declaration is written back into once a night.
-  const storedGame = await readDeclaredGame(ctx, run.project).catch(() => null);
-  pipeline.storedGame = storedGame;
-  const plan = await decompose(ctx, { run, profile: pipeline.profile, scout, storedGame, ownShape });
+  const storedApp = await readDeclaredApp(ctx, run.project).catch(() => null);
+  pipeline.storedApp = storedApp;
+  const plan = await decompose(ctx, { run, profile: pipeline.profile, scout, storedApp, ownShape });
   plan.scout = scout;
   plan.setup = scout?.setup ?? null;
   const cards = scoutCards(plan, scout, scouted?.skipped ?? null, pipeline.profile.delegated);
@@ -962,8 +962,8 @@ async function newPlan(pipeline: Pipeline): Promise<AnyRecord> {
   return plan;
 }
 
-/** The scout's look at the game, with its transcript kept as a run artifact. */
-async function scoutTheGame(pipeline: Pipeline): Promise<AnyRecord> {
+/** The scout's look at the project, with its transcript kept as a run artifact. */
+async function scoutTheProject(pipeline: Pipeline): Promise<AnyRecord> {
   const { ctx, ownShape, projectDescriptor, run, shape, threadId } = pipeline;
   const scouted = await runScout(ctx, {
     threadId,
@@ -990,12 +990,12 @@ function scoutCards(plan: AnyRecord, scout: AnyRecord | null, skipped: string | 
     // A direct engine never scouts (no hands); only a delegated engine's missing look is news.
     if (!delegated) return [];
     return [
-      `no scout (${skipped ?? "unavailable"}) — the plan was made from the brief alone, and the run looks at whatever the game boots into`,
+      `no scout (${skipped ?? "unavailable"}) — the plan was made from the brief alone, and the run looks at whatever the project boots into`,
     ];
   }
   const verified = scout.setup?.verify ? `, verified by ${scout.setup.verify.path}` : "";
   const reached = scout.reachedRequested ? "" : " (the scout did not confirm it got there)";
-  const seen = `scouted first: on load the game shows ${scout.seen || "(unsaid)"}; the brief is about ${scout.requested || "(unsaid)"} — reached by ${setupReach(scout.setup)}${verified}${reached}`;
+  const seen = `scouted first: on load the project shows ${scout.seen || "(unsaid)"}; the brief is about ${scout.requested || "(unsaid)"} — reached by ${setupReach(scout.setup)}${verified}${reached}`;
   if (!scout.workers) return [seen];
   const count = scout.workers.count;
   const mismatch = plan.facets.length !== count ? ` — the plan has ${plan.facets.length} facet(s)` : "";
@@ -1013,13 +1013,13 @@ function setupReach(setup: AnyRecord | null | undefined): string {
 /**
  * The plan's facts on the run record, BEFORE the base builder forks: the requested state rides
  * on the run (every evidence pass, capture and worker window replays it; a resumed run reads it
- * back from its journaled plan), and so does what kind of game this is — every judge, every
+ * back from its journaled plan), and so does what kind of project this is — every judge, every
  * brief and the artefact-class filter read it from here, and nothing threads it through a judge
  * signature. `ownShape` and `genres` ride with it for the same reason.
  */
 function stampRunFromPlan(run: Run, plan: AnyRecord, ownShape: boolean): void {
   run.setup = plan.setup ?? null;
-  run.game = plan.game ?? null;
+  run.app = plan.app ?? null;
   run.ownShape = ownShape;
   run.genres = plan.genres ?? [];
 }
@@ -1037,7 +1037,7 @@ function addHarnessBoards(pipeline: Pipeline, plan: AnyRecord): void {
     f.checks.length > 0
       ? withHarnessChecks(f, {
           ownsMain: !plan.mainOwner || plan.mainOwner === f.id,
-          game: plan.game,
+          app: plan.app,
           screen: !ownShape,
         })
       : f,
@@ -1179,7 +1179,7 @@ async function gatherReferences(pipeline: Pipeline): Promise<PipelineEnd> {
 async function loadReferencesFromDisk(ctx: HarnessCtx, run: Run): Promise<string[]> {
   const notes: string[] = [];
   const fromDisk = await ctx
-    .call(HostMethod.GameReferences, { project: run.project, max: MAX_REFERENCE_STILLS, maxPx: REFERENCE_MAX_PX })
+    .call(HostMethod.ProjectReferences, { project: run.project, max: MAX_REFERENCE_STILLS, maxPx: REFERENCE_MAX_PX })
     .catch(() => null);
   const frames = fromDisk?.frames ?? [];
   if (frames.length) {
@@ -1348,13 +1348,13 @@ function autopilotStartedPayload(pipeline: Pipeline): AnyRecord {
   };
 }
 
-/** The game folder made ready: scaffolded, its contract current, loaded in the preview; the catalogue read. */
+/** The project folder made ready: scaffolded, its contract current, loaded in the preview; the catalogue read. */
 async function prepareFolder(pipeline: Pipeline): Promise<void> {
   const { ctx, run, threadId } = pipeline;
-  await ctx.call(HostMethod.GameScaffold, { name: run.project, title: run.project });
-  // A game scaffolded before the v2 contract gets the current studio.js (its old copy kept
+  await ctx.call(HostMethod.ProjectScaffold, { name: run.project, title: run.project });
+  // A project scaffolded before the v2 contract gets the current studio.js (its old copy kept
   // beside it), so scene checks and eye cameras exist from the first iteration.
-  const upgraded = await ctx.call(HostMethod.GameUpgradeContract, { project: run.project }).catch(() => null);
+  const upgraded = await ctx.call(HostMethod.ProjectUpgradeContract, { project: run.project }).catch(() => null);
   pipeline.upgraded = upgraded;
   if (upgraded?.upgraded) {
     await appendRunEvent(ctx, threadId, RunEvent.AutopilotDecision, {
@@ -1365,9 +1365,9 @@ async function prepareFolder(pipeline: Pipeline): Promise<void> {
   }
   await ctx.call(HostMethod.PreviewLoad, { project: run.project });
   pipeline.startingConsole = await inheritedConsoleAfterLoad(ctx);
-  const games = await ctx.call(HostMethod.GameList, {}).catch(() => []);
-  pipeline.games = games;
-  pipeline.projectDir = games.find((g: AnyRecord) => g.name === run.project)?.dir ?? null;
+  const projects = await ctx.call(HostMethod.ProjectList, {}).catch(() => []);
+  pipeline.projects = projects;
+  pipeline.projectDir = projects.find((g: AnyRecord) => g.name === run.project)?.dir ?? null;
   pipeline.worktreeMode = pipeline.profile.maxParallel > 1;
   pipeline.catalogue = await loadCatalogue(ctx.workspace);
 }
@@ -1545,7 +1545,7 @@ async function rollBackBase(pipeline: Pipeline, error: string): Promise<Pipeline
   stopRun(
     report,
     StopCode.BaseFailed,
-    `the shared base failed and the game folder could not be returned safely to its state before the build (${error}); nothing was rolled back`,
+    `the shared base failed and the project folder could not be returned safely to its state before the build (${error}); nothing was rolled back`,
   );
   await appendRunEvent(ctx, threadId, RunEvent.AutopilotBase, {
     runId: run.runId,
@@ -1559,7 +1559,7 @@ async function rollBackBase(pipeline: Pipeline, error: string): Promise<Pipeline
 }
 
 /**
- * A game with its own shape has no runnable scaffold to fall back to: facets forked from a
+ * A project with its own shape has no runnable scaffold to fall back to: facets forked from a
  * base that does not load would work blind (skate-prod, 2026-09-06 — six builders, not one
  * judged frame). Stop here and say why; the user fixes the entry, or asks a chat build to
  * install the contract in it, and starts a new build.
@@ -1572,7 +1572,7 @@ async function refuseBlindFacets(pipeline: Pipeline): Promise<PipelineEnd> {
   const built = shape.build ? `, built with \`${shape.build}\`` : "";
   await appendRunEventStrict(ctx, threadId, RunEvent.AutopilotDecision, {
     runId: run.runId,
-    decision: `stopped before the facets: this game has its own shape (${shape.main}${built}) and its base did not load — ${journal.base.error}. Fix the entry, or ask a chat build to install the studio contract in ${shape.main}, then start a new build.`,
+    decision: `stopped before the facets: this project has its own shape (${shape.main}${built}) and its base did not load — ${journal.base.error}. Fix the entry, or ask a chat build to install the studio contract in ${shape.main}, then start a new build.`,
     at: new Date().toISOString(),
   }).catch(() => {});
   return { value: closeRun(ctx, { threadId, run, report, journal, catalogue }) };
@@ -1608,7 +1608,7 @@ async function reviewPlan(pipeline: Pipeline): Promise<PipelineEnd> {
   const reviewWanted = run.reviewPlan && !resume && !ctx.cancelled;
   if (!reviewWanted) return;
   const waitMs = Math.min(PLAN_REVIEW_WAIT_MS, Math.max(0, deadline - Date.now() - MINUTE_MS));
-  // `game` rides on the card for the same reason the facets do: the kind decides the critic,
+  // `project` rides on the card for the same reason the facets do: the kind decides the critic,
   // the harness's own checks and the controls driven before every judgement, and it is
   // written back into the user's studio.json — the review window used to show everything
   // about the night except that.
@@ -1626,12 +1626,12 @@ async function reviewPlan(pipeline: Pipeline): Promise<PipelineEnd> {
   await saveJournal();
 }
 
-/** The plan as the review card shows it: the game, and each facet's cameras and checks. */
+/** The plan as the review card shows it: the project, and each facet's cameras and checks. */
 function planReviewCard(run: Run, plan: AnyRecord, waitMs: number): AnyRecord {
   return {
     runId: run.runId,
     waitMinutes: Math.round(waitMs / MINUTE_MS),
-    ...(plan.game ? { game: plan.game } : {}),
+    ...(plan.app ? { app: plan.app } : {}),
     facets: plan.facets.map((f: AnyRecord) => ({
       id: f.id,
       title: f.title,
@@ -1886,7 +1886,7 @@ function closeYieldedFacets(pipeline: Pipeline): void {
       recordCatalogueOutcomes(catalogue, record.spec, record.board, CheckOrigin.Planner, {
         runId: run.runId,
         genres: plan.genres ?? [],
-        kind: run.game?.kind ?? null,
+        kind: run.app?.kind ?? null,
       });
   }
 }
@@ -1969,7 +1969,7 @@ async function facetWorktree(
   return wt.path;
 }
 
-/** What every facet's loop is told: the run, the game, the clock, the steering and the neighbours. */
+/** What every facet's loop is told: the run, the project, the clock, the steering and the neighbours. */
 function facetLoopOptions(pipeline: Pipeline, facet: AnyRecord, options: FacetRunOptions): AnyRecord {
   const { inbox, integration, ownShape, plan, progress, projectDir, report, run, seed, shape, threadId } = pipeline;
   return {
@@ -2024,11 +2024,11 @@ async function recordFacetResult(
   journal.facets[facet.id] = result;
   pipeline.resumeStates.delete(facet.id);
   // What the facet learned goes to the catalogue: a check that failed on any judged
-  // attempt caught a defect, and the plan's genres file it for the next game of that kind.
+  // attempt caught a defect, and the plan's genres file it for the next project of that kind.
   recordCatalogueOutcomes(catalogue, result.spec, result.board, CheckOrigin.Planner, {
     runId: run.runId,
     genres: plan.genres ?? [],
-    kind: run.game?.kind ?? null,
+    kind: run.app?.kind ?? null,
     everFailed: everFailedChecks(result),
   });
   await saveJournal();
@@ -2352,7 +2352,7 @@ async function landIntegrated(pipeline: Pipeline): Promise<PipelineEnd> {
       // evening of work. It used to be answered with `git reset --hard` onto the run's head,
       // which throws those commits away; the build waits on its integration ref instead, and
       // "Make it live" lands it when the folder is theirs to merge into.
-      report.landing = "not landed: the merge conflicted with changes of your own in the game folder";
+      report.landing = "not landed: the merge conflicted with changes of your own in the project folder";
       // The night ends here (P13-F1): what the folder holds now is the user's, not this build,
       // so no verdict, acceptance, optimization or rollback may treat it as the night's.
       report.stoppedBecause = `${report.landing} — the integrated build waits on its ref`;
@@ -2444,7 +2444,7 @@ async function snapshotIntegrated(pipeline: Pipeline): Promise<void> {
  * The final pass runs every demo and adds the user's-eye frame: the one picture with the
  * DOM on it, so a HUD the canvas never shows is seen at least once.
  * The last gate of the night forgives what the night inherited: the base's own errors (or,
- * failing that, the ones the game logged before the run began) are not this merge's fault.
+ * failing that, the ones the project logged before the run began) are not this merge's fault.
  */
 async function finalEvidence(pipeline: Pipeline): Promise<AnyRecord> {
   const { ctx, integrationFacet, run, seed, startingConsole } = pipeline;
@@ -2506,21 +2506,21 @@ async function refuseUnjudgeable(pipeline: Pipeline): Promise<PipelineEnd> {
     return { value: closeRun(ctx, { threadId, run, report, journal, catalogue }) };
   }
   stopRun(report, StopCode.NotJudgeable, `integrated build is not judgeable: ${problems.join("; ")}`);
-  const rollback = await rollBackGame(ctx, {
+  const rollback = await rollBackProject(ctx, {
     run,
     snapshot: incumbent,
     reason: `run ${run.runId}: integrated build broken — rolled back`,
   });
   report.rolledBack = rollback.rolledBack;
   if (!rollback.rolledBack)
-    report.stoppedBecause += ` — the rollback was refused (${rollback.refusal}), so the integrated build is still in the game folder`;
+    report.stoppedBecause += ` — the rollback was refused (${rollback.refusal}), so the integrated build is still in the project folder`;
   return { value: closeRun(ctx, { threadId, run, report, journal, catalogue }) };
 }
 
 /**
  * A facet's accepted demos must survive the merge — run_mthlnp75kmex shipped a build where
- * every ritual demo existed in its facet and none in the integrated game, and nothing said so.
- * Compared against what the merged game DECLARES, not what a capped capture photographed:
+ * every ritual demo existed in its facet and none in the integrated project, and nothing said so.
+ * Compared against what the merged project DECLARES, not what a capped capture photographed:
  * the first v2 run reported three demos "lost" that all ran in the merged build.
  */
 function lostDemosOf(pipeline: Pipeline): string[] {
@@ -2687,7 +2687,7 @@ function panelRefusal(run: Run, panel: AnyRecord | null | undefined): string {
 /** The integrated build lost the global blind comparison: roll it back, and say whether that happened. */
 async function rejectIntegrated(pipeline: Pipeline): Promise<null> {
   const { ctx, incumbent, report, run } = pipeline;
-  const rollback = await rollBackGame(ctx, {
+  const rollback = await rollBackProject(ctx, {
     run,
     snapshot: incumbent,
     reason: `run ${run.runId}: integrated build lost the global blind comparison`,
@@ -2695,7 +2695,7 @@ async function rejectIntegrated(pipeline: Pipeline): Promise<null> {
   report.rolledBack = rollback.rolledBack;
   const after = rollback.rolledBack
     ? "rolled back"
-    : `the rollback was refused (${rollback.refusal}), so the integrated build is still in the game folder`;
+    : `the rollback was refused (${rollback.refusal}), so the integrated build is still in the project folder`;
   stopRun(
     report,
     StopCode.NoImprovement,
@@ -2728,11 +2728,11 @@ async function recordFinalization(pipeline: Pipeline, verifiedBaseline: AnyRecor
 export { observationOnlyFailure } from "./evidence.ts";
 
 /**
- * Put the game back on `snapshot` and say whether that happened. The studio refuses a restore
+ * Put the project back on `snapshot` and say whether that happened. The studio refuses a restore
  * that would drop commits it did not make, and a night that could not roll back must not
  * report that it did.
  */
-export async function rollBackGame(
+export async function rollBackProject(
   ctx: HarnessCtx,
   {
     run,
@@ -2841,7 +2841,7 @@ async function closeRun(
       run,
       reason: ctx.cancelled
         ? "Run stopped before final optimization"
-        : "Assembled game has not passed final verification",
+        : "Assembled project has not passed final verification",
     });
   const stoppedBeforeVerdict = ctx.cancelled && journal.phase !== JournalPhase.Verdict;
   const paused = stoppedBeforeVerdict || report.optimization?.outcome === OptimizationOutcome.Interrupted;

@@ -2,8 +2,8 @@
  * Words — the one place a harness word becomes a user word.
  *
  * The harness talks to itself in run ids, facet titles, verdict sources and tool names. None of
- * that is the user's language: they asked for a game, and the only questions they ever ask are
- * "is my game being worked on?" and "what happened to it?". Every label in the app that starts
+ * that is the user's language: they asked for a project, and the only questions they ever ask are
+ * "is my project being worked on?" and "what happened to it?". Every label in the app that starts
  * life inside `src/harness-seed` passes through this module first, so the translation is written
  * once, tested once (tests/conformance/words.test.ts), and cannot drift between the titlebar,
  * the rail, the chat and the graph.
@@ -48,7 +48,7 @@ import { plural } from "../shared/skill-words.ts";
 import { type ScreenAct, ScreenDeed } from "../shared/agent-screen.ts";
 import { HOUR_MS, MINUTE_MS, SECOND_MS } from "../shared/duration.ts";
 
-export type ToolIcon = "think" | "write" | "run" | "read" | "see" | "game";
+export type ToolIcon = "think" | "write" | "run" | "read" | "see" | "project";
 
 /** A status has two shapes: a sentence for the titlebar, and a chip for the narrow rail. */
 export interface StatusWords {
@@ -122,8 +122,8 @@ const PHRASES: Array<[RegExp, (match: RegExpMatchArray) => StatusWords]> = [
     /^building the (?:shared base|starting point)$/i,
     () => ({ line: "Building the starting point", short: "Starting point" }),
   ],
-  // The night's other first step: a game the user brought that the studio cannot see into yet.
-  [/^making the game judgeable$/i, () => ({ line: "Connecting your game to the studio", short: "Connecting" })],
+  // The night's other first step: a project the user brought that the studio cannot see into yet.
+  [/^making the project judgeable$/i, () => ({ line: "Connecting your project to the studio", short: "Connecting" })],
   [
     /^plan ready — waiting for steering$/i,
     () => ({ line: "The plan is ready — waiting for your go-ahead", short: "Plan ready" }),
@@ -142,11 +142,11 @@ const PHRASES: Array<[RegExp, (match: RegExpMatchArray) => StatusWords]> = [
     /^rate limited — retrying in (\d+)s$/i,
     (m) => ({ line: `The model's rate limit is holding us up — trying again in ${m[1]}s`, short: "Waiting" }),
   ],
-  [/^scouting the game$/i, () => ({ line: "Looking at the game as it is now", short: "Looking" })],
+  [/^scouting the project$/i, () => ({ line: "Looking at the project as it is now", short: "Looking" })],
   [/^checking (.+) in the preview$/i, (m) => ({ line: `Checking ${m[1]} in the preview`, short: "Checking" })],
   [
     /^observation outage — retrying evidence in (\d+)s/i,
-    (m) => ({ line: `The studio could not see the game — looking again in ${m[1]}s`, short: "Looking again" }),
+    (m) => ({ line: `The studio could not see the project — looking again in ${m[1]}s`, short: "Looking again" }),
   ],
   [
     /^(.+) is overloaded — waiting (\d+)s before retrying/i,
@@ -299,7 +299,7 @@ const UNDONE_BECAUSE: Record<string, string> = {
   unfixed: "the must-fix was not fixed",
   broken: "the build was broken",
   outage: "the model could not be reached",
-  race: "the game had not finished loading when it was looked at",
+  race: "the project had not finished loading when it was looked at",
 };
 
 /**
@@ -567,7 +567,7 @@ function finishedTitle({ delivered, verification }: OutcomeView, variant: Outcom
 
 /** The morning's two sentences: what the night amounts to, and what became of the build. */
 export interface NightWords {
-  /** "Finished after 21 rounds · live in your game" */
+  /** "Finished after 21 rounds · live in your project" */
   headline: string;
   /** why it ended, or what happened to the build */
   because: string;
@@ -575,9 +575,9 @@ export interface NightWords {
 
 /**
  * How a finished night reads. The old screen decided this on `victory` — a flag the lead sets
- * only when it explicitly claims one — so a night that built, merged and landed a game read
+ * only when it explicitly claims one — so a night that built, merged and landed a project read
  * "Stopped after 21 rounds". What the user actually cares about is whether the build reached
- * their game, which is `landed`, so that is what the headline says.
+ * their project, which is `landed`, so that is what the headline says.
  */
 export function nightWords(night: {
   rounds: number;
@@ -594,7 +594,7 @@ export function nightWords(night: {
   /**
    * The close's own sentence about landing ("made live, a judge preferred it" / "made live, not
    * judged better"). It is the one thing the user cannot see for themselves — whether anything
-   * checked the build that is now their game — so it replaces the flat promise when it is there.
+   * checked the build that is now their project — so it replaces the flat promise when it is there.
    */
   landing?: string | null;
 }): NightWords {
@@ -607,17 +607,17 @@ export function nightWords(night: {
   if (wasCancelled(night.stoppedBecause)) return stoppedNightWords(after, night.landed === true, hasBuild);
   if (night.landed === true) {
     return {
-      headline: `Finished${after} · live in your game`,
+      headline: `Finished${after} · live in your project`,
       because: landing
         ? `${capitalise(landing)} — open Live to play it.`
-        : "This build is your game now — open Live to play it.",
+        : "This build is your project now — open Live to play it.",
     };
   }
   if (night.landed === false) {
     // Nothing merged: the old copy promised "kept and playable" over a card with no button at all.
     return hasBuild
       ? { headline: `Finished${after} · not made live yet`, because: `The build is kept and playable — ${why}.` }
-      : { headline: `Finished${after} · nothing new`, because: `Your game is as you left it — ${why}.` };
+      : { headline: `Finished${after} · nothing new`, because: `Your project is as you left it — ${why}.` };
   }
   return { headline: `Finished${after}`, because: `${capitalise(why)}.` };
 }
@@ -632,16 +632,19 @@ function pausedNightWords(after: string, stopped: boolean, why: string): NightWo
   };
 }
 
-/** A night the owner stopped: what reached the game, what is kept, or that nothing changed. */
+/** A night the owner stopped: what reached the project, what is kept, or that nothing changed. */
 function stoppedNightWords(after: string, landed: boolean, hasBuild: boolean): NightWords {
   if (landed)
-    return { headline: `Stopped${after} · live in your game`, because: "Stopped. What it built is in your game now." };
+    return {
+      headline: `Stopped${after} · live in your project`,
+      because: "Stopped. What it built is in your project now.",
+    };
   if (hasBuild)
     return {
       headline: `Stopped${after} · the build so far is kept`,
       because: "Stopped. Everything built so far is kept.",
     };
-  return { headline: `Stopped${after}`, because: "Stopped. Your game is as you left it." };
+  return { headline: `Stopped${after}`, because: "Stopped. Your project is as you left it." };
 }
 
 // ── when something refuses ────────────────────────────────────────────────────────────────
@@ -653,18 +656,18 @@ function stoppedNightWords(after: string, landed: boolean, hasBuild: boolean): N
  * a log, with the git command's output still attached.
  */
 const PROBLEMS: Array<[RegExp, string]> = [
-  [/is not a commit hash|is not in ".*"'s history/i, "That build is not in this game's history any more."],
+  [/is not a commit hash|is not in ".*"'s history/i, "That build is not in this project's history any more."],
   [
     /(?:a contractor|a builder) is building in .* right now/i,
-    "A worker is busy in your game folder right now — try again once it has finished.",
+    "A worker is busy in your project folder right now — try again once it has finished.",
   ],
   [
     /uncommitted edits/i,
-    "Your game folder has edits of its own, and the studio will not write over them — save or undo them, then try again.",
+    "Your project folder has edits of its own, and the studio will not write over them — save or undo them, then try again.",
   ],
   [
-    /conflicted with the game folder/i,
-    "That build and your game folder changed the same things, so nothing was changed.",
+    /conflicted with the project folder/i,
+    "That build and your project folder changed the same things, so nothing was changed.",
   ],
 ];
 
@@ -692,7 +695,7 @@ function errorText(err: unknown): string {
 
 /**
  * What a round's checks came to. "1 of 10 checks" reads as nine failures; on the first real night
- * nine of them were checks nothing could measure, which is the difference between "the game is
+ * nine of them were checks nothing could measure, which is the difference between "the project is
  * wrong" and "the studio couldn't look". All three surfaces say it the same way.
  *
  * The counted checks are the ones the plan asked for. A judge that keeps naming what it still
@@ -788,7 +791,7 @@ export function autopilotStartWords(start: {
 }): string {
   const hands = Math.max(1, Math.trunc(start.maxParallel ?? 1));
   if (start.director) {
-    return `the lead is taking this build — it looks at your game first, puts up to ${plural(hands, "worker")} to work, checks what they make and puts it together`;
+    return `the lead is taking this build — it looks at your project first, puts up to ${plural(hands, "worker")} to work, checks what they make and puts it together`;
   }
   const facets = start.facets ?? [];
   const named = facets
@@ -873,7 +876,7 @@ function fixState(fix: { delivered?: boolean | null; mandatory?: boolean | null 
 }
 
 /**
- * How alive the game feels, out of the judge's own scale — or, for a game that is a screen
+ * How alive the project feels, out of the judge's own scale — or, for a project that is a screen
  * rather than a place (a board, a puzzle, a builder), how well that screen reads. The two
  * critics score different questions, so the user is told which one answered.
  */
@@ -1042,20 +1045,20 @@ export function planReviewWords(plan: {
   facets?: Array<{ id?: string | null; title?: string | null }> | null;
   waitMinutes?: number | null;
   summary?: string | null;
-  /** What kind of game the night decided this is (M4.5b) — the plan card's one other decision. */
-  game?: { kind?: string | null } | null;
+  /** What kind of project the night decided this is (M4.5b) — the plan card's one other decision. */
+  app?: { kind?: string | null } | null;
 }): string {
   const parts = (plan.facets ?? []).map((facet) => withoutIds((facet?.title ?? "").trim())).filter(Boolean);
   const summary = withoutIds((plan.summary ?? "").trim());
   const named = parts.length ? ` — ${parts.join(" · ")}` : "";
-  // The kind is written back into the game and decides the controls the studio drives before
+  // The kind is written back into the project and decides the controls the studio drives before
   // every judgement and which critic reads the build. The window meant for objecting to the
   // plan used to show every part of it except that one.
-  const kind = String(plan.game?.kind ?? "")
+  const kind = String(plan.app?.kind ?? "")
     .trim()
     .replace(/[^a-z-]/g, "");
   const declared = kind
-    ? ` It treats this as a ${kind.replace(/-/g, " ")} game — that decides the controls it drives before every look, and who reviews it.`
+    ? ` It treats this as a ${kind.replace(/-/g, " ")} project — that decides the controls it drives before every look, and who reviews it.`
     : "";
   const head = `${summary ? `${sentence(summary)}${parts.length ? ` The parts: ${parts.join(" · ")}.` : ""}` : `the plan is ready${named}.`}${declared}`;
   const waiting = Math.trunc(plan.waitMinutes ?? 0);
@@ -1079,9 +1082,9 @@ export function resumedWords(parts: number): string {
  * changes Live while the person watches it, so the button that would bring the change names it.
  */
 const LIVE_BEHIND_WORDS = {
-  [LiveBehindReason.Changed]: "The game changed — reload to see it",
+  [LiveBehindReason.Changed]: "The project changed — reload to see it",
   [LiveBehindReason.Build]: "A new build is ready — reload to play it",
-  [LiveBehindReason.Broken]: "This build turned out not to run — reload to go back to your game",
+  [LiveBehindReason.Broken]: "This build turned out not to run — reload to go back to your project",
 } as const satisfies Record<LiveBehindReason, string>;
 
 /** Reload's tooltip while Live is behind; the builder's own note, when it left one, follows. */
@@ -1097,10 +1100,10 @@ export function liveBehindLabel(reason: LiveBehindReason, note: string | null): 
 
 /** The stage strip's Play/Stop and full screen, as their tooltips and accessible names say them. */
 export const STAGE_WORDS = {
-  stop: "Stop game",
-  stopping: "Stopping game",
-  play: "Play game",
-  starting: "Starting game",
+  stop: "Stop project",
+  stopping: "Stopping project",
+  play: "Play project",
+  starting: "Starting project",
   fullScreen: "Full screen",
 } as const;
 
@@ -1108,7 +1111,7 @@ export const STAGE_WORDS = {
 
 /** What an agent is doing at its screen, as its node says it while it happens. */
 const SCREEN_DOING: Record<ScreenDeed, string> = {
-  [ScreenDeed.Load]: "Opening the game",
+  [ScreenDeed.Load]: "Opening the project",
   [ScreenDeed.Look]: "Looking around",
   [ScreenDeed.Click]: "Clicking",
   [ScreenDeed.Press]: "Pressing",
@@ -1304,7 +1307,7 @@ export function harnessLearnedWords(things: string): string {
 
 /** What the lead offered to Live: its Reload plays it, since Live never changes under the user. */
 export function showWords(target: string | undefined): string {
-  if (target === "live") return "the lead offered your game folder on Live's Reload";
+  if (target === "live") return "the lead offered your project folder on Live's Reload";
   if (target === "integration") return "the lead offered the merged build on Live's Reload";
   return `the lead offered one worker's work on Live's Reload${target ? ` (${target})` : ""}`;
 }
@@ -1406,7 +1409,7 @@ export const NOTICE_WORDS = {
   buildStopped: "Build stopped. Everything built so far is kept.",
   buildLive: "Build finished. Changes are live.",
   buildNothingNew: "Build finished without a new version.",
-  newGame: "New game",
+  newProject: "New project",
   harness: "Harness",
 } as const;
 
@@ -1441,9 +1444,9 @@ export const ACTIVITY_WORDS = {
 export const HARNESS_GUIDE_WORDS = {
   open: "How it works",
   title: "How Harness works",
-  lead: "Harness is the set of instructions the agents follow when they build your games. It learns from every build and suggests better ways to work. You decide what changes.",
+  lead: "Harness is the set of instructions the agents follow when they build your projects. It learns from every build and suggests better ways to work. You decide what changes.",
   steps: [
-    { title: "You build.", body: "Every game chat and Loop run is recorded under Recent runs." },
+    { title: "You build.", body: "Every project chat and Loop run is recorded under Recent runs." },
     {
       title: "Harness looks back.",
       body: "After a run it finds what went wrong or took extra work, and drafts an edit to its own instructions.",
@@ -1455,7 +1458,7 @@ export const HARNESS_GUIDE_WORDS = {
     { title: "You decide.", body: "Suggestions wait until you apply them. Every applied change can be undone." },
   ],
   notes: [
-    "Reviewers compare instructions; they don’t rebuild your games. An applied change isn’t proof of better results.",
+    "Reviewers compare instructions; they don’t rebuild your projects. An applied change isn’t proof of better results.",
     "Turn Self-improvement off to stop learning. What Harness already learned stays until you undo it.",
   ],
   settings: "Harness settings",
@@ -1490,7 +1493,7 @@ export const ABOUT_WORDS = {
   failed: "Couldn't check for updates. Check your connection and try again.",
   restart: "Relaunch to update",
   download: "Download",
-  tagline: "The desktop app to build & publish games with AI",
+  tagline: "The desktop app to build & publish projects with AI",
   versionLine: (version: string | null) => (version ? `Version ${version}` : "Development build"),
   updates: "Updates",
   website: "Website",
@@ -1514,9 +1517,9 @@ const PLATFORM_NAMES: Partial<Record<string, string>> = {
 
 /** The fixed toasts of the stage and the Builds tab. */
 export const TOAST_WORDS = {
-  buildLive: "This build is your game now",
-  shownBuildBroken: "That build turned out not to run — Reload puts your game folder back on the stage.",
-  packagesInstalled: "Packages installed — building your game again.",
+  buildLive: "This build is your project now",
+  shownBuildBroken: "That build turned out not to run — Reload puts your project folder back on the stage.",
+  packagesInstalled: "Packages installed — building your project again.",
   packagesFailed: "The packages could not be installed — the details are on the stage.",
 } as const;
 
@@ -1526,19 +1529,19 @@ export const TOAST_WORDS = {
 export const PROGRESS_WORDS = {
   optimizationFinished: "Optimization finished",
   optimization: "Optimization",
-  optimizing: "The assembled game is being measured and checked for safe improvements.",
+  optimizing: "The assembled project is being measured and checked for safe improvements.",
   buildingStart: "Building the starting point",
   startBeforeParts: "The starting point is built and checked before the lead delegates the parts.",
   startReady: "The starting point is ready",
   gettingStarted: "Getting started",
-  leadLooking: "The lead is looking at your game and deciding what this build needs.",
+  leadLooking: "The lead is looking at your project and deciding what this build needs.",
   betweenBuilds: "Between builds",
   nothingKept: "Nothing kept yet",
   planningParts: "Planning the parts",
   planOpens: "The plan opens here; each part appears as it is named.",
   preparingBuilds: "Preparing the next builds",
-  startRejected: "The starting point was rejected; the parts carry on from an empty game.",
-  startEmpty: "The starting point runs but is empty — no scenery or gameplay yet.",
+  startRejected: "The starting point was rejected; the parts carry on from an empty project.",
+  startEmpty: "The starting point runs but is empty — no scenery or interaction yet.",
   startPassed: "The starting point passed its checks. Each part still needs its own verdict.",
 } as const;
 
@@ -1588,20 +1591,20 @@ const STUDIO_TOOLS: Record<string, ToolWords> = {
   list_own_files: { icon: "read", label: "listed its own files" },
   stat_own_file: { icon: "read", label: "checked one of its own files" },
   self_history: { icon: "read", label: "read its own history" },
-  list_games: { icon: "read", label: "listed your games" },
+  list_projects: { icon: "read", label: "listed your projects" },
   screenshot: { icon: "see", label: "took a screenshot" },
-  load_preview: { icon: "see", label: "loaded the game" },
-  reload_preview: { icon: "see", label: "reloaded the game" },
-  console_log: { icon: "see", label: "read the game's console" },
+  load_preview: { icon: "see", label: "loaded the project" },
+  reload_preview: { icon: "see", label: "reloaded the project" },
+  console_log: { icon: "see", label: "read the project's console" },
   gpu_errors: { icon: "see", label: "checked for graphics errors" },
-  press_keys: { icon: "game", label: "pressed keys" },
-  click: { icon: "game", label: "clicked" },
-  look: { icon: "game", label: "looked around" },
-  check_game: { icon: "game", label: "checked the game" },
-  game_state: { icon: "game", label: "read the game's state" },
-  play_deterministic: { icon: "game", label: "played the game" },
-  new_game: { icon: "game", label: "started a new game" },
-  export_game: { icon: "game", label: "exported the game" },
+  press_keys: { icon: "project", label: "pressed keys" },
+  click: { icon: "project", label: "clicked" },
+  look: { icon: "project", label: "looked around" },
+  check_project: { icon: "project", label: "checked the project" },
+  project_state: { icon: "project", label: "read the project's state" },
+  play_deterministic: { icon: "project", label: "played the project" },
+  new_project: { icon: "project", label: "started a new project" },
+  export_project: { icon: "project", label: "exported the project" },
   remember: { icon: "think", label: "remembered something" },
   forget: { icon: "think", label: "forgot something" },
   snapshot_now: { icon: "think", label: "saved a snapshot" },
@@ -1614,11 +1617,11 @@ const STUDIO_TOOLS: Record<string, ToolWords> = {
   reopen_run: { icon: "run", label: "reopened the build" },
   continue_build: { icon: "run", label: "continued the build" },
   show_build: { icon: "see", label: "showed you a build" },
-  land_build: { icon: "write", label: "put the build in your game" },
+  land_build: { icon: "write", label: "put the build in your project" },
   ask_user: { icon: "think", label: "asked you a question" },
-  set_game_cover: { icon: "write", label: "painted the game's cover" },
+  set_project_cover: { icon: "write", label: "painted the project's cover" },
   checkpoint: { icon: "see", label: "marked a moment worth seeing" },
-  capture: { icon: "see", label: "captured the game", active: "Capturing the game" },
+  capture: { icon: "see", label: "captured the project", active: "Capturing the project" },
   // The lead's run tools. `wait` stays neutral: a playtester waits too.
   plan: { icon: "think", label: "set out the plan", active: "Writing the plan" },
   goal_update: {
@@ -1632,7 +1635,7 @@ const STUDIO_TOOLS: Record<string, ToolWords> = {
   worker_stop: { icon: "run", label: "stopped a worker" },
   wait: { icon: "think", label: "waited", active: "Waiting" },
   judge: { icon: "see", label: "reviewed a build", active: "Reviewing a build" },
-  playtest: { icon: "game", label: "had a build playtested", active: "Playtesting a build" },
+  playtest: { icon: "project", label: "had a build playtested", active: "Playtesting a build" },
   integrate: { icon: "write", label: "merged a worker's work", active: "Merging a worker's work" },
   show: { icon: "see", label: "showed you a build" },
   note: { icon: "think", label: "noted a decision" },
@@ -1641,7 +1644,7 @@ const STUDIO_TOOLS: Record<string, ToolWords> = {
 
 /** A builder's own tools come from its SDK, in its own vocabulary — Bash, Read, Edit, MCP. */
 const SDK_TOOLS: Array<[RegExp, ToolWords]> = [
-  [/^mcp__studio__computer$/i, { icon: "see", label: "looked at the game" }],
+  [/^mcp__studio__computer$/i, { icon: "see", label: "looked at the project" }],
   [/^(bash|bashoutput|killshell|killbash)$/i, { icon: "run", label: "ran a command" }],
   [/^(read|notebookread)$/i, { icon: "read", label: "read the code" }],
   [/^(edit|multiedit|write|notebookedit)$/i, { icon: "write", label: "edited the code" }],
@@ -1796,7 +1799,7 @@ const homePath = (path: string): string => path.replace(/^\/(?:Users|home)\/[^/]
 
 /** What one rule allows, and where. */
 function ruleGrantWords(rule: string, scope: RuleScope): string {
-  const where = scope === RuleScope.Chat ? "in this chat" : "in this game";
+  const where = scope === RuleScope.Chat ? "in this chat" : "in this project";
   const { tool, content } = parsedRule(rule);
   if (tool === "Bash" && content) {
     const prefix = commandPrefix(content);
@@ -1846,7 +1849,7 @@ export function alwaysWords(grants: readonly PermissionGrant[]): string {
  */
 export function bypassPermissionsWords(platform: string): string {
   const machine = platform && platform !== StudioPlatform.Mac ? "this computer" : "this Mac";
-  return `Claude will run commands and change files anywhere on ${machine} without asking. Rewind restores only the game folder.`;
+  return `Claude will run commands and change files anywhere on ${machine} without asking. Rewind restores only the project folder.`;
 }
 
 /** How a request the work ended around reads. */
@@ -1906,8 +1909,8 @@ export const TOOL_ACTIVITY_WORDS: Readonly<Record<ToolIcon, string>> = {
   read: "Reading",
   write: "Editing",
   run: "Running a tool",
-  see: "Inspecting the game",
-  game: "Working on the game",
+  see: "Inspecting the project",
+  project: "Working on the project",
   think: "Thinking",
 };
 
@@ -1924,7 +1927,7 @@ export function toolActivityWords(icon: ToolIcon): string {
 /** How many included files an export notice names before it says "and N more". */
 const EXPORT_LIST_LIMIT = 12;
 
-/** The notice after a game's public files were exported. */
+/** The notice after a project's public files were exported. */
 export function exportedWords(result: { files: number; included: string[]; excluded: string[] }): string {
   const named = result.included.slice(0, EXPORT_LIST_LIMIT).join(", ");
   const rest = result.included.length - EXPORT_LIST_LIMIT;
@@ -1956,7 +1959,7 @@ export const CHAT_WORDS = {
 
 /** What a button that shows a file in the system's file manager says, and its failure. */
 export interface FileManagerWords {
-  /** Show a folder or a game file. */
+  /** Show a folder or a project file. */
   show: string;
   /** Show an asset from its preview. */
   reveal: string;
@@ -2033,7 +2036,7 @@ const MAC_FILE_WORDS: ChatFileWords = {
     [ChatFileOpen.Folder]: "Opens in Finder",
     [ChatFileOpen.Finder]: "Shows in Finder",
   },
-  build: "In the build · not in your game folder yet",
+  build: "In the build · not in your project folder yet",
   noApp: (label) => `No app on this Mac opens ${label}, so it’s shown in Finder.`,
 };
 
@@ -2101,7 +2104,7 @@ export const SANDBOX_SETUP_WORDS = {
 
 /** The Plugins tab's lists, its Add menu and the Install from GitHub window. */
 export const PLUGINS_WORDS = {
-  intro: "Tools and connections for all your games.",
+  intro: "Tools and connections for all your projects.",
   back: "Back to workspace",
   add: {
     github: "Install from GitHub…",
@@ -2117,12 +2120,12 @@ export const PLUGINS_WORDS = {
   marketplace: {
     title: "Marketplace",
     soon: "Coming soon",
-    text: "Plugins from more game dev tools are on the way.",
+    text: "Plugins from more project dev tools are on the way.",
   },
   /** The MCP servers section before anyone has added one. */
   servers: {
     emptyTitle: "Connect any MCP server",
-    emptyText: "A command on this Mac, or a URL with browser sign-in. Agents in every game can use its tools.",
+    emptyText: "A command on this Mac, or a URL with browser sign-in. Agents in every project can use its tools.",
   },
   own: {
     title: "Make your own plugin",
@@ -2166,15 +2169,15 @@ export const PLUGINS_WORDS = {
   can: {
     credentials: (publisher: string) => `use your ${publisher} account`,
     "native-runtime": (runtimes: string) => `run ${runtimes}`,
-    observe: "see the running game",
+    observe: "see the running project",
     network: "reach the internet",
     "external-auth": "open sign-in in your browser",
     jobs: "run background jobs",
-    "project.read": "read files in your games",
-    "project.write": "write files in your games",
-    readWrite: "read and write files in your games",
+    "project.read": "read files in your projects",
+    "project.write": "write files in your projects",
+    readWrite: "read and write files in your projects",
     settings: "keep its own settings",
-    export: "export games",
+    export: "export projects",
   },
   /** Local Blender's setup card and what it does. */
   blender: {
@@ -2195,9 +2198,9 @@ export const PLUGINS_WORDS = {
     cancel: "Cancel",
     checking: "Checking Blender…",
     doesTitle: "What it does",
-    doesIntro: "Agents use it when a game needs a model and you haven’t asked for Genex.",
-    model: { title: "Model from a script", text: "A GLB for the game plus reference renders to check it." },
-    change: { title: "Change a model", text: "Reshape or clean up a GLB already in your game. The original stays." },
+    doesIntro: "Agents use it when a project needs a model and you haven’t asked for Genex.",
+    model: { title: "Model from a script", text: "A GLB for the project plus reference renders to check it." },
+    change: { title: "Change a model", text: "Reshape or clean up a GLB already in your project. The original stays." },
   },
   github: {
     title: "Install from GitHub",
@@ -2253,9 +2256,9 @@ export const PLAN_MODE_WORDS = {
 export const SKILLS_WORDS = {
   studioTitle: "Studio skills",
   studioIntro: "Used by local chat, the run planner and the director.",
-  gameTitle: "This game",
-  gameIntro: "In this game’s folder. Workers load them from there.",
-  gameEmpty: "This game has no skills of its own.",
+  projectTitle: "This project",
+  projectIntro: "In this project’s folder. Workers load them from there.",
+  projectEmpty: "This project has no skills of its own.",
   providerTitle: (label: string) => `${label} · Global skills`,
   /** Whether a provider's global skills reach Studio's builders, by `ProviderBuilderUse`. */
   builders: {
@@ -2271,7 +2274,7 @@ export const SKILLS_WORDS = {
   lastChange: "Last update",
   loadingFile: "Reading the skill…",
   /** The hint beside a plugin's switch in the Add menu: turning it off turns it off everywhere. */
-  allGames: "All games",
+  allProjects: "All projects",
 } as const;
 
 // ── commands a reply offers ───────────────────────────────────────────────────────────────
@@ -2316,8 +2319,8 @@ export const GENEX_WORDS = {
   promo: {
     label: "Genex Tools",
     eyebrow: "Featured Genex plugin",
-    title: "Generate game assets in chat",
-    models: { title: "3D models and characters", text: "Rigged, animated and ready for your game." },
+    title: "Generate project assets in chat",
+    models: { title: "3D models and characters", text: "Rigged, animated and ready for your project." },
     media: { title: "Sound, music and art", text: "Effects, soundtracks, voices and textures." },
     publish: { title: "Publish with a playable link", text: "Anyone can play it in their browser." },
     learnMore: "Learn more",
@@ -2329,13 +2332,13 @@ export const GENEX_WORDS = {
     failed: "Sign-in didn’t finish.",
     retry: "Try again",
     connectedTitle: "Genex is connected",
-    connectedText: "Ask for a model, a sound or a texture in any game chat.",
+    connectedText: "Ask for a model, a sound or a texture in any project chat.",
     done: "Done",
     dismiss: "Close",
   },
   account: {
     signedOutTitle: "Connect your Genex account",
-    signedOutText: "Sign in once in your browser. One credit balance covers all your games.",
+    signedOutText: "Sign in once in your browser. One credit balance covers all your projects.",
     retryTitle: "Reconnect your Genex account",
     retryText: "Your saved sign-in couldn’t be opened on this Mac. Sign in again in your browser.",
     connect: "Connect Genex",
@@ -2360,20 +2363,20 @@ export const GENEX_WORDS = {
     disconnect: "Disconnect",
     credits: "Credits",
     unlimited: "Unlimited",
-    shared: "One balance for all your games. Failed generations are refunded.",
-    outOfCredits: "Games still build with procedural assets and Local Blender.",
+    shared: "One balance for all your projects. Failed generations are refunded.",
+    outOfCredits: "Projects still build with procedural assets and Local Blender.",
     paused: (kinds: string) => `Paused on Genex right now: ${kinds}.`,
     off: "Turn on the Genex plugin to connect your account.",
   },
   /** Genex as the Plugins page shows it: the router, its line, and the tools it routes. */
   router: {
-    name: "Game dev tools router",
+    name: "Project dev tools router",
     description: "Genex · Tripo, Meshy, Uthana, ElevenLabs, GPT Image and more on one balance",
     intro:
-      "The Genex plugin connects your agents to every game dev tool. Pay on demand, with one balance for every tool.",
+      "The Genex plugin connects your agents to every project dev tool. Pay on demand, with one balance for every tool.",
     toolsTitle: "Tools it routes",
     toolsIntro:
-      "Ask in any game chat. Genex picks the tool, runs it on your balance and saves the file in your game. No accounts or keys of your own.",
+      "Ask in any project chat. Genex picks the tool, runs it on your balance and saves the file in your project. No accounts or keys of your own.",
     /** Each routed tool's name and what it does, by `RoutedTool`. */
     tools: {
       tripo: { name: "Tripo", line: "3D · rig · animate" },
@@ -2387,17 +2390,17 @@ export const GENEX_WORDS = {
       publishing: { name: "Genex", line: "Publishing" },
     },
   },
-  /** The Publish dialog on the game's stage, drawn by Studio. */
+  /** The Publish dialog on the project's stage, drawn by Studio. */
   publish: {
     title: "Publish to the web",
     intro: "Get a link anyone can play in their browser.",
-    published: "Your game is live. Anyone with the link can play it.",
+    published: "Your project is live. Anyone with the link can play it.",
     /** The stage strip's own Publish, when Genex adds none: the words of Genex's button. */
     button: "Publish",
-    buttonLabel: "Publish game",
-    /** The name field: what the game is listed under, and what Genex paints on its cover. */
+    buttonLabel: "Publish project",
+    /** The name field: what the project is listed under, and what Genex paints on its cover. */
     name: "Name players will see",
-    /** The game's line under its name. */
+    /** The project's line under its name. */
     statusNone: "Not online yet",
     statusDraft: "Test version online",
     statusLive: (when: string) => (when === "now" ? "Live · updated just now" : `Live · updated ${when} ago`),
@@ -2407,9 +2410,9 @@ export const GENEX_WORDS = {
     publishing: "Publishing…",
     updatePublic: "Publish update",
     tryAgain: "Try again",
-    openGame: "Open game",
+    openProject: "Open project",
     copyLink: "Copy",
-    copyLinkLabel: "Copy the game's link",
+    copyLinkLabel: "Copy the project's link",
     copied: "Copied",
     /** Beside the busy Publish: closing the dialog does not stop it. */
     keepsGoing: "Keeps going if you close this.",
@@ -2420,8 +2423,8 @@ export const GENEX_WORDS = {
     filesLabel: "Files Publish uploads",
     filesLeftOut: (count: number) => `${count} left out`,
     failedTitle: "It didn't go online this time",
-    failedText: "Your game is safe and nothing changed. Check your internet connection and try again.",
-    failedKept: "Your game is safe, and players still get the version they had. Try again in a moment.",
+    failedText: "Your project is safe and nothing changed. Check your internet connection and try again.",
+    failedKept: "Your project is safe, and players still get the version they had. Try again in a moment.",
     unresolvedTitle: "Still checking whether it went online",
     unresolvedText: "Studio couldn’t tell whether the upload reached Genex. Check again before uploading again.",
     copyDetails: "Copy details for support",
@@ -2446,9 +2449,9 @@ export const GENEX_WORDS = {
     seconds: (count: number) => `${count}s`,
     /** What the running step is doing, by `GenexPublishPhase`. */
     phase: {
-      checking: "Preparing your game",
-      exporting: "Preparing your game",
-      "creating-project": "Preparing your game",
+      checking: "Preparing your project",
+      exporting: "Preparing your project",
+      "creating-project": "Preparing your project",
       uploading: "Uploading",
       promoting: "Going live",
       listing: "Going live",
@@ -2466,14 +2469,14 @@ export const GENEX_WORDS = {
       live: "Go live",
     },
   },
-  /** The usage panel's Genex block: this game's spend, and the balance every game shares. */
+  /** The usage panel's Genex block: this project's spend, and the balance every project shares. */
   usage: {
     title: "Genex credits",
-    thisGame: "Used by this game",
-    left: "Left for all games",
+    thisProject: "Used by this project",
+    left: "Left for all projects",
     unlimited: "Unlimited",
   },
-  /** The open game's generations that wait for the person's review. */
+  /** The open project's generations that wait for the person's review. */
   review: {
     title: "Waiting for your review",
     button: (candidate: number | null) => (candidate === null ? "Review remesh" : `Review candidate ${candidate}`),
@@ -2483,7 +2486,7 @@ export const GENEX_WORDS = {
     working: "Generating",
     review: "Waiting for you",
     ready: "Ready",
-    "in-game": "In your game",
+    "in-project": "In your project",
     failed: "Failed",
     stopped: "Stopped",
     unsure: "Not confirmed",
@@ -2522,7 +2525,7 @@ export const PRIVACY_WORDS = {
   loading: "Loading…",
   share: "Share build metrics",
   shareWhat:
-    "After each finished build, send anonymous numbers: times, token counts, the model and whether it worked. Never your prompts, code, files or game names.",
+    "After each finished build, send anonymous numbers: times, token counts, the model and whether it worked. Never your prompts, code, files or project names.",
   paused: "Sharing is paused on the Genex side. Nothing is sent until it resumes.",
   notSent: "This is a developer or test launch of Genex: nothing is sent from it.",
   queued: (count: number) => `${plural(count, "row")} waiting to be sent.`,

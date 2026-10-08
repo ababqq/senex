@@ -1,6 +1,6 @@
 /**
  * The Builds tab's pictures that are not a single read: the newest saved frame of a round still
- * being built, and the game's reference frames. Every still itself is read through `stills.ts`.
+ * being built, and the project's reference frames. Every still itself is read through `stills.ts`.
  */
 import { useEffect, useState } from "react";
 import { SECOND_MS } from "../../shared/duration.ts";

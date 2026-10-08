@@ -1,7 +1,7 @@
 /**
  * The same agent after the build (2026-09-26): once a night a lead led as its chat's own session
  * (one session, director/lead-session.ts) has closed — finished or paused — the chat's next message
- * goes to that same session, in the game folder, with its hands back, instead of to a separate
+ * goes to that same session, in the project folder, with its hands back, instead of to a separate
  * read-only coordinator. It answers, and does the work it is asked for itself; it keeps the run's
  * controls as tools: `run_status`, `show_build` and `land_build` answered live by the host
  * (`runControls`), and after a paused night `resume_run`, bridged in and recorded, which the studio
@@ -48,7 +48,7 @@ export interface AfterNight {
   /** `finished` or `paused`. */
   state: string;
   goal: string | null;
-  /** Whether its close put the build in the game folder; null when it did not say. */
+  /** Whether its close put the build in the project folder; null when it did not say. */
   landed: boolean | null;
   /** Why it stopped, as its close said. */
   stoppedBecause: string | null;

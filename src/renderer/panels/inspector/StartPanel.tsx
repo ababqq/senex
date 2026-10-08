@@ -25,12 +25,12 @@ const builderName = (engine: string | null): string | null =>
 
 /** What the run started from, in one sentence. */
 function startedFromWords(base: BaseNode | null, building: boolean): string {
-  if (!base || base.absent) return "Your game as it was when the run started.";
+  if (!base || base.absent) return "Your project as it was when the run started.";
   if (building) return "Building the starting point…";
   if (base.ok === false)
-    return `The starting point was rejected, and the game was put back the way it started.${base.error ? ` What the checks saw: ${base.error}` : ""}`;
+    return `The starting point was rejected, and the project was put back the way it started.${base.error ? ` What the checks saw: ${base.error}` : ""}`;
   if (base.empty) return "An empty scene. It runs and its cameras see it; nothing else was checked yet.";
-  return "Checked: it loads and its cameras see it. Gameplay is reviewed step by step.";
+  return "Checked: it loads and its cameras see it. Interaction is reviewed step by step.";
 }
 
 function References({

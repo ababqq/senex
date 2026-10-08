@@ -1,5 +1,5 @@
 /**
- * Test-owned production ChatPanel driven through what a person watches happen in a game chat — a
+ * Test-owned production ChatPanel driven through what a person watches happen in a project chat — a
  * message sent, the work it starts, tools, a streamed reply, a permission question and a build —
  * recording every frame (`motion-recorder.ts`). No engine, account or network.
  */
@@ -20,11 +20,11 @@ const rootElement = document.getElementById("root");
 if (!rootElement) throw new Error("Missing fixture root");
 const root = createRoot(rootElement);
 const THREAD = "motion-thread";
-const PROJECT = "motion-game";
+const PROJECT = "motion-project";
 const RUN = "run_motion";
 const DATE = "2026-10-02T00:00:00.000Z";
 const IDLE = "idle";
-/** The harness's status while the chat's own turn runs (statusWords: "Building motion-game"). */
+/** The harness's status while the chat's own turn runs (statusWords: "Building motion-project"). */
 const TURN_STATUS = `claude-code building ${PROJECT}`;
 /** How many earlier messages the long chat holds: enough to scroll several screens. */
 const HISTORY_MESSAGES = 40;
@@ -82,14 +82,14 @@ const props: ChatPanelProps = {
   stateEvents: [],
   history: { hasMore: false, paging: false, loadEarlier: async () => {} },
   engines: [claude],
-  games: [],
+  projects: [],
   activeThread: {
     id: THREAD,
     agent_id: "studio",
     created_at: DATE,
     updated_at: DATE,
     latest_event_id: null,
-    metadata: { kind: ThreadKind.Game, project: PROJECT },
+    metadata: { kind: ThreadKind.Project, project: PROJECT },
   },
   status: IDLE,
   busySince: null,

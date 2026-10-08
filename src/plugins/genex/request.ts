@@ -84,7 +84,7 @@ const OPTIONS = new Set([
   "no-fingers",
   "height",
 ]);
-/** Options whose value is a file in the game, copied into the job before the CLI sees it. */
+/** Options whose value is a file in the project, copied into the job before the CLI sees it. */
 export const FILE_OPTIONS = new Set([
   "image",
   "edit",
@@ -105,7 +105,7 @@ export const READ_OPERATIONS = new Set<string>([
   GenexOperation.CharacterMotions,
   GenexOperation.AnimationsSearch,
 ]);
-/** Operations whose prompt is a model file in the game rather than text. */
+/** Operations whose prompt is a model file in the project rather than text. */
 export const IMPORT_OPERATIONS = new Set<string>([GenexOperation.CharacterImport, GenexOperation.ModelImport]);
 /** Operations that answer inline and write no output folder. */
 export const NO_OUTPUT_OPERATIONS = new Set<string>([GenexOperation.AnimationsSearch, GenexOperation.CharacterMotions]);
@@ -127,8 +127,8 @@ const MESSAGE = {
   InvalidNumber: "Invalid numeric Genex option",
   OptionTooLong: "Genex option is too long",
   InvalidRequest: "Invalid asset request",
-  CharacterOutside: "Character input must be inside this game",
-  AssetInputOutside: "Asset input must be a file inside this game",
+  CharacterOutside: "Character input must be inside this project",
+  AssetInputOutside: "Asset input must be a file inside this project",
 } as const;
 
 const isFlagLike = (value: string) => value.startsWith("-");
@@ -166,8 +166,8 @@ export function validateGenexRequest(request: GenexRequest): void {
   if (hasOversizedPromptOrBadId(request)) throw new Error(MESSAGE.InvalidRequest);
 }
 
-/** The real path of a file inside the game `root`; a folder or anything outside is refused. */
-async function containedGameFile(root: string, relative: string, refusal: string): Promise<string> {
+/** The real path of a file inside the project `root`; a folder or anything outside is refused. */
+async function containedProjectFile(root: string, relative: string, refusal: string): Promise<string> {
   const source = await realpath(path.resolve(root, relative));
   const allowed = await realpath(root);
   if (!source.startsWith(allowed + path.sep) || (await lstat(source)).isDirectory()) throw new Error(refusal);
@@ -177,7 +177,7 @@ async function containedGameFile(root: string, relative: string, refusal: string
 /** The prompt argument: an import copies the named model into the job; other prompts pass as text. */
 async function promptArg(request: GenexRequest, prompt: string, root: string, dir: string): Promise<string> {
   if (!IMPORT_OPERATIONS.has(request.operation)) return prompt;
-  const source = await containedGameFile(root, prompt, MESSAGE.CharacterOutside);
+  const source = await containedProjectFile(root, prompt, MESSAGE.CharacterOutside);
   const local = path.join(dir, "character.glb");
   await copyFile(source, local);
   return local;
@@ -185,7 +185,7 @@ async function promptArg(request: GenexRequest, prompt: string, root: string, di
 
 type OptionValue = NonNullable<GenexRequest["options"]>[string];
 
-/** One option's flags. A game file becomes a job-local copy; `false` drops the flag; `true` is a bare flag. */
+/** One option's flags. A project file becomes a job-local copy; `false` drops the flag; `true` is a bare flag. */
 async function optionArgs(key: string, value: OptionValue, root: string, dir: string): Promise<string[]> {
   if (key === "animation" && Array.isArray(value)) return value.flatMap((item) => ["--animation", String(item)]);
   const localFile = FILE_OPTIONS.has(key) && typeof value === "string" && !value.startsWith("https://");
@@ -195,7 +195,7 @@ async function optionArgs(key: string, value: OptionValue, root: string, dir: st
 }
 
 async function copyOptionFile(key: string, relative: string, root: string, dir: string): Promise<string> {
-  const source = await containedGameFile(root, relative, MESSAGE.AssetInputOutside);
+  const source = await containedProjectFile(root, relative, MESSAGE.AssetInputOutside);
   const local = path.join(dir, `input-${key}${path.extname(source)}`);
   await copyFile(source, local);
   return local;
@@ -209,7 +209,7 @@ function approvalArgs(request: GenexRequest, approved: boolean): string[] {
 }
 
 /**
- * The CLI arguments for a validated request whose job folder is `dir`: game files it names are
+ * The CLI arguments for a validated request whose job folder is `dir`: project files it names are
  * copied in first, and results land in `dir/output`.
  */
 export async function cliArgsFor(request: GenexRequest, root: string, dir: string, approved: boolean) {

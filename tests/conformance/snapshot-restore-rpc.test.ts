@@ -1,5 +1,5 @@
 /**
- * The harness's `snapshot.restore` on a game (GDS-3 follow-through). The engine commits a rescue
+ * The harness's `snapshot.restore` on a project (GDS-3 follow-through). The engine commits a rescue
  * snapshot of the folder before it resets it; the core must log that rescue like any other
  * snapshot, so the index, Rewind and a "recover my files" view can find it, and name it on the
  * `workspace_restored` event. A refusal reaches the harness with its typed code.
@@ -24,10 +24,10 @@ let api: Api;
 let dir: string;
 
 before(async () => {
-  lite = await coreLite({ gamesRoot: await realpath(await tmpDir("studio-games-")) });
+  lite = await coreLite({ projectsRoot: await realpath(await tmpDir("studio-projects-")) });
   api = lite.api() as unknown as Api;
-  await lite.core.games.scaffold("pong");
-  dir = lite.core.games.dirFor("pong");
+  await lite.core.projects.scaffold("pong");
+  dir = lite.core.projects.dirFor("pong");
 });
 
 async function eventsOfType(type: string): Promise<Array<Record<string, unknown>>> {
@@ -35,7 +35,7 @@ async function eventsOfType(type: string): Promise<Array<Record<string, unknown>
   return events.map((e) => e.data as unknown as Record<string, unknown>).filter((d) => d.type === type);
 }
 
-describe("snapshot.restore on a game", () => {
+describe("snapshot.restore on a project", () => {
   it("logs the pre-restore rescue snapshot and names it on workspace_restored", async () => {
     const before = (await api["snapshot.create"]!({ scope: "game", project: "pong", reason: "before" })) as Snap;
     await writeFile(path.join(dir, "notes.txt"), "the user's unsaved thought\n");
@@ -48,7 +48,7 @@ describe("snapshot.restore on a game", () => {
     assert.equal(typeof rescueId, "string", "workspace_restored names the rescue snapshot");
     const created = (await eventsOfType("snapshot_created")).find((d) => d.snapshot_id === rescueId);
     assert.ok(created, "the rescue snapshot is logged as snapshot_created");
-    assert.equal(created.scope, "game");
+    assert.equal(created.scope, "project");
     const record = lite.core.snapshotIndex.get(String(rescueId));
     assert.ok(record?.git.game, "the index knows the rescue commit");
     const { stdout } = await git("git", ["-C", dir, "show", `${record.git.game}:notes.txt`]);

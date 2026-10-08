@@ -86,10 +86,10 @@ it("a post-write snapshot the harness calls healthy is healthy only for files th
 
 it("a both-scope snapshot the harness calls healthy does not make unbooted loop code a rewind target (R2)", async () => {
   // The dev execution policy compares canonical paths, and the temp folder is behind /var → /private/var.
-  const { core, api: tableOf } = await coreLite({ gamesRoot: await realpath(await tmpDir("studio-games-")) });
+  const { core, api: tableOf } = await coreLite({ projectsRoot: await realpath(await tmpDir("studio-projects-")) });
   const api = tableOf() as unknown as Api;
   const ws = core.layout.harnessWs;
-  await core.games.scaffold("pong");
+  await core.projects.scaffold("pong");
   const known = await core.snapshot("harness", "known good (booted)", undefined, true);
   await writeFile(path.join(ws, "loop", "main.ts"), "throw new Error('I broke myself');\n");
   // What the gauntlet asks for on every won round, and the same request with the scope left out.
@@ -107,6 +107,6 @@ it("a both-scope snapshot the harness calls healthy does not make unbooted loop 
     known.snapshot_id,
     "the watchdog still rewinds to the self that booted",
   );
-  // The game half is the round's own verdict, and stays a verified build.
-  assert.equal(core.snapshotIndex.get(won.snapshot_id)?.healthy, true, "the won game build is still healthy");
+  // The project half is the round's own verdict, and stays a verified build.
+  assert.equal(core.snapshotIndex.get(won.snapshot_id)?.healthy, true, "the won project build is still healthy");
 });

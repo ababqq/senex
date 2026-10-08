@@ -1,6 +1,6 @@
 /**
- * The composer usage panel's Genex block, the one place "used by this game" belongs: this game's
- * spend beside the balance every game shares. Read when the panel opens, only while Genex is on
+ * The composer usage panel's Genex block, the one place "used by this project" belongs: this project's
+ * spend beside the balance every project shares. Read when the panel opens, only while Genex is on
  * and connected; otherwise the block is not there.
  */
 import type { JSX } from "react";
@@ -14,8 +14,8 @@ const WORDS = GENEX_WORDS.usage;
 /** Credits read with the reader's own digit grouping. */
 const NUMBER = new Intl.NumberFormat();
 
-/** Genex's status for the open game, read each time the panel opens; null while off, signed out or unread. */
-function useGameStatus(project: string | null | undefined, open: boolean): GenexStatus | null {
+/** Genex's status for the open project, read each time the panel opens; null while off, signed out or unread. */
+function useProjectStatus(project: string | null | undefined, open: boolean): GenexStatus | null {
   const [status, setStatus] = useState<GenexStatus | null>(null);
   useAsyncEffect(
     (alive) => {
@@ -30,7 +30,7 @@ function useGameStatus(project: string | null | undefined, open: boolean): Genex
   return status;
 }
 
-/** The block: this game's spend, then what is left for all games. */
+/** The block: this project's spend, then what is left for all projects. */
 export function GenexCredits({
   project,
   open,
@@ -38,7 +38,7 @@ export function GenexCredits({
   project: string | null | undefined;
   open: boolean;
 }): JSX.Element | null {
-  const status = useGameStatus(project, open);
+  const status = useProjectStatus(project, open);
   if (!status) return null;
   const credits = creditsOf(status);
   const spent = spentOf(status.allowance);
@@ -53,7 +53,7 @@ export function GenexCredits({
       <dl className="usage-credits">
         {spent !== null && (
           <>
-            <dt>{WORDS.thisGame}</dt>
+            <dt>{WORDS.thisProject}</dt>
             <dd>{NUMBER.format(spent)}</dd>
           </>
         )}

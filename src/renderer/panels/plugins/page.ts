@@ -130,8 +130,8 @@ export function usePluginsPageData(
 }
 
 /**
- * The providers' own skills and the open game's, read the first time the Skills tab opens and again
- * on refresh; the latest read wins. The game's are read again when another game is open.
+ * The providers' own skills and the open project's, read the first time the Skills tab opens and again
+ * on refresh; the latest read wins. The project's are read again when another project is open.
  */
 export function useProviderSkills(
   tab: ExtensionsTab,
@@ -139,20 +139,20 @@ export function useProviderSkills(
   setError: (error: string) => void,
 ) {
   const [providerInventory, setProviderInventory] = useState<ProviderSkillInventory[] | null>(null);
-  const [game, setGame] = useState<ProjectSkillInventory | null>(null);
+  const [entry, setProject] = useState<ProjectSkillInventory | null>(null);
   const [skillsLoading, setSkillsLoading] = useState(false);
   const skillRequest = useRef(0);
-  const gameRequest = useRef(0);
-  const refreshGame = async (): Promise<void> => {
-    const request = ++gameRequest.current;
+  const projectRequest = useRef(0);
+  const refreshProject = async (): Promise<void> => {
+    const request = ++projectRequest.current;
     const value = project ? await window.studio.projectSkills(project).catch(() => null) : null;
-    if (request === gameRequest.current) setGame(value);
+    if (request === projectRequest.current) setProject(value);
   };
   const refreshSkills = async (): Promise<void> => {
     const request = ++skillRequest.current;
     const current = (): boolean => request === skillRequest.current;
     setSkillsLoading(true);
-    void refreshGame();
+    void refreshProject();
     try {
       const value = await window.studio.providerSkills();
       if (current()) setProviderInventory(value);
@@ -166,18 +166,18 @@ export function useProviderSkills(
   useEffect(() => {
     if (tab === ExtensionsTab.Skills && providerInventory === null) void refreshSkills();
   }, [tab]);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: another open game has other skills; the tab's first visit reads the first
+  // biome-ignore lint/correctness/useExhaustiveDependencies: another open project has other skills; the tab's first visit reads the first
   useEffect(() => {
-    if (tab === ExtensionsTab.Skills && providerInventory !== null) void refreshGame();
+    if (tab === ExtensionsTab.Skills && providerInventory !== null) void refreshProject();
   }, [project]);
   useEffect(
     () => () => {
       skillRequest.current++;
-      gameRequest.current++;
+      projectRequest.current++;
     },
     [],
   );
-  return { providerInventory, game, skillsLoading, refreshSkills };
+  return { providerInventory, project: entry, skillsLoading, refreshSkills };
 }
 
 /** A plugin's own MCP servers as the host runs them now, read on open and whenever MCP or the plugin changes. */

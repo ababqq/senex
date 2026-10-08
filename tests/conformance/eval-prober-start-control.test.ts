@@ -194,7 +194,7 @@ const LEGEND_RUN: Spec = { id: "legend-run", tag: "div", text: "Run", rect: { x:
 
 test("THE MEASURED CASE: a HUD legend under a full-screen overlay loses to the overlay CTA", () => {
   // Before the geometric predicate the legend won on score, the probe clicked a
-  // spot no player could reach, and 17 clicks over 395s never opened the game.
+  // spot no player could reach, and 17 clicks over 395s never opened the project.
   const got = find([LEGEND_RUN, OVERLAY, CTA]);
   assert.equal(got.text, "Click to enter the village");
   assert.deepEqual(got.marked, ["cta"], "exactly one element carries the click marker");
@@ -355,7 +355,7 @@ test('PRESS ANY KEY: the title line is found; a HUD legend "Press E to interact"
   assert.equal(
     pressAnyKey([{ id: "legend", tag: "div", text: "Press E to interact", rect: { x: 20, y: 680, w: 200, h: 24 } }]),
     null,
-    "a gameplay legend",
+    "a interaction legend",
   );
   assert.equal(
     pressAnyKey([{ id: "legend", tag: "div", text: "Press F to talk", rect: { x: 20, y: 680, w: 200, h: 24 } }]),
@@ -439,7 +439,7 @@ test("dispatchLookDeltasInPage: pointermove + mousemove with explicit movementX 
 /**
  * THE MEASURED CASE, 2026-09-05 (muse village, `sunfall-hamlet`). The title
  * screen's "Walk in" button is real and visible. The pause card is marked
- * `hidden`, but the game's own `.screen { display:flex; opacity:0 }` rule
+ * `hidden`, but the project's own `.screen { display:flex; opacity:0 }` rule
  * defeats the attribute, so the card is laid out over the title, invisible,
  * with `pointer-events:auto` descendants — and its "Esc resumes too" note sits
  * exactly over the button. A hit test at the button's centre lands on the note.

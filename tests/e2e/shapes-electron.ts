@@ -1,11 +1,11 @@
 import { fixtureCodingCli } from "../helpers/external-cli.ts";
 /**
- * The proof of Milestone 4: five games nobody wrote the studio's contract for, opened as the
- * user's own games, driven, photographed and judged — then driven again through the real Codex
+ * The proof of Milestone 4: five projects nobody wrote the studio's contract for, opened as the
+ * user's own projects, driven, photographed and judged — then driven again through the real Codex
  * bridge and the real Claude MCP surface, with only the CLI and the model scripted.
  *
  * Everything below the two scripted seams is the studio itself: a real `StudioCore` with the
- * real `GamePreview`, the real serve layer, the real shadow build, the real evidence pass out of
+ * real `ProjectPreview`, the real serve layer, the real shadow build, the real evidence pass out of
  * the harness seed, the real file bridge and the real in-process MCP server. `ctx` is
  * `core.api()` with the substrate pipe removed, which is exactly what the harness host
  * dispatches against — so what passes here is what a night would get.
@@ -20,16 +20,16 @@ import { mkdtempSync } from "node:fs";
 import { cp, mkdir, readFile, readdir, rm, symlink, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { GamePreview, registerGameScheme } from "../../src/main/preview.ts";
+import { ProjectPreview, registerProjectScheme } from "../../src/main/preview.ts";
 import { awaitReady } from "../../src/substrate/preview-ready.ts";
 import { StudioCore } from "../../src/main/studio-core.ts";
-import { detectProjectShape } from "../../src/substrate/game-workspace.ts";
+import { detectProjectShape } from "../../src/substrate/project-workspace.ts";
 import { CodexEngine } from "../../src/substrate/engines/codex.ts";
 import { ClaudeCodeEngine } from "../../src/substrate/engines/claude-code.ts";
 import { BRIDGE_DIR } from "../../src/substrate/engines/studio-bridge.ts";
 import { COMPUTER_TOOL_NAME } from "../../src/substrate/computer-tool.ts";
 import { gatherEvidence } from "../../src/harness-seed/loop/gauntlet.ts";
-import { GAME_KINDS, inputProbesFor, gameLine, normalizeGameTraits } from "../../src/harness-seed/loop/kinds.ts";
+import { APP_KINDS, inputProbesFor, appLine, normalizeAppTraits } from "../../src/harness-seed/loop/kinds.ts";
 import { scriptedCodex, type ScriptedCodex } from "../helpers/scripted-codex.ts";
 import { scriptedClaude, type ScriptedClaude } from "../helpers/scripted-claude.ts";
 import { undeclaredWarnings } from "./warning-policy.ts";
@@ -43,7 +43,7 @@ const keep = process.env.STUDIO_SHAPES_KEEP === "1";
 const VIEW = { width: 960, height: 600 };
 /** Two frames of one picture, the threshold the optimization pixel critic already uses. */
 const SAME_APPEARANCE = 0.01;
-const fixturesDir = path.join(repo, "tests/fixtures/games");
+const fixturesDir = path.join(repo, "tests/fixtures/projects");
 const resources = path.join(repo, "dist/resources");
 
 interface Manifest {
@@ -58,12 +58,12 @@ interface Manifest {
   contract: "loaded" | "attached";
   needsNodeModules: boolean;
   backend: "webgl" | "webgpu";
-  game: Record<string, unknown>;
+  app: Record<string, unknown>;
   setup: Record<string, unknown> | null;
   cameras: string[];
-  /** Warnings this game must produce. Anything else it produces has to be in `allowWarnings`. */
+  /** Warnings this project must produce. Anything else it produces has to be in `allowWarnings`. */
   expectWarnings: string[];
-  /** Warnings this game may produce and need not. */
+  /** Warnings this project may produce and need not. */
   allowWarnings: string[];
   delta: Array<{ path: string; min: number }>;
   deterministic: boolean;
@@ -80,7 +80,7 @@ const summary: {
 } = {
   passed: false,
   fixture:
-    "five games with no studio contract; real core, preview, serve layer, build, bridge and MCP server; only the CLI and the model are scripted",
+    "five projects with no studio contract; real core, preview, serve layer, build, bridge and MCP server; only the CLI and the model are scripted",
   entries: [],
   extras: [],
   unverified: [],
@@ -117,7 +117,7 @@ function treeDiff(before: Map<string, string>, after: Map<string, string>): stri
   return [...changed].sort();
 }
 
-/** The shim's own telemetry, which is a fact about the window and never about the game. */
+/** The shim's own telemetry, which is a fact about the window and never about the project. */
 const SHIM_STATE_KEYS = new Set([
   "frame",
   "simulatedMs",
@@ -131,7 +131,7 @@ const SHIM_STATE_KEYS = new Set([
   "triangles",
 ]);
 
-function gameOwnState(state: unknown): Record<string, unknown> {
+function projectOwnState(state: unknown): Record<string, unknown> {
   if (!state || typeof state !== "object") return {};
   const out: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(state as Record<string, unknown>))
@@ -195,16 +195,16 @@ class Sheet {
 const scratchRoot = mkdtempSync(path.join(os.tmpdir(), "studio-shapes-"));
 
 app.setPath("userData", path.join(scratchRoot, "electron"));
-registerGameScheme();
+registerProjectScheme();
 app.on("window-all-closed", () => {});
 
 async function main(): Promise<void> {
   await app.whenReady();
   console.log(`Shapes E2E ready — ${scratchRoot}`);
 
-  const gamesRoot = path.join(scratchRoot, "games");
+  const projectsRoot = path.join(scratchRoot, "projects");
   const copies = path.join(scratchRoot, "copies");
-  await mkdir(gamesRoot, { recursive: true });
+  await mkdir(projectsRoot, { recursive: true });
   await mkdir(copies, { recursive: true });
 
   let core!: StudioCore;
@@ -216,13 +216,13 @@ async function main(): Promise<void> {
     skipTaskbar: true,
   });
   const windows: BrowserWindow[] = [liveWindow];
-  const ports: GamePreview[] = [];
-  const live: GamePreview = new GamePreview({
-    gamesRoot,
+  const ports: ProjectPreview[] = [];
+  const live: ProjectPreview = new ProjectPreview({
+    projectsRoot,
     vendorDir: path.join(resources, "vendor"),
     partition: "shapes-live",
     offscreen: true,
-    resolveRoot: (name: string): string => core.games.dirFor(name),
+    resolveRoot: (name: string): string => core.projects.dirFor(name),
   });
   live.attachTo(liveWindow, { x: 0, y: 0, ...VIEW });
   ports.push(live);
@@ -255,10 +255,10 @@ async function main(): Promise<void> {
   core = new StudioCore({
     engines: [codexEngine, claudeEngine],
     paths: { userData: path.join(scratchRoot, "electron"), resources },
-    gamesRoot,
+    projectsRoot,
     preview: live,
     previewPoolMax: 4,
-    createHeadlessPreview: async (): Promise<GamePreview> => {
+    createHeadlessPreview: async (): Promise<ProjectPreview> => {
       const win = new BrowserWindow({
         width: VIEW.width,
         height: VIEW.height,
@@ -268,14 +268,14 @@ async function main(): Promise<void> {
         backgroundColor: "#05070d",
       });
       windows.push(win);
-      const port: GamePreview = new GamePreview({
-        gamesRoot,
+      const port: ProjectPreview = new ProjectPreview({
+        projectsRoot,
         vendorDir: path.join(resources, "vendor"),
         partition: `shapes-headless-${ports.length}`,
         offscreen: true,
         // Without this every fixture request 404s: each one lives in a temp copy the preview can
         // only reach through the alias adoption recorded.
-        resolveRoot: (name: string): string => core.games.dirFor(name),
+        resolveRoot: (name: string): string => core.projects.dirFor(name),
       });
       port.attachTo(win, { x: 0, y: 0, ...VIEW });
       port.dispose = async () => {
@@ -324,7 +324,7 @@ async function main(): Promise<void> {
       `detectProjectShape ${JSON.stringify(detected)}`,
     );
 
-    const planned = (await core.games.plannedWrites(workdir, { template: false })).slice().sort();
+    const planned = (await core.projects.plannedWrites(workdir, { template: false })).slice().sort();
     const before = await hashTree(workdir);
     const project = await core.adoptProject(workdir, { template: false });
     const after = await hashTree(workdir);
@@ -345,7 +345,7 @@ async function main(): Promise<void> {
     if (id === "esm-addons") {
       prepared.ok(
         "merge-survives",
-        studioJson.title === "Orbit Yard" && (studioJson.game as { kind?: string })?.kind === "free-camera",
+        studioJson.title === "Orbit Yard" && (studioJson.app as { kind?: string })?.kind === "free-camera",
         `studio.json keeps ${JSON.stringify(studioJson)}`,
       );
     }
@@ -357,10 +357,10 @@ async function main(): Promise<void> {
         prepared.ok(
           `never:${file}`,
           !(await pathExists(path.join(project.dir, file))),
-          `${file} was not written beside the real game`,
+          `${file} was not written beside the real project`,
         );
     }
-    const contract = await core.games.validateAt(project.dir);
+    const contract = await core.projects.validateAt(project.dir);
     prepared.ok(
       "contract",
       contract.contract === manifest.contract,
@@ -372,9 +372,9 @@ async function main(): Promise<void> {
       `validate problems: ${contract.problems.join("; ")}`,
     );
 
-    const traits = normalizeGameTraits(manifest.game);
+    const traits = normalizeAppTraits(manifest.app);
     const probes = inputProbesFor(traits);
-    const line = gameLine(traits);
+    const line = appLine(traits);
 
     // ── the fixture pass: load, drive, photograph, judge ──
     if (transports.includes("fixture")) {
@@ -385,7 +385,7 @@ async function main(): Promise<void> {
       const evidence = await gatherEvidence(
         ctx as never,
         {
-          run: { runId, project: project.name, setup: manifest.setup, game: manifest.game, ownShape: true },
+          run: { runId, project: project.name, setup: manifest.setup, entry: manifest.app, ownShape: true },
           iterationId: "shapes",
           seed: 7,
           handle,
@@ -467,9 +467,9 @@ async function main(): Promise<void> {
           `${eye} was photographed`,
         );
       }
-      // Photographed is not the promise. A harness camera placed on a game that renders its own
+      // Photographed is not the promise. A harness camera placed on a project that renders its own
       // frame used to be clobbered by that render, and every `eye:*` picture came back as the
-      // game's own view — byte-identical to `default`, and named after a viewpoint nobody saw.
+      // project's own view — byte-identical to `default`, and named after a viewpoint nobody saw.
       // At least one placed eye must therefore differ from the default frame.
       const eyeShots = (evidence.shots ?? []).filter((shot: { camera: string }) => shot.camera.startsWith("eye:")) as {
         camera: string;
@@ -497,17 +497,17 @@ async function main(): Promise<void> {
         `gpu: ${JSON.stringify(evidence.gpuErrors ?? [])}`,
       );
 
-      // The GAME line: a kind with no measurable player carries the retraction; a kind with one
-      // names probes that either moved or the game never reports at all.
+      // The PROJECT line: a kind with no measurable player carries the retraction; a kind with one
+      // names probes that either moved or the project never reports at all.
       // A kind that names no axis is retracted by name, not by the template fallback the probe
       // table hands back for it.
-      const declaredKind = (GAME_KINDS as Record<string, { look: string[]; move: string[] } | undefined>)[
+      const declaredKind = (APP_KINDS as Record<string, { look: string[]; move: string[] } | undefined>)[
         String(traits.kind)
       ];
       if ((declaredKind?.look.length ?? 0) === 0 && (declaredKind?.move.length ?? 0) === 0) {
-        sheet.ok("game-line", line.includes("[dead-input] does not apply"), `GAME line: ${line}`);
+        sheet.ok("project-line", line.includes("[dead-input] does not apply"), `PROJECT line: ${line}`);
       } else {
-        sheet.ok("game-line", line.includes("__studio.state()"), `GAME line: ${line}`);
+        sheet.ok("project-line", line.includes("__studio.state()"), `PROJECT line: ${line}`);
         for (const [name, probe] of [
           ["look", probes.look],
           ["move", probes.move],
@@ -521,7 +521,7 @@ async function main(): Promise<void> {
           sheet.ok(
             `probe:${name}`,
             unmeasurable || moved,
-            `${probe.paths.join(", ")} — ${unmeasurable ? "the game reports none of them" : `moved: ${moved}`}`,
+            `${probe.paths.join(", ")} — ${unmeasurable ? "the project reports none of them" : `moved: ${moved}`}`,
           );
         }
       }
@@ -533,7 +533,7 @@ async function main(): Promise<void> {
           warnings.some((warning) => warning.includes(expected)),
           `warnings: ${warnings.join(" | ")}`,
         );
-      // The other half of the promise: a manifest that names no warning is claiming this game
+      // The other half of the promise: a manifest that names no warning is claiming this project
       // warns about nothing, so anything the run collected and no list names fails the sheet.
       const undeclared = undeclaredWarnings(warnings, manifest);
       sheet.ok("no-undeclared-warning", undeclared.length === 0, `undeclared: ${undeclared.join(" | ") || "none"}`);
@@ -558,7 +558,7 @@ async function main(): Promise<void> {
         // build out of its own shadow — so the proof is the page, not the path.)
         const entryScript = (await api["preview.evaluate"]!({
           handle,
-          // The game's own module tags, not the two the serve layer inserted.
+          // The project's own module tags, not the two the serve layer inserted.
           expression: `[...document.querySelectorAll('script[type=module][src]')].map((s) => s.getAttribute('src')).filter((src) => !src.startsWith('/vendor/'))`,
         } as never)) as string[];
         sheet.ok(
@@ -581,7 +581,7 @@ async function main(): Promise<void> {
         repeat = (await gatherEvidence(
           ctx as never,
           {
-            run: { runId, project: project.name, setup: manifest.setup, game: manifest.game, ownShape: true },
+            run: { runId, project: project.name, setup: manifest.setup, entry: manifest.app, ownShape: true },
             iterationId: "shapes",
             seed: 7,
             handle,
@@ -605,10 +605,10 @@ async function main(): Promise<void> {
                 diffFraction?: number;
               } | null)
             : null;
-        // The GAME's own state, not the shim's telemetry: `frame`, `fps` and the draw counters
+        // The PROJECT's own state, not the shim's telemetry: `frame`, `fps` and the draw counters
         // are facts about the window, and two loads of the same page never share them.
-        const own = gameOwnState(evidence.state);
-        const again = gameOwnState(repeat.state);
+        const own = projectOwnState(evidence.state);
+        const again = projectOwnState(repeat.state);
         if (Object.keys(own).length === 0) {
           sheet.rows.push({
             id: "deterministic-state",
@@ -623,7 +623,7 @@ async function main(): Promise<void> {
           );
         }
         // "The same appearance" — the number the optimization pixel critic already calls a
-        // visible change. A literal 0 is not a claim this path supports: a game walked to its
+        // visible change. A literal 0 is not a claim this path supports: a project walked to its
         // state by a setup script is walked in WALL time, before the studio owns the clock, and
         // a WebGPU frame lands one asynchronous turn after the callback that asked for it, so
         // two passes agree on the picture and never on every pixel of it.
@@ -710,7 +710,7 @@ async function main(): Promise<void> {
       console.log(`${id}/fixture: ready in ${evidence.readyAfterMs} ms, ${sheet.rows.length} checks`);
     }
 
-    // ── the same game through the real Codex bridge ──
+    // ── the same project through the real Codex bridge ──
     if (transports.includes("codex")) {
       const sheet = new Sheet(`${id}/codex`);
       const plan = scriptedCodex([
@@ -893,8 +893,8 @@ async function main(): Promise<void> {
   }
 
   // ── two assertions this runner carries for the capture lane, on pages of its own ──
-  // They are not fixtures (tests/fixtures/games holds exactly five games and its page of rules)
-  // and they are not games: each is the smallest page that can tell the truth about one rule.
+  // They are not fixtures (tests/fixtures/projects holds exactly five projects and its page of rules)
+  // and they are not projects: each is the smallest page that can tell the truth about one rule.
   if (!only.length) {
     const alphaDir = path.join(copies, "alpha-canvas");
     await mkdir(alphaDir, { recursive: true });
@@ -945,12 +945,12 @@ async function main(): Promise<void> {
       skipTaskbar: true,
     });
     windows.push(portraitWindow);
-    const portraitPort: GamePreview = new GamePreview({
-      gamesRoot,
+    const portraitPort: ProjectPreview = new ProjectPreview({
+      projectsRoot,
       vendorDir: path.join(resources, "vendor"),
       partition: "shapes-portrait",
       offscreen: true,
-      resolveRoot: (name: string): string => core.games.dirFor(name),
+      resolveRoot: (name: string): string => core.projects.dirFor(name),
     });
     portraitPort.attachTo(portraitWindow, { x: 0, y: 0, ...PORTRAIT });
     ports.push(portraitPort);
@@ -1068,7 +1068,7 @@ function driveSteps(
   manifest: Manifest,
   transport: "codex" | "claude",
 ): Array<{ tool: string; args: Record<string, string> }> {
-  const traits = normalizeGameTraits(manifest.game);
+  const traits = normalizeAppTraits(manifest.app);
   const steps: Array<{ tool: string; args: Record<string, string> }> = [];
   const declares = (dotted: string) => manifest.delta.some((entry) => entry.path === dotted);
   if (traits.mouseLook === true && declares("player.yaw")) {

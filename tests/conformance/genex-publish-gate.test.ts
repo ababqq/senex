@@ -1,10 +1,10 @@
 /**
- * A published game used to load on genex.games and then show "This game didn't finish starting":
- * Studio runs the Genex CLI in its own copy of the game, which had no package.json, so the CLI
- * never told Genex the game uses sign-in (`embedSdkVersion`). It was also listed under its folder
+ * A published project used to load on genex.games and then show "This project didn't finish starting":
+ * Studio runs the Genex CLI in its own copy of the project, which had no package.json, so the CLI
+ * never told Genex the project uses sign-in (`embedSdkVersion`). It was also listed under its folder
  * name, which Genex painted on its cover, and nothing was tested before players got it.
  *
- * Now Studio's copy carries the game's Genex packages, every publish uploads the draft, tests it
+ * Now Studio's copy carries the project's Genex packages, every publish uploads the draft, tests it
  * there and only then makes it public and lists it under the name the person chose. A draft that
  * fails its test is uploaded once more, and if it fails again nothing goes public.
  *
@@ -19,15 +19,15 @@ import { after, before, describe, it } from "node:test";
 import { pathToFileURL } from "node:url";
 import { GenexTools } from "../../src/plugins/genex/adapter.ts";
 import { MESSAGE as PUBLISH_MESSAGE } from "../../src/plugins/genex/publish.ts";
-import { cleanGenexTitle, defaultGenexTitle, type GenexGameManifest } from "../../src/shared/genex.ts";
-import { genexGameManifest, readGenexGameManifest } from "../../src/substrate/genex-game-manifest.ts";
+import { cleanGenexTitle, defaultGenexTitle, type GenexProjectManifest } from "../../src/shared/genex.ts";
+import { genexProjectManifest, readGenexProjectManifest } from "../../src/substrate/genex-project-manifest.ts";
 import { startGenexFixtureApi } from "../helpers/genex-fixture-api.ts";
 import { tmpDir } from "../helpers/tmp.ts";
 
 const PROJECT = "racing-demo";
 const SLUG = "racing-demo";
 const SIGN_IN = "0.30.0";
-const SIGN_IN_GAME: GenexGameManifest = { dependencies: { "@genex-ai/embed-sdk": SIGN_IN } };
+const SIGN_IN_PROJECT: GenexProjectManifest = { dependencies: { "@genex-ai/embed-sdk": SIGN_IN } };
 /** A test window short enough for a failing draft to give up at once. */
 const QUICK_TEST_MS = 50;
 
@@ -59,7 +59,7 @@ interface Seen {
 }
 
 /**
- * A fixture Genex for one hosted game. `broken` serves a stale deployment marker, so the draft
+ * A fixture Genex for one hosted project. `broken` serves a stale deployment marker, so the draft
  * test never passes; `failFirstDeploy` answers the first deploy with a 500 before anything lands.
  */
 async function genexFixture(options: { broken?: boolean; failFirstDeploy?: boolean } = {}) {
@@ -134,30 +134,30 @@ async function genexFixture(options: { broken?: boolean; failFirstDeploy?: boole
     if (url.startsWith("/api/gallery/world/")) return reply.json({ item: null });
   });
   api = server.url;
-  const game = path.join(temp, "game");
-  await mkdir(game);
+  const project = path.join(temp, "project");
+  await mkdir(project);
   const genex = new GenexTools(path.join(temp, "host"), api, {
     credentials: { get: async () => "fixture-token", set: async () => {}, clear: async () => {} },
     draftTestMs: QUICK_TEST_MS,
   });
   const workspace = path.join(genex.root, "publish", PROJECT);
-  /** What the host's `export.stage` answers: the public copy, and what the game's package.json says. */
-  const exportStage = (manifest?: GenexGameManifest) => async () => {
+  /** What the host's `export.stage` answers: the public copy, and what the project's package.json says. */
+  const exportStage = (manifest?: GenexProjectManifest) => async () => {
     const dist = path.join(workspace, "dist");
     await mkdir(dist, { recursive: true });
     await writeFile(path.join(dist, "index.html"), '<!doctype html><meta charset="utf-8"><title>Racing</title>');
     return { dir: dist, files: 1, included: ["index.html"], excluded: [], ...(manifest ? { genex: manifest } : {}) };
   };
-  /** Publish under `title`; `manifest` null is a game whose package.json names no Genex package. */
-  const publish = async (title?: string, manifest: GenexGameManifest | null = SIGN_IN_GAME) => {
+  /** Publish under `title`; `manifest` null is a project whose package.json names no Genex package. */
+  const publish = async (title?: string, manifest: GenexProjectManifest | null = SIGN_IN_PROJECT) => {
     const started = await genex.publishGallery(PROJECT, exportStage(manifest ?? undefined), title);
     return genex.publishWait(PROJECT, started.job?.id);
   };
-  return { genex, server, seen, workspace, game, publish, close: () => server.close() };
+  return { genex, server, seen, workspace, project, publish, close: () => server.close() };
 }
 
 describe("publishing tests the build before players get it", () => {
-  it("tells Genex the game uses sign-in, tests the draft, then makes it public under the chosen name", async (t) => {
+  it("tells Genex the project uses sign-in, tests the draft, then makes it public under the chosen name", async (t) => {
     if (!hasGit) return t.skip("git is not installed on this machine; the Genex publish path requires it");
     const fx = await genexFixture();
     try {
@@ -173,13 +173,13 @@ describe("publishing tests the build before players get it", () => {
       assert.equal(done.status, "published");
       const copy = JSON.parse(await readFile(path.join(fx.workspace, "package.json"), "utf8"));
       assert.deepEqual(copy.dependencies, { "@genex-ai/embed-sdk": SIGN_IN });
-      await assert.rejects(readFile(path.join(fx.game, "package.json")), "the game folder is never written");
+      await assert.rejects(readFile(path.join(fx.project, "package.json")), "the project folder is never written");
     } finally {
       await fx.close();
     }
   });
 
-  it("lists a listed game again only when its name changes, and then redraws its cover", async (t) => {
+  it("lists a listed project again only when its name changes, and then redraws its cover", async (t) => {
     if (!hasGit) return t.skip("git is not installed on this machine; the Genex publish path requires it");
     const fx = await genexFixture();
     try {
@@ -228,7 +228,7 @@ describe("publishing tests the build before players get it", () => {
     }
   });
 
-  it("leaves no package.json in Studio's copy for a game that names no Genex package", async (t) => {
+  it("leaves no package.json in Studio's copy for a project that names no Genex package", async (t) => {
     if (!hasGit) return t.skip("git is not installed on this machine; the Genex publish path requires it");
     const fx = await genexFixture();
     try {
@@ -268,12 +268,12 @@ describe("a publish a restart stopped while its draft was tested", () => {
   });
 });
 
-describe("what a game's package.json tells Genex", () => {
+describe("what a project's package.json tells Genex", () => {
   it("keeps only the Genex SDK versions and settings, and drops anything else or malformed", () => {
-    const table: Array<[string, unknown, GenexGameManifest | undefined]> = [
+    const table: Array<[string, unknown, GenexProjectManifest | undefined]> = [
       ["not an object", "[]", undefined],
       ["no Genex package", { dependencies: { three: "^0.170.0" } }, undefined],
-      ["sign-in", { dependencies: { "@genex-ai/embed-sdk": "0.30.0", three: "1" } }, SIGN_IN_GAME],
+      ["sign-in", { dependencies: { "@genex-ai/embed-sdk": "0.30.0", three: "1" } }, SIGN_IN_PROJECT],
       [
         "dev dependency",
         { devDependencies: { "@genex-ai/multiplayer": "^0.16.1" } },
@@ -297,25 +297,25 @@ describe("what a game's package.json tells Genex", () => {
       ],
       ["mobile controls as text", { genex: { mobileControls: "yes" } }, undefined],
     ];
-    for (const [name, pkg, expected] of table) assert.deepEqual(genexGameManifest(pkg), expected, name);
+    for (const [name, pkg, expected] of table) assert.deepEqual(genexProjectManifest(pkg), expected, name);
   });
 
-  it("reads only a package.json that really lives in the game, and never follows a link out of it", async () => {
+  it("reads only a package.json that really lives in the project, and never follows a link out of it", async () => {
     const root = await tmpDir("studio-genex-manifest-");
-    const game = path.join(root, "game");
+    const project = path.join(root, "project");
     const outside = path.join(root, "outside");
-    await mkdir(game);
+    await mkdir(project);
     await mkdir(outside);
-    assert.equal(await readGenexGameManifest(game), undefined, "no package.json");
-    await writeFile(path.join(game, "package.json"), "{ not json");
-    assert.equal(await readGenexGameManifest(game), undefined, "unparsable");
+    assert.equal(await readGenexProjectManifest(project), undefined, "no package.json");
+    await writeFile(path.join(project, "package.json"), "{ not json");
+    assert.equal(await readGenexProjectManifest(project), undefined, "unparsable");
     await writeFile(
-      path.join(game, "package.json"),
+      path.join(project, "package.json"),
       JSON.stringify({ dependencies: { "@genex-ai/embed-sdk": SIGN_IN } }),
     );
-    assert.deepEqual(await readGenexGameManifest(game), SIGN_IN_GAME);
-    await writeFile(path.join(game, "package.json"), " ".repeat(300 * 1024));
-    assert.equal(await readGenexGameManifest(game), undefined, "too large");
+    assert.deepEqual(await readGenexProjectManifest(project), SIGN_IN_PROJECT);
+    await writeFile(path.join(project, "package.json"), " ".repeat(300 * 1024));
+    assert.equal(await readGenexProjectManifest(project), undefined, "too large");
     const linked = path.join(root, "linked");
     await mkdir(linked);
     await writeFile(
@@ -323,13 +323,17 @@ describe("what a game's package.json tells Genex", () => {
       JSON.stringify({ dependencies: { "@genex-ai/embed-sdk": "9" } }),
     );
     await symlink(path.join(outside, "package.json"), path.join(linked, "package.json"));
-    assert.equal(await readGenexGameManifest(linked), undefined, "a link out of the game");
-    await mkdir(path.join(root, "dir-game", "package.json"), { recursive: true });
-    assert.equal(await readGenexGameManifest(path.join(root, "dir-game")), undefined, "a folder named package.json");
+    assert.equal(await readGenexProjectManifest(linked), undefined, "a link out of the project");
+    await mkdir(path.join(root, "dir-project", "package.json"), { recursive: true });
+    assert.equal(
+      await readGenexProjectManifest(path.join(root, "dir-project")),
+      undefined,
+      "a folder named package.json",
+    );
   });
 });
 
-describe("the name a game is listed under", () => {
+describe("the name a project is listed under", () => {
   it("is offered from its folder name, as words", () => {
     assert.equal(defaultGenexTitle("hyper-realistic-racing-demo"), "Hyper Realistic Racing Demo");
     assert.equal(defaultGenexTitle("rain_circuit"), "Rain Circuit");

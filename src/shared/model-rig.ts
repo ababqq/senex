@@ -15,7 +15,7 @@ const MAX_NAME_CHARS = 128;
 
 /** A model file's rig, as the app reads it from the file's header. */
 export interface ModelRig {
-  /** The file, relative to the game folder. */
+  /** The file, relative to the project folder. */
   file: string;
   /** How many of its nodes draw a mesh: none in an animation-only file. */
   meshes: number;

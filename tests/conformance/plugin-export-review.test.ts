@@ -9,14 +9,14 @@ test("publication staging requires a review of the exact exported file list befo
   let pending: Promise<unknown> | undefined;
   try {
     const project = "export-review";
-    const game = await rig.core.games.scaffold(project);
-    await writeFile(path.join(game.dir, "index.html"), "<!DOCTYPE html><title>Fixture</title><h1>Playable</h1>");
-    await writeFile(path.join(game.dir, "studio.json"), JSON.stringify({ exportFiles: ["index.html", ".env.local"] }));
-    const threadId = await rig.core.createGameThread(project);
-    await writeFile(path.join(game.dir, ".env.local"), "FIXTURE_SECRET=private");
+    const entry = await rig.core.projects.scaffold(project);
+    await writeFile(path.join(entry.dir, "index.html"), "<!DOCTYPE html><title>Fixture</title><h1>Playable</h1>");
+    await writeFile(path.join(entry.dir, "studio.json"), JSON.stringify({ exportFiles: ["index.html", ".env.local"] }));
+    const threadId = await rig.core.createProjectThread(project);
+    await writeFile(path.join(entry.dir, ".env.local"), "FIXTURE_SECRET=private");
     const stage = rig.core.pluginServices.exportStage;
     assert.ok(stage);
-    pending = stage({ project, directory: game.dir, threadId }, path.join(rig.userData, "export-review"), "genex");
+    pending = stage({ project, directory: entry.dir, threadId }, path.join(rig.userData, "export-review"), "genex");
     const rejected = assert.rejects(pending, /declined/);
     void rejected.catch(() => {});
     const events = await waitForLog(rig.core, (rows) => customEvents(rows, "plugin_consent").length > 0, 5000);

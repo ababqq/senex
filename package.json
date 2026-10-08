@@ -4,7 +4,7 @@
   "version": "0.1.4",
   "private": true,
   "license": "MIT",
-  "description": "Self-improving AI game studio for macOS on Apple Silicon",
+  "description": "Self-improving AI project studio for macOS on Apple Silicon",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/genex-games/genex-desktop.git"

@@ -16,7 +16,7 @@ const NATIVE_CHANNELS = [
   "studio:plugins.lookup-github",
   "studio:plugins.github-versions",
   "studio:plugins.update",
-  // Publish from Studio's dialog uploads the game to Genex with the user's real account.
+  // Publish from Studio's dialog uploads the project to Genex with the user's real account.
   "studio:plugins.genex-publish",
   "studio:subscription.signin",
   "studio:subscription.forget-studio-login",
@@ -27,16 +27,16 @@ const NATIVE_CHANNELS = [
   // A macOS notification lands in the developer's Notification Center, outside the fixture.
   "studio:notify",
   // Show in Finder for a file a chat names, like `studio:reveal-project`.
-  "studio:game-file.reveal",
+  "studio:project-file.reveal",
   // Opening a file the chat names hands it to another app or to the file manager; resolving
   // names (`studio:chat-files.resolve`) only reads.
   "studio:chat-file.open",
   "studio:reveal-project",
   "studio:project.pick",
-  // Create game's location is chosen in the native folder picker.
-  "studio:game.location.pick",
-  // Settings → Games opens the native folder picker.
-  "studio:games-root.choose",
+  // Create project's location is chosen in the native folder picker.
+  "studio:project.location.pick",
+  // Settings → Projects opens the native folder picker.
+  "studio:projects-root.choose",
   "studio:pull-model",
   "studio:models.lookup",
   // Delete removes model files from this Mac, or asks the person's own Ollama to delete one.
@@ -113,7 +113,7 @@ const FIXTURE_SAFE = [
   "studio:plan.answer",
   "studio:cancel",
   "studio:queue.message",
-  // Rewind reads and rewrites only the chat's own log and its game folder's checkpoints.
+  // Rewind reads and rewrites only the chat's own log and its project folder's checkpoints.
   "studio:chat.rewind.preview",
   "studio:chat.rewind",
   "studio:events",
@@ -123,30 +123,30 @@ const FIXTURE_SAFE = [
   "studio:threads",
   "studio:thread.events",
   "studio:thread.new",
-  "studio:thread.forGame",
+  "studio:thread.forProject",
   "studio:thread.rename",
-  // Reads inside the chat's own game folder or its run's build, and the images a message saved.
-  "studio:game-file.read",
+  // Reads inside the chat's own project folder or its run's build, and the images a message saved.
+  "studio:project-file.read",
   "studio:message-images",
   // Which names a chat wrote are files: it only looks (the Finder or app step is native).
   "studio:chat-files.resolve",
   "studio:context.get",
   "studio:context.set",
-  "studio:games",
+  "studio:projects",
   "studio:snapshots",
   "studio:rollback",
-  "studio:game.archive",
-  "studio:game.create",
-  // Naming a new game is one completion on the picked engine, like a chat message (`studio:send`).
-  "studio:game.name",
-  "studio:game.update",
-  "studio:game.remove",
-  "studio:game.references",
-  "studio:game.asset.preview",
-  "studio:game.asset.present",
-  "studio:game.asset.rigs",
-  "studio:game.assets",
-  "studio:game.asset.still",
+  "studio:project.archive",
+  "studio:project.create",
+  // Naming a new project is one completion on the picked engine, like a chat message (`studio:send`).
+  "studio:project.name",
+  "studio:project.update",
+  "studio:project.remove",
+  "studio:project.references",
+  "studio:project.asset.preview",
+  "studio:project.asset.present",
+  "studio:project.asset.rigs",
+  "studio:project.assets",
+  "studio:project.asset.still",
   "studio:engines",
   "studio:engines.recheck",
   "studio:hardware",
@@ -163,7 +163,7 @@ const FIXTURE_SAFE = [
   "studio:preview.reload",
   "studio:preview.stop",
   "studio:preview.play",
-  // The app's own window over its own game view: no account, dialog or other app is reached.
+  // The app's own window over its own project view: no account, dialog or other app is reached.
   "studio:preview.fullscreen",
   "studio:live.behind",
   "studio:preview.state",
@@ -200,7 +200,7 @@ const FIXTURE_SAFE = [
   "studio:run-sharing.preview",
   "studio:skills.list",
   "studio:skills.providers",
-  // Reads one game's own skill folders and a plugin's skill files: no dialog, account or socket.
+  // Reads one project's own skill folders and a plugin's skill files: no dialog, account or socket.
   "studio:skills.project",
   "studio:plugins.skill",
   // Reading the index and watching a local folder open no dialog and, offline, no socket either.
@@ -240,7 +240,7 @@ const FIXTURE_SAFE = [
   "studio:codex-login.state",
   "studio:codex-login.cancel",
   "studio:codex-login.dismiss",
-  // Adoption opens no network and writes only inside the profile's own games root.
+  // Adoption opens no network and writes only inside the profile's own projects root.
   "studio:project.inspect",
   "studio:project.adopt",
   "studio:project.open",

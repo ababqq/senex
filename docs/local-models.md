@@ -63,7 +63,7 @@ process. App shutdown cancels requests and stops the process; a crash is reporte
 failure and a later request can restart it. Working context is 102,400 tokens on Macs with at least 32 GiB RAM, and 16,384 tokens
 on smaller Macs, with one server slot and bounded batches. Both packs advertise a
 262,144-token maximum in their model metadata; the app configures a smaller working
-capacity to leave memory for the desktop, vision and game previews. Context includes
+capacity to leave memory for the desktop, vision and project previews. Context includes
 instructions, tool schemas, history, images and the reserved reply, not just user text.
 The large-context inference ceiling is 25 minutes to permit cold prompt loading on older
 Apple Silicon; explicit request deadlines and the enclosing session cancellation still win.
@@ -80,7 +80,7 @@ Engine `kind` still distinguishes local inference from subscription transport. T
 `supportsSessions` says whether the engine can run a persisted workspace session. Old fixture
 and historical descriptors fall back to delegated kind. Bonsai implements both `complete`
 and `delegate`; it is not a subscription and does not use either vendor CLI.
-Studio's app-wide assistant uses `complete` without tools; game chats and builds keep their
+Studio's app-wide assistant uses `complete` without tools; project chats and builds keep their
 existing session/coordinator paths.
 
 The same director, worker, integration, preview and judging code runs for Bonsai sessions.
@@ -137,7 +137,7 @@ return granted image paths readable through the image-aware read_file tool. Stru
 schemas retain nested objects, arrays and enums. Assets still come from the configured asset
 service or Blender; Bonsai orchestrates them, it does not replace the generators. Existing
 consent, credential and paid-asset settings still apply. Downloaded files alone do not prove
-an asset was integrated or used in the game.
+an asset was integrated or used in the project.
 
 ## Verification
 
@@ -160,7 +160,7 @@ without network.
 `mcp-plumbing.test.ts` and `genex-plumbing.test.ts` include the direct Bonsai session provider
 in their host schema, asset inspection, event and consent matrices, using fixtures only.
 
-Run `npm run verify`, plus real local completion, image, tool and game-building checks for
+Run `npm run verify`, plus real local completion, image, tool and project-building checks for
 both pinned packs. Record actual runtime/model/build/profile identities and any failures in
 the task handoff. Subscription-account and paid-asset acceptance remain subject to the
 credential restriction in agent/verification.md. Fixture checks cannot certify those services.
@@ -168,7 +168,7 @@ credential restriction in agent/verification.md. Fixture checks cannot certify t
 The explicit real-model runner is `node tests/e2e/run-bonsai-live.mjs <validation-root>
  bonsai-2:27b-pq2_0` (one shell line; repeat with `bonsai-2:27b-ptq1_0`). The root must
 contain a verified managed `runtime/` installation. It launches a fresh fixture profile, builds
-a game with the real model, drives Space input, captures pixels and asks the model to inspect
+a project with the real model, drives Space input, captures pixels and asks the model to inspect
 them, then verifies recovery from an intentionally terminated owned native child. Add `--packaged` after the model id to use the Forge app bundle. Reports include
 the executable, packaged state, main-bundle digest and temporary profile identity. This opt-in check can take 20 minutes.
 

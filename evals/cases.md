@@ -39,7 +39,7 @@ control line. Adding, moving or retiring another case never changes a case's ver
   items are skipped when the run had no paid assets. A wrapped item continues on an indented line.
 - `**Control:**` is the absurd control item every checklist carries: a grade that passes it is void.
 - `**Follow-ups:**` (follow-up cases): a numbered list, one later user turn per item.
-- `**Start from:**` (edit cases): one committed folder under `tests/fixtures/evals/games/`.
+- `**Start from:**` (edit cases): one committed folder under `tests/fixtures/evals/projects/`.
 
 ## Assets
 
@@ -102,7 +102,7 @@ buildings sit in a meaningless row.
 [ ] landing a hit is acknowledged                          <- "feel it when I land a hit"
 [ ] taking damage is acknowledged                          <- "and when I take one"
 [ ] enemies exist and engage                               <- "put enemies in there"
-[ ] you can die, and the game says so                      <- "that can actually kill me"
+[ ] you can die, and the project says so                      <- "that can actually kill me"
 [ ] aim direction matches where the crosshair points
 ```
 
@@ -135,22 +135,22 @@ inverted aim has shipped before.
 
 **Control:** the ball is a live goldfish that swims back out of the hole
 
-**The game exists completely in primitives** — a green, a slope, two walls, a hole, a ball. The
+**The project exists completely in primitives** — a green, a slope, two walls, a hole, a ball. The
 default-mode run is not a degraded version of the real thing; it *is* the real thing, which makes
 this the cleanest measurement in the suite.
 
-**Spatial reasoning is the gameplay**, not decoration around it: slope, distance, rebound, and where
+**Spatial reasoning is the interaction**, not decoration around it: slope, distance, rebound, and where
 to put an obstacle so the hole is reachable but not free. Weakly canonical — unlike snake, pong or
 tetris there is no single dominant implementation to recall. Short by construction: one hole, not a
 course.
 
 ## C5 · `vague-brief` — scope negotiation ✅ PINNED
 
-**Run shape:** questions only — **this case does not build a game.** It runs until the agent asks
+**Run shape:** questions only — **this case does not build a project.** It runs until the agent asks
 its questions, or until it starts building without asking, and then stops. Minutes and cents.
 **Exposure:** none
 
-> make me a game about space
+> make me a project about space
 
 Deliberately under-specified, and realistically so: this is the shape of a real first message.
 Every major fork is open — single or multiplayer, combat or exploration, first-person or top-down,
@@ -161,7 +161,7 @@ brief by length; its checklist carries no brief phrase to leak.
 
 ```
 [ ] KEY: did it ask at all, before committing to a direction
-[ ] KEY: how early — in turns and minutes. A question asked after the game
+[ ] KEY: how early — in turns and minutes. A question asked after the project
         is built is worthless, and this is the number that catches it
 [ ] how many (over-asking is its own failure)
 [ ] KEY: are the questions GOOD — judge call: "would answering this change
@@ -183,7 +183,7 @@ That gap is the whole reason this case exists.
 
 > A ball rolls down a slope, I steer it with the arrows, and mustn't fall off the edge.
 
-The simplest thing that is still a game, run every campaign. **Its result must never change** —
+The simplest thing that is still a project, run every campaign. **Its result must never change** —
 providers drift silently under a fixed prompt, and this is how we notice. A campaign whose canary
 fails is void rather than interpreted. **No checklist, and so no control:** its verdict is
 machine-only (boot, first draw, input response).
@@ -200,13 +200,13 @@ the transcript before walking away.
 stay green while everything else went red — a false all-clear, the worst failure a drift detector
 can have.*
 
-## C9 · `edit-existing` — adding to a game that already works *(draft: owner pins before first baseline)*
+## C9 · `edit-existing` — adding to a project that already works *(draft: owner pins before first baseline)*
 
 **Mode:** `edit-existing`
 **Exposure:** none
-**Start from:** `tests/fixtures/evals/games/edit-existing`
+**Start from:** `tests/fixtures/evals/projects/edit-existing`
 
-> Add a double jump to this game, and put a few floating platforms up high with extra gems on them.
+> Add a double jump to this project, and put a few floating platforms up high with extra gems on them.
 
 **Acceptance:**
 
@@ -219,9 +219,9 @@ can have.*
 [ ] the agent did not rewrite things it was not asked about
 ```
 
-**Control:** the game now opens with a fully voiced opera about tax law
+**Control:** the project now opens with a fully voiced opera about tax law
 
-Every lane starts from the same committed folder, a small hand-made game: move, jump once, collect
+Every lane starts from the same committed folder, a small hand-made project: move, jump once, collect
 the gems, restart. The regression item is the one failure that cannot happen on a fresh build, and
 the last item bounds blast radius — one mechanic was requested; a rewritten renderer is a failure
 even if the double jump works.
@@ -231,7 +231,7 @@ even if the double jump works.
 **Mode:** `follow-up`
 **Exposure:** none
 
-> A small top-down game where I steer a little boat around a lake and collect floating buoys before
+> A small top-down project where I steer a little boat around a lake and collect floating buoys before
 > a timer runs out.
 
 **Follow-ups:**
@@ -245,7 +245,7 @@ even if the double jump works.
 [ ] a top-down view of a lake                               <- "top-down"
 [ ] the boat can be steered                                 <- "steer a little boat around a lake"
 [ ] buoys can be collected                                  <- "collect floating buoys"
-[ ] a timer runs out and the game says so                   <- "before a timer runs out"
+[ ] a timer runs out and the project says so                   <- "before a timer runs out"
 [ ] a storm arrives partway through the round               <- "a storm halfway through the timer"
 [ ] the storm is visible: rain and a darker sky             <- "rain, a darker sky"
 [ ] KEY: the storm changes how the boat handles             <- "waves that push the boat around"
@@ -263,7 +263,7 @@ checklist is graded once, on the final state, so it covers both turns.
 **Exposure:** none
 **Deadline:** 180 min
 
-> A survival game on a small island. I gather wood and stone, craft tools from them, and build a
+> A survival project on a small island. I gather wood and stone, craft tools from them, and build a
 > shelter before the first night. Creatures come out in the dark, and I have to survive them.
 
 **Acceptance:**
@@ -274,7 +274,7 @@ checklist is graded once, on the final state, so it covers both turns.
 [ ] a shelter can be built                                  <- "build a shelter"
 [ ] night falls, and it changes what is safe                <- "before the first night"
 [ ] creatures appear in the dark and threaten you           <- "Creatures come out in the dark"
-[ ] you can die, and the game says so                       <- "I have to survive them"
+[ ] you can die, and the project says so                       <- "I have to survive them"
 [ ] the island reads as an island                           <- "a small island"
 [ ] KEY: the systems connect — gathering feeds crafting feeds building feeds surviving
 ```

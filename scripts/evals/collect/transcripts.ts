@@ -152,7 +152,7 @@ function censusHomes(options: TranscriptOptions): Homes {
     claudeSystem: "",
     codexIsolated: "",
     codexSystem: "",
-    gameRoots: options.roots,
+    projectRoots: options.roots,
     tmpDir: options.tmpDir ?? os.tmpdir(),
   };
 }

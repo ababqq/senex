@@ -2,9 +2,9 @@
  * The look phase and the closed-loop pitch restore, replayed against a fake camera. Ported from
  * genex-demo's `prober/probe.test.ts` look-phase tests: a closed loop that reads the achieved yaw per
  * step, a CDP fallback that is tried and recorded when synthetic events move nothing, an honest "not
- * reached" (never a sweep it did not see), the drag-to-look game driven as a drag, a locked game left
+ * reached" (never a sweep it did not see), the drag-to-look project driven as a drag, a locked project left
  * untouched, and the three exclusions. New here: a page with no mouse has no fallback to try, and
- * says so instead of reading as a game that ignored the input.
+ * says so instead of reading as a project that ignored the input.
  */
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
@@ -37,8 +37,8 @@ function loggedFrame(label: string): LoggedFrame {
 }
 
 /**
- * A fake game: a camera whose heading turns by `synthDegPerPx` per synthetic pixel and `cdpDegPerPx`
- * per mouse pixel (zero for a game that ignores that mechanism).
+ * A fake project: a camera whose heading turns by `synthDegPerPx` per synthetic pixel and `cdpDegPerPx`
+ * per mouse pixel (zero for a project that ignores that mechanism).
  */
 function fakeLookPage(opts: {
   synthDegPerPx: number;
@@ -127,7 +127,7 @@ describe("the look phase", () => {
     assert.match(look.note, /synthetic pointermove\/mousemove deltas turned the camera/);
   });
 
-  it("FALLBACK: a game that ignores untrusted events gets the ±200px mouse wobble, recorded and used for sweep 2", async () => {
+  it("FALLBACK: a project that ignores untrusted events gets the ±200px mouse wobble, recorded and used for sweep 2", async () => {
     const page = fakeLookPage({ synthDegPerPx: 0, cdpDegPerPx: 0.1 });
     const look = await lookPhase(page.deps);
     assert.equal(look.deliveredBy, LookMechanism.Cdp);
@@ -144,7 +144,7 @@ describe("the look phase", () => {
     assert.equal(look.reached, false);
     assert.equal(look.deliveredBy, null);
     assert.equal(look.fallback?.reached, false);
-    assert.match(look.note, /the look input did not reach the game/);
+    assert.match(look.note, /the look input did not reach the project/);
     assert.equal(look.framesCaptured, LOOK_STEPS * 2, "the frames are still captured");
     const unread = await lookPhase(fakeLookPage({ synthDegPerPx: 1, cdpDegPerPx: 1, camera: false }).deps);
     assert.equal(unread.reached, null);
@@ -152,14 +152,14 @@ describe("the look phase", () => {
     assert.match(unread.note, /No camera heading could be read/);
   });
 
-  it("NO MOUSE: the fallback is recorded as not tried, never as a mechanism the game ignored", async () => {
+  it("NO MOUSE: the fallback is recorded as not tried, never as a mechanism the project ignored", async () => {
     const look = await lookPhase(fakeLookPage({ synthDegPerPx: 0, cdpDegPerPx: 1, noMouse: true }).deps);
     assert.deepEqual(look.fallback, { tried: false, sweepDeg: null, reached: null, heldButton: false });
     assert.equal(look.deliveredBy, null);
     assert.match(look.note, /the page has no mouse/);
   });
 
-  it("A DRAG-TO-LOOK GAME IS DRIVEN: the press brackets each step and the coordinate advances", async () => {
+  it("A DRAG-TO-LOOK PROJECT IS DRIVEN: the press brackets each step and the coordinate advances", async () => {
     const page = fakeLookPage({ synthDegPerPx: 0.13, cdpDegPerPx: 0, noLock: true, requiresDrag: true });
     const look = await lookPhase(page.deps);
     assert.equal(look.deliveredBy, LookMechanism.Synthetic);
@@ -177,7 +177,7 @@ describe("the look phase", () => {
     assert.ok((perStep[perStep.length - 1].drag.offsetX ?? 0) < 1280 / 2, "the drag restarts each step");
   });
 
-  it("THE SAME GAME ignoring untrusted events: the mouse fallback goes out as a real drag, every press released", async () => {
+  it("THE SAME PROJECT ignoring untrusted events: the mouse fallback goes out as a real drag, every press released", async () => {
     const page = fakeLookPage({ synthDegPerPx: 0, cdpDegPerPx: 0.1, noLock: true, requiresDrag: true });
     const look = await lookPhase(page.deps);
     assert.equal(look.deliveredBy, LookMechanism.Cdp);
@@ -187,7 +187,7 @@ describe("the look phase", () => {
     assert.equal(page.buttons.filter((b) => b === "down").length, page.buttons.filter((b) => b === "up").length);
   });
 
-  it("A LOCKED GAME is untouched: no button is ever pressed under a lock", async () => {
+  it("A LOCKED PROJECT is untouched: no button is ever pressed under a lock", async () => {
     const page = fakeLookPage({ synthDegPerPx: 0, cdpDegPerPx: 0.1, requiresDrag: true });
     const look = await lookPhase(page.deps);
     assert.deepEqual(page.buttons, []);

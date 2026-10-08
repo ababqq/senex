@@ -12,7 +12,7 @@
  *  - `GIT`, the command lines themselves, pure: for code that already has its own exec (the
  *    union merge, the reviewer, the nested-repository check), and for the tests.
  *  - the helpers that run them through `ctx.call("run.exec")` in a worktree (`cwd`) or in the
- *    live game folder (`{ project }`): `gitAt`, `headOf`, `isAncestor`, `commitAll`,
+ *    live project folder (`{ project }`): `gitAt`, `headOf`, `isAncestor`, `commitAll`,
  *    `updateRef`, `mergeNoFf`, `landIntegration`, `resetClean`, `gitlinks`.
  */
 import { HostMethod } from "./host-methods.ts";
@@ -45,7 +45,7 @@ export interface ExecOptions {
   label?: string | null;
   timeoutMs?: number;
 }
-/** A worktree, or the live game folder. */
+/** A worktree, or the live project folder. */
 export type Where = string | { cwd?: string; project?: string };
 /** How a command's output is trimmed. */
 export type Trim = "end" | "both" | "none";
@@ -98,7 +98,7 @@ function commitFlags({
 /** The command lines, as data. Nothing here runs anything. */
 export const GIT = Object.freeze({
   head: "git rev-parse HEAD",
-  /** How many commits the branch holds: a game the studio just made has its one. */
+  /** How many commits the branch holds: a project the studio just made has its one. */
   commitCount: "git rev-list --count HEAD",
   status: "git status --porcelain",
   /**
@@ -156,7 +156,7 @@ export const GIT = Object.freeze({
   gitlinks: (rev: unknown): string => `git ls-tree -r ${commitArg(rev)} | awk '$1 == "160000" { print $4 }'`,
 });
 
-/** Where a command runs: a worktree path, `{ cwd }`, or the live game folder `{ project }`. */
+/** Where a command runs: a worktree path, `{ cwd }`, or the live project folder `{ project }`. */
 function where(at: Where): { cwd: string } | { project: string } {
   if (typeof at === "string") return { cwd: at };
   if (isRecord(at) && at.cwd) return { cwd: at.cwd };
@@ -325,14 +325,14 @@ export async function gitlinks(
 }
 
 /**
- * Nested repositories a build does not carry. The user's own game may live in a folder that is a
+ * Nested repositories a build does not carry. The user's own project may live in a folder that is a
  * git repository of its own; the studio versions it inside every fork when the user allowed that
  * (substrate/snapshots.ts `worktreeAt`), and this is the check that it happened. A path the
  * commit still holds as a pointer is a path whose every edit is invisible to the merge, the
  * landing and the user — the silent loss of 2026-09-07, said out loud. A plain `git status`
  * cannot see it: git does not walk into a gitlink path, which is why the loss was silent.
  *
- * `exec` runs git in the worktree being asked about; `nested` are the paths the game's history
+ * `exec` runs git in the worktree being asked about; `nested` are the paths the project's history
  * holds as repositories of their own. Answers the ones this commit still holds as a pointer.
  */
 export async function unversionedNested(
@@ -417,7 +417,7 @@ export async function mergeNoFf(
 }
 
 /**
- * Land a run's integrated build in the live game folder: one `--no-ff` merge, aborted on any
+ * Land a run's integrated build in the live project folder: one `--no-ff` merge, aborted on any
  * conflict. The live folder sat at the base all night, so a conflict here is the user's own work;
  * nothing is ever forced over it (`git reset --hard` once was) — the build stays on its ref and
  * "Make it live" lands it once the folder is theirs to merge into.

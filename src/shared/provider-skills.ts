@@ -34,17 +34,17 @@ export interface ProviderSkillInventory {
   builders: ProviderBuilderUse;
 }
 
-/** A skill or command a game folder carries (`.claude/skills`, `.claude/commands`, `.agents/skills`). */
+/** A skill or command a project folder carries (`.claude/skills`, `.claude/commands`, `.agents/skills`). */
 export interface ProjectSkill {
   name: string;
   description: string;
-  /** Game-relative path of the skill's file. */
+  /** Project-relative path of the skill's file. */
   path: string;
   kind: "skill" | "command";
-  /** The builders that load it from the game folder. */
+  /** The builders that load it from the project folder. */
   engines: EngineId[];
 }
-/** The skills one game folder gives its builders. */
+/** The skills one project folder gives its builders. */
 export interface ProjectSkillInventory {
   project: string;
   skills: ProjectSkill[];

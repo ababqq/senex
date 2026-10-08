@@ -5,23 +5,23 @@ import path from "node:path";
 import { mkdtempSync } from "node:fs";
 import os from "node:os";
 import assert from "node:assert/strict";
-import { GamePreview, registerGameScheme } from "../../src/main/preview.ts";
+import { ProjectPreview, registerProjectScheme } from "../../src/main/preview.ts";
 import { SnapshotEngine } from "../../src/substrate/snapshots.ts";
-import { GameCandidates } from "../../src/substrate/game-candidate.ts";
+import { ProjectCandidates } from "../../src/substrate/project-candidate.ts";
 import { runOptimization } from "../../src/harness-seed/loop/optimization.ts";
-import { optimizationGame, optimizationHTML } from "./optimization-game.mjs";
+import { optimizationProject, optimizationHTML } from "./optimization-project.mjs";
 import type { ProfileSample, Revision } from "../../src/shared/optimization.ts";
 
 /**
  * The source each safety case runs. `missing` takes the inspection away; `uninitialized` leaves
- * the game working and makes the renderer report what a common Renderer reports until its
+ * the project working and makes the renderer report what a common Renderer reports until its
  * `init()` has resolved, which is the one answer the observer must treat as "come back" and the
  * stage must file as `renderer_not_ready` rather than "this studio cannot profile".
  */
 function caseSource(backend: string, testCase: string): string {
-  const base = optimizationGame(backend);
+  const base = optimizationProject(backend);
   // `inspect()` that answers nothing, not a MISSING inspect(): under the M4 shim `window.__studio`
-  // is a merging facade, so a method the game does not define is filled in from the hook and a
+  // is a merging facade, so a method the project does not define is filled in from the hook and a
   // deleted `inspect` is no longer absent. What is still absent is a renderer to inspect.
   if (testCase === "missing") return base.replace("inspect:()=>({scene,renderer,camera})", "inspect:()=>({})");
   if (testCase === "uninitialized")
@@ -36,7 +36,7 @@ const repo = process.env.AG931_REPO!,
   output = process.env.AG931_OUTPUT!;
 const root = mkdtempSync(path.join(os.tmpdir(), "ag931-gpu-"));
 app.setPath("userData", path.join(root, "electron"));
-registerGameScheme();
+registerProjectScheme();
 app.on("window-all-closed", () => {}); // each backend disposes its own isolated window
 
 async function main() {
@@ -60,11 +60,11 @@ async function main() {
         await snapshots.init();
         const baseline = await snapshots.snapshot({
           scope: "game",
-          gameWorkspace: "fixture",
+          projectWorkspace: "fixture",
           reason: "fixture",
           healthy: true,
         });
-        const registry = new GameCandidates(snapshots, path.join(root, `${backend}-scratch`));
+        const registry = new ProjectCandidates(snapshots, path.join(root, `${backend}-scratch`));
         const win = new BrowserWindow({
           width: 960,
           height: 600,
@@ -73,9 +73,9 @@ async function main() {
           skipTaskbar: true,
           webPreferences: {},
         });
-        const port = new GamePreview({
+        const port = new ProjectPreview({
           offscreen: true,
-          gamesRoot: root,
+          projectsRoot: root,
           vendorDir: path.join(repo, "dist/resources/vendor"),
           partition: `optimization-${backend}-${testCase}`,
         });
@@ -127,7 +127,7 @@ async function main() {
                 return registry.promote(p.candidateId, p.expectedLive, p.verifiedCandidate, p.resultArtifact);
               case "optimization.reconcile":
                 return registry.reconcile("fixture", p.baseline, p.candidate);
-              case "game.write": {
+              case "project.write": {
                 const file = await registry.file(p.candidateId, "fixture", p.file, true);
                 await mkdir(path.dirname(file), { recursive: true });
                 await writeFile(file, p.contents);
@@ -215,7 +215,10 @@ async function main() {
               if (testCase === "noop") return;
               await writeFile(
                 path.join(candidate.root, "src/main.js"),
-                optimizationGame(backend, true).replace("0x61cde8", testCase === "fidelity" ? "0xff0000" : "0x61cde8"),
+                optimizationProject(backend, true).replace(
+                  "0x61cde8",
+                  testCase === "fidelity" ? "0xff0000" : "0x61cde8",
+                ),
               );
               if (testCase === "cancel") ctx.cancelled = true;
             },
@@ -254,7 +257,7 @@ async function main() {
             uninitialized: "skipped",
           }[testCase];
           assert.equal(result.outcome, expected, `${backend}/${testCase}: ${result.reason}`);
-          // A renderer that has not finished init() is a WebGPU game still booting, not a studio
+          // A renderer that has not finished init() is a WebGPU project still booting, not a studio
           // that cannot profile: its own reason code, and the baseline untouched either way.
           if (testCase === "uninitialized")
             assert.equal(

@@ -505,15 +505,15 @@ describe("reading a finished build from the log", () => {
     };
   }
 
-  it("reads a game chat's turn with its permission mode, and never the Studio's own chat", async () => {
+  it("reads a project chat's turn with its permission mode, and never the Studio's own chat", async () => {
     const logs = store({
-      game: {
-        metadata: { kind: ThreadKind.Game, project: "demo", permissionMode: PermissionMode.Plan },
+      project: {
+        metadata: { kind: ThreadKind.Project, project: "demo", permissionMode: PermissionMode.Plan },
         events: chatBuild(),
       },
       studio: { metadata: { kind: ThreadKind.Studio }, events: chatBuild() },
     });
-    const facts = await readFinishedFacts(logs, { threadId: "game", messageId: "m1" }, M4);
+    const facts = await readFinishedFacts(logs, { threadId: "project", messageId: "m1" }, M4);
     assert.equal(facts?.permissionMode, PermissionMode.Plan);
     assert.equal(await readFinishedFacts(logs, { threadId: "studio", messageId: "m1" }, M4), null);
   });
@@ -523,10 +523,10 @@ describe("reading a finished build from the log", () => {
       ...chatBuild(),
       ...log([95, processing("m2")], [96, { type: "error", message: "Could not answer this message." }]),
     ];
-    const logs = store({ game: { metadata: { kind: ThreadKind.Game, project: "demo" }, events } });
-    assert.ok(await readFinishedFacts(logs, { threadId: "game", messageId: "m1" }, M4));
-    assert.equal(await readFinishedFacts(logs, { threadId: "game", messageId: "m2" }, M4), null);
-    assert.equal(await readFinishedFacts(logs, { threadId: "game", messageId: "never-taken" }, M4), null);
+    const logs = store({ project: { metadata: { kind: ThreadKind.Project, project: "demo" }, events } });
+    assert.ok(await readFinishedFacts(logs, { threadId: "project", messageId: "m1" }, M4));
+    assert.equal(await readFinishedFacts(logs, { threadId: "project", messageId: "m2" }, M4), null);
+    assert.equal(await readFinishedFacts(logs, { threadId: "project", messageId: "never-taken" }, M4), null);
 
     const dir = path.join(await tmpDir("run-sharing-facts-"), "run-sharing");
     const posts: string[] = [];
@@ -543,21 +543,21 @@ describe("reading a finished build from the log", () => {
       readFacts: (ref) => readFinishedFacts(logs, ref, M4),
     });
     await sharing.setOn(true);
-    await sharing.buildFinished({ threadId: "game", messageId: "m1" });
-    await sharing.buildFinished({ threadId: "game", messageId: "m2" });
+    await sharing.buildFinished({ threadId: "project", messageId: "m1" });
+    await sharing.buildFinished({ threadId: "project", messageId: "m2" });
     assert.equal(posts.length, 1, "the earlier build is not shared a second time");
   });
 
-  it("finds a run among its game's chats and nowhere else", async () => {
+  it("finds a run among its project's chats and nowhere else", async () => {
     const run = log(
       [0, custom("run_started", { runId: "run-9", engine: EngineId.ClaudeCode })],
       [1, custom("context_usage", { runId: "run-9", engine: EngineId.ClaudeCode, model: "claude-opus-5-5" })],
       [9, custom("run_finished", { runId: "run-9", executionStatus: ExecutionStatus.Completed })],
     );
     const logs = store({
-      first: { metadata: { kind: ThreadKind.Game, project: "demo" }, events: chatBuild() },
-      second: { metadata: { kind: ThreadKind.Game, project: "demo" }, events: run },
-      other: { metadata: { kind: ThreadKind.Game, project: "other" }, events: run },
+      first: { metadata: { kind: ThreadKind.Project, project: "demo" }, events: chatBuild() },
+      second: { metadata: { kind: ThreadKind.Project, project: "demo" }, events: run },
+      other: { metadata: { kind: ThreadKind.Project, project: "other" }, events: run },
     });
     assert.equal((await readFinishedFacts(logs, { runId: "run-9", project: "demo" }, M4))?.engine, EngineId.ClaudeCode);
     assert.equal(await readFinishedFacts(logs, { runId: "run-9", project: "missing" }, M4), null);

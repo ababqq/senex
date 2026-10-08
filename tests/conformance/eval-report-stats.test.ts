@@ -261,13 +261,13 @@ describe("Bradley–Terry", () => {
     assert.deepEqual(swept.degenerate, ["a", "b"]);
   });
 
-  it("adds bootstrap intervals only with at least eight games, deterministically", () => {
-    const games = Array.from({ length: 8 }, (_, index) => ({ a: "a", b: "b", scoreA: index < 6 ? 1 : 0 }));
-    const fit = bradleyTerry(["a", "b"], games, { seed: "bt", resamples: 200 });
-    const again = bradleyTerry(["a", "b"], games, { seed: "bt", resamples: 200 });
+  it("adds bootstrap intervals only with at least eight projects, deterministically", () => {
+    const projects = Array.from({ length: 8 }, (_, index) => ({ a: "a", b: "b", scoreA: index < 6 ? 1 : 0 }));
+    const fit = bradleyTerry(["a", "b"], projects, { seed: "bt", resamples: 200 });
+    const again = bradleyTerry(["a", "b"], projects, { seed: "bt", resamples: 200 });
     assert.deepEqual(fit.intervals, again.intervals);
     assert.ok(fit.intervals?.a && fit.intervals.a.lo <= fit.strengths.a && fit.intervals.a.hi >= fit.strengths.a);
-    assert.equal(bradleyTerry(["a", "b"], games.slice(0, 7), { seed: "bt" }).intervals, null);
+    assert.equal(bradleyTerry(["a", "b"], projects.slice(0, 7), { seed: "bt" }).intervals, null);
   });
 });
 

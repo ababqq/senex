@@ -41,7 +41,7 @@ import {
   loadCatalogue,
   MAX_CRAFT,
   normalizeFacetSpec,
-  normalizeGameTraits,
+  normalizeAppTraits,
   recordCatalogueOutcomes,
   renderCatalogueForPlanner,
   renderChecks,
@@ -127,7 +127,7 @@ describe("check expressions", () => {
     assert.equal(evaluateBoolean("phase == 'cleared'", scope).pass, false);
   });
 
-  it("binds `state` in the probe scope without shadowing a game that has its own", () => {
+  it("binds `state` in the probe scope without shadowing a project that has its own", () => {
     const scope = probeScope({ foo: { bar: 1 }, player: { x: 3 } }, { foo: { bar: 0 } } as never);
     // The grammar every director-written probe used, and the bare paths the loop's own checks use.
     assert.equal(evaluateBoolean("state.foo.bar > 0", scope).pass, true);
@@ -143,7 +143,7 @@ describe("check expressions", () => {
       false,
       "a path that is really absent still reads false",
     );
-    // A game whose state() really has a top-level `state` field reads its own, not the alias.
+    // A project whose state() really has a top-level `state` field reads its own, not the alias.
     const own = probeScope({ state: "playing" });
     assert.equal(evaluateBoolean("state == 'playing'", own).pass, true);
     assert.equal(evaluateBoolean("state.foo > 0", own).pass, false);
@@ -216,7 +216,7 @@ describe("check expressions", () => {
       ] as never),
       ["side-hit", "prop-run"],
     );
-    // A demo that ran and threw is the builder's defect; one the game never declared likewise.
+    // A demo that ran and threw is the builder's defect; one the project never declared likewise.
     assert.match(
       evaluateProbeCheck({ id: "kept", kind: "probe", demo: "big-hit", expr: "ok" }, evidence).reason,
       /failed: threw/,
@@ -545,12 +545,12 @@ describe("facet specs", () => {
   });
 });
 
-describe("the board a game actually carries", () => {
-  it("puts no harness check on a game nobody described, and the kind's own axes on one they did", () => {
+describe("the board a project actually carries", () => {
+  it("puts no harness check on a project nobody described, and the kind's own axes on one they did", () => {
     // Every trait is off until something declares it: the four harness checks describe the
-    // template's screen and the template's controls, and a game nobody described has neither.
+    // template's screen and the template's controls, and a project nobody described has neither.
     assert.deepEqual(withHarnessChecks({ id: "f", checks: [] }, { ownsMain: true }).checks, []);
-    assert.deepEqual(normalizeGameTraits(undefined), {
+    assert.deepEqual(normalizeAppTraits(undefined), {
       kind: null,
       hud: false,
       mouseLook: false,
@@ -558,16 +558,16 @@ describe("the board a game actually carries", () => {
       playScript: null,
     });
 
-    // A board game declares a kind and still carries nothing: no HUD rule, no look, no move.
+    // A board project declares a kind and still carries nothing: no HUD rule, no look, no move.
     assert.deepEqual(
-      withHarnessChecks({ id: "f", checks: [] }, { ownsMain: true, game: { kind: "static-board" } as never }).checks,
+      withHarnessChecks({ id: "f", checks: [] }, { ownsMain: true, app: { kind: "static-board" } as never }).checks,
       [],
     );
 
     // The template's own shape keeps all four.
     const firstPerson = withHarnessChecks(
       { id: "f", checks: [] },
-      { ownsMain: true, game: { kind: "first-person" } as never },
+      { ownsMain: true, app: { kind: "first-person" } as never },
     ).checks;
     assert.deepEqual(firstPerson.map((c: { id: string }) => c.id).sort(), [
       "keys-move-player",
@@ -576,11 +576,11 @@ describe("the board a game actually carries", () => {
       "single-hud",
     ]);
 
-    // A top-down game has a HUD and keys but no mouse look, and its move check asks about the
+    // A top-down project has a HUD and keys but no mouse look, and its move check asks about the
     // axes it actually moves on — x, y or z — not the first-person controller's x and z.
     const topDown = withHarnessChecks(
       { id: "f", checks: [] as Check[] },
-      { ownsMain: true, game: { kind: "top-down" } as never },
+      { ownsMain: true, app: { kind: "top-down" } as never },
     ).checks as { id: string; expr?: string }[];
     assert.deepEqual(topDown.map((c) => c.id).sort(), ["keys-move-player", "no-dom-ui", "single-hud"]);
     const move = topDown.find((c) => c.id === "keys-move-player");
@@ -604,25 +604,25 @@ describe("the board a game actually carries", () => {
         "grade-band": { kind: "pixel", origin: "judge", uses: 4, passes: 2, catches: 2, runs: ["r1", "r2"] },
       } as Record<string, Record<string, unknown>>,
     };
-    // A board game is a different family from a racer (a screen critic, no eyes), so what the
+    // A board project is a different family from a racer (a screen critic, no eyes), so what the
     // racer taught is not offered to it; a check no kind ever claimed stays general.
-    const board = renderCatalogueForPlanner(catalogue, { game: { kind: "static-board" } } as never);
+    const board = renderCatalogueForPlanner(catalogue, { app: { kind: "static-board" } } as never);
     assert.doesNotMatch(board, /lap-time-drops/);
     assert.match(board, /grade-band/);
     assert.match(
       board,
-      /No harness-owned checks ride on this game's board — declare hud, mouseLook or keyboardMove in game if it has them\.$/,
+      /No harness-owned checks ride on this project's board — declare hud, mouseLook or keyboardMove in project if it has them\.$/,
     );
-    // A game of the family that learned it still sees it, and its own board is named honestly.
-    const racer = renderCatalogueForPlanner(catalogue, { game: { kind: "racing" } } as never);
+    // A project of the family that learned it still sees it, and its own board is named honestly.
+    const racer = renderCatalogueForPlanner(catalogue, { app: { kind: "racing" } } as never);
     assert.match(racer, /lap-time-drops/);
     assert.match(
       racer,
-      /Already on this game's board \(harness-owned, do not re-declare\): no-dom-ui, single-hud, keys-move-player\./,
+      /Already on this project's board \(harness-owned, do not re-declare\): no-dom-ui, single-hud, keys-move-player\./,
     );
     // Two families have recorded it: it has stopped being one genre's opinion.
     catalogue.checks["lap-time-drops"].kinds = ["racing", "static-board"];
-    assert.match(renderCatalogueForPlanner(catalogue, { game: { kind: "first-person" } } as never), /lap-time-drops/);
+    assert.match(renderCatalogueForPlanner(catalogue, { app: { kind: "first-person" } } as never), /lap-time-drops/);
   });
 
   it("asks a screen the screen critic's question, in the rubric and in the brief", () => {
@@ -645,7 +645,7 @@ describe("the board a game actually carries", () => {
     assert.equal(screen.max, 24);
     assert.equal(screen.grow[0]?.key, "readable");
     assert.equal(screen.biggest, "readable");
-    // The place critic is unchanged, and it is what an undeclared game still gets.
+    // The place critic is unchanged, and it is what an undeclared project still gets.
     assert.equal(normalizeLiveness({}, "place").principles[0]!.key, "extent");
     assert.equal(normalizeLiveness({}).critic, "place");
 
@@ -675,7 +675,7 @@ describe("the board a game actually carries", () => {
  */
 describe("craft leaves the law", () => {
   const seedDir = pathMod.join(repoRoot, "src", "harness-seed");
-  /** The five technical checks that say "this is a game and the harness can see and drive it". */
+  /** The five technical checks that say "this is a project and the harness can see and drive it". */
   const KEEPERS = ["camera-player-eye", "demo-walk", "drawcalls-ceiling", "player-moved", "primary-action-registers"];
   /** Bookkeeping the catalogue keeps and a recipe's copy of the body must not carry. */
   const BOOKKEEPING = new Set(["uses", "passes", "catches", "runs", "genres", "kinds", "lastUsed", "origin", "pack"]);
@@ -773,8 +773,8 @@ describe("craft leaves the law", () => {
   });
 
   it("cannot pass player-moved on a player that was not there before the controls were driven", async () => {
-    // A game with a title screen — the own-shape headline case: the early state is sampled a
-    // second in, on the menu, and the play script starts the game. Both deltas then read
+    // A project with a title screen — the own-shape headline case: the early state is sampled a
+    // second in, on the menu, and the play script starts the project. Both deltas then read
     // undefined, and `undefined != 0` used to be TRUE: a green "the controls work" line on a
     // build whose controls were never compared to anything. needs names the same two paths
     // delta() reads, which is what lets the early half of the gate fire at all.
@@ -808,16 +808,16 @@ describe("craft leaves the law", () => {
   });
 
   it("gives the harness-owned move probe the same guard, on the axes the kind actually moves on", () => {
-    // The harness's own copy of the same check: identity weight, on every keyboard-moved game.
+    // The harness's own copy of the same check: identity weight, on every keyboard-moved project.
     const template = withHarnessChecks({ id: "f", checks: [] as Check[] }, {
       ownsMain: true,
-      game: { kind: "first-person" },
+      app: { kind: "first-person" },
     } as never).checks.find((c: { id: string }) => c.id === "keys-move-player") as { expr: string; needs?: string[] };
     assert.deepEqual(template.needs, ["player.x", "player.z"]);
     assert.doesNotMatch(
       template.expr,
       /!= 0/,
-      "abs(delta(path)) > 0: `undefined != 0` is true and would pass a game with no player",
+      "abs(delta(path)) > 0: `undefined != 0` is true and would pass a project with no player",
     );
     assert.equal(
       evaluateProbeCheck({ id: "keys-move-player", kind: "probe", ...template } as never, {
@@ -834,11 +834,11 @@ describe("craft leaves the law", () => {
       true,
     );
 
-    // needs follows the expression, never the template: a top-down game moves on x and y, and
+    // needs follows the expression, never the template: a top-down project moves on x and y, and
     // asking it for the first-person controller's z would report every build unmeasured.
     const topDown = withHarnessChecks({ id: "f", checks: [] as Check[] }, {
       ownsMain: true,
-      game: { kind: "top-down" },
+      app: { kind: "top-down" },
     } as never).checks.find((c: { id: string }) => c.id === "keys-move-player") as { expr: string; needs?: string[] };
     assert.deepEqual(topDown.needs, [...new Set([...topDown.expr.matchAll(/delta\('([^']+)'\)/g)].map((m) => m[1]))]);
     assert.ok(topDown.needs!.includes("player.y"), JSON.stringify(topDown));
@@ -1536,7 +1536,7 @@ describe("technique library", () => {
 
   it("names the template's own modules in THE FIX only to a worker inside the template", () => {
     // M4.6 gates every template-specific rule on `template`. THE FIX kept naming foliage.js and
-    // materials.js to a game the user brought, where neither module exists and the worker's seam
+    // materials.js to a project the user brought, where neither module exists and the worker's seam
     // forbids creating them at those paths — a round spent looking for files that are not there.
     const args = {
       run: { runId: "r", goal: "g" },
@@ -1553,12 +1553,12 @@ describe("technique library", () => {
     const own = String(renderBrief({ ...args, template: false, screen: false } as never));
     assert.match(own, /## THE FIX this iteration \(mandatory/);
     assert.match(own, /Replace the mechanism behind it, do not tune it\./);
-    assert.doesNotMatch(own, /foliage\.js/, "the studio template's modules are not in this game");
+    assert.doesNotMatch(own, /foliage\.js/, "the studio template's modules are not in this project");
     assert.doesNotMatch(own, /materials\.js/);
-    assert.match(own, /the way this game already builds its objects/);
-    assert.match(own, /a material this game's renderer can bake/);
-    // The rules below it are the own-shape ones, so the whole brief speaks about one game.
-    assert.match(own, /THIS GAME'S INPUT PATH/);
+    assert.match(own, /the way this project already builds its objects/);
+    assert.match(own, /a material this project's renderer can bake/);
+    // The rules below it are the own-shape ones, so the whole brief speaks about one project.
+    assert.match(own, /THIS PROJECT'S INPUT PATH/);
     assert.doesNotMatch(own, /rng from update\(\)/);
 
     // Historical runtime metadata is not tool authority. Only the active plugin
@@ -1572,7 +1572,7 @@ describe("technique library", () => {
       } as never),
     );
     assert.doesNotMatch(modelled, /blender/i, "old runtime metadata cannot inject a disabled tool");
-    assert.match(modelled, /the way this game already builds its objects/);
+    assert.match(modelled, /the way this project already builds its objects/);
     assert.ok(!/blender/i.test(own), "no registry guidance, no Blender words");
   });
 
@@ -1656,7 +1656,7 @@ describe("code reviewer, mechanical half", () => {
       [1, 2, 3],
     );
     assert.ok(evidence.every((v) => /must be the page's own/.test(v.what)));
-    // The same rule reaches a game the studio did not scaffold: it is not a template rule.
+    // The same rule reaches a project the studio did not scaffold: it is not a template rule.
     const ownShape = mechanicalReview(
       "+++ b/src/world.ts\n@@ -1,0 +1,1 @@\n+window.__studioGl = null;\n",
       { id: "world", owns: ["src/world.ts"], checks: [] },

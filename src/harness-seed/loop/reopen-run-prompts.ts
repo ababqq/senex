@@ -19,7 +19,7 @@ export const REOPEN_RUN = "reopen_run";
 export const reopenRunTool: StudioToolSpec = {
   name: REOPEN_RUN,
   description:
-    "Reopen this chat's finished build as the same build — its run, plan, workers and Builds graph — until what the user asks is checked, within the working time Loop gives it; you lead it again. Use when the user asks for more work on the game than one contained change while Loop is on; never for a contained change you can make yourself, never for a question, never to start over. Supply their request as text. The build goes on when your reply ends: call it once, last, and edit nothing in that reply.",
+    "Reopen this chat's finished build as the same build — its run, plan, workers and Builds graph — until what the user asks is checked, within the working time Loop gives it; you lead it again. Use when the user asks for more work on the project than one contained change while Loop is on; never for a contained change you can make yourself, never for a question, never to start over. Supply their request as text. The build goes on when your reply ends: call it once, last, and edit nothing in that reply.",
   parameters: {
     type: "object",
     properties: {
@@ -71,7 +71,7 @@ function startOverRules(engine: string | undefined, reopen: string, grant: Reope
   const ask = toolCall(engine, askUser.name);
   const project = grant.project ? ` Pass "${grant.project}" as its project argument.` : "";
   return [
-    `- Only when the user explicitly asks to start over — from scratch, a brand-new game, throw this build away — call ${launch} instead, with the goal in their words: it starts a new build from this folder as you leave it. Never for a change to this game.${project}`,
+    `- Only when the user explicitly asks to start over — from scratch, a brand-new project, throw this build away — call ${launch} instead, with the goal in their words: it starts a new build from this folder as you leave it. Never for a change to this project.${project}`,
     `- If it is unclear whether a change is contained, whether they want the build to go on or to start over, or any work at all, ask with ${ask} (recommended choice first) — your estimate in each choice, the direct change first when it takes minutes ("Fix it now — a few minutes" / "Continue the build — ${budgetWords(grant.hours)}") — and end your reply. Never call ${reopen} or ${launch} in the same reply as a question, and never both.`,
   ];
 }
@@ -92,8 +92,8 @@ export function reopenRules(engine: string | undefined, grant: ReopenGrant): str
   return [
     `- Loop is on: you may continue this build — the same run goes on, its plan, its workers, its Builds graph, from where it finished, and you lead it again until what the user asks is checked (${budgetWords(grant.hours)}). It is allowed, not required. Decide from the latest message:`,
     "- A question, research or a plan is not a request for work: answer it here yourself, then offer to continue the build with it.",
-    "- A contained change — a fix, a tweak, one feature, anything they want quickly: make it yourself here in the game folder, look at it in your own window, and say what changed. The build stays finished.",
-    `- More work than one contained change — several systems, new features, the look of the whole game, "more", "keep going": call ${reopen} once, last, with their request in their words as text, and edit nothing in that reply. The build goes on when your reply ends.`,
+    "- A contained change — a fix, a tweak, one feature, anything they want quickly: make it yourself here in the project folder, look at it in your own window, and say what changed. The build stays finished.",
+    `- More work than one contained change — several systems, new features, the look of the whole project, "more", "keep going": call ${reopen} once, last, with their request in their words as text, and edit nothing in that reply. The build goes on when your reply ends.`,
     ...startOverRules(engine, reopen, grant),
     stills,
   ].filter(Boolean);

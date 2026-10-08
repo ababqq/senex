@@ -42,7 +42,7 @@ describe("a Genex reference", () => {
     });
   });
 
-  it("is never a game path, and a direct output file is never nested, hidden or empty", () => {
+  it("is never a project path, and a direct output file is never nested, hidden or empty", () => {
     for (const value of ["assets/boat.glb", "genex/job/boat.glb", "/@genex/job/a", "", null, 3])
       assert.equal(isGenexRef(value), false, String(value));
     assert.equal(parseGenexRef("@genex/"), null, "no job");

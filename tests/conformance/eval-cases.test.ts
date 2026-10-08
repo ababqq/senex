@@ -2,7 +2,7 @@
  * The case file grammar (§6.1): a synthetic case file parses into the typed cases with stable
  * per-case versions, malformed blocks are refused by field, the committed `evals/cases.md` parses
  * into the planned set, holdouts load only from the private file, and a `Start from:` folder
- * resolves only inside the committed fixture games (a hostile table, with no side effect).
+ * resolves only inside the committed fixture projects (a hostile table, with no side effect).
  */
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -80,11 +80,11 @@ const FOLLOW_UP_LINE = /^(?:\*\*Follow-ups:\*\*|1\. |2\. | {3}shown)/;
 const CANARY = ["## C8 · `pebble` — machine-only verdict", "", "**Exposure:** none", "", "> A pebble rolls."];
 
 const EDIT = [
-  "## C9 · `patch-work` — edit a committed game",
+  "## C9 · `patch-work` — edit a committed project",
   "",
   "**Mode:** `edit-existing`",
   "**Exposure:** none",
-  "**Start from:** `tests/fixtures/evals/games/edit-existing`",
+  "**Start from:** `tests/fixtures/evals/projects/edit-existing`",
   "",
   "> Add a jump.",
 ];
@@ -123,7 +123,15 @@ describe("case grammar", () => {
         [1, "lantern-walk", "a synthetic case", CaseMode.Build, CaseExposure.None, CaseVisibility.Public, 90],
         [2, "kite-duel", "follow-up and deadline", CaseMode.FollowUp, CaseExposure.DevTuned, CaseVisibility.Public, 30],
         [8, "pebble", "machine-only verdict", CaseMode.Build, CaseExposure.None, CaseVisibility.Public, 90],
-        [9, "patch-work", "edit a committed game", CaseMode.EditExisting, CaseExposure.None, CaseVisibility.Public, 90],
+        [
+          9,
+          "patch-work",
+          "edit a committed project",
+          CaseMode.EditExisting,
+          CaseExposure.None,
+          CaseVisibility.Public,
+          90,
+        ],
       ],
     );
     assert.equal(DEFAULT_CASE_DEADLINE_MIN, 90);
@@ -191,7 +199,7 @@ describe("case grammar", () => {
   it("gives a machine-only case no checklist and an edit case its start folder", () => {
     assert.deepEqual(canary.acceptance, []);
     assert.equal(canary.startFrom, null);
-    assert.equal(edit.startFrom, "tests/fixtures/evals/games/edit-existing");
+    assert.equal(edit.startFrom, "tests/fixtures/evals/projects/edit-existing");
   });
 });
 
@@ -302,17 +310,17 @@ describe("malformed case files are refused by field", () => {
     ["an edit case without a start folder", file(withLine(EDIT, "**Start from:**", null)), CaseField.StartFrom],
     [
       "a start folder on a build case",
-      file([...CANARY, "**Start from:** `tests/fixtures/evals/games/x`"]),
+      file([...CANARY, "**Start from:** `tests/fixtures/evals/projects/x`"]),
       CaseField.StartFrom,
     ],
     [
-      "a start folder outside the fixture games",
+      "a start folder outside the fixture projects",
       file(withLine(EDIT, "**Start from:**", "**Start from:** `../outside`")),
       CaseField.StartFrom,
     ],
     [
       "a start folder that climbs",
-      file(withLine(EDIT, "**Start from:**", "**Start from:** `tests/fixtures/evals/games/../../x`")),
+      file(withLine(EDIT, "**Start from:**", "**Start from:** `tests/fixtures/evals/projects/../../x`")),
       CaseField.StartFrom,
     ],
     [
@@ -365,7 +373,7 @@ describe("the committed case file", () => {
     assert.equal(items.filter((item) => item.assetsOnly).length, 1);
   });
 
-  it("starts the edit case from a committed fixture game with an entry page", () => {
+  it("starts the edit case from a committed fixture project with an entry page", () => {
     const edit = caseById(cases, "edit-existing");
     assert.ok(edit);
     const folder = resolveStartFrom(root, edit);
@@ -396,17 +404,17 @@ describe("private holdouts", () => {
   });
 });
 
-describe("start folders resolve only inside the committed fixture games", () => {
+describe("start folders resolve only inside the committed fixture projects", () => {
   async function tree() {
     const repo = await tmpDir("eval-start-");
-    const games = path.join(repo, START_FROM_ROOT);
+    const projects = path.join(repo, START_FROM_ROOT);
     const outside = path.join(repo, "outside");
-    fs.mkdirSync(path.join(games, "good"), { recursive: true });
-    fs.writeFileSync(path.join(games, "good", "index.html"), "<!doctype html>");
+    fs.mkdirSync(path.join(projects, "good"), { recursive: true });
+    fs.writeFileSync(path.join(projects, "good", "index.html"), "<!doctype html>");
     fs.mkdirSync(outside);
-    fs.writeFileSync(path.join(games, "a-file"), "not a folder");
-    fs.symlinkSync(outside, path.join(games, "escape"));
-    fs.symlinkSync(path.join(games, "good"), path.join(games, "alias"));
+    fs.writeFileSync(path.join(projects, "a-file"), "not a folder");
+    fs.symlinkSync(outside, path.join(projects, "escape"));
+    fs.symlinkSync(path.join(projects, "good"), path.join(projects, "alias"));
     return repo;
   }
   const snapshot = (dir: string) => fs.readdirSync(dir, { recursive: true }).map(String).sort();
@@ -422,11 +430,11 @@ describe("start folders resolve only inside the committed fixture games", () => 
 
   const hostile: [string, string | null][] = [
     ["no start folder", null],
-    ["a symlink out of the fixture games", `${START_FROM_ROOT}/escape`],
-    ["a symlink to another fixture game", `${START_FROM_ROOT}/alias`],
+    ["a symlink out of the fixture projects", `${START_FROM_ROOT}/escape`],
+    ["a symlink to another fixture project", `${START_FROM_ROOT}/alias`],
     ["a missing folder", `${START_FROM_ROOT}/missing`],
     ["a file, not a folder", `${START_FROM_ROOT}/a-file`],
-    ["the fixture games root itself", START_FROM_ROOT],
+    ["the fixture projects root itself", START_FROM_ROOT],
     ["a climb out", `${START_FROM_ROOT}/../../../outside`],
     ["an absolute path", "/etc"],
     ["a backslash path", `${START_FROM_ROOT}\\good`],

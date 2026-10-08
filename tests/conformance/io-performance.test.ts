@@ -6,7 +6,7 @@ import { setImmediate } from "node:timers/promises";
 import path from "node:path";
 import { PluginRegistry } from "../../src/substrate/plugins/registry.ts";
 import { pluginFixture } from "../helpers/plugins.ts";
-import { readGenexJobs } from "../../src/main/game-assets.ts";
+import { readGenexJobs } from "../../src/main/project-assets.ts";
 import { test } from "node:test";
 import { EventStore } from "../../src/substrate/event-store.ts";
 import { EventKind } from "../../src/shared/event-log.ts";
@@ -170,11 +170,11 @@ test("installed seeds read their manifest without rewalking the bundled package"
 test("job polls reuse unchanged parsed records but observe replacement and containment changes", async (t) => {
   const home = await tmpDir();
   const id = "00000000-0000-0000-0000-000000000001";
-  const dir = path.join(home, "genex", "projects", "game", "jobs", id);
+  const dir = path.join(home, "genex", "projects", "project", "jobs", id);
   await fsPromises.mkdir(dir, { recursive: true });
   const file = path.join(dir, "job.json");
-  await fsPromises.writeFile(file, JSON.stringify({ id, project: "game", files: [], status: "ready" }));
-  await readGenexJobs(home, "game");
+  await fsPromises.writeFile(file, JSON.stringify({ id, project: "project", files: [], status: "ready" }));
+  await readGenexJobs(home, "project");
   const read = fsPromises.readFile;
   let reads = 0;
   t.mock.method(fsPromises, "readFile", (...args: Parameters<typeof read>) => {
@@ -186,11 +186,11 @@ test("job polls reuse unchanged parsed records but observe replacement and conta
     t.mock.restoreAll();
     syncBuiltinESMExports();
   });
-  assert.equal((await readGenexJobs(home, "game"))[0]?.status, "ready");
+  assert.equal((await readGenexJobs(home, "project"))[0]?.status, "ready");
   assert.equal(reads, 0);
-  await fsPromises.writeFile(file, JSON.stringify({ id, project: "game", files: [], status: "changed" }));
-  assert.equal((await readGenexJobs(home, "game"))[0]?.status, "changed");
+  await fsPromises.writeFile(file, JSON.stringify({ id, project: "project", files: [], status: "changed" }));
+  assert.equal((await readGenexJobs(home, "project"))[0]?.status, "changed");
   assert.equal(reads, 1);
   await fsPromises.rm(file);
-  assert.deepEqual(await readGenexJobs(home, "game"), []);
+  assert.deepEqual(await readGenexJobs(home, "project"), []);
 });

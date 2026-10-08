@@ -191,10 +191,10 @@ test("a link refuses before any name is read", () => {
   const link: Spec = {
     id: "a",
     tag: "a",
-    attrs: { href: "https://more-games.example.test/" },
+    attrs: { href: "https://more-projects.example.test/" },
     children: [{ id: "lt", tag: "span", text: "Play more" }],
   };
-  assert.match(clickReason([link], "lt") ?? "", /inside a link to https:\/\/more-games\.example\.test\//);
+  assert.match(clickReason([link], "lt") ?? "", /inside a link to https:\/\/more-projects\.example\.test\//);
 });
 
 test("with no interactive ancestor the hit element's OWN text is read, never a container's", () => {
@@ -221,7 +221,7 @@ test('THE HAZARD: a focused "Sign in" button refuses Enter; blurring it clears t
   assert.equal(inPage(blurActiveInPage, dom.document), false, "nothing to blur on the body");
 });
 
-test("a focused canvas or plain div passes the key guard; a focused game start button and an input do not", () => {
+test("a focused canvas or plain div passes the key guard; a focused project start button and an input do not", () => {
   const specs: readonly Spec[] = [
     { id: "canvas", tag: "canvas", attrs: { tabindex: "0" } },
     { id: "wrap", tag: "div", attrs: { tabindex: "-1" } },
@@ -239,11 +239,11 @@ test("a focused canvas or plain div passes the key guard; a focused game start b
 });
 
 test("a focused <iframe> refuses the key: it is a frame nothing here reads (the routed frame is descended into on the Node side)", () => {
-  // A wrapper page: the game in a same-origin iframe, an ad in another. Keys
+  // A wrapper page: the project in a same-origin iframe, an ad in another. Keys
   // go to the TOP document's focused element, so the guard reads the top
   // document first; an <iframe> it did not descend into is refused.
   const specs: readonly Spec[] = [
-    { id: "game", tag: "iframe", attrs: { title: "game" } },
+    { id: "project", tag: "iframe", attrs: { title: "project" } },
     { id: "ad", tag: "iframe", attrs: { title: "sponsor" } },
   ];
   const focus = inPage(describeFocusInPage, mount(specs, null, "ad").document);

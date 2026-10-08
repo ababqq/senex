@@ -7,8 +7,8 @@
  *  - a tiny expression language (`meanLuma in [0.32,0.45] && fractionAbove(0.9) <= 0.02`)
  *    for `pixel`, `probe` and `demo` checks — parsed, never eval'd, so a planner typo is a
  *    validation error and a hostile string is just a string;
- *  - `scene` checks, run inside the page over the game's own three.js graph through the
- *    `__studio.inspect()` helpers (a game predating the contract fails them, which is the
+ *  - `scene` checks, run inside the page over the project's own three.js graph through the
+ *    `__studio.inspect()` helpers (a project predating the contract fails them, which is the
  *    right incentive);
  *  - the scoreboard: check → pass/fail per iteration, compared mechanically so credit
  *    assignment is arithmetic ("flipped", "regressed"), not a judge's memory.
@@ -516,7 +516,7 @@ export function probeScope(state: unknown, early: unknown = null) {
     ...base,
     // `state.contact.speedKept` is the natural way to write a check over `__studio.state()`,
     // and every probe the first director wrote used it — all 13 read `missing: state.…` on
-    // builds that reported the field. The alias is added only when the game has no top-level
+    // builds that reported the field. The alias is added only when the project has no top-level
     // `state` field of its own, so a real one is never shadowed by the scope's convenience.
     ...(aliased ? { state: base } : {}),
     early: early && typeof early === "object" ? early : {},
@@ -545,7 +545,7 @@ function lengthOf(v: unknown): number | undefined {
 
 /**
  * The dry run: read every probe expression against the state a build actually reports, before
- * anyone builds on it. A probe is the only check that names paths the game must expose, and
+ * anyone builds on it. A probe is the only check that names paths the project must expose, and
  * the first director night wrote thirteen of them against paths that never resolved — every
  * board read `missing: state.…` on builds that worked, and nobody found out until morning.
  *
@@ -671,7 +671,7 @@ function cameraNotCaptured(check: CheckLike, evidence: CheckEvidence | null | un
   return unmeasured(check, `camera ${check.camera} was not captured in this evidence pass`);
 }
 
-/** An `eye:` camera the game never installed: the builder has to pass camera and player(). */
+/** An `eye:` camera the project never installed: the builder has to pass camera and player(). */
 function isMissingEye(check: CheckLike, evidence: CheckEvidence | null | undefined): boolean {
   const eyes = evidence?.eyes;
   return String(check.camera).startsWith("eye:") && Array.isArray(eyes) && !eyes.includes(check.camera as string);
@@ -799,8 +799,8 @@ function describePixels(scope: NonNullable<ReturnType<typeof pixelScope>>): stri
 function demoNotRun(check: CheckLike, evidence: CheckEvidence | null | undefined, name: string): CheckResult {
   const registered = Array.isArray(evidence?.registeredDemos) ? evidence.registeredDemos : null;
   if (registered && !registered.includes(name)) {
-    // A check the library marks `optional` names a demo the game may not have — the walk demo
-    // on a game that is not walked (M4.7). Nobody looked; nobody failed.
+    // A check the library marks `optional` names a demo the project may not have — the walk demo
+    // on a project that is not walked (M4.7). Nobody looked; nobody failed.
     if (check.optional === true) {
       return unmeasured(
         check,
@@ -827,7 +827,7 @@ function demoNotRun(check: CheckLike, evidence: CheckEvidence | null | undefined
  * what the demos did rather than what the scripted walk did.
  */
 /**
- * `needs`: the state paths a probe cannot be read without. A counter a game creates lazily —
+ * `needs`: the state paths a probe cannot be read without. A counter a project creates lazily —
  * the draw counters, a score that only exists once the first round starts — is absent from
  * `state()` until it exists, and an expression over an absent path scores a silent `false`:
  * "I did not look" told as "it failed". A check that names what it needs is UNMEASURED instead,
@@ -1280,7 +1280,7 @@ export function summarizeScoreboard(
   const grownIds = new Set((spec?.checks ?? []).filter((c) => c?.origin === Origin.Judge).map((c) => c.id));
   const isGrown = (e: CheckResult): boolean => e.origin === Origin.Judge || grownIds.has(e.id);
   // "Nobody could look" is not "nobody looked": a check the BUILD cannot answer — inspect()
-  // unavailable, a state field the game does not report, an optional demo it never registered —
+  // unavailable, a state field the project does not report, an optional demo it never registered —
   // carries `unavailable`. It never counts as passing, and at identity weight it never blocks
   // `satisfied` either; a board whose identity checks are ALL unanswerable still does.
   const unanswerable = (e: CheckResult): boolean => e.unavailable === true && !isMeasured(e);

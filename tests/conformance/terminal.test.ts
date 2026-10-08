@@ -7,7 +7,7 @@ import { LoginTerminalOutput } from "../../src/main/terminal-login-output.ts";
 import { TERMINAL_LIMITS, terminalSize, type TerminalEvent } from "../../src/shared/terminal.ts";
 import { commandShell, terminalShell } from "../../src/main/terminal-shell.ts";
 
-describe("the shell a game's terminal opens", () => {
+describe("the shell a project's terminal opens", () => {
   const windowsEnv = {
     SystemRoot: "C:\\Windows",
     ProgramFiles: "C:\\Program Files",
@@ -109,11 +109,11 @@ class Host extends EventEmitter {
 const launch = {
   file: "/bin/sh",
   args: ["-l"],
-  cwd: "/fixture/game with spaces",
+  cwd: "/fixture/project with spaces",
   env: { PATH: "/usr/bin:/bin" },
-  title: "Fixture game",
+  title: "Fixture project",
   kind: "shell" as const,
-  project: "game",
+  project: "project",
 };
 function service() {
   const hosts: Host[] = [],
@@ -164,7 +164,7 @@ describe("terminal session ownership", () => {
   it("bounds sessions and cleans every host on shutdown", async () => {
     const { manager, hosts } = service();
     try {
-      for (let n = 0; n < TERMINAL_LIMITS.sessions; n++) manager.open({ ...launch, project: `game-${n}` });
+      for (let n = 0; n < TERMINAL_LIMITS.sessions; n++) manager.open({ ...launch, project: `project-${n}` });
       assert.throws(() => manager.open({ ...launch, project: "overflow" }), /Close a terminal/);
       await manager.dispose();
       assert.equal(manager.list().length, 0);
@@ -235,13 +235,13 @@ describe("a command a chat reply offered", () => {
       await manager.dispose();
     }
   });
-  it("runs one at a time per game, and a shell keeps no output", async () => {
+  it("runs one at a time per project, and a shell keeps no output", async () => {
     const { manager, hosts } = service();
     try {
       manager.open({ ...command, command: "brew install ffmpeg" });
       assert.throws(() => manager.open({ ...command, command: "git lfs install" }), /already running/);
       assert.equal(hosts.length, 1);
-      manager.open({ ...command, project: "other-game", command: "git lfs install" });
+      manager.open({ ...command, project: "other-project", command: "git lfs install" });
       const shell = manager.open(launch);
       hosts[2]!.emit("message", { type: "data", data: "hello\r\n" });
       hosts[2]!.emit("message", { type: "exit", code: 0 });

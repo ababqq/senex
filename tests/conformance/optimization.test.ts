@@ -4,7 +4,7 @@ import { mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { runOptimization } from "../../src/harness-seed/loop/optimization.ts";
-import { GameCandidates } from "../../src/substrate/game-candidate.ts";
+import { ProjectCandidates } from "../../src/substrate/project-candidate.ts";
 import { SnapshotEngine } from "../../src/substrate/snapshots.ts";
 import { createToolRegistry } from "../../src/harness-seed/tools/index.ts";
 
@@ -13,15 +13,15 @@ async function fixture() {
     live = path.join(root, "live");
   await mkdir(live);
   await writeFile(path.join(live, "index.html"), "baseline");
-  const snapshots = new SnapshotEngine([{ name: "game", dir: live }]);
+  const snapshots = new SnapshotEngine([{ name: "project", dir: live }]);
   await snapshots.init();
   const baseline = await snapshots.snapshot({
     scope: "game",
-    gameWorkspace: "game",
+    projectWorkspace: "project",
     reason: "verified",
     healthy: true,
   });
-  const candidates = new GameCandidates(snapshots, path.join(root, "scratch"));
+  const candidates = new ProjectCandidates(snapshots, path.join(root, "scratch"));
   const events: any[] = [],
     calls: string[] = [];
   const journal: any = { phase: "verdict" };
@@ -61,7 +61,7 @@ async function fixture() {
         case "preview.load":
         case "preview.release":
           return true;
-        case "game.write": {
+        case "project.write": {
           const file = await candidates.file(p.candidateId, p.project, p.file, true);
           await mkdir(path.dirname(file), { recursive: true });
           await writeFile(file, p.contents);
@@ -112,7 +112,7 @@ async function fixture() {
   };
   const options: any = {
     threadId: "t",
-    run: { runId: "run_test", project: "game", goal: "Same game faster", budgets: { wallClockMs: 6_000_000 } },
+    run: { runId: "run_test", project: "project", goal: "Same project faster", budgets: { wallClockMs: 6_000_000 } },
     journal,
     baselineSnapshot: baseline,
     baselineVerified: true,
@@ -196,8 +196,8 @@ it("stage-only direct registry injects candidate authority and excludes own-sour
       return "file";
     },
   };
-  const registry = await createToolRegistry(ctx as never, { candidateId: "trusted", project: "game" });
-  assert.deepEqual(registry.names().sort(), ["check_game", "list_files", "read_file", "write_file"]);
+  const registry = await createToolRegistry(ctx as never, { candidateId: "trusted", project: "project" });
+  assert.deepEqual(registry.names().sort(), ["check_project", "list_files", "read_file", "write_file"]);
   await registry.execute({ name: "read_file", arguments: { file: "index.html", candidateId: "forged" } }, ctx as never);
   assert.equal(seen[0].p.candidateId, "trusted");
   assert.equal((await registry.execute({ name: "run_command", arguments: {} }, ctx as never)).ok, false);

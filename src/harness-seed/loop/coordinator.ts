@@ -45,7 +45,7 @@ const RECORD_WINDOW_SHARE = 0.5;
 const MIRRORED_PREFIX = "delegated.";
 const Mirrored = { Assistant: "assistant", Planner: "planner", Text: "text" } as const;
 
-/** A message the game's chat answers while its run exists: the dispatch action, and the run. */
+/** A message the project's chat answers while its run exists: the dispatch action, and the run. */
 export interface CoordinatorTurnOptions {
   threadId: string;
   turnId: string;

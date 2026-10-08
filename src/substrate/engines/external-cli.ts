@@ -1,4 +1,4 @@
-/** Host-only discovery. Never consumes a game instruction or agent-provided command. */
+/** Host-only discovery. Never consumes a project instruction or agent-provided command. */
 import { spawn } from "node:child_process";
 import { constants } from "node:fs";
 import { access, readFile, readdir, realpath, stat, mkdir, open } from "node:fs/promises";
@@ -84,7 +84,7 @@ const CMD_SHIM_PATH_NODE = /_prog=node\b/i;
 const MESSAGE = {
   Install: "Install this coding CLI, then check again.",
   InvalidPath:
-    "The selected path is missing, not executable, or belongs to Studio/a game. Choose an external executable or use automatic discovery.",
+    "The selected path is missing, not executable, or belongs to Studio/a project. Choose an external executable or use automatic discovery.",
   MissingNode:
     "This npm launcher requires Node on your login-shell PATH. Install Node or choose a native CLI installation.",
   Ready: "External CLI detected. Authentication is checked separately. Install and update it outside Studio.",
@@ -488,7 +488,7 @@ async function excludedRealRoots(options: DiscoveryOptions): Promise<string[]> {
   );
 }
 
-/** The first candidate that is an executable file outside Studio and every game. */
+/** The first candidate that is an executable file outside Studio and every project. */
 async function firstExternalExecutable(
   candidates: string[],
   roots: string[],
@@ -498,17 +498,17 @@ async function firstExternalExecutable(
     const runnable = path.isAbsolute(candidate) && (await executable(candidate, selection.platform));
     if (!runnable) continue;
     const target = await realpath(candidate);
-    if (!belongsToStudioOrGame(candidate, target, roots, selection.manual)) return candidate;
+    if (!belongsToStudioOrProject(candidate, target, roots, selection.manual)) return candidate;
   }
   return undefined;
 }
 
 /**
- * Never select Studio's dependencies, packaged resources, or game-local installations. A global
+ * Never select Studio's dependencies, packaged resources, or project-local installations. A global
  * npm prefix (`lib/node_modules`, `share/node_modules`) is an installation, not a dependency;
  * a manual choice may point into `node_modules` on purpose. Windows paths are read with `/`.
  */
-function belongsToStudioOrGame(candidate: string, target: string, roots: string[], manual: boolean): boolean {
+function belongsToStudioOrProject(candidate: string, target: string, roots: string[], manual: boolean): boolean {
   const slashed = target.replaceAll("\\", "/");
   const dependency = !manual && slashed.includes("/node_modules/") && !/\/(?:lib|share)\/node_modules\//.test(slashed);
   const insideExcluded = roots.some((root) => within(target, root) || within(candidate, root));

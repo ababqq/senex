@@ -1,4 +1,4 @@
-/** Skills: the studio's own, a game's own, plugin skills' text, and those the signed-in providers already hold. */
+/** Skills: the studio's own, a project's own, plugin skills' text, and those the signed-in providers already hold. */
 import path from "node:path";
 import type { ProjectSkillInventory, ProviderSkillInventory } from "../../shared/provider-skills.ts";
 import { claudeGlobalSkills, codexGlobalSkills, projectSkills } from "../provider-skills.ts";
@@ -15,7 +15,7 @@ const MESSAGE = {
 } as const;
 
 export interface SkillsIpcDeps {
-  core: Pick<StudioCore, "layout" | "games" | "assertProjectAllowed"> & {
+  core: Pick<StudioCore, "layout" | "projects" | "assertProjectAllowed"> & {
     plugins: Pick<StudioCore["plugins"], "skillText">;
   };
   subscription(id: string): SubscriptionEngine | null;
@@ -26,17 +26,17 @@ export interface SkillsIpcDeps {
 const isOptionalString = (value: unknown): value is string | undefined =>
   value === undefined || typeof value === "string";
 
-/** One game's own skills, after its name resolves to a folder Studio may read. */
-async function gameSkills(core: SkillsIpcDeps["core"], project: unknown): Promise<ProjectSkillInventory> {
+/** One project's own skills, after its name resolves to a folder Studio may read. */
+async function readProjectSkills(core: SkillsIpcDeps["core"], project: unknown): Promise<ProjectSkillInventory> {
   if (typeof project !== "string") throw new Error(MESSAGE.invalidProject);
-  const dir = core.games.dirFor(project);
+  const dir = core.projects.dirFor(project);
   await core.assertProjectAllowed(dir);
   return { project, ...(await projectSkills(dir)) };
 }
 
 export function registerSkillsIpc(handle: IpcHandle, { core, subscription, home }: SkillsIpcDeps): void {
   handle("studio:skills.list", async () => studioSkills(core.layout.harnessWs));
-  handle("studio:skills.project", async (p) => gameSkills(core, p?.project));
+  handle("studio:skills.project", async (p) => readProjectSkills(core, p?.project));
   handle("studio:plugins.skill", async (p) => {
     const valid = typeof p?.id === "string" && typeof p.name === "string" && isOptionalString(p.file);
     if (!valid) throw new Error(MESSAGE.invalidSkill);

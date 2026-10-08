@@ -1,12 +1,12 @@
 /**
- * How a game folder runs: its entry, its build, the folder the preview serves and what kind of
- * game it is — recorded in studio.json, or read from the evidence in the folder itself.
+ * How a project folder runs: its entry, its build, the folder the preview serves and what kind of
+ * project it is — recorded in studio.json, or read from the evidence in the folder itself.
  */
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
-import type { GameCandidate, ProjectKind, ProjectShape } from "../shared/game-project.ts";
+import type { ProjectCandidate, ProjectKind, ProjectShape } from "../shared/project-folder.ts";
 import { pathExists, readJsonIfExists } from "./fsx.ts";
-import { isRemoteSrc, pageScripts, projectRelative } from "./game-page.ts";
+import { isRemoteSrc, pageScripts, projectRelative } from "./project-page.ts";
 import { declaredBootMs } from "./preview-ready.ts";
 import { isInstallCommand, packageCommands } from "./toolchain.ts";
 
@@ -34,7 +34,7 @@ export const TEMPLATE_SHAPE: ProjectShape = {
   serve: ".",
 };
 
-/** Whether a shape is the studio's own or the game's own — the flag detection recorded, nothing inferred. */
+/** Whether a shape is the studio's own or the project's own — the flag detection recorded, nothing inferred. */
 export function isBuiltShape(shape: ProjectShape): boolean {
   return shape.own;
 }
@@ -42,7 +42,7 @@ export function isBuiltShape(shape: ProjectShape): boolean {
 /** The import map only the studio writes: `three` resolved to the copy vendored with the app. */
 const STUDIO_IMPORT_MAP = "/vendor/three.module.js";
 
-/** The query a Genex game reads to skip its authorization redirect in a local test run. */
+/** The query a Genex project reads to skip its authorization redirect in a local test run. */
 const GENEX_LOCAL_TEST_QUERY = "?genex_local_test=1";
 
 /** Where a bundler writes the built page when its config says nothing else. */
@@ -127,11 +127,11 @@ async function outputDir(dir: string): Promise<string> {
 }
 
 /**
- * A Genex game redirects to genex.games to authorize unless its embed SDK is told this is a
+ * A Genex project redirects to genex.games to authorize unless its embed SDK is told this is a
  * local test run — the same query its own tooling uses (`?genex_local_test=1`). The query
  * rides on the entry: the preview serves the page by path and the page reads the query.
  */
-function isGenexGame(pkg: PackageManifest | null): boolean {
+function isGenexProject(pkg: PackageManifest | null): boolean {
   return Boolean(pkg?.dependencies?.["@genex-ai/embed-sdk"] ?? pkg?.devDependencies?.["@genex-ai/embed-sdk"]);
 }
 
@@ -140,7 +140,7 @@ function isGenexGame(pkg: PackageManifest | null): boolean {
  * build script and dependencies, the bundler's output folder, the engine's runtime files.
  * `null` means the studio's own template — recognised only by the two things the studio itself
  * writes, the `contractVersion` in studio.json and the vendored-three import map. Everything
- * else in the world is somebody's own game.
+ * else in the world is somebody's own project.
  */
 export async function detectProjectShape(dir: string): Promise<ProjectShape | null> {
   const html = await readFile(path.join(dir, "index.html"), "utf8").catch(() => null);
@@ -158,7 +158,7 @@ export async function detectProjectShape(dir: string): Promise<ProjectShape | nu
   const names = (await readdir(dir, { withFileTypes: true }).catch(() => [])).map((entry) => entry.name);
   const entryText = main === "index.html" ? null : await readFile(path.join(dir, main), "utf8").catch(() => null);
   const kind = kindOf({ html, srcs, names, pkg, entryText, build: hasBuild });
-  const query = isGenexGame(pkg) ? GENEX_LOCAL_TEST_QUERY : "";
+  const query = isGenexProject(pkg) ? GENEX_LOCAL_TEST_QUERY : "";
   const serve = hasBuild ? await outputDir(dir) : ".";
   const entry = `${serve === "." ? "index.html" : path.posix.join(serve, "index.html")}${query}`;
   // The lockfile names the manager, not the habit: `npm run build` in a pnpm workspace builds
@@ -219,7 +219,7 @@ export function recordsShape(meta: { entry?: unknown; main?: unknown; build?: un
 
 /**
  * Running the recorded `install` is the one thing that opens the network (decision 3), and
- * this file sits inside the folder the user brought — a downloaded game ships one, and any
+ * this file sits inside the folder the user brought — a downloaded project ships one, and any
  * contractor can rewrite it mid-night. So only a package manager's own install is taken from
  * it; anything else falls back to what the lockfile actually names, and the sheet, the
  * button's label and the command that runs stay the same string.
@@ -240,7 +240,7 @@ async function recordedShape(dir: string, meta: ShapeMeta): Promise<ProjectShape
   const declaresInstall = meta.install === null || isInstallCommand(meta.install);
   // studio.json written before shapes carried own/kind/serve/install: the folder is still there
   // to read, so those are detected once rather than guessed from the entry filename. A recorded
-  // shape always meant "the game's own" — that is exactly what the old flag computed.
+  // shape always meant "the project's own" — that is exactly what the old flag computed.
   const detected = isProjectKind(meta.kind) && declaresInstall ? null : await detectProjectShape(dir);
   const kind = isProjectKind(meta.kind) ? meta.kind : (detected?.kind ?? null);
   const own = typeof meta.own === "boolean" ? meta.own : build !== null || main !== TEMPLATE_SHAPE.main;
@@ -274,8 +274,8 @@ export async function readProjectShape(dir: string): Promise<ProjectShape> {
   return { ...(await recordedShape(dir, meta)), ...declaredBoot };
 }
 
-/** Folders that are output, dependencies or notes — a game is never *these*, so the scan skips them. */
-const NOT_A_GAME = new Set([
+/** Folders that are output, dependencies or notes — a project is never *these*, so the scan skips them. */
+const NOT_A_PROJECT = new Set([
   "node_modules",
   "dist",
   "build",
@@ -288,13 +288,13 @@ const NOT_A_GAME = new Set([
   "coverage",
 ]);
 
-/** A child folder a scan for games (or for repositories inside a game folder) looks into. */
+/** A child folder a scan for projects (or for repositories inside a project folder) looks into. */
 export function isScannedChild(entry: { name: string; isDirectory(): boolean }): boolean {
-  return entry.isDirectory() && !entry.name.startsWith(".") && !NOT_A_GAME.has(entry.name);
+  return entry.isDirectory() && !entry.name.startsWith(".") && !NOT_A_PROJECT.has(entry.name);
 }
 
-/** One folder as a game candidate, or null when it has no page a browser can open. */
-async function gameCandidate(target: string, rel: string): Promise<GameCandidate | null> {
+/** One folder as a project candidate, or null when it has no page a browser can open. */
+async function projectCandidate(target: string, rel: string): Promise<ProjectCandidate | null> {
   if (!(await pathExists(path.join(target, "index.html")))) return null;
   const pkg = await readPackageManifest(target);
   const shape = await readProjectShape(target);
@@ -305,21 +305,21 @@ async function gameCandidate(target: string, rel: string): Promise<GameCandidate
 }
 
 /**
- * Every game in a folder and one level under it. A user who drops their game inside a project
+ * Every project in a folder and one level under it. A user who drops their project inside a project
  * folder used to be told the folder was empty, wrapped in a template and hand-ported all night
  * (flautout-remix, 2026-09-07); the fix is to look one level down and say what is there.
  *
  * A candidate is a folder with an `index.html` — the page a browser can open. Nothing is
  * written, nothing is chosen: the caller decides, and can ask.
  */
-export async function findGameRoot(dir: string): Promise<GameCandidate[]> {
-  const found: GameCandidate[] = [];
-  const own = await gameCandidate(dir, ".");
+export async function findProjectRoot(dir: string): Promise<ProjectCandidate[]> {
+  const found: ProjectCandidate[] = [];
+  const own = await projectCandidate(dir, ".");
   if (own) found.push(own);
   const entries = await readdir(dir, { withFileTypes: true }).catch(() => []);
   for (const entry of entries) {
     if (!isScannedChild(entry)) continue;
-    const child = await gameCandidate(path.join(dir, entry.name), entry.name);
+    const child = await projectCandidate(path.join(dir, entry.name), entry.name);
     if (child) found.push(child);
   }
   return found;

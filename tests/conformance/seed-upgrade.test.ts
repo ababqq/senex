@@ -1444,7 +1444,7 @@ describe("seed upgrade across one session", () => {
     assert.deepEqual(
       seen,
       LEAD_PARTS.map((kept) => ({ kept, seats: { wake: false, turn: false } })),
-      "an older copy of any part the lead depends on would tell a lead in the game folder to edit and commit in its worktree",
+      "an older copy of any part the lead depends on would tell a lead in the project folder to edit and commit in its worktree",
     );
   });
 

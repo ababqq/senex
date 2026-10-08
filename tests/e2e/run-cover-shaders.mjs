@@ -18,7 +18,7 @@ await build({
   jsx: "automatic",
 });
 await build({
-  entryPoints: ["src/main/game-cover-renderer.ts"],
+  entryPoints: ["src/main/project-cover-renderer.ts"],
   outfile: path.join(out, "host.cjs"),
   bundle: true,
   format: "cjs",
@@ -35,7 +35,7 @@ await writeFile(
   `
 const {app,BrowserWindow}=require('electron');
 const fs=require('node:fs');
-const {renderGameCover}=require('./host.cjs');
+const {renderProjectCover}=require('./host.cjs');
 app.setPath('userData',${JSON.stringify(profile)});app.setPath('sessionData',${JSON.stringify(path.join(profile, "session"))});
 const checks=[],report={source:${JSON.stringify(sourceIdentity(process.cwd()))},profile:${JSON.stringify(profile)},provider:'none',electron:process.versions.electron,checks};
 function check(name,ok,detail){checks.push({name,ok,detail});console.log((ok?'PASS ':'FAIL ')+name);}
@@ -66,7 +66,7 @@ app.whenReady().then(async()=>{
   check('only the hovered row turns',(await time(0))===s0&&(await time(1))>early+0.5);
   await move('h1');await wait(700);const leftAt=await time(1);await wait(600);await paint();
   check('leaving eases out and holds that exact frame',await time(1)===leftAt,{leftAt,after:await time(1)});
-  check('the 44px search cover shares the game clock',await js('document.querySelector("#search-cover canvas").dataset.time')===(await time(1)).toFixed(3));
+  check('the 44px search cover shares the project clock',await js('document.querySelector("#search-cover canvas").dataset.time')===(await time(1)).toFixed(3));
   await js('window.coverFixture.remount()');await until('!!document.querySelector("#row-1 canvas")?.dataset.painted');
   check('remounting a row keeps its frame',await time(1)===leftAt,{before:leftAt,after:await time(1)});
   wc.debugger.attach('1.3');await wc.debugger.sendCommand('Emulation.setFocusEmulationEnabled',{enabled:true});
@@ -74,15 +74,15 @@ app.whenReady().then(async()=>{
   const k0=await time(2);await wait(800);await paint();
   check('keyboard focus turns a cover',await js('document.activeElement.id')==='row-2'&&(await time(2))>k0,{active:await js('document.activeElement.id')});
   await js('document.activeElement.blur()');
-  check('28px sidebar, 44px search and pointer cursor preserved',await js('document.querySelector("#row-1 .game-avatar").getBoundingClientRect().width===28 && document.querySelector("#search-cover .game-avatar").getBoundingClientRect().width===44 && getComputedStyle(document.querySelector("#row-1")).cursor==="pointer"'));
+  check('28px sidebar, 44px search and pointer cursor preserved',await js('document.querySelector("#row-1 .project-avatar").getBoundingClientRect().width===28 && document.querySelector("#search-cover .project-avatar").getBoundingClientRect().width===44 && getComputedStyle(document.querySelector("#row-1")).cursor==="pointer"'));
   check('uploaded image has no sphere canvas',await js('!!document.querySelector("#uploaded img") && !document.querySelector("#uploaded canvas")'));
   await js('document.querySelector("#row-0").focus()');await wait(300);
   await js('document.querySelector("#rows").scrollTop=880');await paint();
-  check('legacy custom covers still compile: lens field and sphere',await until('!!document.querySelector("#row-21 canvas")?.dataset.painted && !!document.querySelector("#row-22 canvas")?.dataset.painted') && await js('!!document.querySelector("#row-21 .game-cover-lens") && !document.querySelector("#row-22 .game-cover-lens")'));
-  check('a game without a saved look paints too',await until('!!document.querySelector("#row-23 canvas")?.dataset.painted'));
+  check('legacy custom covers still compile: lens field and sphere',await until('!!document.querySelector("#row-21 canvas")?.dataset.painted && !!document.querySelector("#row-22 canvas")?.dataset.painted') && await js('!!document.querySelector("#row-21 .project-cover-lens") && !document.querySelector("#row-22 .project-cover-lens")'));
+  check('a project without a saved look paints too',await until('!!document.querySelector("#row-23 canvas")?.dataset.painted'));
   await js('(()=>{const rows=document.querySelector("#rows");rows.style.height="540px";rows.scrollTop+=document.querySelector("#row-30").getBoundingClientRect().top-rows.getBoundingClientRect().top})()');await paint();
   check('every orb family compiles and paints a lit ball',await until('[...Array(12).keys()].every(k=>document.querySelector("#row-"+(30+k)+" canvas")?.dataset.painted)') && (await Promise.all([...Array(12).keys()].map(k=>pixel(30+k,0.5,0.5)))).every(p=>p[3]>0),{centres:await Promise.all([...Array(12).keys()].map(k=>pixel(30+k,0.5,0.5)))});
-  check('Voxel drops the ring its blocks would break',await js('(()=>{const v=document.querySelector("#row-38 .game-avatar"),p=document.querySelector("#row-32 .game-avatar");return v.dataset.edge==="ragged"&&getComputedStyle(v).outlineStyle==="none"&&getComputedStyle(p).outlineStyle!=="none"})()'));
+  check('Voxel drops the ring its blocks would break',await js('(()=>{const v=document.querySelector("#row-38 .project-avatar"),p=document.querySelector("#row-32 .project-avatar");return v.dataset.edge==="ragged"&&getComputedStyle(v).outlineStyle==="none"&&getComputedStyle(p).outlineStyle!=="none"})()'));
   fs.writeFileSync(${JSON.stringify(path.join(out, "orbs.png"))},(await wc.capturePage()).toPNG());
   await js('(()=>{const rows=document.querySelector("#rows");rows.style.height="240px";rows.scrollTop=880})()');await paint();
   const hidden0=await time(0);await wait(800);await paint();
@@ -109,9 +109,9 @@ app.whenReady().then(async()=>{
   await js('window.__gl.forEach(gl=>gl.getExtension("WEBGL_lose_context")?.loseContext())');await wait(300);
   const lost=await frames(0);await wait(700);await paint();
   check('a lost GPU keeps every painted frame without a retry loop',await frames(0)===lost&&(await pixel(0,0.5,0.5))[3]===255,{frames:[lost,await frames(0)]});
-  const png=await renderGameCover(await js('window.coverFixture.legacySurface'),23);check('host still compiles and bakes a legacy PNG',png.startsWith('data:image/png;base64,')&&png.length>500);
+  const png=await renderProjectCover(await js('window.coverFixture.legacySurface'),23);check('host still compiles and bakes a legacy PNG',png.startsWith('data:image/png;base64,')&&png.length>500);
   fs.writeFileSync(${JSON.stringify(path.join(out, "host-cover.png"))},Buffer.from(png.split(',')[1],'base64'));
-  let failure='';try{await renderGameCover('return vec2(1.0);',23);}catch(e){failure=e.message;}
+  let failure='';try{await renderProjectCover('return vec2(1.0);',23);}catch(e){failure=e.message;}
   check('host rejects type-invalid GLSL with an actionable compiler error',/compile|link/.test(failure),failure);
   await js('window.coverFixture.unmount()');check('unmount removes every sphere',await js('!document.querySelector("canvas")'));
   await win.loadFile(${JSON.stringify(path.join(out, "index.html"))});

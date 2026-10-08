@@ -1,6 +1,6 @@
 import { serial } from "./core/serial.ts";
 /**
- * The game folder as it was just before, and just after, each chat message was answered, so
+ * The project folder as it was just before, and just after, each chat message was answered, so
  * rewinding a chat can put its files back. A checkpoint is a commit on a ref of the studio's own
  * (`refs/studio/chat/<thread>/before/<message>`) whose parent is the HEAD it was taken on.
  * Taking one never moves HEAD or a branch and never touches the user's index: the tree is
@@ -18,16 +18,16 @@ import { copyFile, lstat, mkdir, readdir, realpath, rm, rmdir } from "node:fs/pr
 import { GIT_ENV } from "../substrate/snapshots.ts";
 import { hostGitArgs, hostGitConfig, hostGitEnv } from "../substrate/git-policy.ts";
 import { pathExists } from "../substrate/fsx.ts";
-import { nestedRepos } from "../substrate/game-workspace.ts";
+import { nestedRepos } from "../substrate/project-workspace.ts";
 import { isBelow } from "../substrate/paths.ts";
 
-/** Files the rewind never puts back: the game's shape and consent belong to now, not then. */
+/** Files the rewind never puts back: the project's shape and consent belong to now, not then. */
 const KEPT_PATHS = new Set(["studio.json"]);
 /** Where a checkpoint records what it left out, inside its own tree (never in the folder). */
 const LEFT_OUT_FILE = ".studio-checkpoint-left-out.json";
 /**
  * Never captured, whatever `.gitignore` says at the time: secrets, packages and build output
- * (the studio's own ignore rules, game-workspace.ts). A rewound `.gitignore` can therefore
+ * (the studio's own ignore rules, project-workspace.ts). A rewound `.gitignore` can therefore
  * neither smuggle `.env` into a checkpoint nor get it deleted.
  */
 const NEVER_CAPTURED = [
@@ -61,10 +61,10 @@ export type CheckpointPhase = (typeof CheckpointPhase)[keyof typeof CheckpointPh
 /** Why a restore is refused. */
 const MESSAGE = {
   HistoryChanged:
-    "The game files changed through a commit or a landed build since this message, so they stay as they are.",
-  NoCheckpoint: "There is no saved copy of the game files from before this message.",
-  NotSaved: "The game files could not be saved before rewinding.",
-  OutsideFolder: (relative: string) => `Refusing to remove a path outside the game folder: ${relative}`,
+    "The project files changed through a commit or a landed build since this message, so they stay as they are.",
+  NoCheckpoint: "There is no saved copy of the project files from before this message.",
+  NotSaved: "The project files could not be saved before rewinding.",
+  OutsideFolder: (relative: string) => `Refusing to remove a path outside the project folder: ${relative}`,
 } as const;
 
 /** The mode git records a nested repository's link with; its files are not the folder's. */
@@ -333,7 +333,7 @@ export class ChatCheckpoints {
 
   /**
    * What restoring a message's checkpoint would do now. Files come back only while HEAD is the
-   * commit the checkpoint was taken on: a commit or a landed build since then moved the game's
+   * commit the checkpoint was taken on: a commit or a landed build since then moved the project's
    * history, and a working-tree restore would read as uncommitted edits against it.
    * `answered` lists the messages answered from this one on, in order: the paths their answers
    * changed are this chat's, and so are `ours` (files the withdrawn messages themselves saved);
@@ -398,7 +398,11 @@ export class ChatCheckpoints {
       if ("reason" in found) {
         throw new Error(found.reason === "history-changed" ? MESSAGE.HistoryChanged : MESSAGE.NoCheckpoint);
       }
-      const saved = await this.#take(dir, rewoundRef(threadId), `studio: game files before rewinding to ${messageId}`);
+      const saved = await this.#take(
+        dir,
+        rewoundRef(threadId),
+        `studio: project files before rewinding to ${messageId}`,
+      );
       if (!saved) throw new Error(MESSAGE.NotSaved);
       await this.#prune(dir, `${refRoot(threadId)}/rewound/`, REWOUND_KEPT);
       try {

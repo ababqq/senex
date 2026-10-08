@@ -606,7 +606,7 @@ function newSummaryState(project: string, runId: string): Summarizing {
 export interface OutcomeView {
   state: "unknown" | "running" | "paused" | "failed" | "cancelled" | "finished";
   /**
-   * `delivered`: the build is in the game. `superseded`: a build was delivered, but a newer
+   * `delivered`: the build is in the project. `superseded`: a build was delivered, but a newer
    * integrated build was not. `available`: an integrated build exists that was not delivered
    * (yet). `none`: nothing to show.
    */

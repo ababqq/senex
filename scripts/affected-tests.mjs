@@ -7,7 +7,7 @@
 // `--staged` uses the index instead. `--files` replaces Git detection unless `--base`/`--staged` is also given.
 // L1 = non-rig tests whose runtime import closure reaches a changed file. L3 = rig tests (closure reaches
 // tests/helpers/studio-rig.ts; they run serially) and the harness gate, which rigs reach by copying
-// src/harness-seed and src/game-template rather than importing them. tests/test-map.json adds explicit edges.
+// src/harness-seed and src/project-template rather than importing them. tests/test-map.json adds explicit edges.
 import ts from "@typescript/typescript6";
 import fs from "node:fs";
 import path from "node:path";
@@ -17,7 +17,7 @@ import { packageBin } from "./package-bin.ts";
 
 export const RIG_HELPER = "tests/helpers/studio-rig.ts";
 export const HARNESS_GATE = ["tests/conformance/harness-incidents.test.ts", "tests/conformance/scoreboard.test.ts"];
-const COPIED_TREES = /^src\/(harness-seed|game-template)\//;
+const COPIED_TREES = /^src\/(harness-seed|project-template)\//;
 const CODE = /\.(?:[cm]?[jt]sx?)$/;
 const posix = (file) => file.split(path.sep).join("/");
 

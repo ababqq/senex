@@ -45,7 +45,7 @@ export const REFRESH_LABEL: Record<ExtensionsTab, string> = {
 
 /** What each tab is for, under its title. */
 export const TAB_INTRO: Record<ExtensionsTab, string> = {
-  plugins: "Tools and connections for all your games.",
+  plugins: "Tools and connections for all your projects.",
   skills: "Guidance available to your agents. Availability depends on the source and selected provider.",
 };
 
@@ -61,12 +61,12 @@ const SOURCE_LABEL: Record<PluginSourceKind, string> = {
 export const sourceWords = (p: PluginInfo): string => SOURCE_LABEL[p.source] ?? "Marketplace";
 
 const CAN = PLUGINS_WORDS.can;
-/** The place in the capability sentence for game files, which two capabilities share. */
+/** The place in the capability sentence for project files, which two capabilities share. */
 const FILES = "files";
 
 /**
  * What a plugin can do, in one plain sentence from its capabilities: "Use your Genex account, see
- * the running game, reach the internet…". Reading and writing game files read as one phrase.
+ * the running project, reach the internet…". Reading and writing project files read as one phrase.
  */
 export function capabilityLine(
   manifest: Pick<PluginManifest, "capabilities" | "publisher" | "nativeRuntimes">,
@@ -89,7 +89,7 @@ export function capabilityLine(
   return line ? `${line.charAt(0).toLocaleUpperCase()}${line.slice(1)}` : PLUGINS_WORDS.page.nothing;
 }
 
-/** Reading and writing game files, as one phrase: "read and write files in your games". */
+/** Reading and writing project files, as one phrase: "read and write files in your projects". */
 function filesPhrase(has: ReadonlySet<string>): string {
   const reads = has.has(PluginCapability.ProjectRead);
   const writes = has.has(PluginCapability.ProjectWrite);
@@ -162,10 +162,10 @@ export const isActive = (p: PluginInfo): boolean => p.enabled && !p.removed;
 /** Whether a plugin is off the installed list: removed, or found but never allowed. */
 export const isOffList = (p: PluginInfo): boolean => Boolean(p.removed || p.unlisted);
 
-/** Whether a plugin is Genex, which the Plugins page shows as the game dev tools router. */
+/** Whether a plugin is Genex, which the Plugins page shows as the project dev tools router. */
 const isRouter = (p: PluginInfo): boolean => p.manifest.id === GENEX_PLUGIN_ID;
 
-/** The name a plugin's row and page show: Genex is the game dev tools router; any other its own name. */
+/** The name a plugin's row and page show: Genex is the project dev tools router; any other its own name. */
 export const shownName = (p: PluginInfo): string => (isRouter(p) ? GENEX_WORDS.router.name : p.manifest.name);
 
 /** The line under a plugin's name in its row: Genex names the tools it routes; any other its own description. */
@@ -202,7 +202,7 @@ type Panel = PluginManifest["panels"][number];
 
 /**
  * The panel an account button opens: the plugin's settings panel, else its project panel when a
- * game is open. Genex's page shows its account itself, so its button opens no frame.
+ * project is open. Genex's page shows its account itself, so its button opens no frame.
  */
 export function accountPanel(manifest: PluginManifest, project: string | null | undefined): Panel | undefined {
   if (manifest.id === GENEX_PLUGIN_ID) return undefined;

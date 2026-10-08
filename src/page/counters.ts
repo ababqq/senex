@@ -1,12 +1,12 @@
 /**
  * The draw counters — what the frame actually cost, read at the graphics API (M4.9a).
  *
- * `renderer.info` is three's own bookkeeping, and it stops being the truth the moment a game
+ * `renderer.info` is three's own bookkeeping, and it stops being the truth the moment a project
  * uses something three does not count for itself: a post-processing composer draws its passes
  * through a renderer that resets between them, and the WebGPU path records draws into a render
  * bundle once and replays it every frame, so `info` reports the recording and not the replay.
  * A night that measured only `info` reported a blank optimization stage for exactly those two
- * shapes, which are the two shapes a good-looking game is most likely to have.
+ * shapes, which are the two shapes a good-looking project is most likely to have.
  *
  * So the counting moves one layer down, to the calls the browser itself receives: the WebGL
  * draw entry points (including the ANGLE instancing extension and multi-draw), and, on WebGPU,

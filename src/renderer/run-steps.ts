@@ -580,7 +580,7 @@ const REVIEW_BY: Partial<Record<string, string>> = {
 /**
  * The last look anybody took at the build on offer, for the result card: who looked, and the
  * sentence they wrote. Nothing when nobody wrote one, or when the build had nothing to be
- * compared with — a first build from an empty game is judged on its own, and saying so is noise.
+ * compared with — a first build from an empty project is judged on its own, and saying so is noise.
  */
 export function buildReview(graph: RunGraph): { label: string; words: string } | null {
   const look = headVerdict(graph);
@@ -591,7 +591,7 @@ export function buildReview(graph: RunGraph): { label: string; words: string } |
 
 /** What the result node and its card both say about the build you would play. */
 export function resultStatus(graph: RunGraph, summary: RunSummary | null): ResultStatus {
-  if (summary?.landed === true) return { word: "Live in your game", tone: Tone.Green, state: StepState.InBuild };
+  if (summary?.landed === true) return { word: "Live in your project", tone: Tone.Green, state: StepState.InBuild };
   if (graph.active) return runningResultStatus(graph, summary);
   if (hasNewBuild(graph, summary)) return { word: "Not live yet", tone: Tone.Orange, state: StepState.Kept };
   return { word: "No new build", tone: Tone.Muted, state: StepState.NotInBuild };
@@ -603,7 +603,7 @@ const runExecution = (graph: RunGraph, summary: RunSummary | null): string =>
 
 /**
  * The lead has the run to itself: no part is working and no build is waiting on a check. It is
- * planning, changing the game itself, or winding down — the graph draws it so a run between parts
+ * planning, changing the project itself, or winding down — the graph draws it so a run between parts
  * never looks finished.
  */
 export function leadWorking(graph: RunGraph, summary: RunSummary | null, rows: PartRow[]): boolean {
@@ -819,7 +819,7 @@ function finishedLine(summary: RunSummary | null, rows: PartRow[], facts: LineFa
       .join(" · ");
     return {
       tone: clean ? Tone.Green : Tone.Orange,
-      strong: timed("Live in your game", facts.worked),
+      strong: timed("Live in your project", facts.worked),
       rest: rest || "finished",
     };
   }

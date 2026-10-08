@@ -18,7 +18,7 @@ import { ctxRecorder } from "../helpers/ctx-recorder.ts";
 
 const BLIND = "screenshot(default) failed: the window is occluded";
 const NO_FRAME = "no camera produced a frame (asked for: default; registered: none)";
-const DRIVE = "could not drive the game: preview.call timed out";
+const DRIVE = "could not drive the project: preview.call timed out";
 const CONSOLE = "2 console error(s)";
 
 describe("why a look came back unjudgeable", () => {
@@ -39,7 +39,7 @@ describe("why a look came back unjudgeable", () => {
     assert.equal(
       classifyEvidenceFailure([DRIVE]),
       "build",
-      "a pass that could not drive the game is not a blind camera",
+      "a pass that could not drive the project is not a blind camera",
     );
     assert.equal(observationOnlyFailure([BLIND]), true);
     assert.equal(

@@ -59,8 +59,8 @@ const QUEUE_FILE = "queue.json";
 const LOOPBACK_HOSTS: ReadonlySet<string> = new Set(["localhost", "127.0.0.1", "[::1]"]);
 
 /**
- * A finished build: the turn a game chat's handled message opened (by its thread and message), or
- * a run the chat launched (by its id and game).
+ * A finished build: the turn a project chat's handled message opened (by its thread and message), or
+ * a run the chat launched (by its id and project).
  */
 export type FinishedBuildRef = { threadId: string; messageId: string } | { runId: string; project: string };
 

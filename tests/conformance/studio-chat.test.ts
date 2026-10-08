@@ -69,7 +69,7 @@ for (const kind of ["delegated", "direct"])
       { mimeType: "image/png", data: "pixels", label: "Screenshot" },
     ]);
     assert.equal(r.requests[1]!.tools, undefined);
-    assert.ok(!r.methods.includes("engine.delegate") && !r.methods.includes("game.scaffold"));
+    assert.ok(!r.methods.includes("engine.delegate") && !r.methods.includes("project.scaffold"));
   });
 
 test("an empty Studio response is an actionable error and cannot appear as a successful assistant message", async () => {

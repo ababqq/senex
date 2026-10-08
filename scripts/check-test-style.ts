@@ -195,7 +195,7 @@ function folderTarget(root: string, folder: string, tail: string): string | unde
 
 // A read counts when the path is a studio source file. A partly unknown path counts when its known
 // folder under src/ holds source files at any depth (a walk over src/renderer), or when its known tail names a
-// real source file; `join(gameDir, 'src/main.js')` names a game's file, not the studio's.
+// real source file; `join(projectDir, 'src/main.js')` names a project's file, not the studio's.
 function sourceTarget(root: string, p: string): string | undefined {
   if (p.includes(PARAM)) return undefined;
   const cut = p.indexOf(UNKNOWN);

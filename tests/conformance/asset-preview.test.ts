@@ -10,7 +10,7 @@ import {
   assetExtension,
   assetPreviewMode,
 } from "../../src/shared/asset-preview.ts";
-import { ASSET_FORMATS, assetFormat, assetKind } from "../../src/shared/game-assets.ts";
+import { ASSET_FORMATS, assetFormat, assetKind } from "../../src/shared/project-assets.ts";
 
 it("preview reads actual media/model bytes but rejects scripts, traversal, hidden files and symlinks", async () => {
   const root = await tmpDir("asset-preview-");

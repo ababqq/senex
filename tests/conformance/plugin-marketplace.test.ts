@@ -166,7 +166,7 @@ test("the index schema is validated field by field, so a bad entry never reaches
   assert.throws(() => validateIndex(indexFor([entryFor({ docsUrl: "http://docs.example/p" })])), /https/);
   assert.throws(() => validateIndex(indexFor([entryFor({ tier: "gold" as PluginIndexEntry["tier"] })])), /tier/);
   assert.throws(
-    () => validateIndex(indexFor([entryFor({ category: "games" as PluginIndexEntry["category"] })])),
+    () => validateIndex(indexFor([entryFor({ category: "projects" as PluginIndexEntry["category"] })])),
     /category/,
   );
   assert.throws(() => validateIndex(indexFor([entryFor(), entryFor()])), /Duplicate/);
@@ -675,7 +675,7 @@ test("the app holds the catalog policy itself: reserved official identities and 
   assert.equal(byId.has("mutable"), false, "an artifact URL must name its id, version and digest");
   assert.equal(byId.get("from-github")?.tier, "community");
   assert.deepEqual(
-    applyCatalogPolicy(indexFor([{ ...official, publisher: "Genex Games" }]), STUDIO_CATALOG_POLICY).plugins,
+    applyCatalogPolicy(indexFor([{ ...official, publisher: "Genex Projects" }]), STUDIO_CATALOG_POLICY).plugins,
     [],
     "the official publisher is exact",
   );

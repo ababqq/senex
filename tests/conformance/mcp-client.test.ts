@@ -800,7 +800,7 @@ test("two tools whose names collide at the length limit both stay callable (MCP-
   }
 });
 
-test("a connector that does not need the project is shared across games; a per-project one is not (MCP-2)", async () => {
+test("a connector that does not need the project is shared across projects; a per-project one is not (MCP-2)", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "studio-mcp-shared-"));
   const registry = new McpRegistry({
     file: path.join(root, "connectors.json"),
@@ -812,7 +812,7 @@ test("a connector that does not need the project is shared across games; a per-p
     await Promise.all([registry.toolsFor("alpha"), registry.toolsFor("beta")]);
     const a = JSON.parse(String(await registry.tool("echo__context", {}, { project: "alpha" })));
     const b = JSON.parse(String(await registry.tool("echo__context", {}, { project: "beta" })));
-    assert.equal(a.pid, b.pid, "one process serves every game");
+    assert.equal(a.pid, b.pid, "one process serves every project");
     assert.equal((await registry.list("beta"))[0]!.health, "ready");
     await registry.registerPluginServer(
       "projected",
@@ -828,7 +828,7 @@ test("a connector that does not need the project is shared across games; a per-p
     );
     const pa = JSON.parse(String(await registry.tool("projected-echo__context", {}, { project: "alpha" })));
     const pb = JSON.parse(String(await registry.tool("projected-echo__context", {}, { project: "beta" })));
-    assert.notEqual(pa.pid, pb.pid, "perProject keeps one per game");
+    assert.notEqual(pa.pid, pb.pid, "perProject keeps one per project");
   } finally {
     await registry.close();
     await rm(root, { recursive: true, force: true });

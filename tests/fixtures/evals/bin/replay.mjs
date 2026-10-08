@@ -1,7 +1,7 @@
 /**
  * What the stub CLIs share: a recording's lines filled with this run's values, and the replay that
  * writes each event to stdout after its recorded gap (so the lane's receive timestamps keep the
- * recorded pacing) and writes the recorded game into the working folder where the recording says.
+ * recorded pacing) and writes the recorded project into the working folder where the recording says.
  * The recordings are synthetic and redacted: no real path, id, account or file content.
  */
 import { copyFile, mkdir, readdir, readFile } from "node:fs/promises";
@@ -10,8 +10,8 @@ import { setTimeout as sleep } from "node:timers/promises";
 
 /** The recordings the stubs replay. */
 const RECORDINGS = path.join(import.meta.dirname, "recordings");
-/** The game every recorded build wrote: the calibration's known-good mini golf. */
-const GAME_DIR = path.resolve(import.meta.dirname, "../calibration/known-good-mini-golf");
+/** The project every recorded build wrote: the calibration's known-good mini golf. */
+const PROJECT_DIR = path.resolve(import.meta.dirname, "../calibration/known-good-mini-golf");
 
 /** A value spliced into a JSON string, escaped as JSON would escape it. */
 const inJson = (value) => JSON.stringify(String(value)).slice(1, -1);
@@ -26,18 +26,18 @@ export async function recording(name, values) {
     .map((line) => JSON.parse(line));
 }
 
-/** Copy the recorded game into `dir`. */
-async function writeGame(dir) {
+/** Copy the recorded project into `dir`. */
+async function writeProject(dir) {
   await mkdir(dir, { recursive: true });
-  for (const name of await readdir(GAME_DIR)) await copyFile(path.join(GAME_DIR, name), path.join(dir, name));
+  for (const name of await readdir(PROJECT_DIR)) await copyFile(path.join(PROJECT_DIR, name), path.join(dir, name));
 }
 
 /** Replay a stream: each line after its gap; `onEvent` sees each event as it is written. */
 export async function replay(lines, { cwd, onEvent = async () => {} }) {
   for (const line of lines) {
     await sleep(line.afterMs ?? 0);
-    if (line.writeGame) {
-      await writeGame(cwd);
+    if (line.writeProject) {
+      await writeProject(cwd);
       continue;
     }
     process.stdout.write(`${JSON.stringify(line.event)}\n`);

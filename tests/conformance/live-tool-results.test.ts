@@ -21,7 +21,7 @@ it("a plugin tool's non-object answer reaches the engine intact, and nothing rea
   const lite = await coreLite();
   const { core } = lite;
   const project = "live-results";
-  await core.games.scaffold(project);
+  await core.projects.scaffold(project);
 
   let answer: unknown;
   // The registry is the plugin boundary; the host's wrapper is what is under test.

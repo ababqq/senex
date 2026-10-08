@@ -170,7 +170,7 @@ export function rewindRefusalWords(reason: RewindRefusal): string {
 }
 
 /**
- * Why only the conversation rewinds: the game files cannot go back to just before the message.
+ * Why only the conversation rewinds: the project files cannot go back to just before the message.
  * The first three come from the checkpoint (`main/chat-checkpoints.ts`), the rest from the chat.
  */
 export const FilesStay = {
@@ -178,7 +178,7 @@ export const FilesStay = {
   /** HEAD moved since the checkpoint: a commit. */
   HistoryChanged: "history-changed",
   TooLarge: "too-large",
-  /** A build after the message landed, or moved the game's history. */
+  /** A build after the message landed, or moved the project's history. */
   BuildChanged: "build-changed",
   /** A build is running: the rewind stops it first, and what it leaves stays. */
   BuildRunning: "build-running",
@@ -187,7 +187,7 @@ export const FilesStay = {
 } as const;
 export type FilesStay = (typeof FilesStay)[keyof typeof FilesStay];
 
-/** What happens to the game files when the chat is rewound to a message. */
+/** What happens to the project files when the chat is rewound to a message. */
 export type RewindFiles =
   | {
       state: "restore";
@@ -212,7 +212,7 @@ export interface RewindPreview {
 /**
  * What the composer gets back: the message's words (and those of follow-ups that were still
  * waiting), how many pictures it carried and how many of them the composer had attached, and
- * how many game files came back (null when none were asked for).
+ * how many project files came back (null when none were asked for).
  */
 export interface RewindResult {
   text: string;
@@ -253,7 +253,7 @@ export interface PlannedRewind {
 /** A build with rows after the message. Its journal, worktrees and landed work outlive the chat. */
 export interface RewindBuild {
   runId: string;
-  /** It landed work in the game after the message. */
+  /** It landed work in the project after the message. */
   landed: boolean;
 }
 export type RewindPlan = ({ ok: true } & PlannedRewind) | { ok: false; reason: RewindRefusal };
@@ -499,7 +499,7 @@ function answersEarlierQuestion(eventType: string, payload: Record<string, unkno
 
 /**
  * The builds with lifecycle rows from the message on, and whether each landed there: even one an
- * earlier rewind took out of the chat changed the game after the message.
+ * earlier rewind took out of the chat changed the project after the message.
  */
 function buildsFrom(events: readonly EventEnvelope[], from: string): RewindBuild[] {
   const builds = new Map<string, RewindBuild>();

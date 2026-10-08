@@ -293,7 +293,7 @@ function SignInNotes({
 const isLiveShell = (session: TerminalSession): boolean =>
   session.kind === TerminalKind.Shell && session.phase !== "exited";
 
-/** The game's shell that is still running, if it has one. */
+/** The project's shell that is still running, if it has one. */
 const liveShellOf = (sessions: TerminalSession[], project: string | null): TerminalSession | undefined =>
   sessions.find((session) => isLiveShell(session) && session.project === project);
 
@@ -324,7 +324,7 @@ export function TerminalDock({ project, onReveal }: { project: string | null; on
       return;
     }
     if (!project || opening) {
-      if (!project && !sessions.length) setError("Open a game to start a terminal.");
+      if (!project && !sessions.length) setError("Open a project to start a terminal.");
       return;
     }
     setOpening(true);

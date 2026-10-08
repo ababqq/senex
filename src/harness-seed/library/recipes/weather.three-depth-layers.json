@@ -22,7 +22,7 @@
       "note": "rain near/mid/far: streak 0.6–1.0 / 0.3–0.5 / 0.1–0.2 units, opacity 0.5 / 0.3 / 0.15, ~200 / ~600 / ~1500, ≥6:1 streaks; snow sprites ≤0.05 units, layers differ by count and speed never size"
     },
     {
-      "source": "skills/game-contract.md (deployed, 1 Sep 2026)",
+      "source": "skills/project-contract.md (deployed, 1 Sep 2026)",
       "note": "three explicit depth layers (near ~40 within 5 m, mid ~150 at 5–30 m, far ~400 beyond 30 m); snow fixed 800–1200 flakes, adjust size range not count"
     },
     {

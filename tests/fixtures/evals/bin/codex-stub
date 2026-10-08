@@ -2,7 +2,7 @@
 /**
  * Stands in for the Codex CLI in a raw fixture lane (C): `--version`, or `exec --json` with the
  * prompt on stdin, which writes the session's rollout under `$CODEX_HOME/sessions` (only when that
- * variable names a home) and replays the recorded build with its timing, writing the recorded game
+ * variable names a home) and replays the recorded build with its timing, writing the recorded project
  * into the working folder. No network, no model.
  */
 import { randomUUID } from "node:crypto";

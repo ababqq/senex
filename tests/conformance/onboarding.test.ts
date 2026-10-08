@@ -33,7 +33,7 @@ const engine = (
 describe("first launch", () => {
   it("welcomes only an allowed session with an empty library that was never welcomed", () => {
     assert.equal(shouldWelcome(true, 0, storage(null)), true);
-    assert.equal(shouldWelcome(true, 1, storage(null)), false, "someone with games already knows the app");
+    assert.equal(shouldWelcome(true, 1, storage(null)), false, "someone with projects already knows the app");
     assert.equal(shouldWelcome(true, 0, storage("1")), false, "finishing or skipping is remembered");
     assert.equal(shouldWelcome(false, 0, storage(null)), false, "smoke, self-test and fixture sessions");
     assert.equal(shouldWelcome(undefined, 0, storage(null)), false, "an older main process says nothing");

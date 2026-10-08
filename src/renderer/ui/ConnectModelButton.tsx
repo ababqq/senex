@@ -1,5 +1,5 @@
 /**
- * The model's place in a game composer before any AI model is connected: one accent button that
+ * The model's place in a project composer before any AI model is connected: one accent button that
  * opens Settings → Model Providers. A send tried meanwhile does not go anywhere; it lights the
  * button up with its reason for a moment (`useModelNudge`), and the prompt stays as written.
  */

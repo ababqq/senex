@@ -80,10 +80,10 @@ const events = (thread) =>
       ),
     )
     .sort((a, b) => a.id.localeCompare(b.id));
-/** New game is home: its first message makes the game (the fixture model names it) and asks for the interview. */
+/** New project is home: its first message makes the project (the fixture model names it) and asks for the interview. */
 async function launchAndAsk() {
   const before = (await snap()).state.project;
-  await click('[aria-label="Create game"]');
+  await click('[aria-label="Create project"]');
   // Home's composer is not a target until home's view transition has finished.
   await until(async () => {
     try {
@@ -98,7 +98,7 @@ async function launchAndAsk() {
   await until(async () => {
     const { state } = await snap();
     return state.room === "build" && Boolean(state.activeThread) && state.project !== before;
-  }, "the new game's chat");
+  }, "the new project's chat");
   await until(async () => {
     const s = await snap();
     return (
@@ -202,7 +202,7 @@ try {
     },
   );
   let thread;
-  await check("a newly created game inherits the selected provider and model", async () => {
+  await check("a newly created project inherits the selected provider and model", async () => {
     await click('[aria-label="Model settings"]');
     await click('[data-role="planner"]');
     await click('[data-model-choice="codex::fixture-v1"]');

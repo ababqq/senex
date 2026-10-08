@@ -1,7 +1,7 @@
 /**
  * The Genex app eval lane end to end on a real core (evals plan §5.3, lanes A/D): the launch's
  * own core options with the scripted fixture engines, a real harness, and `runEvalLane` driving
- * it the way the smoke sub-runner does. What is asserted is the sequence (preflight, a fresh game
+ * it the way the smoke sub-runner does. What is asserted is the sequence (preflight, a fresh project
  * chat in the spec's permission mode, the brief with its suffix, typed questions answered with
  * the shared sentence), the deadline rail taking the core's Stop, and the report's shape.
  */
@@ -64,7 +64,7 @@ function laneSpec(work: string, patch: Partial<EvalLaneSpec> = {}): EvalLaneSpec
     engine: EngineId.ClaudeCode,
     model: FIXTURE_MODEL,
     effort: "high",
-    brief: "Make a tiny synthetic arena game.",
+    brief: "Make a tiny synthetic arena project.",
     suffix: "You have about 1 minutes. Nobody will answer questions; make reasonable assumptions and continue.",
     commission: { autopilot: {} },
     permissionMode: PermissionMode.AcceptEdits,
@@ -73,7 +73,7 @@ function laneSpec(work: string, patch: Partial<EvalLaneSpec> = {}): EvalLaneSpec
     answerPolicy: AnswerPolicy.NoAnswers,
     maxAnswers: 3,
     codexHostSkillSuppression: false,
-    gamesRoot: path.join(work, "games"),
+    projectsRoot: path.join(work, "projects"),
     userDataRoot: path.join(work, "userdata"),
     workRoot: work,
     homes: { claude: path.join(work, "homes", "claude"), codex: path.join(work, "homes", "codex") },
@@ -103,7 +103,7 @@ async function laneCore(
     fixtureFlag: true,
     liveAllowed: false,
     userData: written.userDataRoot,
-    aiGames: path.join(base, "home", "AI Games"),
+    aiProjects: path.join(base, "home", "AI Projects"),
     defaultUserData: path.join(base, "home", "Library", "Genex"),
   });
   if (!opened.ok) throw new Error(opened.refusal);
@@ -131,7 +131,7 @@ function recording(core: StudioCore): { lane: EvalLaneCore; calls: string[] } {
     layout: core.layout,
     options: core.options,
     store: core.store,
-    games: core.games,
+    projects: core.projects,
     activeBuilders: () => core.activeBuilders(),
     plugins: {
       list: () => core.plugins.list(),
@@ -141,9 +141,9 @@ function recording(core: StudioCore): { lane: EvalLaneCore; calls: string[] } {
         return core.plugins.setEnabled(id, enabled);
       },
     },
-    createGameThread: async (project) => {
-      calls.push("createGameThread");
-      return core.createGameThread(project);
+    createProjectThread: async (project) => {
+      calls.push("createProjectThread");
+      return core.createProjectThread(project);
     },
     setPermissionMode: async (threadId, mode) => {
       calls.push(`setPermissionMode:${String(mode)}`);
@@ -188,10 +188,10 @@ describe("eval lane on a real core", () => {
   it("sends the brief in the spec's mode, answers the typed question, and reports the chat finished", async () => {
     const { core, spec, deps } = await laneCore();
     const { lane, calls } = recording(core);
-    // The seeded game's digest, taken beside the lane's at the same moment: when the chat is bound.
+    // The seeded project's digest, taken beside the lane's at the same moment: when the chat is bound.
     let seeded: Promise<string> | null = null;
     deps.onThreadBound?.((bound) => {
-      seeded ??= workspaceDigest(core.games.dirFor(bound.project));
+      seeded ??= workspaceDigest(core.projects.dirFor(bound.project));
     });
 
     const code = await runEvalLane(lane, spec, QUICK_CLOCK, deps);
@@ -201,14 +201,14 @@ describe("eval lane on a real core", () => {
     assert.equal(report.schema, EVAL_LANE_REPORT_SCHEMA);
     assert.equal(report.endedHow, EndedHow.AgentFinished);
     assert.deepEqual(calls.slice(0, 3), [
-      "createGameThread",
+      "createProjectThread",
       `setPermissionMode:${PermissionMode.AcceptEdits}`,
       "sendUserMessage",
     ]);
     assert.equal(report.permissionModeServed, PermissionMode.AcceptEdits);
     const words = await userWords(core, report.threadId);
     assert.equal(words[0], `${spec.brief}\n\n${spec.suffix}`);
-    // The fixture's game chat opens with one `ask_user` question, then takes the answer.
+    // The fixture's project chat opens with one `ask_user` question, then takes the answer.
     assert.equal(report.questionsAsked, 1);
     assert.equal(report.answers.length, 1);
     for (const answer of report.answers) {
@@ -234,7 +234,7 @@ describe("eval lane on a real core", () => {
       { id: GENEX_PLUGIN_ID, enabled: true },
       "a lane that turns nothing off runs with the bundled Genex plugin on, as a fresh profile does",
     );
-    assert.ok(seeded, "the fixture chat is bound to the game it seeds");
+    assert.ok(seeded, "the fixture chat is bound to the project it seeds");
     assert.equal(report.templateDigest, await seeded);
   });
 
@@ -260,7 +260,7 @@ describe("eval lane on a real core", () => {
     const code = await runEvalLane(lane, spec, QUICK_CLOCK);
 
     assert.equal(code, EVAL_LANE_EXIT.Ok);
-    assert.deepEqual(calls.slice(0, 2), [`setPluginEnabled:${GENEX_PLUGIN_ID}:false`, "createGameThread"]);
+    assert.deepEqual(calls.slice(0, 2), [`setPluginEnabled:${GENEX_PLUGIN_ID}:false`, "createProjectThread"]);
     assert.equal(core.plugins.enabled(GENEX_PLUGIN_ID), false);
     const report = await readReport(spec);
     assert.equal(report.endedHow, EndedHow.AgentFinished);
@@ -284,7 +284,7 @@ describe("eval lane on a real core", () => {
       report.errors.map((error) => error.code),
       [EvalLaneErrorCode.PluginNotDisabled],
     );
-    assert.equal(calls.includes("createGameThread"), false);
+    assert.equal(calls.includes("createProjectThread"), false);
     assert.equal(report.threadId, "");
   });
 

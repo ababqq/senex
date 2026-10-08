@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "id": "bundled-ts",
+  "title": "Corridor",
+  "proves": [
+    "the shape is detected as built and dist/index.html is served, not the .ts a browser refuses",
+    "the two-line installStudio({ renderer, player }) suffices for a project whose three is its own copy",
+    "nothing compares renderer constructors by identity",
+    "the shim paces a THREE.Clock loop so getDelta() returns the stepped dt",
+    "pointer-lock look works in a hidden window Chromium never grants a lock to"
+  ],
+  "shape": {
+    "entry": "dist/index.html",
+    "main": "src/main.ts",
+    "build": "npm run build",
+    "install": "npm install",
+    "own": true,
+    "kind": "three-vite",
+    "serve": "dist"
+  },
+  "addsAtLeast": ["src/studio.js", "src/studio.d.ts", "CLAUDE.md", "NOTES.md", "studio.json", ".gitignore", ".git"],
+  "neverAdded": ["index.html", "src/main.js", "src/main.ts", "docs/CONTRACT.md"],
+  "edits": "two-line-install",
+  "contract": "loaded",
+  "needsNodeModules": true,
+  "backend": "webgl",
+  "app": {
+    "kind": "first-person",
+    "hud": false,
+    "mouseLook": true,
+    "keyboardMove": true
+  },
+  "setup": null,
+  "cameras": ["default"],
+  "expectWarnings": ["this project paints UI outside the canvas"],
+  "allowWarnings": [],
+  "delta": [
+    { "path": "player.yaw", "min": 0.02 },
+    { "path": "player.z", "min": 0.5 }
+  ],
+  "deterministic": true,
+  "readyBudgetMs": 8000
+}

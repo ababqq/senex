@@ -30,7 +30,7 @@ export function replyAbout(about: ReplyAbout): void {
 
 /** Where a sent note went, in the words of the toast that confirms it. */
 export function noteSentWords(about: Pick<ReplyAbout, "active" | "target">): string {
-  if (!about.active) return "Sent — it will steer the next run on this game";
+  if (!about.active) return "Sent — it will steer the next run on this project";
   return about.target?.facetId
     ? "Sent — it goes into this part's next round"
     : "Sent — every part gets it with its next round";

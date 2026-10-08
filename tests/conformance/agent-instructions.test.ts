@@ -11,8 +11,8 @@ const ROUTED = ["AGENTS.md", "src/AGENTS.md", "tests/AGENTS.md", "docs/agent/glo
 const IMPORTS = ["CLAUDE.md", "src/CLAUDE.md", "tests/CLAUDE.md"];
 // scripts/build.mjs copies these trees into every user's workspace, where in-app engines read
 // any AGENTS.md/CLAUDE.md as their own instructions.
-const SHIPPED = ["src/harness-seed", "src/game-template"];
-const PAYLOAD = new Set(["src/game-template/CLAUDE.md"]);
+const SHIPPED = ["src/harness-seed", "src/project-template"];
+const PAYLOAD = new Set(["src/project-template/CLAUDE.md"]);
 
 const unfenced = (text: string) => text.replace(/^\s*(```|~~~)[\s\S]*?^\s*\1.*$/gm, "");
 const prose = (text: string) => unfenced(text).replace(/`[^`\n]*`/g, "");
@@ -135,23 +135,23 @@ test("each CLAUDE.md imports its folder AGENTS.md", () => {
 
 test("shipped-tree check finds nested and differently cased instruction files but allows the template payload", (t) => {
   const dir = scratch(t, {
-    "src/game-template/CLAUDE.md": "payload",
-    "src/game-template/CLAUDE.own.md": "payload",
-    "src/game-template/src/AGENTS.md": "dev",
+    "src/project-template/CLAUDE.md": "payload",
+    "src/project-template/CLAUDE.own.md": "payload",
+    "src/project-template/src/AGENTS.md": "dev",
     "src/harness-seed/loop/claude.md": "dev",
     "src/harness-seed/AGENTS.md": "dev",
     "src/main/AGENTS.md": "fine",
   });
   assert.deepEqual(shippedInstructions(dir).sort(), [
-    "src/game-template/src/AGENTS.md",
     "src/harness-seed/AGENTS.md",
     "src/harness-seed/loop/claude.md",
+    "src/project-template/src/AGENTS.md",
   ]);
 });
 
-test("no developer AGENTS.md or CLAUDE.md ships inside harness-seed or game-template", () => {
+test("no developer AGENTS.md or CLAUDE.md ships inside harness-seed or project-template", () => {
   assert.ok(
-    fs.existsSync(path.join(root, "src/game-template/CLAUDE.md")),
+    fs.existsSync(path.join(root, "src/project-template/CLAUDE.md")),
     "the template payload moved; update PAYLOAD",
   );
   assert.deepEqual(shippedInstructions(root), []);

@@ -31,7 +31,7 @@
       "sizeGb": 3.4,
       "tools": true,
       "vision": true,
-      "about": "Chat only: too small for reliable game building.",
+      "about": "Chat only: too small for reliable project building.",
       "notes": "Steer real work to a subscription engine on 8 GB machines."
     },
     "gemma4:12b": {
@@ -126,7 +126,7 @@
       "sizeGb": 81.4,
       "tools": true,
       "vision": true,
-      "about": "Largest local model that can see your game.",
+      "about": "Largest local model that can see your project.",
       "notes": "122B mixture-of-experts; ollama.com lists vision, tools and thinking."
     },
     "qwen3.8-flash-next:125b-mlx": {

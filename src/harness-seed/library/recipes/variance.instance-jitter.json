@@ -22,7 +22,7 @@
       "note": "bridge/town runs: ≥40 individually placed blocks, size jitter ±20%, colour jitter ±8% HSL lightness, texture repeat ≤3 broken at a 1 : 2.7 ratio; distant massing yaw ±15° with ≥2 stacked volumes; reuse geometries and materials"
     },
     {
-      "source": "skills/game-contract.md (deployed, 1 Sep 2026)",
+      "source": "skills/project-contract.md (deployed, 1 Sep 2026)",
       "note": "per-instance offsets: position ±15%, scale ±20%, albedo ±10%, never tile the same UV set more than 3× along a face"
     },
     {

@@ -2,7 +2,7 @@
 import type { AudioPlaybackEvidence } from "../shared/audio-observation.ts";
 
 /**
- * Serialized into the authorized preview. Never starts the game's media or changes its volume.
+ * Serialized into the authorized preview. Never starts the project's media or changes its volume.
  *
  * It runs from its own source text (`observeMediaPlayback.toString()`, studio-core), so
  * everything it uses — its limits included — is declared inside it: a helper or a constant of

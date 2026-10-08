@@ -31,7 +31,7 @@ export const FixtureName = {
   AppBasics: "app-basics",
   BuildHistory: "build-history",
   RunControls: "run-controls",
-  GameSurface: "game-surface",
+  ProjectSurface: "project-surface",
   Sentinel: "sentinel",
   Sidebar: "sidebar",
   ChatHistory: "chat-history",

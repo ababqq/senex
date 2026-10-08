@@ -182,7 +182,7 @@ async function runOnce(
   const runId = rig.core.newRunId();
   await rig.core.dispatchRun({
     runId,
-    goal: "make a ring-flying game",
+    goal: "make a ring-flying project",
     project: "pong",
     reference: options.reference ?? { name: "Race the Sun", shots: [], notes: "speed and clarity" },
     budgets: {
@@ -214,7 +214,7 @@ describe("gauntlet: the incumbent rule", () => {
     );
 
     // The challenger's file survives, and a healthy snapshot marks the new incumbent.
-    const feature = await readFile(path.join(rig.core.layout.gamesRoot, "pong", "src", "feature.js"), "utf8");
+    const feature = await readFile(path.join(rig.core.layout.projectsRoot, "pong", "src", "feature.js"), "utf8");
     assert.match(feature, /challenger attempt/);
     assert.ok(report.finalSnapshot, "the report names the final snapshot");
     const accepted = events.filter((e) => e.data.type === "snapshot_created" && e.data.healthy === true);
@@ -228,16 +228,16 @@ describe("gauntlet: the incumbent rule", () => {
 
     // The challenger's file is gone — the workspace went back to the last accepted build.
     await assert.rejects(
-      () => readFile(path.join(rig.core.layout.gamesRoot, "pong", "src", "feature.js"), "utf8"),
+      () => readFile(path.join(rig.core.layout.projectsRoot, "pong", "src", "feature.js"), "utf8"),
       /ENOENT/,
       "a tie must restore the incumbent's workspace",
     );
     const restores = events.filter((e) => e.data.type === "workspace_restored");
     assert.ok(restores.length >= 1, "the rollback is recorded in the log");
-    // Losing a round is a verdict about the game, not the coder: the rollback must not drag
+    // Losing a round is a verdict about the project, not the coder: the rollback must not drag
     // the harness back with it (one bad night of ties would erase every unjudged self-edit).
     for (const restore of restores) {
-      assert.equal((restore.data as { scope?: string }).scope, "game");
+      assert.equal((restore.data as { scope?: string }).scope, "project");
     }
   });
 
@@ -245,7 +245,7 @@ describe("gauntlet: the incumbent rule", () => {
     const { events, rig } = await runOnce({ compare: "incumbent" });
     assert.equal(customEvents(events, "run_iteration")[0]!.winner, "incumbent");
     await assert.rejects(
-      () => readFile(path.join(rig.core.layout.gamesRoot, "pong", "src", "feature.js"), "utf8"),
+      () => readFile(path.join(rig.core.layout.projectsRoot, "pong", "src", "feature.js"), "utf8"),
       /ENOENT/,
     );
   });
@@ -286,7 +286,7 @@ describe("gauntlet: the incumbent rule", () => {
     assert.equal(customEvents(events, "run_iteration").length, 0, "a blind iteration is held, never verdicted");
     assert.equal(customEvents(events, "observation_outage").length, 2, "each blind pass is logged as an outage");
     // The close says it in the user's words; the diagnostic stays on the event and on the report.
-    assert.match(String(report.stoppedBecause), /could not see the game to judge it/);
+    assert.match(String(report.stoppedBecause), /could not see the project to judge it/);
     assert.match(
       String((report.observationOutage as { problem?: string })?.problem ?? ""),
       /.+/,
@@ -421,7 +421,7 @@ describe("gauntlet: judge outages", () => {
     assert.ok(report.finalSnapshot, "the incumbent snapshot is still named for the morning");
     // Both unjudged challengers are rolled back — same rule as a tie: never end below the start.
     await assert.rejects(
-      () => readFile(path.join(rig.core.layout.gamesRoot, "pong", "src", "feature.js"), "utf8"),
+      () => readFile(path.join(rig.core.layout.projectsRoot, "pong", "src", "feature.js"), "utf8"),
       /ENOENT/,
     );
   });
@@ -444,7 +444,7 @@ describe("gauntlet: judge outages", () => {
     );
     assert.equal(counts.panel, 6, "three dead attempts on iteration 1, three live votes on iteration 2");
     // The winner's work survives to the end of the run.
-    const feature = await readFile(path.join(rig.core.layout.gamesRoot, "pong", "src", "feature.js"), "utf8");
+    const feature = await readFile(path.join(rig.core.layout.projectsRoot, "pong", "src", "feature.js"), "utf8");
     assert.match(feature, /challenger attempt/);
   });
 });
@@ -472,7 +472,7 @@ describe("gauntlet: engine signals", () => {
     const runId = rig.core.newRunId();
     await rig.core.dispatchRun({
       runId,
-      goal: "make a ring-flying game",
+      goal: "make a ring-flying project",
       project: "pong",
       engine: "vendor",
       reference: { name: "speed and clarity", shots: [], kind: "direction" },
@@ -516,7 +516,7 @@ describe("gauntlet: engine signals", () => {
     const runId = rig.core.newRunId();
     await rig.core.dispatchRun({
       runId,
-      goal: "make a ring-flying game",
+      goal: "make a ring-flying project",
       project: "pong",
       reference: { name: "speed and clarity", shots: [], kind: "direction" },
       budgets: { wallClockMs: 120_000, maxIterations: 2 },
@@ -557,7 +557,7 @@ describe("gauntlet: engine signals", () => {
     const runId = rig.core.newRunId();
     await rig.core.dispatchRun({
       runId,
-      goal: "make a ring-flying game",
+      goal: "make a ring-flying project",
       project: "pong",
       reference: { name: "speed and clarity", shots: [], kind: "direction" },
       budgets: { wallClockMs: 120_000, maxIterations: 8 },
@@ -587,8 +587,8 @@ describe("gauntlet: evidence and artefacts", () => {
     // Deterministic playthrough: seeded, then stepped by hand.
     const seeded = rig.preview.calls.filter((call) => call.method === "seed");
     const stepped = rig.preview.calls.filter((call) => call.method === "step");
-    assert.ok(seeded.length >= 1, "the run seeds the game before judging");
-    assert.ok(stepped.length >= 5, "the run steps the game deterministically");
+    assert.ok(seeded.length >= 1, "the run seeds the project before judging");
+    assert.ok(stepped.length >= 5, "the run steps the project deterministically");
     assert.equal(seeded[0]!.arg, 1234, "the same seed is used every iteration so builds compare");
     assert.ok(
       rig.preview.inputs.length >= 1,
@@ -597,7 +597,7 @@ describe("gauntlet: evidence and artefacts", () => {
 
     // Screenshots from named cameras, saved under the run — with the pixel counts beside them.
     const shots = iteration.shots as Array<{ camera: string; path: string; stats: { litFraction: number } | null }>;
-    // Three frames through the CAMERA FLOOR, not through a hard-coded trio: this game declares
+    // Three frames through the CAMERA FLOOR, not through a hard-coded trio: this project declares
     // no cameras at all (the fake answers `cameras()` with `{ok:true}`, as the template's own
     // one-camera build effectively does), so the pass asks for close and wide on top of default
     // and treats an unregistered one of them as "not registered", never as a defect.
@@ -662,7 +662,7 @@ describe("gauntlet: the judge sees both sides", () => {
     assert.equal(countImages(compares[0]!.messages), 2, "one default-camera still per build is attached");
     assert.match(text, /IMAGES ATTACHED/, "the prompt tells the judge the pictures are the comparison");
 
-    const log = await rig.core.store.listEvents(await rig.core.threadForGame("pong"));
+    const log = await rig.core.store.listEvents(await rig.core.threadForProject("pong"));
     const started = customEvents(log, "run_started")[0] as { reference?: { frames?: unknown; frameCount?: number } };
     assert.equal(started?.reference?.frames, undefined, "pixels must not be written into the event log");
     assert.equal(started?.reference?.frameCount, 0);
@@ -720,7 +720,7 @@ describe("gauntlet: the judge sees both sides", () => {
     assert.match(text, /REFERENCE \/ title/, "the bar's stills are labelled in the prompt");
     assert.match(text, /WebGL errors \(GPU process\): GL_INVALID_OPERATION/, "GPU errors reach the judge as evidence");
     assert.equal(countImages(compares[0]!.messages), 4, "two default-camera build stills and two reference stills");
-    const log = await rig.core.store.listEvents(await rig.core.threadForGame("pong"));
+    const log = await rig.core.store.listEvents(await rig.core.threadForProject("pong"));
     const started = customEvents(log, "run_started")[0] as { reference?: { frameCount?: number } };
     assert.equal(started?.reference?.frameCount, 2, "the log records how many stills were given, not the pixels");
     const iteration = customEvents(log, "run_iteration")[0];
@@ -728,7 +728,7 @@ describe("gauntlet: the judge sees both sides", () => {
     assert.equal(iteration?.winner, "challenger", "a GPU error is evidence, not an automatic loss");
   });
 
-  it("refuses a beat-a-real-game run that has a name but no stills", async () => {
+  it("refuses a beat-a-real-project run that has a name but no stills", async () => {
     const { report, counts } = await runOnce(
       { compare: "challenger" },
       { reference: { name: "Vampire Survivors", shots: [], kind: "reference" } },
@@ -744,7 +744,7 @@ describe("gauntlet: the judge sees both sides", () => {
       { compare: "challenger", panel: "build" },
       { maxIterations: 2, reference: { name: "more to touch, kick and hear", shots: [], kind: "direction" } },
     );
-    assert.equal(counts.panel, 0, "no exit panel is convened when there is no reference game to beat");
+    assert.equal(counts.panel, 0, "no exit panel is convened when there is no reference project to beat");
     assert.equal(report.victory, false);
     assert.match(String(report.stoppedBecause), /iteration budget/);
     const briefs = rig.server.requests
@@ -757,17 +757,17 @@ describe("gauntlet: the judge sees both sides", () => {
 });
 
 describe("gauntlet: where the story lands", () => {
-  it("logs the run into the game's own thread and feeds self-improvement afterwards", async () => {
+  it("logs the run into the project's own thread and feeds self-improvement afterwards", async () => {
     const { rig } = await runOnce({ compare: "challenger" });
 
-    // The run is that game's story: its chat shows the start, every verdict, and the ending.
-    const gameThread = await rig.core.threadForGame("pong");
-    assert.notEqual(gameThread, rig.core.mainThread, "a run must not land in the studio thread");
-    const threadEvents = await rig.core.store.listEvents(gameThread);
+    // The run is that project's story: its chat shows the start, every verdict, and the ending.
+    const projectThread = await rig.core.threadForProject("pong");
+    assert.notEqual(projectThread, rig.core.mainThread, "a run must not land in the studio thread");
+    const threadEvents = await rig.core.store.listEvents(projectThread);
     for (const type of ["run_started", "run_iteration", "run_finished"]) {
       assert.ok(
         threadEvents.some((e) => e.data.type === "custom" && e.data.event_type === type),
-        `${type} belongs to the game's chat`,
+        `${type} belongs to the project's chat`,
       );
     }
 
@@ -968,8 +968,8 @@ describe("gauntlet: briefs and intake", () => {
     });
     rigs.push(rig);
 
-    const threadId = await rig.core.createGameThread();
-    await rig.core.sendUserMessage("I want to make some kind of game", { thread: threadId, loop: { hours: 1 } });
+    const threadId = await rig.core.createProjectThread();
+    await rig.core.sendUserMessage("I want to make some kind of project", { thread: threadId, loop: { hours: 1 } });
 
     const events = await waitForLog(
       rig.core,
@@ -1004,7 +1004,7 @@ describe("gauntlet: briefs and intake", () => {
     const completions = rig.server.requests.filter((r) => r.path.startsWith("/v1/chat/completions"));
     assert.ok(completions.length >= 1, "the interview called the model");
     assert.match(JSON.stringify(completions[0]!.body), /Loop is ON/);
-    assert.match(JSON.stringify(completions[0]!.body), /Never quiz them on game titles/);
+    assert.match(JSON.stringify(completions[0]!.body), /Never quiz them on project titles/);
 
     await rig.core.stopThread(threadId);
     await waitForLog(

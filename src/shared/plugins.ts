@@ -222,7 +222,7 @@ export interface PluginToolbarStatus {
   disabled?: boolean;
   title?: string;
   tone?: "ok" | "warn" | "err" | "info";
-  /** The button's action is due now (a game with something to publish): drawn in the accent fill. */
+  /** The button's action is due now (a project with something to publish): drawn in the accent fill. */
   attention?: boolean;
 }
 /**

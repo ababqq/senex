@@ -712,7 +712,7 @@ export class CodexEngine implements Engine {
     // A read-only session is started somewhere of its own, so the only folder its sandbox lets
     // it write is the studio's bridge — the build it is judging stays untouchable. A lead that is
     // its chat's own session is resumed from there by id (a Codex session is found by its id,
-    // wherever it is started), and the chat resumes it from the game folder after the night.
+    // wherever it is started), and the chat resumes it from the project folder after the night.
     const { scratch, bridge } = await this.#openRunDir(request, cwd, locks);
     const runDir = scratch ?? cwd;
     // Interview tools are read off the bridge's own record — the authoritative list of what the
@@ -811,7 +811,7 @@ export class CodexEngine implements Engine {
    * Where the session runs and its bridge. A read-only session is started somewhere of its own,
    * so the only folder its sandbox lets it write is the studio's bridge. The locks and the scratch
    * folder are this call's: a bridge that cannot open (a planted `.studio`) must not leave the
-   * game read-only until the next delegation (P03-V1).
+   * project read-only until the next delegation (P03-V1).
    */
   async #openRunDir(
     request: DelegateRequest,
@@ -846,7 +846,7 @@ export class CodexEngine implements Engine {
   ): Promise<string> {
     // Stills folders the user named, plus the run's own capture output: readable but not writable.
     // Codex's sandbox already grants read of the whole disk, so `extraReads` needs no flag; the
-    // sibling games in `denyReads` are what a filesystem-level deny cannot express here, so they
+    // sibling projects in `denyReads` are what a filesystem-level deny cannot express here, so they
     // are named in the brief instead — the same words the Claude path enforces with a rule.
     // SEC-3: both CLIs' sign-in homes and the one this login borrows are named with them. PH-4:
     // this is a brief, not a boundary — see "Residual risks" in docs/agent/architecture.md.
@@ -857,7 +857,7 @@ export class CodexEngine implements Engine {
       ...(request.denyReads ?? []),
     ];
     // The rule is said whenever there is a seam to say, not only when a file happened to be
-    // locked: a worktree whose unowned files were already read-only (or a game whose only
+    // locked: a worktree whose unowned files were already read-only (or a project whose only
     // unowned files are lockfiles the locks leave alone) still has a seam the builder must
     // keep to, and it used to be told nothing at all.
     const hasSeam = request.ownership && (request.ownership.owns.length || ctx.locks?.files.length);
@@ -1819,7 +1819,7 @@ function sandboxArgs(runDir: string): string[] {
     // own capture output have to be openable, and Codex grants disk reads either way.
     "-c",
     `sandbox_workspace_write.writable_roots=${JSON.stringify([runDir])}`,
-    // The game is built from vendored files; a contractor that wants the network has to say so
+    // The project is built from vendored files; a contractor that wants the network has to say so
     // to a human first. (A Claude session's shell is confined the same way; its web research
     // goes through WebSearch/WebFetch, never the shell.)
     "-c",

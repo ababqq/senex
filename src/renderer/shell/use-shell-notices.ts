@@ -24,7 +24,7 @@ export function useShellNotices(
   const { selectThread } = navigation;
   const { chooseStageView } = views;
   const { openSettings } = input.dialogs;
-  const { records: threads, activeThreadId, games } = useRailView();
+  const { records: threads, activeThreadId, projects } = useRailView();
   const openNotice = useCallback(
     (notice: Notice) => {
       if (notice.kind === NoticeKind.SignIn) {
@@ -40,7 +40,7 @@ export function useShellNotices(
   return useNotifications({
     ready: input.ready,
     threads,
-    games,
+    projects,
     activeThreadId,
     away: input.away,
     onOpen: openNotice,

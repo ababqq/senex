@@ -4,7 +4,7 @@
  * Two halves. Every session's deny rules are written here at their real absolute paths (Claude
  * Code reads a rule's `/path` relative to the settings that carry it, and only `//path` from the
  * filesystem root), few enough for any command line: the SDK passes every setting to the CLI
- * as one argument. And a game chat's own session, which a person is answering, is given the
+ * as one argument. And a project chat's own session, which a person is answering, is given the
  * mode they chose, the rules they saved, and `canUseTool`: the Allow / Deny question it asks is
  * carried to the host and the person's answer back, as Claude Code would ask in a terminal. A
  * build's lead or the run's coordinator asks the same way (`askLead`), from its chat's Auto, Accept
@@ -63,7 +63,7 @@ const MESSAGE = {
 
 /** Where a suggestion's rule lands in Claude Code's own terms; these two last for the session only. */
 const SESSION_DESTINATIONS: ReadonlySet<string> = new Set(["session", "cliArg"]);
-/** Where every kept suggestion is pointed: never `.claude/settings.local.json` in the game folder. */
+/** Where every kept suggestion is pointed: never `.claude/settings.local.json` in the project folder. */
 const SESSION_DESTINATION = "session";
 /**
  * Claude Code's own ways to ask and to plan: a build's lead or the run's coordinator answers the
@@ -547,7 +547,7 @@ export async function permissionRules(input: RuleInput): Promise<{ allow?: strin
 
 /** An allow-rule suggestion as grants, minus any whole shell or file tool; the rules kept. */
 function ruleGrants(update: Extract<PermissionUpdate, { type: "addRules" }>) {
-  const scope = SESSION_DESTINATIONS.has(update.destination) ? RuleScope.Chat : RuleScope.Game;
+  const scope = SESSION_DESTINATIONS.has(update.destination) ? RuleScope.Chat : RuleScope.Project;
   // Never a whole shell or file tool: Claude Code hides "always" when the rule would reach
   // further than the question asked, and the SDK drops the flag that says so.
   const rules = (update.rules ?? []).filter((rule) => rule.ruleContent || !WHOLE_TOOL_RULES.has(rule.toolName));
@@ -585,7 +585,7 @@ function suggestionGrants(update: PermissionUpdate): { grants: PermissionGrant[]
  * Claude Code's "don't ask again" suggestions, as the studio's grants. Only what widens
  * permission survives: an allow rule (its own destination says whether it was for this chat or
  * for the project), a mode, a folder. The suggestions kept are returned alongside, pointed at
- * the session: the CLI would otherwise write `.claude/settings.local.json` into the game folder,
+ * the session: the CLI would otherwise write `.claude/settings.local.json` into the project folder,
  * which the next session never loads. The host keeps the grants instead.
  */
 export function permissionGrants(suggestions: PermissionUpdate[] = []): {
@@ -733,7 +733,7 @@ export function askLead(lead: DelegateAsks, running: RunningSession): CanUseTool
 /** The options that make a session ask the person: their mode, the Bypass switch, and the question. */
 export function askingOptions(permissions: DelegatePermissions, running: RunningSession): Record<string, unknown> {
   return {
-    // A game chat's own session is not unattended: it is Claude Code as the person would run it in
+    // A project chat's own session is not unattended: it is Claude Code as the person would run it in
     // a terminal. It starts in the mode they picked, asks them whatever Claude Code would ask, and
     // may be switched to Bypass mid-turn, which the CLI allows only for a session launched with
     // the flag below.
@@ -744,7 +744,7 @@ export function askingOptions(permissions: DelegatePermissions, running: Running
 }
 
 /**
- * The options of a build's lead or the run's coordinator in a game chat: the mode the host chose
+ * The options of a build's lead or the run's coordinator in a project chat: the mode the host chose
  * for it (`LeadAsks.mode`), its questions routed by the host. Its chat's Auto, Accept edits or
  * Bypass, so Claude Code decides as it does for the chat's own session; Manual for any other mode,
  * so every edit and command reaches `canUseTool` and the host answers for the chat's mode. Launched,
@@ -784,7 +784,7 @@ function unscreened(tool: string): boolean {
 /**
  * A lead's or coordinator's screen, as a PreToolUse hook: Claude Code runs hooks before its deny,
  * ask and allow rules, in every mode, so the host's demand to ask first holds where the mode the
- * session runs in (Auto's classifier, Accept edits), a saved "always allow" rule or the game's own
+ * session runs in (Auto's classifier, Accept edits), a saved "always allow" rule or the project's own
  * `.claude/settings.json` would have let the call through: a session whose chat is in a mode it
  * could not be switched to. Nothing thrown reaches the session: a screen that fails refuses.
  */

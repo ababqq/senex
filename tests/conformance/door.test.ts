@@ -52,7 +52,7 @@ interface OpeningThread {
 }
 
 const studio: OpeningThread = { id: "studio", updated_at: "2026-09-01T10:00:00Z", metadata: { kind: "studio" } };
-const game = (id: string, updated: string, project: string | null, archived = false): OpeningThread => ({
+const project = (id: string, updated: string, project: string | null, archived = false): OpeningThread => ({
   id,
   updated_at: updated,
   metadata: { kind: "game", project, archived },
@@ -119,18 +119,18 @@ describe("the door: what the app opens on launch", () => {
     latest_event_id: null,
     metadata: thread.metadata ?? {},
   });
-  const launch = async (threads: OpeningThread[], games: string[], remembered: Record<string, string> = {}) => {
+  const launch = async (threads: OpeningThread[], projects: string[], remembered: Record<string, string> = {}) => {
     const boot: Bootstrap = {
       threadId: "studio",
       layout: {},
-      gamesRootLabel: "~/AI Games",
+      projectsRootLabel: "~/AI Projects",
       harness: { state: "ready", version: null, capabilities: [] },
       threads: threads.map(record),
       events: [],
       eventsCursor: null,
       engines: [],
       activeDelegations: {},
-      games: games.map((name) => ({
+      projects: projects.map((name) => ({
         name,
         dir: `/g/${name}`,
         title: name,
@@ -162,36 +162,40 @@ describe("the door: what the app opens on launch", () => {
     await new Promise((resolve) => setImmediate(resolve));
     return { app, fake };
   };
-  /** Home: no chat open, no game on the stage, nothing loaded, made or asked for. */
+  /** Home: no chat open, no project on the stage, nothing loaded, made or asked for. */
   const assertHome = ({ app, fake }: Awaited<ReturnType<typeof launch>>) => {
     assert.equal(app.threads.getState().activeThreadId, null, "no chat is selected");
     assert.equal(roomOf(app.threads.getState()), Room.Home);
-    assert.equal(app.threads.getState().stageProject, null, "no game is on the stage");
-    assert.deepEqual(fake.callsOf("loadPreview"), [], "no game is loaded behind home");
-    for (const method of ["createGame", "nameGame", "newGameThread", "threadForGame"] as const)
+    assert.equal(app.threads.getState().stageProject, null, "no project is on the stage");
+    assert.deepEqual(fake.callsOf("loadPreview"), [], "no project is loaded behind home");
+    for (const method of ["createProject", "nameProject", "newProjectThread", "threadForProject"] as const)
       assert.deepEqual(fake.callsOf(method), [], `${method}: nothing is made until the first message`);
   };
 
-  it("opens home even when there are games, and the last chat is remembered", async () => {
-    // Intentionally flipped (2026-10-01): a launch used to reopen the remembered chat with its game
+  it("opens home even when there are projects, and the last chat is remembered", async () => {
+    // Intentionally flipped (2026-10-01): a launch used to reopen the remembered chat with its project
     // on the stage. Home is where every launch starts; the remembered chat is one click or ⌘1 away.
     const launched = await launch(
-      [studio, game("old", "2026-09-01T10:00:00Z", "pond-life"), game("fresh", "2026-09-04T10:00:00Z", "rift")],
+      [studio, project("old", "2026-09-01T10:00:00Z", "pond-life"), project("fresh", "2026-09-04T10:00:00Z", "rift")],
       ["pond-life", "rift"],
-      { "studio.activeThread": "old", "studio.reviewProject": "rift", "studio.lastGameThread": "old" },
+      { "studio.activeThread": "old", "studio.reviewProject": "rift", "studio.lastProjectThread": "old" },
     );
     assertHome(launched);
-    assert.equal(launched.app.threads.getState().lastGameThreadId, "old", "⌘1 still returns to the last game chat");
+    assert.equal(
+      launched.app.threads.getState().lastProjectThreadId,
+      "old",
+      "⌘1 still returns to the last project chat",
+    );
   });
 
-  it("an empty library opens home too: no Create game, nothing minted", async () => {
-    // Intentionally flipped (2026-10-01): an empty library used to open Create game over Studio.
+  it("an empty library opens home too: no Create project, nothing minted", async () => {
+    // Intentionally flipped (2026-10-01): an empty library used to open Create project over Studio.
     assertHome(await launch([studio], []));
   });
 
-  it("a remembered chat whose game was removed opens home like any other launch", async () => {
+  it("a remembered chat whose project was removed opens home like any other launch", async () => {
     assertHome(
-      await launch([studio, game("gone", "2026-09-04T10:00:00Z", "deleted-game")], [], {
+      await launch([studio, project("gone", "2026-09-04T10:00:00Z", "deleted-project")], [], {
         "studio.activeThread": "gone",
       }),
     );
@@ -212,7 +216,7 @@ describe("the door: the composer's own instruction", () => {
   });
 
   it("asks home what to make, and only an active build overrides the context", () => {
-    // Intentionally flipped (2026-10-01): the words were "Describe a game…".
+    // Intentionally flipped (2026-10-01): the words were "Describe a project…".
     assert.equal(HOME_PLACEHOLDER, "What do you want to make?");
     const firstLaunch = chatPlaceholder({ revisingPlan: false, studio: false, draft: true });
     assert.equal(firstLaunch, HOME_PLACEHOLDER);
@@ -280,12 +284,12 @@ describe("the chat's promise of when a build ends", () => {
  * the app-basics fixture) or the build smoke's own text to be proven any other way.
  */
 describe("the door: the surfaces that draw it", () => {
-  it("nothing in the renderer mints a game chat", () => {
+  it("nothing in the renderer mints a project chat", () => {
     // What the app opens is proven by launching the studio store above. `window.studio` reaches
     // every renderer file, so this rule is about the whole tree: creation
     // waits for an explicit name or folder.
     const minting = rendererFiles()
-      .filter((file) => /\bnewGameThread\(/.test(readFileSync(file, "utf8")))
+      .filter((file) => /\bnewProjectThread\(/.test(readFileSync(file, "utf8")))
       .map((file) => path.relative(root, file));
     assert.deepEqual(minting, [], "creation waits for an explicit name or folder");
   });
@@ -294,10 +298,10 @@ describe("the door: the surfaces that draw it", () => {
     const chat = read("src/renderer/panels/ChatPanel.tsx");
     assert.doesNotMatch(
       chat,
-      /What would you like to build\?|Ideas to start with|Ask about Studio<|Start a game<|STARTERS/,
+      /What would you like to build\?|Ideas to start with|Ask about Studio<|Start a project<|STARTERS/,
     );
     assert.match(chat, /<PromptBar/);
-    assert.match(read("src/renderer/panels/Sidebar.tsx"), /New game/);
+    assert.match(read("src/renderer/panels/Sidebar.tsx"), /New project/);
   });
 
   it("the composer groups build behavior in the Mode panel", () => {

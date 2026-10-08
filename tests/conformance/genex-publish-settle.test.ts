@@ -1,6 +1,6 @@
 /**
  * A publish whose outcome Studio does not know is never retried automatically, but it must be
- * possible to settle it: 'unresolved' used to block every later upload for the game, and
+ * possible to settle it: 'unresolved' used to block every later upload for the project, and
  * "Check again" could not clear it. Genex's own record decides: when the hosted staging revision
  * is still the last one Studio knew, the upload did not land and a new one is allowed; when it
  * moved, the upload is recorded and verified. The user can also settle it explicitly.
@@ -20,7 +20,7 @@ import { startGenexFixtureApi, type GenexFixtureApi } from "../helpers/genex-fix
 import { tmpDir } from "../helpers/tmp.ts";
 
 const PROJECT = "fixture";
-const SLUG = "fixture-game";
+const SLUG = "fixture-project";
 const servers: GenexFixtureApi[] = [];
 after(async () => {
   await Promise.all(servers.map((s) => s.close()));
@@ -44,22 +44,22 @@ async function withFixtureGit<T>(fn: () => Promise<T>): Promise<T> {
   }
 }
 
-/** A hosted game whose staging revision the test moves; `answer` overrides the by-slug reply. */
+/** A hosted project whose staging revision the test moves; `answer` overrides the by-slug reply. */
 async function hosted(
   options: { revision?: string | null; status?: "draft" | "published"; answer?: "missing" | "down" } = {},
 ) {
-  const hostedGame = { revision: options.revision === undefined ? "r1" : options.revision };
+  const hostedProject = { revision: options.revision === undefined ? "r1" : options.revision };
   const server = await startGenexFixtureApi(({ url }, reply) => {
     if (url === `/api/projects/by-slug/${SLUG}`) {
       if (options.answer === "missing") return reply.json({ error: "not_found" }, 404);
       if (options.answer === "down") return reply.json({ error: "unavailable" }, 503);
       return reply.json({
-        project: { slug: SLUG, status: options.status ?? "draft", stagingCommitSha: hostedGame.revision },
+        project: { slug: SLUG, status: options.status ?? "draft", stagingCommitSha: hostedProject.revision },
       });
     }
   });
   servers.push(server);
-  return { server, hostedGame };
+  return { server, hostedProject };
 }
 
 /** Studio's publish workspace as a previous session left it: a draft verified at `r1`, and `job`. */
@@ -93,7 +93,7 @@ async function tools(api: string, job?: GenexPublishState["job"], options: { cli
     connected: true,
     readyDraft: {
       revision: "r1",
-      url: "https://genex.games/draft/fixture-game",
+      url: "https://genex.games/draft/fixture-project",
       digest: "d1",
       verifiedAt: "2026-09-22T10:00:00.000Z",
     },
@@ -178,7 +178,7 @@ describe("settling a Genex publish whose outcome is unknown", () => {
       assert.equal(blocked.job?.id, started.job!.id, "no new upload while this one's outcome is open");
     }));
 
-  // The gallery half: listing a game publicly is the upload that must never happen twice by accident.
+  // The gallery half: listing a project publicly is the upload that must never happen twice by accident.
   const interruptedListing = (phase: "uploading" | "listing" | "promoting"): NonNullable<GenexPublishState["job"]> => ({
     id: "listing-before-quit",
     kind: "gallery",

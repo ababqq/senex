@@ -296,7 +296,7 @@ describe("check-vocabulary", () => {
     assert.doesNotMatch(masked, /"z"|"q"/);
   });
 
-  it("walks src and scripts, not tests, build output, declaration files or the game template", (t) => {
+  it("walks src and scripts, not tests, build output, declaration files or the project template", (t) => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "vocabulary-"));
     t.after(() => fs.rmSync(root, { recursive: true, force: true }));
     const offender = 'if (engine === "codex") go();\n';
@@ -304,7 +304,7 @@ describe("check-vocabulary", () => {
       "src/main/a.ts": offender,
       "src/renderer/b.tsx": "export const B = () => null;\n",
       "scripts/c.mjs": "await new Promise((r) => setTimeout(r, 5));\n",
-      "src/game-template/src/main.js": offender,
+      "src/project-template/src/main.js": offender,
       "src/harness-seed/types/host-api.d.ts": offender,
       "src/renderer/dist/bundle.js": offender,
       "tests/conformance/d.test.ts": offender,

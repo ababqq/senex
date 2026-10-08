@@ -16,7 +16,7 @@ import { carryOnPrompt } from "./single-worker-prompts.ts";
 import { commitAll, GIT, gitAt, gitExec, headOf, LABEL_SHA_LENGTH, shortSha, updateRef } from "../git.ts";
 import { HostMethod } from "../host-methods.ts";
 import { CRITIC_PRINCIPLES } from "../judge.ts";
-import { isGameKind, KIND_NAMES, writeDeclaredGame } from "../kinds.ts";
+import { isAppKind, KIND_NAMES, writeDeclaredApp } from "../kinds.ts";
 import { refusalRecord, roundRecord } from "../ledger.ts";
 import { roleEffort, roleEngine, RoleKey } from "../model-roles.ts";
 import { EngineFailure, isEngineLimit, limitWords, StopReason } from "../outage.ts";
@@ -95,7 +95,7 @@ const SUMMARY_CHARS = 4_000;
 /** How much of a worker's title the feed shows, and how much of its brief the start card quotes. */
 const TITLE_CHARS = 80;
 const BRIEF_QUOTED = 200;
-/** A worker's own contract file in a game the user brought: the studio contract module. */
+/** A worker's own contract file in a project the user brought: the studio contract module. */
 const STUDIO_CONTRACT = "src/studio.js";
 /**
  * Interrupts in a row a single session carries on from with nothing new to hear — a second
@@ -188,7 +188,7 @@ async function lookedFindings(night: Night, worker: Worker, status: string, labe
   const { ctx, ownShape, shape } = night;
   const last = worker.monitor;
   if (last && status === (last.status ?? null)) return { files: last.files, violations: last.violations };
-  // Only when something moved, and never the whole diff of a big game: a regex needs no context.
+  // Only when something moved, and never the whole diff of a big project: a regex needs no context.
   const diff = await gitAt(ctx, worker.worktree, GIT.diffReadOnly(MONITOR_DIFF_BYTES), { label }).catch(() => "");
   return monitorFindings({
     status,
@@ -285,31 +285,33 @@ export function startMonitor(night: Night) {
 // ── the plan ──
 
 /**
- * What kind of game this is, on the run record: every judge, brief and check reads it from
+ * What kind of project this is, on the run record: every judge, brief and check reads it from
  * there. A kind the director declared is written back into the user's studio.json once, so the
- * next night on this game starts knowing it.
+ * next night on this project starts knowing it.
  */
-async function declareGameKind(night: Night, game: AnyRecord): Promise<void> {
+async function declareAppKind(night: Night, app: AnyRecord): Promise<void> {
   const { ctx, journal, note, run } = night;
-  const changed = JSON.stringify(run.game ?? null) !== JSON.stringify(game);
-  run.game = game;
-  journal.run = { ...journal.run, game };
-  if (!changed || !game.kind) return;
-  const declared = await writeDeclaredGame(ctx, run.project, game, { from: "plan" }).catch(() => null);
+  const changed = JSON.stringify(run.app ?? null) !== JSON.stringify(app);
+  run.app = app;
+  journal.run = { ...journal.run, app: app };
+  if (!changed || !app.kind) return;
+  const declared = await writeDeclaredApp(ctx, run.project, app, { from: "plan" }).catch(() => null);
   // …and committed where it was written. This is the folder the user sees, and the run's
   // only snapshot of it was taken before this session opened, so an uncommitted studio.json
-  // left the folder dirty at the close — and "Make it my game" refuses to land onto a dirty
+  // left the folder dirty at the close — and "Make it my project" refuses to land onto a dirty
   // folder with a sentence that blames the user for an edit only the studio made. Only
   // that one path is committed; whatever else the folder holds stays as it is.
   if (!declared?.written) return;
   const committed = await gitExec(
     ctx,
     { project: run.project },
-    GIT.commit(`studio: this game is a ${game.kind} game`, { only: ["studio.json"] }),
+    GIT.commit(`studio: this project is a ${app.kind} project`, { only: ["studio.json"] }),
     { label: `director:${run.runId}:declare-kind` },
   ).catch(() => null);
   if (committed?.code !== 0)
-    note(`the game kind was written into studio.json but not committed — the folder ends the run with that edit in it`);
+    note(
+      `the project kind was written into studio.json but not committed — the folder ends the run with that edit in it`,
+    );
 }
 
 /** The review window opens once, at the first plan: how long the user has, and what they had already said. */
@@ -370,7 +372,7 @@ export async function setPlan(night: Night, args: AnyRecord) {
   const scopeError = await planAcceptance(night, args, plan.workers);
   if (scopeError) return scopeError;
   state.plan = plan;
-  if (plan.game) await declareGameKind(night, plan.game);
+  if (plan.app) await declareAppKind(night, plan.app);
   journal.director.plan = plan;
   journal.plan = {
     ...journal.plan,
@@ -386,11 +388,11 @@ export async function setPlan(night: Night, args: AnyRecord) {
   await appendRun(RunEvent.AutopilotPlanReview, {
     waitMinutes,
     summary: plan.summary,
-    // What kind of game the night decided this is, on the one card the user reads before the
+    // What kind of project the night decided this is, on the one card the user reads before the
     // builders start: it decides the critic, the harness's own checks and the controls the
     // studio drives before every judgement, and it is written back into their studio.json —
     // so the window meant for objecting to the plan showed the one decision it never named.
-    ...(plan.game ? { game: plan.game } : {}),
+    ...(plan.app ? { app: plan.app } : {}),
     facets: plan.workers.map((w: AnyRecord) => ({
       id: w.id,
       title: w.title,
@@ -476,11 +478,11 @@ export async function holdForPlanReview(night: Night, id: string): Promise<strin
 // ── starting a worker ──
 
 /**
- * The two refusals a game the user brought earns (M4.6). A seam nobody named is not a capacity
+ * The two refusals a project the user brought earns (M4.6). A seam nobody named is not a capacity
  * problem, and answering it with "no window free" sends the director to wait for something that
  * would not help. A worker with no seam in somebody's own repository may edit anything but the
  * entry, the contract and the page, which is far wider than the template's `src/`; and that
- * entry is the game's own code, with no FACET WIRING block for a second owner to meet the first
+ * entry is the project's own code, with no FACET WIRING block for a second owner to meet the first
  * in. Answers the refusal, or null.
  */
 function seamRefusal(night: Night, id: string, args: AnyRecord): string | null {
@@ -489,22 +491,22 @@ function seamRefusal(night: Night, id: string, args: AnyRecord): string | null {
   const running: Worker[] = runningWorkers();
   const seamOthers = running.length;
   if (seamOthers > 0 && list(args.owns).length === 0) {
-    return `worker "${id}" needs a seam: this game is the user's own, so a worker with no owns= may edit anything but the entry, the contract and index.html — and ${seamOthers === 1 ? "another worker is" : `${seamOthers} other workers are`} already running. Give it owns= (files, folders or a quoted glob), or wait for the others to finish.`;
+    return `worker "${id}" needs a seam: this project is the user's own, so a worker with no owns= may edit anything but the entry, the contract and index.html — and ${seamOthers === 1 ? "another worker is" : `${seamOthers} other workers are`} already running. Give it owns= (files, folders or a quoted glob), or wait for the others to finish.`;
   }
   // …and the same rule read the other way round. A seamless worker owns nearly the whole
   // repository whichever order they were started in, so a seamed worker may not start beside
   // one either: only the first half was enforced, and a `core` started alone followed by a
   // `hud` with a seam of its own left two worktrees rewriting the same file, met by a merge
-  // this game's entry has no wiring block to resolve.
+  // this project's entry has no wiring block to resolve.
   const wide = running.find((w: Worker) => w.owns.length === 0);
   if (wide) {
-    return `worker "${wide.id}" is running with no seam, so it may edit anything in this game but the entry, the contract and index.html — stop it or wait for it before starting "${id}".`;
+    return `worker "${wide.id}" is running with no seam, so it may edit anything in this project but the entry, the contract and index.html — stop it or wait for it before starting "${id}".`;
   }
   const seamOwnsMain = yes(args.owns_main, seamOthers === 0);
   const entryOwners = running.filter((w: Worker) => w.ownsMain).map((w: Worker) => w.id);
   if (!seamOwnsMain || !entryOwners.length) return null;
   const already = entryOwners.join(", ");
-  return `worker "${already}" already owns ${shape?.main ?? "the entry module"} for this run, and this game's entry has no FACET WIRING block for two owners to meet in — start "${id}" with owns_main=no and a seam of its own, or wait for "${already}" to finish.`;
+  return `worker "${already}" already owns ${shape?.main ?? "the entry module"} for this run, and this project's entry has no FACET WIRING block for two owners to meet in — start "${id}" with owns_main=no and a seam of its own, or wait for "${already}" to finish.`;
 }
 
 /**
@@ -533,7 +535,7 @@ function capacityRefusal(running: number, cap: AnyRecord | null, pooled: boolean
 
 /**
  * Why `id` cannot start now, in the sentence the director reads — a run that is finishing, a
- * mistyped restart or policy, a seam a game the user brought needs, a machine with no window or
+ * mistyped restart or policy, a seam a project the user brought needs, a machine with no window or
  * memory to spare, a session with too little left — or, when it can, what the answer was read
  * from: `{ pooled, remaining, replaces, policySpec }`.
  */
@@ -616,7 +618,7 @@ function ladderArg(args: AnyRecord): { value: AnyRecord[]; error?: undefined } |
     };
   if (ladder.some((entry) => !isRung(entry)))
     return {
-      error: `milestones: every rung is {"what":"one structural step — what the game IS after it","check":{…}} and "check" is optional`,
+      error: `milestones: every rung is {"what":"one structural step — what the project IS after it","check":{…}} and "check" is optional`,
     };
   return { value: ladder };
 }
@@ -740,7 +742,7 @@ function newWorkerRecord(fields: NewWorker): StartingWorker {
     unsatisfiable: [],
     stateKeys: null,
     notVerified: null,
-    /** Checks the game's ledger says have never measured anything (loop/ledger.ts). */
+    /** Checks the project's ledger says have never measured anything (loop/ledger.ts). */
     rarelyMeasurable: [],
     /** The loop's own thresholds for this worker, and only what the director changed. */
     policy: fields.policySpec.policy,
@@ -849,7 +851,7 @@ async function forkGate(night: Night, worker: OpenedWorker, from: string): Promi
   }
   await releaseWorkspace(night, worker);
   // A builder that never started is the loss the user feels first; the ledger keeps it so
-  // the next night on this game reads "fix the fork point" before it hands out work.
+  // the next night on this project reads "fix the fork point" before it hands out work.
   await remember(
     refusalRecord({
       ...ledgerFacts(),
@@ -902,10 +904,10 @@ function workerKindOf(night: Night, id: string, args: AnyRecord): string | null 
   const { note, run } = night;
   const namedKind = String(args.kind ?? "").trim();
   const quoted = namedKind.slice(0, KIND_QUOTED);
-  const workerKind = isGameKind(namedKind) ? namedKind : (run.game?.kind ?? null);
-  if (namedKind && !isGameKind(namedKind)) {
+  const workerKind = isAppKind(namedKind) ? namedKind : (run.app?.kind ?? null);
+  if (namedKind && !isAppKind(namedKind)) {
     note(
-      `worker ${id}: kind "${quoted}" is not a kind (${KIND_NAMES.join(", ")}) — judged as ${workerKind ?? "a game that declares nothing"}`,
+      `worker ${id}: kind "${quoted}" is not a kind (${KIND_NAMES.join(", ")}) — judged as ${workerKind ?? "a project that declares nothing"}`,
     );
   }
   return workerKind;
@@ -966,7 +968,7 @@ function compileContract(night: Night, worker: Worker, parsed: WorkerArgs, args:
   }
   if (compiled.rarelyMeasurable.length) {
     note(
-      `worker ${id}: ${compiled.rarelyMeasurable.map((c) => `${c.id} has come back unmeasured on ${c.rounds} rounds of this kind of game`).join("; ")} — re-point it or drop it`,
+      `worker ${id}: ${compiled.rarelyMeasurable.map((c) => `${c.id} has come back unmeasured on ${c.rounds} rounds of this kind of project`).join("; ")} — re-point it or drop it`,
     );
   }
 }
@@ -1058,12 +1060,12 @@ function loopStartFields(worker: Worker): AnyRecord {
     ...(worker.unsatisfiable?.length
       ? { unsatisfiable: worker.unsatisfiable, stateReports: worker.stateKeys ?? [] }
       : {}),
-    // What the game's own ledger says about these checks: a check nobody has ever been
+    // What the project's own ledger says about these checks: a check nobody has ever been
     // able to read is not a contract, however well it dry-runs against one commit.
     ...(worker.rarelyMeasurable?.length
       ? {
           rarelyMeasurable: worker.rarelyMeasurable,
-          rarelyMeasurableWarning: `these checks came back unmeasured on ${worker.rarelyMeasurable.map((c: AnyRecord) => `${c.id} (${c.rounds} rounds)`).join(", ")} of earlier runs on this kind of game — re-point them at something the build reports, or drop them`,
+          rarelyMeasurableWarning: `these checks came back unmeasured on ${worker.rarelyMeasurable.map((c: AnyRecord) => `${c.id} (${c.rounds} rounds)`).join(", ")} of earlier runs on this kind of project — re-point them at something the build reports, or drop them`,
         }
       : {}),
     ...(worker.notVerified ? { notVerified: worker.notVerified } : {}),
@@ -1139,7 +1141,7 @@ export async function startWorker(night: Night, args: AnyRecord) {
     Math.max(WORKER_MIN_MINUTES, num(args.minutes, WORKER_DEFAULT_MINUTES)) * MINUTE_MS,
     remaining,
   );
-  // What a round on this game has actually cost, against what this worker is being given.
+  // What a round on this project has actually cost, against what this worker is being given.
   const roundWarning = shortBudgetWarning(budgetMs, medianRoundMs());
   const ownsMain = yes(args.owns_main, runningWorkers().length === 0);
   const parsed = parseWorkerArgs(night, args);
@@ -1197,7 +1199,7 @@ async function chargeGoalAttempt(night: Night, goal: string): Promise<void> {
 // ── running a worker ──
 
 /**
- * A judged or stopped round, kept: the worker's own digest, the game's ledger (before anything
+ * A judged or stopped round, kept: the worker's own digest, the project's ledger (before anything
  * else can lose it: what was decided, why, what it measured, and what the builder was told),
  * what the round cost, the report and the night's log.
  */
@@ -1287,7 +1289,7 @@ async function runLoopWorker(night: Night, worker: Worker): Promise<void> {
     worktree: worker.worktree,
     handle: worker.handle,
     deadline: worker.deadline,
-    // How many rounds fit, sized from what a round on this game has actually cost. Eight
+    // How many rounds fit, sized from what a round on this project has actually cost. Eight
     // minutes was the assumption; the rounds of one real night took nine to forty-six.
     maxIterations: Math.max(
       1,

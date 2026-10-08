@@ -12,7 +12,7 @@ import type { EventData, EventEnvelope } from "../../src/substrate/types.ts";
 
 const event = (id: number, data: EventData): EventEnvelope => ({
   id: String(id).padStart(6, "0"),
-  thread_id: "game",
+  thread_id: "project",
   turn_id: null,
   session_id: null,
   created_at: new Date(id).toISOString(),
@@ -22,7 +22,7 @@ const custom = (id: number, event_type: string, payload: unknown) => event(id, {
 const user = (id: number, content: string) => event(id, { type: "messages", messages: [{ role: "user", content }] });
 const send = (clientId: string, text: string, extra: Partial<PendingSend> = {}): PendingSend => ({
   clientId,
-  threadId: "game",
+  threadId: "project",
   text,
   after: "000002",
   placement: "transcript",
@@ -87,12 +87,12 @@ test("a row written without the queue is matched by its text, once, and only aft
 });
 
 test("an acknowledged send that became a plan, or never arrived, stops showing", () => {
-  const settled = send("c1", "Plan a racing game", { settledAt: 1_000 });
+  const settled = send("c1", "Plan a racing project", { settledAt: 1_000 });
   // Plan review holds the send open for the whole plan: its first row is enough.
   assert.deepEqual(
     reconcile(
-      [send("c0", "Plan a racing game")],
-      [custom(3, "plan_review", { id: "p", state: "generating", text: "Plan a racing game" })],
+      [send("c0", "Plan a racing project")],
+      [custom(3, "plan_review", { id: "p", state: "generating", text: "Plan a racing project" })],
       1_000,
     ).expired,
     ["c0"],

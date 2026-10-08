@@ -15,7 +15,7 @@ test("historical playtest stays incomplete with unknown revision; escaping repor
       path.join(dir, "playtest.json"),
       JSON.stringify({ answers: { "director-play": { pass: null, note: "" } } }),
     );
-    const summary = summarizeRun([], "game", "run_test");
+    const summary = summarizeRun([], "project", "run_test");
     await supplementRunEvidence(summary, root);
     assert.equal(summary.evidence.length, 1);
     assert.equal(summary.evidence[0]?.head, null);
@@ -49,7 +49,7 @@ test("historical playtest stays incomplete with unknown revision; escaping repor
       "Later confirmed",
       "an earlier report cannot overwrite a later opposite answer",
     );
-    const fresh = summarizeRun([], "game", "run_test");
+    const fresh = summarizeRun([], "project", "run_test");
     await supplementRunEvidence(fresh, root);
     assert.equal(fresh.evidence.length, 1);
     assert.equal(
@@ -80,7 +80,7 @@ test("director base and final captures survive without workers or a visual quest
     await save("judge_1", "older");
     const current = await save("judge_2", "current");
     await save("judge_3", "other", "worker");
-    const summary = summarizeRun([], "game", "run_test");
+    const summary = summarizeRun([], "project", "run_test");
     summary.base = "empty-scaffold";
     summary.deliveredSourceHead = "current";
     await supplementRunEvidence(summary, root);
@@ -94,7 +94,7 @@ test("director base and final captures survive without workers or a visual quest
   }
 });
 
-test("existing games retain their starting view and a final health capture without a visual judge", async () => {
+test("existing projects retain their starting view and a final health capture without a visual judge", async () => {
   const root = await mkdtemp(path.join(tmpdir(), "run-health-captures-"));
   try {
     const run = path.join(root, "run_test"),
@@ -108,7 +108,7 @@ test("existing games retain their starting view and a final health capture witho
     await mkdir(path.join(dir, "start"), { recursive: true });
     await writeFile(path.join(dir, "start/verdict.json"), JSON.stringify({ commit: "base", shots: [{ path: start }] }));
     await writeFile(path.join(dir, "close_abcdef12/verdict.json"), JSON.stringify({ head: "abcdef123456", ok: true }));
-    const summary = summarizeRun([], "game", "run_test");
+    const summary = summarizeRun([], "project", "run_test");
     summary.deliveredSourceHead = "abcdef123456";
     await supplementRunEvidence(summary, root);
     assert.deepEqual(summary.captures, { base: await realpath(start), current: await realpath(final) });
@@ -140,7 +140,7 @@ test("a judge that agrees with a recorded visual answer lends it its note and th
         answer: { question: "Is the sign lit?", yes: true, note: "Lit from the top", camera: "top" },
       }),
     );
-    const summary = summarizeRun([], "game", "run_agree");
+    const summary = summarizeRun([], "project", "run_agree");
     summary.evidence.push({
       id: "sign",
       head: "abc",

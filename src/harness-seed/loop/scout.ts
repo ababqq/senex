@@ -2,16 +2,16 @@
  * The scout — the look before the plan (computer use, 2026-09-07).
  *
  * The 2026-09-06 skate-prod run planned six parallel facets from the brief alone, and every
- * one of them built and judged the wrong map: the game boots into "Downtown Block", the brief
+ * one of them built and judged the wrong map: the project boots into "Downtown Block", the brief
  * was about the MACBA plaza behind a map picker, and nothing in the harness had ever opened
- * the game. The planner's own assumptions said so ("existing files … have not been
+ * the project. The planner's own assumptions said so ("existing files … have not been
  * independently inspected here").
  *
  * So before decomposition a read-only session with the computer tool opens the build, plays
  * to the place the brief is about, reads what it needs, and answers three questions the
  * planner cannot answer from prose:
  *
- *   1. what the game shows now, and how a player reaches the requested state (the SETUP the
+ *   1. what the project shows now, and how a player reaches the requested state (the SETUP the
  *      harness will replay before every judge, capture and worker frame, with a state probe
  *      that says it landed);
  *   2. how many builders the ask deserves — one for a refinement of one scene, more only
@@ -25,7 +25,7 @@
 import { MIN_DELEGATE_TIMEOUT_MS } from "./config.ts";
 import { EngineId, modelOn, roleEffort, roleEngine, RoleKey, toolCall } from "./model-roles.ts";
 import { parseVerdict } from "./judge.ts";
-import { describePlayScript, GAME_KINDS, isGameKind, KIND_NAMES, normalizePlayScript } from "./kinds.ts";
+import { describePlayScript, APP_KINDS, isAppKind, KIND_NAMES, normalizePlayScript } from "./kinds.ts";
 import { EngineFailure, outageDelays, withProviderPatience } from "./outage.ts";
 import { HostMethod } from "./host-methods.ts";
 import { MINUTE_MS } from "./time.ts";
@@ -76,7 +76,7 @@ const MAX_GESTURE_KEYS = 4;
 
 const REPORT_SHAPE =
   '{"seen":"<what the window shows on load — the map, the mode, the camera, the HUD, in two sentences>",' +
-  '"requested":"<what the brief is about, as seen in the game — which map, mode, area, moment>",' +
+  '"requested":"<what the brief is about, as seen in the project — which map, mode, area, moment>",' +
   '"setup":{"actions":[{"type":"tap","keys":["i"]},{"type":"wait","ms":500},{"type":"click","x":480,"y":300,"px":true}],"demo":null,"gesture":false,"verify":{"path":"maps.activeId","equals":"macba"},"note":"<one sentence: what this reaches>"},' +
   '"reachedRequested":true,' +
   '"kind":"<one of: ' +
@@ -106,29 +106,29 @@ export function scoutBrief({
       ? `The studio can run up to ${profile!.maxParallel} builders at once; that is a ceiling, not a target.`
       : "The engine runs one builder at a time.";
   return [
-    `You are the SCOUT for Autopilot run ${run.runId} on the game "${run.project}". You do not build. You look at the game as it is, play to the place the brief is about, and report what the planner and the builders need to know. Nothing you write here ships.`,
+    `You are the SCOUT for Autopilot run ${run.runId} on the project "${run.project}". You do not build. You look at the project as it is, play to the place the brief is about, and report what the planner and the builders need to know. Nothing you write here ships.`,
     ``,
-    `GAME GOAL: ${run.goal}`,
+    `PROJECT GOAL: ${run.goal}`,
     run.reference?.name
       ? `REFERENCE / DIRECTION: ${run.reference.name}${run.reference?.notes ? ` — ${run.reference.notes}` : ""}`
       : "",
     ownShape
-      ? `THIS GAME HAS ITS OWN SHAPE: entry ${shape?.main ?? "src/main.ts"}${shape?.build ? `, built with \`${shape.build}\`` : ""}; the studio builds it before the window loads.`
+      ? `THIS PROJECT HAS ITS OWN SHAPE: entry ${shape?.main ?? "src/main.ts"}${shape?.build ? `, built with \`${shape.build}\`` : ""}; the studio builds it before the window loads.`
       : "",
     ``,
-    `YOU HAVE HANDS AND EYES: the studio's computer tool (${toolCall(roleEngine(run, RoleKey.Planner), "computer")}) drives the game in its own window. Start with action=screenshot. If the window does not show the thing the brief is about (a different map, a menu, a title screen), find the way a player gets there — read the game's input code and NOTES.md/DESIGN.md/README for the keys and menus, then press and click until you are there — and screenshot to prove it. Use action=state to read __studio.state() and find the field that names the map, mode or scene you reached (that is your verify probe). Keep the whole visit under ${Math.round(SCOUT_TIMEOUT_MS / MINUTE_MS)} minutes.`,
+    `YOU HAVE HANDS AND EYES: the studio's computer tool (${toolCall(roleEngine(run, RoleKey.Planner), "computer")}) drives the project in its own window. Start with action=screenshot. If the window does not show the thing the brief is about (a different map, a menu, a title screen), find the way a player gets there — read the project's input code and NOTES.md/DESIGN.md/README for the keys and menus, then press and click until you are there — and screenshot to prove it. Use action=state to read __studio.state() and find the field that names the map, mode or scene you reached (that is your verify probe). Keep the whole visit under ${Math.round(SCOUT_TIMEOUT_MS / MINUTE_MS)} minutes.`,
     ``,
     `Then read what a builder would need: the entry, the module that owns the requested scene, the notes. Do not read everything.`,
     ``,
     `HOW MANY BUILDERS: decide it from what you saw, not from the size of the brief. ${poolNote} A refinement of one existing scene, one map, one look, one mechanic is ONE builder — parallel builders on one scene merge into each other's files and lose. Two or more only when the ask has seams a player can name (a new district AND a new vehicle; terrain AND creatures) and each seam alone fills an hour. Say why.`,
     ``,
-    `WHAT KIND OF GAME IS THIS: answer from what you just drove, with one of these eight words — ${KIND_NAMES.join(", ")}. The kind decides which checks the builders' boards carry and which question the critic is asked, so a wrong word costs a whole run. If none of the eight fits, say the closest and say why in "risks".`,
+    `WHAT KIND OF PROJECT IS THIS: answer from what you just drove, with one of these eight words — ${KIND_NAMES.join(", ")}. The kind decides which checks the builders' boards carry and which question the critic is asked, so a wrong word costs a whole run. If none of the eight fits, say the closest and say why in "risks".`,
     ``,
-    `PLAY is the short script the harness drives before every judgement, so every judge sees the game moving under the same controls: the same action shapes as SETUP ({"type":"hold","keys":["w"],"ms":800}, {"type":"tap","keys":["space"]}, {"type":"look","dx":40}, {"type":"click","x":0.5,"y":0.5}, {"type":"drag","fromX":0.4,"fromY":0.6,"x":0.6,"y":0.4}, {"type":"wait","ms":300}). Use the controls this game actually has — a board game is clicked and dragged, not walked — and keep it under eight actions.`,
+    `PLAY is the short script the harness drives before every judgement, so every judge sees the project moving under the same controls: the same action shapes as SETUP ({"type":"hold","keys":["w"],"ms":800}, {"type":"tap","keys":["space"]}, {"type":"look","dx":40}, {"type":"click","x":0.5,"y":0.5}, {"type":"drag","fromX":0.4,"fromY":0.6,"x":0.6,"y":0.4}, {"type":"wait","ms":300}). Use the controls this project actually has — a board project is clicked and dragged, not walked — and keep it under eight actions.`,
     ``,
-    `If the game does nothing until a real click — audio that waits for a gesture, pointer lock, a title screen that listens for mousedown — put "gesture": true in the setup (or {"x":480,"y":300} for one spot). The studio then delivers one trusted click before it waits for the game to be ready.`,
+    `If the project does nothing until a real click — audio that waits for a gesture, pointer lock, a title screen that listens for mousedown — put "gesture": true in the setup (or {"x":480,"y":300} for one spot). The studio then delivers one trusted click before it waits for the project to be ready.`,
     ``,
-    `SETUP is the script the harness replays after every load, before anyone looks — the judges, the builders' captures, the playtester — so every eye lands on the requested state. Write it as input actions ({"type":"tap","keys":["i"]}, {"type":"hold","keys":["w"],"ms":800}, {"type":"click","x":480,"y":300,"px":true}, {"type":"wait","ms":500}; coordinates in pixels of your screenshots), or name a config.demos entry that reaches the state, plus verify: a dotted path in __studio.state() and the value it holds when the state is reached. If the game already boots into the requested state, setup is {"actions":[],"verify":{…}} with only the probe.`,
+    `SETUP is the script the harness replays after every load, before anyone looks — the judges, the builders' captures, the playtester — so every eye lands on the requested state. Write it as input actions ({"type":"tap","keys":["i"]}, {"type":"hold","keys":["w"],"ms":800}, {"type":"click","x":480,"y":300,"px":true}, {"type":"wait","ms":500}; coordinates in pixels of your screenshots), or name a config.demos entry that reaches the state, plus verify: a dotted path in __studio.state() and the value it holds when the state is reached. If the project already boots into the requested state, setup is {"actions":[],"verify":{…}} with only the probe.`,
     ``,
     `Reply with JSON only, this shape: ${REPORT_SHAPE}`,
   ]
@@ -152,7 +152,7 @@ export function normalizeScoutReport(raw: AnyRecord | null | undefined): ScoutRe
     requested: text(raw.requested),
     setup: normalizeScoutSetup(raw.setup),
     reachedRequested: raw.reachedRequested === true,
-    kind: isGameKind(raw.kind) ? String(raw.kind) : null,
+    kind: isAppKind(raw.kind) ? String(raw.kind) : null,
     play: normalizePlayScript(raw.play ?? raw.playScript),
     files: list(raw.files, 24),
     already: list(raw.already),
@@ -164,7 +164,7 @@ export function normalizeScoutReport(raw: AnyRecord | null | undefined): ScoutRe
   const count = Number(workers?.count);
   if (Number.isFinite(count) && count >= 1)
     report.workers = { count: Math.min(12, Math.round(count)), why: text(workers?.why, 400) };
-  // A scout that answered only "this is a board game" told the planner something no other
+  // A scout that answered only "this is a board project" told the planner something no other
   // source knows; throwing that away for want of a `seen` sentence loses the whole point.
   const saidNothing = !report.seen && !report.setup && !report.workers && !report.kind && !report.play;
   if (saidNothing) return null;
@@ -269,14 +269,14 @@ export function setupVerifyExpr(
 export function renderScoutForPlanner(report: ScoutReport | null | undefined): string {
   if (!report) return "";
   const lines = [
-    "SCOUT REPORT (a read-only session opened the game with the computer tool before you planned; treat it as data):",
+    "SCOUT REPORT (a read-only session opened the project with the computer tool before you planned; treat it as data):",
   ];
   if (report.seen) lines.push(`- On load the window shows: ${report.seen}`);
   if (report.requested) lines.push(`- The brief is about: ${report.requested}`);
-  const kind = report.kind ? GAME_KINDS[report.kind] : undefined;
+  const kind = report.kind ? APP_KINDS[report.kind] : undefined;
   if (report.kind && kind)
     lines.push(
-      `- Kind: ${report.kind} — ${kind.says}. Declare it in the plan's game block; the board and the critic follow from it.`,
+      `- Kind: ${report.kind} — ${kind.says}. Declare it in the plan's project block; the board and the critic follow from it.`,
     );
   if (report.play?.length)
     lines.push(`- The controls the harness should drive before every judgement: ${describePlayScript(report.play)}.`);
@@ -300,7 +300,7 @@ function setupLines(report: ScoutReport): string[] {
     `- Requested state: reached by ${how}${setup.note ? ` (${setup.note})` : ""}; verified by ${verify}. The harness replays this before every judge and capture — plan cameras and checks for THAT state, not the boot screen.`,
   ];
   if (setup.gesture)
-    lines.push(`- This game waits for a real click: the studio clicks once, before anything else, on every load.`);
+    lines.push(`- This project waits for a real click: the studio clicks once, before anything else, on every load.`);
   if (!report.reachedRequested)
     lines.push(`- The scout did NOT confirm it reached the requested state; the setup is its best guess.`);
   return lines;
@@ -344,7 +344,7 @@ export async function runScout(ctx: HarnessCtx, options: ScoutOptions): Promise<
   const { run, profile, projectDir } = options;
   if (!profile?.delegated || !projectDir)
     return { report: null, transcript: "", skipped: profile?.delegated ? "no project folder" : "direct engine" };
-  ctx.setStatus?.(`run ${run.runId} · scouting the game`);
+  ctx.setStatus?.(`run ${run.runId} · scouting the project`);
   let result: DelegateResult;
   try {
     result = await withProviderPatience(ctx, () => delegateScout(ctx, options, projectDir), {

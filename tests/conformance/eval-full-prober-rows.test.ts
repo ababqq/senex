@@ -40,7 +40,7 @@ import { gateFor } from "../../scripts/evals/prober/verdicts.ts";
 import { CheckResult, ProbePhase, ProbeRow, RendererMode } from "../../scripts/evals/vocabulary.ts";
 import { tmpDir } from "../helpers/tmp.ts";
 
-const GAME = "http://127.0.0.1:4173";
+const PROJECT = "http://127.0.0.1:4173";
 
 function events(overrides: Partial<PageEvents> = {}): PageEvents {
   return {
@@ -48,14 +48,14 @@ function events(overrides: Partial<PageEvents> = {}): PageEvents {
     pageErrors: [],
     network: [
       {
-        url: `${GAME}/index.html`,
+        url: `${PROJECT}/index.html`,
         method: "GET",
         status: 200,
         resourceType: "document",
         failure: null,
         startedAtMs: 0,
       },
-      { url: `${GAME}/main.js`, method: "GET", status: 200, resourceType: "script", failure: null, startedAtMs: 1 },
+      { url: `${PROJECT}/main.js`, method: "GET", status: 200, resourceType: "script", failure: null, startedAtMs: 1 },
     ],
     navigations: [],
     documentStatus: 200,
@@ -75,10 +75,10 @@ function snapshot(lastT: number, extra: Partial<InstrumentSnapshot> = {}): Instr
 }
 
 describe("audio: five answers", () => {
-  const gameplay = { reached: true, why: "the entrance was confirmed" };
+  const interaction = { reached: true, why: "the entrance was confirmed" };
   const menu = { reached: false, why: "a door was never seen to open" };
 
-  it("a WebAudio-only game fails the network row and passes the other four; the rows stay independent", () => {
+  it("a WebAudio-only project fails the network row and passes the other four; the rows stay independent", () => {
     const snap = snapshot(70_000, {
       audio: {
         contexts: [{ id: 1, t: 0, sampleRate: 48000, states: [], finalState: "running", analyserAttached: true }],
@@ -107,7 +107,7 @@ describe("audio: five answers", () => {
       },
     } as Partial<InstrumentSnapshot>);
     const rms: ProbeRms[] = Array.from({ length: 12 }, (_, i) => ({ t: i * 100, c: 1, rms: 0.01, peak: 0.02 }));
-    const rows = audioRows(audioFacts(snap, rms, events().network), gameplay);
+    const rows = audioRows(audioFacts(snap, rms, events().network), interaction);
     assert.deepEqual(
       rows.map((r) => r.id),
       [
@@ -124,23 +124,30 @@ describe("audio: five answers", () => {
     );
   });
 
-  it("A SILENT TITLE SCREEN is not a silent game: the network row is unknown until gameplay is reached", () => {
+  it("A SILENT TITLE SCREEN is not a silent project: the network row is unknown until interaction is reached", () => {
     const [network] = audioRows(audioFacts(snapshot(1000), [], events().network), menu);
     assert.equal(network.result, CheckResult.Unknown);
-    assert.match(network.detail, /gameplay was never reached/);
+    assert.match(network.detail, /interaction was never reached/);
   });
 
   it("an audio file that arrived passes the network row; one that 404ed does not", () => {
     const net = events().network.concat([
       {
-        url: `${GAME}/theme.ogg?v=1`,
+        url: `${PROJECT}/theme.ogg?v=1`,
         method: "GET",
         status: 200,
         resourceType: "media",
         failure: null,
         startedAtMs: 2,
       },
-      { url: `${GAME}/missing.mp3`, method: "GET", status: 404, resourceType: "media", failure: null, startedAtMs: 3 },
+      {
+        url: `${PROJECT}/missing.mp3`,
+        method: "GET",
+        status: 404,
+        resourceType: "media",
+        failure: null,
+        startedAtMs: 3,
+      },
     ]);
     const facts = audioFacts(snapshot(1000), [], net);
     assert.equal(facts.network.files, 1);
@@ -148,7 +155,7 @@ describe("audio: five answers", () => {
   });
 
   it("with no context, no analyser readings and no media element every other row says unknown", () => {
-    const rows = audioRows(audioFacts(null, [], []), gameplay).slice(1);
+    const rows = audioRows(audioFacts(null, [], []), interaction).slice(1);
     assert.ok(rows.every((r) => r.result === CheckResult.Unknown));
   });
 });
@@ -232,7 +239,7 @@ function logFrames(): LoggedFrame[] {
       phase: ProbePhase.Soak,
       label: `soak-${i}`,
       atMs: 1000 + i,
-      origin: GAME,
+      origin: PROJECT,
     });
     if (typeof written !== "string") frames.push(written);
   }
@@ -246,19 +253,19 @@ describe("l3.dark_phase and l3.spatially_legible", () => {
     const review = {
       files: night,
       phase: "village at night",
-      gameplayReadable: true,
+      interactionReadable: true,
       note: "paths and doors readable",
     };
     const row = darkPhaseRow(frames, 100, review);
     assert.equal(row.id, ProbeRow.L3DarkPhase);
     assert.equal(row.result, CheckResult.Pass);
     assert.equal(darkPhaseRow(frames, 100).result, CheckResult.Unknown);
-    const unreadable = darkPhaseRow(frames, 100, { ...review, gameplayReadable: false });
+    const unreadable = darkPhaseRow(frames, 100, { ...review, interactionReadable: false });
     assert.equal(unreadable.result, CheckResult.Fail);
   });
 
-  it("a named frame the probe never wrote as gameplay is unknown", () => {
-    const review = { files: ["07-boot-first-draw.png"], phase: "night", gameplayReadable: true, note: "n" };
+  it("a named frame the probe never wrote as interaction is unknown", () => {
+    const review = { files: ["07-boot-first-draw.png"], phase: "night", interactionReadable: true, note: "n" };
     assert.equal(darkPhaseRow(logFrames(), 100, review).result, CheckResult.Unknown);
   });
 
@@ -295,7 +302,7 @@ function phonePage(
   const png = encodePng(drawn ? scene() : { width: 8, height: 8, data: new Uint8Array(8 * 8 * 4).fill(30) });
   const page: PhonePage = {
     elapsedMs: () => now,
-    url: () => GAME,
+    url: () => PROJECT,
     viewport: () => ({ width: 390, height: 844 }),
     evaluate: async () => null,
     captureCanvas: async () => {
@@ -326,30 +333,30 @@ describe("l3.phone_viewport", () => {
   it("a canvas that draws at phone size passes; the centre is tapped and the frame written", async () => {
     const dir = await tmpDir("eval-full-prober-phone-");
     const { page, taps } = phonePage(CanvasState.Image, true);
-    const m = await mobilePhase(phoneBrowser(page), GAME, "init", { sleep, evidenceDir: dir });
+    const m = await mobilePhase(phoneBrowser(page), PROJECT, "init", { sleep, evidenceDir: dir });
     assert.deepEqual(taps, ["195,422"]);
     assert.ok(m.frame && fs.existsSync(m.frame) && path.dirname(m.frame) === dir);
     assert.equal(phoneViewportRow(m).result, CheckResult.Pass);
   });
 
   it("a flat canvas fails; no canvas fails; an unreadable one or a 5xx origin is unknown", async () => {
-    const flat = await mobilePhase(phoneBrowser(phonePage(CanvasState.Image, false).page), GAME, "i", {
+    const flat = await mobilePhase(phoneBrowser(phonePage(CanvasState.Image, false).page), PROJECT, "i", {
       sleep,
       evidenceDir: null,
     });
     assert.equal(phoneViewportRow(flat).result, CheckResult.Fail);
-    const none = await mobilePhase(phoneBrowser(phonePage(CanvasState.NoCanvas, false).page), GAME, "i", {
+    const none = await mobilePhase(phoneBrowser(phonePage(CanvasState.NoCanvas, false).page), PROJECT, "i", {
       sleep,
       evidenceDir: null,
     });
     assert.equal(phoneViewportRow(none).result, CheckResult.Fail);
-    const unreadable = await mobilePhase(phoneBrowser(phonePage(CanvasState.Failed, false).page), GAME, "i", {
+    const unreadable = await mobilePhase(phoneBrowser(phonePage(CanvasState.Failed, false).page), PROJECT, "i", {
       sleep,
       evidenceDir: null,
     });
     assert.equal(unreadable.canvasFound, true, "a failed capture is a canvas that could not be read, not no canvas");
     assert.equal(phoneViewportRow(unreadable).result, CheckResult.Unknown);
-    const origin = await mobilePhase(phoneBrowser(phonePage(CanvasState.Image, true, 503).page), GAME, "i", {
+    const origin = await mobilePhase(phoneBrowser(phonePage(CanvasState.Image, true, 503).page), PROJECT, "i", {
       sleep,
       evidenceDir: null,
     });
@@ -358,7 +365,7 @@ describe("l3.phone_viewport", () => {
 
   it("a driver with no phone context records that the pass could not run", async () => {
     const { page } = phonePage(CanvasState.Image, true);
-    const m = await mobilePhase({ open: async () => page, close: async () => {} }, GAME, "i", {
+    const m = await mobilePhase({ open: async () => page, close: async () => {} }, PROJECT, "i", {
       sleep,
       evidenceDir: null,
     });
@@ -390,7 +397,7 @@ describe("the page-side series log", () => {
           const doc = documents[current];
           return {
             installedAt: doc.installedAt,
-            href: GAME,
+            href: PROJECT,
             frames: doc.frames.slice(arg.fromFrame),
             rms: [],
             nextFrame: doc.frames.length,

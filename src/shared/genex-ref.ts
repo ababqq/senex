@@ -6,7 +6,7 @@
 
 export const GENEX_REF_PREFIX = "@genex/";
 
-/** A Genex reference, not a game-relative path. */
+/** A Genex reference, not a project-relative path. */
 export function isGenexRef(value: unknown): value is `@genex/${string}` {
   return typeof value === "string" && value.startsWith(GENEX_REF_PREFIX);
 }

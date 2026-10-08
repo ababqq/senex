@@ -139,9 +139,9 @@ export function checkBoundaries(root: string): string[] {
     errors: [],
     seen: new Set<string>(),
   };
-  // src/page is the studio's own code on a game's page: it may not reach the main process, the
-  // preload or the substrate any more than the renderer may. src/game-template stays out — that
-  // is a game, not the app.
+  // src/page is the studio's own code on a project's page: it may not reach the main process, the
+  // preload or the substrate any more than the renderer may. src/project-template stays out — that
+  // is a project, not the app.
   for (const dir of ["src/renderer", "src/shared", "src/page"])
     for (const file of filesBelow(path.join(root, dir), dir).filter((f: string) => SCRIPT.test(f)))
       visitBrowserFile(walk, path.join(root, file), [file]);
@@ -286,7 +286,7 @@ function stronglyConnected(graph: Map<string, string[]>): string[][] {
 }
 
 /**
- * Import cycles among the app's own sources (`src/`, without the game template, which is a game):
+ * Import cycles among the app's own sources (`src/`, without the project template, which is a project):
  * each strongly connected component of the static runtime import graph with more than one file,
  * or a file that imports itself, as a sorted list of files. Dynamic imports are left out — they
  * run after every module has loaded, so they cannot order a load.
@@ -294,7 +294,7 @@ function stronglyConnected(graph: Map<string, string[]>): string[][] {
 export function importCycles(root: string): string[][] {
   const options = compilerOptions(root);
   const files = filesBelow(path.join(root, "src"), "src").filter(
-    (f: string) => SCRIPT.test(f) && !f.startsWith("src/game-template/"),
+    (f: string) => SCRIPT.test(f) && !f.startsWith("src/project-template/"),
   );
   const graph = new Map<string, string[]>(
     files.map((f: string) => [f, [...new Set(runtimeImports(root, f, options, false).map((e) => e.to))]]),

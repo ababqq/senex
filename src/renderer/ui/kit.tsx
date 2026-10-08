@@ -4,7 +4,7 @@ import type { JSX, Ref } from "react";
 import { Icon, type IconName } from "./icons.tsx";
 import { Shortcut } from "./Shortcut.tsx";
 
-/** "Search games · ⌘K" reads as a label with its shortcut chip. */
+/** "Search projects · ⌘K" reads as a label with its shortcut chip. */
 function TipText({ text }: { text: string }): JSX.Element {
   const [name, keys] = text.split(" · ");
   return keys && /^[⌘⌃⌥⇧]/.test(keys) ? (

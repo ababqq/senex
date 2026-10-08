@@ -2,7 +2,7 @@
  * THE INTERACT VERB: KeyF (the vendored controller kit's binding), KeyE and Enter, each measured by
  * `measureVerb` under phase `interact` so its frames reach the judge for a checklist item that needs
  * it (talk to the villager, open the door). `l2.interact_acknowledged` is `pass` or `unknown` and
- * NEVER `fail`: a game may honestly have no interact verb. Being pass-or-unknown by construction, it
+ * NEVER `fail`: a project may honestly have no interact verb. Being pass-or-unknown by construction, it
  * carries `gates: false` and never decides the L2 gate.
  */
 import { CheckResult, ProbeRow } from "../../vocabulary.ts";
@@ -61,7 +61,7 @@ export function interactRow(verbs: readonly VerbAcknowledgement[], ackWindowMs: 
     return machineRow(ProbeRow.L2InteractAcknowledged, CheckResult.Pass, detail, value, false);
   }
   const detail = sent.length
-    ? `None of the interact keys that went out (${sent.join(", ")}) produced an audio change, or a pixel change that beat both the threshold and the matched control window, within ${ackWindowMs}ms.${ambientClause}${refused} A game may have no interact verb, so this is unknown and never a failure.`
+    ? `None of the interact keys that went out (${sent.join(", ")}) produced an audio change, or a pixel change that beat both the threshold and the matched control window, within ${ackWindowMs}ms.${ambientClause}${refused} A project may have no interact verb, so this is unknown and never a failure.`
     : `No interact key went out at all:${refused} Nothing here observed the interact verb, so this is unknown and never a failure.`;
   return machineRow(ProbeRow.L2InteractAcknowledged, CheckResult.Unknown, detail, value, false);
 }

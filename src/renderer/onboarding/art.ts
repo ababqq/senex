@@ -3,7 +3,7 @@
  *
  * Welcome: the sent prompt streams letter by letter onto the Planner's sheet, where a pen writes it
  * down with three tasks and ticks them off; the Workers' crane stacks blocks; the Reviewers' screen
- * plays the prompt's game (a space shooter), a scan passes and a stamp lands. Every second round the
+ * plays the prompt's project (a space shooter), a scan passes and a stamp lands. Every second round the
  * stamp is a ✕: the screen glitches, redraws, is scanned again and passes.
  * Connect: the Claude Code and Codex marks, extruded, rocking over their buttons.
  * Local: a chip whose pins and layers fill while a model downloads.
@@ -639,7 +639,7 @@ function orient(p: Vec3, spin: number, tilt: number, r: number, c: Vec3): Vec3 {
   return [c[0] + x * r, c[1] + y * r, c[2] + z2 * r];
 }
 
-/** The game's scrolling floor grid and its drifting stars. */
+/** The project's scrolling floor grid and its drifting stars. */
 function spaceField(I: Scene, t: number) {
   for (let i = 0; i < 9; i++) {
     const gz = -3 + ((i / 9 + t * 0.5) % 1) * 4.5;
@@ -748,7 +748,7 @@ function blast(I: Scene, t: number, sy: number) {
   }
 }
 
-/** The prompt's game: a ship weaves through tumbling asteroids and blasts the one ahead. */
+/** The prompt's project: a ship weaves through tumbling asteroids and blasts the one ahead. */
 function space(t: number): Scene & { cam: Camera } {
   const I = scene();
   spaceField(I, t);
@@ -831,7 +831,7 @@ interface JudgeBeat {
   /** The scan line's height on the screen (0 to 1), or -1 with no scan. */
   scanV: number;
   glitch: boolean;
-  /** How much of the game is drawn, left to right (0 to 1). */
+  /** How much of the project is drawn, left to right (0 to 1). */
   reveal: number;
   /** The screen frame's tone: accent, green on a pass, orange while it fails. */
   frameC: Tone;
@@ -902,13 +902,13 @@ function monitor(S: Scene, frameC: Tone) {
 
 /** A point on the screen's face, from its lower-left corner (0 to 1 across and up). */
 const onScreen = (u: number, v: number): Vec3 => [-1.6 + 3.2 * u, 0.55 + 1.9 * v, 0.045];
-/** The game's picture on the screen: its middle's height and its half-width and half-height. */
+/** The project's picture on the screen: its middle's height and its half-width and half-height. */
 const PICTURE = { middle: 1.5, halfWidth: 1.57, halfHeight: 0.92 } as const;
-/** A point of the game's projected picture, placed on the screen. */
+/** A point of the project's projected picture, placed on the screen. */
 const inPicture = (x: number, y: number): Vec3 => [x, PICTURE.middle - y, 0.045];
 
-/** One of the game's lines, projected, jittered while it glitches and clipped to the picture drawn so far. */
-function gameLine(S: Scene, ln: Line, idx: number, cam: Camera, t: number, glitch: boolean, right: number) {
+/** One of the project's lines, projected, jittered while it glitches and clipped to the picture drawn so far. */
+function appLine(S: Scene, ln: Line, idx: number, cam: Camera, t: number, glitch: boolean, right: number) {
   const { halfWidth: HX, halfHeight: HY } = PICTURE;
   const jit = glitch ? 0.14 * Math.sin(idx * 12.9 + t * 47) : 0,
     col = glitch ? 4 : ln.c;
@@ -932,14 +932,14 @@ function gameLine(S: Scene, ln: Line, idx: number, cam: Camera, t: number, glitc
   }
 }
 
-/** The game, played with its own camera on the screen: glitched while it fails, redrawn left to right after. */
-function gameOnScreen(S: Scene, t: number, beat: JudgeBeat) {
+/** The project, played with its own camera on the screen: glitched while it fails, redrawn left to right after. */
+function projectOnScreen(S: Scene, t: number, beat: JudgeBeat) {
   const { halfWidth: HX, halfHeight: HY } = PICTURE;
   const right = -HX + 2 * HX * beat.reveal;
   const G = space(t),
     cam = G.cam;
   const inside = (q: Vec3) => q[0] > -HX && q[0] < right && q[1] > -HY && q[1] < HY;
-  G.L.forEach((ln, idx) => gameLine(S, ln, idx, cam, t, beat.glitch, right));
+  G.L.forEach((ln, idx) => appLine(S, ln, idx, cam, t, beat.glitch, right));
   if (!beat.glitch)
     for (const fl of G.F) {
       const q = fl.p.map((p) => project(p, cam));
@@ -985,7 +985,7 @@ function stamp(S: Scene, f: number, ev: Stamp) {
 
 /**
  * Judges: the screen plays the build, a scan sweeps it and a stamp lands. Every second round the
- * stamp is a ✕: the screen glitches, redraws, is scanned again and passes. The game is its own
+ * stamp is a ✕: the screen glitches, redraws, is scanned again and passes. The project is its own
  * 3D scene, projected with its own camera onto the screen.
  */
 function judges(t: number): Scene {
@@ -993,7 +993,7 @@ function judges(t: number): Scene {
   const beat = judgeBeat(t);
   monitor(S, beat.frameC);
   S.L.push({ c: 2, k: 0.3, p: [onScreen(0, 0), onScreen(1, 0), onScreen(1, 1), onScreen(0, 1), onScreen(0, 0)] });
-  gameOnScreen(S, t, beat);
+  projectOnScreen(S, t, beat);
   scanLine(S, beat.scanV);
   for (const ev of beat.stamps) stamp(S, beat.f, ev);
   return S;

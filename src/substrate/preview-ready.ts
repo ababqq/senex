@@ -2,7 +2,7 @@
  * Booted means booted (M4.3).
  *
  * The studio used to guess: every load slept a flat 1.5 s and then photographed whatever was
- * on the glass. A game that boots asynchronously — a GLB loader, a Vite bundle that attaches
+ * on the glass. A project that boots asynchronously — a GLB loader, a Vite bundle that attaches
  * after its assets arrive, a WebGPU renderer awaiting `requestAdapter`, a top-level await —
  * was judged on its loading screen and told its contract was missing. This module waits for a
  * fact instead, bounded by the folder's own `bootMs`.
@@ -70,7 +70,7 @@ function numericValue(value: unknown): number {
 /**
  * ONE boot budget. `studio.json`'s `bootMs`, clamped — the shim's own hard bound and the
  * studio's poll are both resolved from this call, so they expire together. Without that, a
- * game declaring 30 s has the shim give up at its own default and the studio polls a
+ * project declaring 30 s has the shim give up at its own default and the studio polls a
  * permanently-false signal for the remaining 22 seconds.
  */
 export function bootBudget(bootMs?: unknown): number {
@@ -132,7 +132,7 @@ const NO_GESTURE = { needed: false, done: false, reasons: [] as string[] };
  *
  * The fallback for a page the shim never reached tests a REAL contract: `window.__studio`
  * present, `__shim !== true`, and a `state()` that answers something other than `{__missing}`.
- * The shim's own merging facade must never be mistaken for a game's contract, or every page
+ * The shim's own merging facade must never be mistaken for a project's contract, or every page
  * would report itself attached and the whole premise would collapse.
  */
 export const READY_PROBE = `(() => {
@@ -186,7 +186,7 @@ export const READY_PROBE = `(() => {
         drawCalls: 0,
         pageMs: null,
         timedOut: false,
-        reason: threw ? "the game's state() threw: " + threw : has ? null : "the game's state() reports nothing yet",
+        reason: threw ? "the project's state() threw: " + threw : has ? null : "the project's state() reports nothing yet",
         gesture: noGesture
       };
     }

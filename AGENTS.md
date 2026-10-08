@@ -1,11 +1,11 @@
 # Developing Genex
 
-If your working directory is under `.studio-dev/profiles/`, you are an in-app game builder in a
-development profile: ignore this file and follow your game's own `CLAUDE.md`.
+If your working directory is under `.studio-dev/profiles/`, you are an in-app project builder in a
+development profile: ignore this file and follow your project's own `CLAUDE.md`.
 
 This repository is the macOS Electron application. You are its external developer; the
-editable in-app game-building harness is a separate agent with narrower authority.
-`src/harness-seed/**` and `src/game-template/**` (including `src/game-template/CLAUDE.md`) are
+editable in-app project-building harness is a separate agent with narrower authority.
+`src/harness-seed/**` and `src/project-template/**` (including `src/project-template/CLAUDE.md`) are
 product payload addressed to in-app agents: edit them as product text, don't follow them.
 The user's request and assigned issue own scope. Maintained topic docs describe current
 behavior; resolve conflicts against the implementation and fix the owning doc.
@@ -25,10 +25,10 @@ historical task records at startup.
 
 - The renderer is a browser: no Node, Electron, main, preload or substrate imports. It talks
   only through the fixed named calls in `src/shared/studio-api.ts`.
-- Every spawned agent or game process goes through ProcessSandbox.
+- Every spawned agent or project process goes through ProcessSandbox.
 - Seed upgrades keep the in-app agent's harness edits.
 - Every new IPC channel is classified fixture-safe or native in `src/main/dev/native-policy.ts`.
-- Preserve the normal profile and `~/AI Games`; use owned `studio:dev` profiles. Automated
+- Preserve the normal profile and `~/AI Projects`; use owned `studio:dev` profiles. Automated
   checks use disposable fixtures. A request to run the real app for manual testing authorizes
   a visible live profile; “no mocks” must never select fixtures. Leave human sessions running.
   Live profiles retain provider-account/Keychain and usage semantics: isolation of app data
@@ -57,7 +57,7 @@ when relevant.
 
 ## Engineering foundations
 
-- Safety: no destructive git on user folders without a game snapshot. Validate host RPC path
+- Safety: no destructive git on user folders without a project snapshot. Validate host RPC path
   parameters by realpath. Quote shell arguments with `shellQuote`.
 - Tests prove behavior. Copy or spacing edits do not need new tests.
 - Contracts live in `src/shared` (IPC channel map, UiEventMap, CustomEventMap, HarnessHostApi);
@@ -81,7 +81,7 @@ when relevant.
   pure modules; storage keys come from `renderer/storage.ts`.
 - Helpers live next to their domain (`substrate/paths.ts`, `substrate/fsx.ts`,
   `shared/errors.ts`, `shared/redact.ts`); no `utils`, `constants` or `types` dumping folders.
-- One table per vocabulary (asset formats in `shared/game-assets.ts`, plugin ids in
+- One table per vocabulary (asset formats in `shared/project-assets.ts`, plugin ids in
   `shared/plugin-id.ts`). Never decide behavior by matching English text; use typed codes and
   fields.
 
@@ -161,4 +161,4 @@ incidental verification step.
   or release unless explicitly asked. Verification or merging authorizes none of these, nor
   workspace cleanup.
 - Don't reference local-only documents (knowledge-map `localOnly`) from tracked files.
-- Don't overwrite normal games, profiles, credentials or harness edits.
+- Don't overwrite normal projects, profiles, credentials or harness edits.

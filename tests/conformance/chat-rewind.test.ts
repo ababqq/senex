@@ -32,7 +32,7 @@ import type { EventData, EventEnvelope } from "../../src/substrate/types.ts";
 
 const event = (id: number, data: EventData): EventEnvelope => ({
   id: String(id).padStart(6, "0"),
-  thread_id: "game",
+  thread_id: "project",
   turn_id: null,
   session_id: null,
   created_at: new Date(id).toISOString(),
@@ -226,7 +226,7 @@ test("a withdrawn range keeps the rows it names in keep", () => {
 
 test("a question asked before the message keeps its answer; one asked after it leaves whole", () => {
   const ask = (id: string, requestId: string, state: string) =>
-    between(id, "tool_permission", { requestId, project: "p", threadId: "game", tool: "Bash", state });
+    between(id, "tool_permission", { requestId, project: "p", threadId: "project", tool: "Bash", state });
   const events = conversation();
   const asked = [
     ...events.slice(0, 10),
@@ -465,20 +465,20 @@ test("a rewind settles what the chat was waiting on in notifications", () => {
 });
 
 test("a plan review reaching into what leaves goes whole, and an approved plan gives back only the request", () => {
-  const approved = "Make a racing game\n\nUser-approved implementation plan:\n1. Track\n\nProceed with this plan.";
+  const approved = "Make a racing project\n\nUser-approved implementation plan:\n1. Track\n\nProceed with this plan.";
   const events = [
-    custom(1, "plan_review", { id: "r1", state: "waiting", text: "Make a racing game", plan: "1. Track" }),
-    custom(2, "plan_review", { id: "r1", state: "starting", text: "Make a racing game" }),
+    custom(1, "plan_review", { id: "r1", state: "waiting", text: "Make a racing project", plan: "1. Track" }),
+    custom(2, "plan_review", { id: "r1", state: "starting", text: "Make a racing project" }),
     user(3, approved),
     custom(4, "coordinator_message_queued", { messageId: "a", action: { text: approved } }),
     custom(5, "coordinator_message_processing", { messageId: "a" }),
-    custom(6, "plan_review", { id: "r1", state: "approved", text: "Make a racing game" }),
+    custom(6, "plan_review", { id: "r1", state: "approved", text: "Make a racing project" }),
     reply(7, "Building the track."),
     custom(8, "coordinator_message_handled", { messageId: "a" }),
   ];
   const planned = planRewind(events, [], "a");
   assert.ok(planned.ok);
-  assert.equal(planned.text, "Make a racing game");
+  assert.equal(planned.text, "Make a racing project");
   assert.deepEqual(planned.reviews, ["r1"]);
   assert.deepEqual(ids(withoutRewound(events, [planned.rewind])), [], "no review is left reading as starting");
 });
@@ -572,10 +572,10 @@ test("the dialog says in one line why only the conversation rewinds, and offers 
       stays,
     ),
     [
-      "Only the conversation rewinds: a build changed the game after this message, so its files stay as they are.",
-      "A build is running. Rewinding stops it and cuts off any answer under way; the game’s files stay as they are.",
-      "Only the conversation rewinds: a commit changed the game after this message, so its files stay as they are.",
-      "Only the conversation rewinds: there’s no saved copy of the game from before this message.",
+      "Only the conversation rewinds: a build changed the project after this message, so its files stay as they are.",
+      "A build is running. Rewinding stops it and cuts off any answer under way; the project’s files stay as they are.",
+      "Only the conversation rewinds: a commit changed the project after this message, so its files stay as they are.",
+      "Only the conversation rewinds: there’s no saved copy of the project from before this message.",
       "Only the conversation rewinds: this message joined an answer already under way, so there’s no saved copy from just before it.",
       "Only the conversation rewinds: the files that changed were too large to save.",
     ],
@@ -583,7 +583,7 @@ test("the dialog says in one line why only the conversation rewinds, and offers 
   assert.equal(rewindFilesWords({ state: "none" }).line, "Only the conversation rewinds.");
   assert.equal(
     rewindFilesWords({ state: "unchanged", nested: [] }).line,
-    "The game files haven’t changed since this message.",
+    "The project files haven’t changed since this message.",
   );
   const restore: Extract<RewindFiles, { state: "restore" }> = {
     state: "restore",
@@ -604,7 +604,7 @@ test("the dialog says in one line why only the conversation rewinds, and offers 
   assert.equal(restoresByDefault({ state: "unavailable", reason: "build-running" }), true, "no switch to start off");
   assert.deepEqual(
     [rewindBusyLabel(true), rewindBusyLabel(false), REWIND_WORDS.rewind, REWIND_WORDS.restoreFiles],
-    ["Stopping the build…", "Rewinding…", "Rewind chat", "Restore game files"],
+    ["Stopping the build…", "Rewinding…", "Rewind chat", "Restore project files"],
   );
 });
 
@@ -612,7 +612,7 @@ test("the rewind fixture chat offers Rewind on every bubble, and its build-follo
   const lite = await coreLite();
   try {
     await seedRewindChat(lite.core);
-    const thread = await lite.core.threadForGame("rewind-chat");
+    const thread = await lite.core.threadForProject("rewind-chat");
     const events = await lite.core.store.listEvents(thread);
     const bubbles = events.filter((e) => e.data.type === "messages" && e.data.messages.some((m) => m.role === "user"));
     const offered = rewindableMessages(events);

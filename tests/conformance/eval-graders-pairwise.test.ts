@@ -48,7 +48,7 @@ const evalCase: EvalCase = {
   id: "synthetic-pair",
   number: 91,
   label: "synthetic pair",
-  brief: "A synthetic brief for a pair of games.",
+  brief: "A synthetic brief for a pair of projects.",
   mode: CaseMode.Build,
   exposure: CaseExposure.None,
   exposureReason: null,
@@ -71,7 +71,7 @@ async function sideEvidence(root: string, side: string, count: number): Promise<
   }
   await writeFile(path.join(root, `${side}-console.txt`), `${side} console`);
   return {
-    gameOrigin: ORIGIN,
+    projectOrigin: ORIGIN,
     frames,
     consoleSummaryPath: `${side}-console.txt`,
     networkSummaryPath: `${side}-console.txt`,

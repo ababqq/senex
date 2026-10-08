@@ -71,10 +71,10 @@ function resultGateWords(gate: GatePoint, graph: RunGraphModel): { title: string
   if (gate.gate === Gate.Waiting)
     return {
       title: GATE_LABEL[Gate.Waiting],
-      line: line || "It runs, but no reviewer compared it with the game you had.",
+      line: line || "It runs, but no reviewer compared it with the project you had.",
     };
   return {
-    title: gate.gate === Gate.Kept ? "Reviewers preferred it" : "Reviewers preferred the game you had",
+    title: gate.gate === Gate.Kept ? "Reviewers preferred it" : "Reviewers preferred the project you had",
     line: line || "",
   };
 }

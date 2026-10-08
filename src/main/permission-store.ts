@@ -1,6 +1,6 @@
 /**
- * Permission store: the mode a new game chat starts in and the "always allow" rules saved for
- * each game. Host-only: the file lives under engine-homes, which Claude Code's file tools may
+ * Permission store: the mode a new project chat starts in and the "always allow" rules saved for
+ * each project. Host-only: the file lives under engine-homes, which Claude Code's file tools may
  * neither read nor edit in any mode, the harness sandbox cannot reach, and no RPC names. (A shell
  * command a chat's session runs has the person's own access, which is what Bypass means.) Missing
  * or damaged, it reads as the defaults; writes are atomic and queued one after another.
@@ -18,7 +18,7 @@ import { atomicWriteJson } from "../substrate/fsx.ts";
 const STORE_VERSION = 1;
 /** A rule is Claude Code's own syntax; anything longer than this is not one a person granted. */
 const RULE_MAX = 2000;
-const RULES_PER_GAME = 500;
+const RULES_PER_PROJECT = 500;
 const PROJECT_MAX = 200;
 
 /** Why a change is refused. */
@@ -54,12 +54,12 @@ function cleanRules(value: unknown): string[] {
     const rule = cleanRule(item);
     if (rule === null || rules.includes(rule)) continue;
     rules.push(rule);
-    if (rules.length >= RULES_PER_GAME) break;
+    if (rules.length >= RULES_PER_PROJECT) break;
   }
   return rules;
 }
 
-/** Each game's rules the file holds, cleaned; games with none are left out. */
+/** Each project's rules the file holds, cleaned; projects with none are left out. */
 function parseRules(rules: unknown): Map<string, string[]> {
   const parsed = new Map<string, string[]>();
   if (!rules || typeof rules !== "object" || Array.isArray(rules)) return parsed;
@@ -145,7 +145,7 @@ export class PermissionStore {
     return [...((await this.#load()).rules.get(project) ?? [])];
   }
 
-  /** Save "always allow" rules for a game: new ones go last, repeats are ignored. Returns the game's rules. */
+  /** Save "always allow" rules for a project: new ones go last, repeats are ignored. Returns the project's rules. */
   async addRules(project: string, rules: string[]): Promise<string[]> {
     if (!validProject(project)) throw new Error(MESSAGE.invalidProject);
     const added = cleanRules(rules);
@@ -158,7 +158,7 @@ export class PermissionStore {
     });
   }
 
-  /** Stop allowing one saved rule. False when the game had no such rule. */
+  /** Stop allowing one saved rule. False when the project had no such rule. */
   async forget(project: string, rule: string): Promise<boolean> {
     if (!(await this.rules(project)).includes(rule)) return false;
     return this.#update((state) => {

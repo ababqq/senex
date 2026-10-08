@@ -1,5 +1,5 @@
 /**
- * Stop and Play on the stage strip: Stop takes the person's game off Live so it stops costing the
+ * Stop and Play on the stage strip: Stop takes the person's project off Live so it stops costing the
  * machine anything, Play brings the same page back. Both reach Live's own view, one operation at
  * a time with its loads, and never the harness's stand-in.
  */
@@ -17,7 +17,7 @@ function livePort({ stoppable = true } = {}) {
     calls: [] as string[],
     async load(project: string, entry: string) {
       port.calls.push("load");
-      return `game://${project}/${entry}`;
+      return `project://${project}/${entry}`;
     },
     async reload() {
       port.calls.push("reload");
@@ -43,8 +43,11 @@ function livePort({ stoppable = true } = {}) {
 async function stage(
   port: ReturnType<typeof livePort>,
 ): Promise<{ lite: CoreLite; ipc: (channel: string) => Promise<IpcResult> }> {
-  const lite = await coreLite({ preview: port as never, gamesRoot: await realpath(await tmpDir("studio-live-stop-")) });
-  await lite.core.games.scaffold("pong");
+  const lite = await coreLite({
+    preview: port as never,
+    projectsRoot: await realpath(await tmpDir("studio-live-stop-")),
+  });
+  await lite.core.projects.scaffold("pong");
   await lite.core.loadPreview({ project: "pong" });
   const listeners = new Map<string, (event: IpcSender, payload: unknown) => Promise<IpcResult>>();
   const handle = createIpcHandle(

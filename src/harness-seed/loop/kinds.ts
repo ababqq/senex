@@ -1,21 +1,21 @@
 /**
- * What kind of game this is — the one table nobody re-decides.
+ * What kind of project this is — the one table nobody re-decides.
  *
- * Until this file the harness knew one game: the template's first-person walker. Every board
+ * Until this file the harness knew one project: the template's first-person walker. Every board
  * carried its screen rules, every input check read `player.x`/`player.z`/`player.yaw`, every
- * judge was told a place is what it is looking at, and a game the user brought — a chess board,
+ * judge was told a place is what it is looking at, and a project the user brought — a chess board,
  * a builder, a side-scroller — failed checks about a player it does not have and collected
  * `[dead-input]` reports for controls it was never asked to answer.
  *
- * So a game says what it is. A kind carries five things and nothing else:
+ * So a project says what it is. A kind carries five things and nothing else:
  *
  *  - `traits`: what the harness may assume (a HUD drawn into the canvas, mouse look, keys that
  *    move a player). EVERY trait is off until something declares it: a plan that says nothing
  *    gets a board with no screen rule, no look check and no movement check;
- *  - `look` / `move`: the state paths the two input checks read, so a top-down game is measured
+ *  - `look` / `move`: the state paths the two input checks read, so a top-down project is measured
  *    on the axes it actually moves on;
  *  - `eyes`: whether an eye camera (the player's own view) is worth photographing;
- *  - `critic`: `place` for a world a player walks through, `screen` for a game that is a screen
+ *  - `critic`: `place` for a world a player walks through, `screen` for a project that is a screen
  *    to read (a board, a side-on level);
  *  - `script`: the controls the harness drives before every judgement, so two builds are
  *    compared on the same inputs and the judge is told which ones.
@@ -29,7 +29,7 @@ import { SECOND_MS } from "./time.ts";
 import { isPlainRecord } from "./json.ts";
 import { MAX_ACTION_MS, MAX_PLAY_SCRIPT } from "./config.ts";
 import type { AnyRecord, HarnessCtx } from "../types/harness.d.ts";
-import type { GameImageRead } from "../types/host-api.d.ts";
+import type { ProjectImageRead } from "../types/host-api.d.ts";
 
 /** The play-script cap lives with the loop's other shared numbers (config.ts); exported here too, for the files that import it from here. */
 export { MAX_PLAY_SCRIPT } from "./config.ts";
@@ -41,11 +41,11 @@ const WAIT_DEFAULT_MS = 100;
 const CAMERA_NAME_CHARS = 60;
 /** The most keys one tap or hold may press together. */
 const MAX_ACTION_KEYS = 8;
-/** How much of who declared the game (`declaredBy`) studio.json keeps. */
+/** How much of who declared the project (`declaredBy`) studio.json keeps. */
 const DECLARED_BY_CHARS = 80;
 
-/** A kind of game: the phrase a judge is given, and what the harness does for it. */
-export interface GameKind {
+/** A kind of project: the phrase a judge is given, and what the harness does for it. */
+export interface AppKind {
   says: string;
   traits: { hud: boolean; mouseLook: boolean; keyboardMove: boolean };
   look: string[];
@@ -56,18 +56,18 @@ export interface GameKind {
 }
 
 /**
- * The traits a game may declare, each of which puts the harness's own check for it on the board.
+ * The traits a project may declare, each of which puts the harness's own check for it on the board.
  * studio.json and plans keep them by these names: never rename a value.
  */
-export const GameTrait = {
+export const AppTrait = {
   Hud: "hud",
   MouseLook: "mouseLook",
   KeyboardMove: "keyboardMove",
 } as const;
-export type GameTrait = (typeof GameTrait)[keyof typeof GameTrait];
+export type AppTrait = (typeof AppTrait)[keyof typeof AppTrait];
 
-/** What the harness may assume about a game, every trait decided. */
-export interface GameTraits {
+/** What the harness may assume about a project, every trait decided. */
+export interface AppTraits {
   kind: string | null;
   hud: boolean;
   mouseLook: boolean;
@@ -82,7 +82,7 @@ export interface InputProbe {
   note: string;
 }
 
-/** The controls a keyboard-moved game is driven with when it declares no script of its own. */
+/** The controls a keyboard-moved project is driven with when it declares no script of its own. */
 const KEYS_EXERCISE: PlayAction[] = [
   { type: "hold", keys: ["w", "ArrowUp"], ms: 1200 },
   { type: "hold", keys: ["a", "ArrowLeft"], ms: 800 },
@@ -96,7 +96,7 @@ const RACING_EXERCISE: PlayAction[] = [
 ];
 
 // The look action is not decoration: flight names a look axis, so a plan that declares
-// `mouseLook: true` on a flight game must have something for the check to measure.
+// `mouseLook: true` on a flight project must have something for the check to measure.
 const FLIGHT_EXERCISE: PlayAction[] = [
   { type: "hold", keys: ["w", "ArrowUp"], ms: 1200 },
   { type: "look", dx: 40, dy: -12 },
@@ -124,9 +124,9 @@ const CAMERA_EXERCISE: PlayAction[] = [
 ];
 
 /** The eight kinds. `says` is the phrase every judge is given; the rest is what the harness does. */
-export const GAME_KINDS: Record<string, GameKind> = {
+export const APP_KINDS: Record<string, AppKind> = {
   "first-person": {
-    says: "a first-person game — the camera is the player's own eyes",
+    says: "a first-person project — the camera is the player's own eyes",
     traits: { hud: true, mouseLook: true, keyboardMove: true },
     look: ["player.yaw"],
     move: ["player.x", "player.z"],
@@ -135,7 +135,7 @@ export const GAME_KINDS: Record<string, GameKind> = {
     script: CONTROL_EXERCISE,
   },
   "third-person": {
-    says: "a third-person game — a camera behind a character the player steers",
+    says: "a third-person project — a camera behind a character the player steers",
     traits: { hud: true, mouseLook: true, keyboardMove: true },
     look: ["player.yaw"],
     move: ["player.x", "player.z"],
@@ -144,9 +144,9 @@ export const GAME_KINDS: Record<string, GameKind> = {
     script: CONTROL_EXERCISE,
   },
   "top-down": {
-    says: "a top-down game — the camera looks down on a world the player moves through",
-    // A top-down game is 3D-isometric on x/z as often as it is 2D on x/y; one expression
-    // covers both, so nobody has to guess which one this game chose.
+    says: "a top-down project — the camera looks down on a world the player moves through",
+    // A top-down project is 3D-isometric on x/z as often as it is 2D on x/y; one expression
+    // covers both, so nobody has to guess which one this project chose.
     traits: { hud: true, mouseLook: false, keyboardMove: true },
     look: [],
     move: ["player.x", "player.y", "player.z"],
@@ -155,7 +155,7 @@ export const GAME_KINDS: Record<string, GameKind> = {
     script: KEYS_EXERCISE,
   },
   "side-2d": {
-    says: "a side-on game — one plane, seen from the side",
+    says: "a side-on project — one plane, seen from the side",
     traits: { hud: false, mouseLook: false, keyboardMove: true },
     look: [],
     move: ["player.x", "player.y"],
@@ -164,7 +164,7 @@ export const GAME_KINDS: Record<string, GameKind> = {
     script: SIDE_EXERCISE,
   },
   racing: {
-    says: "a racing game — a vehicle the player drives along a course",
+    says: "a racing project — a vehicle the player drives along a course",
     traits: { hud: true, mouseLook: false, keyboardMove: true },
     look: [],
     move: ["player.x", "player.z", "player.y"],
@@ -173,7 +173,7 @@ export const GAME_KINDS: Record<string, GameKind> = {
     script: RACING_EXERCISE,
   },
   flight: {
-    says: "a flight game — a craft the player pitches and turns through open space",
+    says: "a flight project — a craft the player pitches and turns through open space",
     traits: { hud: true, mouseLook: false, keyboardMove: true },
     look: ["player.pitch", "player.yaw"],
     move: ["player.x", "player.y", "player.z"],
@@ -182,8 +182,8 @@ export const GAME_KINDS: Record<string, GameKind> = {
     script: FLIGHT_EXERCISE,
   },
   "static-board": {
-    says: "a board game on one screen — pieces on a board, not a world a player walks through",
-    // No HUD rule: a board game's interface is the most likely of all to be real DOM or React,
+    says: "a board project on one screen — pieces on a board, not a world a player walks through",
+    // No HUD rule: a board project's interface is the most likely of all to be real DOM or React,
     // and the template's canvas-only screen rule would fail it for existing.
     traits: { hud: false, mouseLook: false, keyboardMove: false },
     look: [],
@@ -193,7 +193,7 @@ export const GAME_KINDS: Record<string, GameKind> = {
     script: BOARD_EXERCISE,
   },
   "free-camera": {
-    says: "a free-camera game — the player orbits and builds rather than walks",
+    says: "a free-camera project — the player orbits and builds rather than walks",
     traits: { hud: false, mouseLook: false, keyboardMove: false },
     look: [],
     move: [],
@@ -204,20 +204,20 @@ export const GAME_KINDS: Record<string, GameKind> = {
 };
 
 /** The eight names, in the order a planner should read them. */
-export const KIND_NAMES = Object.keys(GAME_KINDS);
+export const KIND_NAMES = Object.keys(APP_KINDS);
 
-export function isGameKind(value: unknown): value is string {
-  return typeof value === "string" && Object.hasOwn(GAME_KINDS, value);
+export function isAppKind(value: unknown): value is string {
+  return typeof value === "string" && Object.hasOwn(APP_KINDS, value);
 }
 
 /**
- * What the harness may assume about a game. Absent fields default to OFF — a plan that
+ * What the harness may assume about a project. Absent fields default to OFF — a plan that
  * declares nothing gets a board with no screen rule and no input checks. A declared kind IS a
  * declaration and supplies that kind's traits; an explicit boolean beside it still wins.
  */
-export function normalizeGameTraits(raw: AnyRecord | null | undefined): GameTraits {
-  const kind = isGameKind(raw?.kind) ? String(raw!.kind) : null;
-  const base = kind ? GAME_KINDS[kind]!.traits : { hud: false, mouseLook: false, keyboardMove: false };
+export function normalizeAppTraits(raw: AnyRecord | null | undefined): AppTraits {
+  const kind = isAppKind(raw?.kind) ? String(raw!.kind) : null;
+  const base = kind ? APP_KINDS[kind]!.traits : { hud: false, mouseLook: false, keyboardMove: false };
   const flag = (value: unknown, fallback: boolean): boolean => (typeof value === "boolean" ? value : fallback);
   return {
     kind,
@@ -289,7 +289,7 @@ const PLAY_ACTIONS = new Set<string>(Object.keys(ACTIONS));
 /**
  * A declared play script, as the harness will drive it. `step`, `pause`, `start` and
  * `screenshot` are dropped on purpose: the studio owns the clock and the evidence, and a plan
- * must not pause the game in the middle of the pass that judges it.
+ * must not pause the project in the middle of the pass that judges it.
  */
 export function normalizePlayScript(raw: unknown): PlayAction[] | null {
   let source = raw;
@@ -320,13 +320,13 @@ function normalizeAction(raw: AnyRecord): PlayAction | null {
 }
 
 /**
- * The controls the harness drives before this game is judged. Null-safe on purpose: evidence
- * is gathered from many places that have no declared game at all — the build smoke, the
+ * The controls the harness drives before this project is judged. Null-safe on purpose: evidence
+ * is gathered from many places that have no declared project at all — the build smoke, the
  * director's own first look, a spike, the classic loop — and every one of them must keep
  * working exactly as it does today.
  */
-export function playScriptFor(game: { playScript?: unknown; kind?: string | null } | null | undefined): PlayAction[] {
-  return normalizePlayScript(game?.playScript) ?? GAME_KINDS[game?.kind as string]?.script ?? CONTROL_EXERCISE;
+export function playScriptFor(app: { playScript?: unknown; kind?: string | null } | null | undefined): PlayAction[] {
+  return normalizePlayScript(app?.playScript) ?? APP_KINDS[app?.kind as string]?.script ?? CONTROL_EXERCISE;
 }
 
 /** The play script in words, so a judge knows which controls were driven before it looked. */
@@ -382,43 +382,43 @@ function seconds(ms: unknown): string {
 }
 
 /**
- * The one sentence every judge is given about the game in front of it: what kind it is, which
+ * The one sentence every judge is given about the project in front of it: what kind it is, which
  * controls the harness drove before the shots were taken, and which state paths are the
  * evidence that those controls reached something.
  *
- * The retraction matters as much as the description. A board game and a builder have no player
+ * The retraction matters as much as the description. A board project and a builder have no player
  * the studio can measure, so an empty input-evidence list would invite exactly the
  * `[dead-input]` report this line exists to prevent: it says the class does not apply.
  */
-export function gameLine(game: AnyRecord | null | undefined): string {
-  const traits = normalizeGameTraits(game);
-  const kind = traits.kind ? GAME_KINDS[traits.kind] : null;
+export function appLine(app: AnyRecord | null | undefined): string {
+  const traits = normalizeAppTraits(app);
+  const kind = traits.kind ? APP_KINDS[traits.kind] : null;
   const script = playScriptFor(traits);
   const drove = describePlayScript(script);
   const drives = drove ? ` Before every judgement the harness drives the same controls: ${drove}.` : "";
   if (!kind) {
     if (!traits.playScript) return "";
-    return `GAME: nothing declared what kind of game this is.${drives}`;
+    return `PROJECT: nothing declared what kind of project this is.${drives}`;
   }
   const paths = [...kind.look, ...kind.move];
   // `kind && look.length === 0 && move.length === 0` — the shape of this test is the whole
-  // point: a game with no measurable player must be told about, not given an empty list.
+  // point: a project with no measurable player must be told about, not given an empty list.
   if (paths.length === 0) {
-    return `GAME: ${kind.says}.${drives} This game has no player the studio can measure, so the artefact class [dead-input] does not apply — do not report it.`;
+    return `PROJECT: ${kind.says}.${drives} This project has no player the studio can measure, so the artefact class [dead-input] does not apply — do not report it.`;
   }
-  return `GAME: ${kind.says}.${drives} The input evidence is ${paths.join(", ")} in __studio.state() — report [dead-input] only if those are unchanged.`;
+  return `PROJECT: ${kind.says}.${drives} The input evidence is ${paths.join(", ")} in __studio.state() — report [dead-input] only if those are unchanged.`;
 }
 
-/** `place` for a world a player walks through, `screen` for a game that is a screen to read. */
-export function criticFor(game: AnyRecord | null | undefined): string {
-  const kind = normalizeGameTraits(game).kind;
-  return GAME_KINDS[kind as string]?.critic ?? "place";
+/** `place` for a world a player walks through, `screen` for a project that is a screen to read. */
+export function criticFor(app: AnyRecord | null | undefined): string {
+  const kind = normalizeAppTraits(app).kind;
+  return APP_KINDS[kind as string]?.critic ?? "place";
 }
 
 /**
- * The template's own axes — what an undeclared game is still measured on, and what a declared
+ * The template's own axes — what an undeclared project is still measured on, and what a declared
  * kind with no axis of its own falls back to. Written `abs(delta(path)) > 0` for the reason
- * given below lookProbe: a game that reports no player must not pass an identity check.
+ * given below lookProbe: a project that reports no player must not pass an identity check.
  */
 const TEMPLATE_PROBES: { look: InputProbe; move: InputProbe } = {
   look: {
@@ -440,17 +440,17 @@ const TEMPLATE_PROBES: { look: InputProbe; move: InputProbe } = {
  * dropping the check: "declare mouseLook: true" is the documented remedy for a mouse-steered
  * racer, and a remedy that silently does nothing is worse than no remedy.
  */
-export function inputProbesFor(game: AnyRecord | null | undefined): { look: InputProbe; move: InputProbe } {
-  const kind = normalizeGameTraits(game).kind;
-  const entry = kind ? GAME_KINDS[kind] : null;
+export function inputProbesFor(app: AnyRecord | null | undefined): { look: InputProbe; move: InputProbe } {
+  const kind = normalizeAppTraits(app).kind;
+  const entry = kind ? APP_KINDS[kind] : null;
   return {
     look: entry?.look.length ? lookProbe(entry.look) : TEMPLATE_PROBES.look,
     move: entry?.move.length ? moveProbe(entry.move) : TEMPLATE_PROBES.move,
   };
 }
 
-// `abs(delta(path)) > 0` and not `delta(path) != 0`: an axis the game does not report reads
-// undefined, and `undefined != 0` is true — the check would pass on a game with no player at all.
+// `abs(delta(path)) > 0` and not `delta(path) != 0`: an axis the project does not report reads
+// undefined, and `undefined != 0` is true — the check would pass on a project with no player at all.
 function lookProbe(paths: string[]): InputProbe {
   return {
     paths,
@@ -468,24 +468,24 @@ function moveProbe(paths: string[]): InputProbe {
 }
 
 /** Whether an eye camera — the player's own view — is worth photographing for this kind. */
-export function wantsEyeCameras(game: AnyRecord | null | undefined): boolean {
-  const kind = normalizeGameTraits(game).kind;
-  // An undeclared game keeps today's behaviour: the eyes are looked for, and a game that has
+export function wantsEyeCameras(app: AnyRecord | null | undefined): boolean {
+  const kind = normalizeAppTraits(app).kind;
+  // An undeclared project keeps today's behaviour: the eyes are looked for, and a project that has
   // none simply reports none.
-  return GAME_KINDS[kind as string]?.eyes ?? true;
+  return APP_KINDS[kind as string]?.eyes ?? true;
 }
 
 /**
- * The third declaration source: the `game` block inside the game's own studio.json. The
+ * The third declaration source: the `project` block inside the project's own studio.json. The
  * top-level `kind` there is the project SHAPE (three-modules, three-vite) and is never read
- * as a game kind.
+ * as a project kind.
  */
-export async function readDeclaredGame(ctx: HarnessCtx, project: string): Promise<GameTraits | null> {
+export async function readDeclaredApp(ctx: HarnessCtx, project: string): Promise<AppTraits | null> {
   const meta = await readStudioJson(ctx, project);
-  const block = meta?.json?.game;
+  const block = meta?.json?.app ?? meta?.json?.game;
   if (!block || typeof block !== "object") return null;
-  const game = normalizeGameTraits(block);
-  return game.kind || game.playScript ? game : null;
+  const app = normalizeAppTraits(block);
+  return app.kind || app.playScript ? app : null;
 }
 
 /**
@@ -493,13 +493,13 @@ export async function readDeclaredGame(ctx: HarnessCtx, project: string): Promis
  * the user's; every key it already has survives, and a studio.json that cannot be read or
  * parsed is left exactly as it is rather than replaced by ours.
  */
-export async function writeDeclaredGame(
+export async function writeDeclaredApp(
   ctx: HarnessCtx,
   project: string,
-  game: AnyRecord | null | undefined,
+  app: AnyRecord | null | undefined,
   { from = "the plan" }: { from?: string } = {},
-): Promise<{ written: boolean; reason?: string; game?: AnyRecord }> {
-  const traits = normalizeGameTraits(game);
+): Promise<{ written: boolean; reason?: string; app?: AnyRecord }> {
+  const traits = normalizeAppTraits(app);
   if (!traits.kind && !traits.playScript) return { written: false, reason: "nothing was declared" };
   const meta = await readStudioJson(ctx, project);
   if (!isPlainRecord(meta?.json)) {
@@ -513,24 +513,24 @@ export async function writeDeclaredGame(
     ...(traits.playScript ? { playScript: traits.playScript } : {}),
     declaredBy: String(from).slice(0, DECLARED_BY_CHARS),
   };
-  const current = meta.json.game;
+  const current = meta.json.app;
   if (current && JSON.stringify(current) === JSON.stringify(block)) return { written: false, reason: "unchanged" };
-  const contents = `${JSON.stringify({ ...meta.json, game: block }, null, 2)}\n`;
+  const contents = `${JSON.stringify({ ...meta.json, app: block }, null, 2)}\n`;
   try {
-    await ctx.call(HostMethod.GameWrite, { project, file: "studio.json", contents });
+    await ctx.call(HostMethod.ProjectWrite, { project, file: "studio.json", contents });
   } catch (err: any) {
     return {
       written: false,
       reason: `studio.json could not be written: ${clip(String(err?.message ?? err), CLIP_QUOTE)}`,
     };
   }
-  return { written: true, game: block };
+  return { written: true, app: block };
 }
 
 async function readStudioJson(ctx: HarnessCtx, project: string): Promise<{ json: any } | null> {
-  let text: string | GameImageRead;
+  let text: string | ProjectImageRead;
   try {
-    text = await ctx.call(HostMethod.GameRead, { project, file: "studio.json" });
+    text = await ctx.call(HostMethod.ProjectRead, { project, file: "studio.json" });
   } catch {
     return null;
   }
