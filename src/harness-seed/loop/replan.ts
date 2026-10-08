@@ -293,7 +293,7 @@ export function defectClass(text: unknown): string | null {
 /**
  * Ask the planner for the next structural move on a facet whose identity holds and whose
  * milestone ladder is climbed (or was never written). The answer is one change to what the
- * game IS — its extent, a system, a mechanic, where the player goes next, the UI — never a
+ * project IS — its extent, a system, a workflow, where the user goes next, the screens — never a
  * material, lighting or parameter tweak; the defect ledger already covers those. Returns
  * `{ what, why, check|null }` or null when the planner has nothing usable.
  */

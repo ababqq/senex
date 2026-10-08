@@ -9,7 +9,7 @@ import { tmpDir } from "../helpers/tmp.ts";
 describe("named paths in chat", () => {
   it("extracts the absolute folder Simeon typed, quoted or bare", () => {
     const home = "/Users/alex";
-    const named = "/Users/alex/coding/blame-megastructure-game/ref";
+    const named = "/Users/alex/coding/blame-megastructure-project/ref";
     assert.deepEqual(extractCandidatePaths(`I put reference in ${named} folder.`, home, "darwin"), [named]);
     assert.deepEqual(extractCandidatePaths(`'${named}' refs in this folder inside our root lol`, home, "darwin"), [
       named,
@@ -23,8 +23,8 @@ describe("named paths in chat", () => {
     const home = "C:\\Users\\Simeon";
     const named = "C:\\Users\\Simeon\\coding\\blame\\ref";
     assert.deepEqual(extractCandidatePaths(`I put reference in ${named} folder.`, home, "win32"), [named]);
-    assert.deepEqual(extractCandidatePaths(`"D:\\Games\\My Game\\ref" has the stills`, home, "win32"), [
-      "D:\\Games\\My Game\\ref",
+    assert.deepEqual(extractCandidatePaths(`"D:\\Projects\\My Project\\ref" has the stills`, home, "win32"), [
+      "D:\\Projects\\My Project\\ref",
     ]);
     assert.deepEqual(extractCandidatePaths("see c:/Users/Simeon/coding/rift/ref.", home, "win32"), [
       "c:\\Users\\Simeon\\coding\\rift\\ref",
@@ -40,17 +40,17 @@ describe("named paths in chat", () => {
     const home = "/Users/alex";
     assert.equal(isTooBroad(home, home), true);
     assert.equal(isTooBroad(`${home}/coding`, home), true);
-    assert.equal(isTooBroad(`${home}/coding/blame-megastructure-game`, home), false);
+    assert.equal(isTooBroad(`${home}/coding/blame-megastructure-project`, home), false);
   });
 
   it("a stills folder names its parent as the workspace to open", async () => {
     const root = await tmpDir("named-paths-");
-    const game = path.join(root, "blame-megastructure-game");
-    const ref = path.join(game, "ref");
+    const project = path.join(root, "blame-megastructure-project");
+    const ref = path.join(project, "ref");
     await mkdir(ref, { recursive: true });
     await writeFile(path.join(ref, "main.png"), Buffer.from("png"));
     const named = await resolveNamedPaths(`refs in ${ref}`, { home: os.homedir() });
-    assert.equal(named.workspace, await realpath(game));
+    assert.equal(named.workspace, await realpath(project));
     assert.ok(named.stillRoots.some((dir) => dir.endsWith(`${path.sep}ref`)));
     assert.ok(named.stillFiles.some((file) => file.endsWith(`${path.sep}main.png`)));
   });

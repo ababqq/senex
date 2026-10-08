@@ -650,7 +650,7 @@ function finallyJudged(judged: LastJudge | null, head: string | null): boolean {
  * ended the night and however fast the user wanted it. Judging was the lead's choice, and every
  * prompt of a hurried night (the wrap-up, the user's finish, the goal card) sent it straight to
  * finish, so builds went live with no judge having looked. A build the user had a picture of is
- * compared blind with it; a new game, or one whose start nobody could photograph, is asked whether
+ * compared blind with it; a new project, or one whose start nobody could photograph, is asked whether
  * it shows what the user asked for. It looks through the studio's window when every other is
  * taken, its calls end by `FINAL_JUDGE_MS` (and with the user's Stop), and its word is kept as
  * every judge's is (`state.lastJudge`, a judge verdict), for the landing's claim.
@@ -687,7 +687,7 @@ const playWords = (pass: boolean | null | undefined) => {
 /**
  * The playtester is a session of its own, and the studio allows one session per folder: the
  * director's own session lives in the integration worktree — or, for a lead that is its chat's
- * own session, in the game folder — so a playtest of the folder it sits in gets a worktree of its
+ * own session, in the project folder — so a playtest of the folder it sits in gets a worktree of its
  * own at the same commit (a night once had every playtest of the integrated build refused for
  * this), and so does one of integration, which a merge may move under it. Answers the folder to
  * play in, or the refusal.
@@ -716,7 +716,7 @@ async function playFolder(
 
 /**
  * Why a folder with uncommitted changes cannot be played from a copy of its commit, or null once it
- * is clean: the game folder a lead sits in is the user's own; a director with its own hands commits
+ * is clean: the project folder a lead sits in is the user's own; a director with its own hands commits
  * first; and for a lead that writes nothing the studio sets aside what no worker made in the
  * integration worktree (lead-session.ts `setAsideStrays`).
  */
@@ -857,7 +857,7 @@ export async function show(night: Night, args: AnyRecord) {
       ...(target.root !== projectDir ? { root: target.root } : {}),
     });
     await appendRun(RunEvent.DirectorShow, { target: target.label, root: target.root });
-    const what = target.root === projectDir ? "the game folder" : target.label;
+    const what = target.root === projectDir ? "the project folder" : target.label;
     return `Live's Reload now offers ${what}: the user sees it when they press it`;
   } catch (err: any) {
     return `could not show ${target.label}: ${err?.message ?? err}`;
@@ -958,7 +958,7 @@ function addRung(worker: Worker, moveText: string): { rung: AnyRecord } | { refu
     };
   const climbed = worker.spec.milestones ?? [];
   const milestone = normalizeMilestone({ what: moveText }, climbed.length);
-  if (!milestone) return { refusal: "move: one sentence saying what the game IS after this iteration" };
+  if (!milestone) return { refusal: "move: one sentence saying what the project IS after this iteration" };
   // The same sentence twice is a new rung, not the one already climbed.
   const id = climbed.some((m: { id: string }) => m.id === milestone.id)
     ? `${milestone.id}-${climbed.length + 1}`

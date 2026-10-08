@@ -120,7 +120,7 @@ async function engineWithLogin(queryFn: never): Promise<ClaudeCodeEngine> {
 
 const successRun = [
   { type: "system", subtype: "init", model: "claude-sonnet-5", tools: ["Read", "Write", "Bash"] },
-  { type: "assistant", message: { content: [{ type: "text", text: "Scaffolding the game." }] } },
+  { type: "assistant", message: { content: [{ type: "text", text: "Scaffolding the project." }] } },
   {
     type: "assistant",
     message: { content: [{ type: "tool_use", name: "Write", id: "tu_1", input: { file_path: "src/main.js" } }] },
@@ -206,7 +206,7 @@ describe("claude code delegated engine", () => {
     assert.equal(result.sessionId, "clean-stop");
   });
 
-  it("runs a brief in the game workspace and mirrors events for the log", async () => {
+  it("runs a brief in the project workspace and mirrors events for the log", async () => {
     const root = await tmpDir("studio-engine-");
     const home = path.join(root, "claude-home");
     // A login the studio owns: created here so the engine pins its own config home.
@@ -222,8 +222,8 @@ describe("claude code delegated engine", () => {
     const events: Array<{ type: string; payload: unknown }> = [];
 
     const result = await engine.delegate({
-      prompt: "Build a pong game. Follow CLAUDE.md in this workspace.",
-      cwd: "/tmp/game-workspace",
+      prompt: "Build a pong project. Follow CLAUDE.md in this workspace.",
+      cwd: "/tmp/project-workspace",
       onEvent: (event) => events.push(event),
     });
 
@@ -237,7 +237,7 @@ describe("claude code delegated engine", () => {
     // Its own credential home — we never hold the subscription token.
     const call = seen[0] as { cwd: string; permissionMode: string; env: Record<string, string> };
     assert.deepEqual(await engine.resolveLogin(), { source: "isolated", home });
-    assert.equal(call.cwd, "/tmp/game-workspace");
+    assert.equal(call.cwd, "/tmp/project-workspace");
     assert.equal(call.permissionMode, "acceptEdits");
     assert.equal(
       (call as unknown as { pathToClaudeCodeExecutable: string }).pathToClaudeCodeExecutable,
@@ -583,7 +583,7 @@ describe("claude code delegated engine", () => {
     });
     const result = await engine.delegate({
       prompt: "research first",
-      cwd: "/tmp/game-workspace",
+      cwd: "/tmp/project-workspace",
       interviewTools: [tool("start_autopilot"), tool("ask_user")],
     });
     assert.equal(seen.length, 1);
@@ -596,7 +596,7 @@ describe("claude code delegated engine", () => {
     for (const request of requests) {
       const { fn, seen } = fakeQuery(successRun);
       const engine = await engineWithLogin(fn);
-      await engine.delegate({ prompt: "look", cwd: "/tmp/game-workspace", ...request } as never);
+      await engine.delegate({ prompt: "look", cwd: "/tmp/project-workspace", ...request } as never);
       const call = seen[0] as Record<string, unknown>;
       assert.equal((call.allowedTools as string[]).includes("WebSearch"), false, JSON.stringify(request));
       const banned = call.disallowedTools as string[];
@@ -605,26 +605,26 @@ describe("claude code delegated engine", () => {
   });
 
   /**
-   * One session: a waking night's lead is its chat's own session, resumed in the game folder where
+   * One session: a waking night's lead is its chat's own session, resumed in the project folder where
    * that session lives, with the integration worktree it leads readable and no hands of its own.
    */
-  it("resumes a read-only lead in the game folder, with the build it leads readable and nothing to write with", async () => {
+  it("resumes a read-only lead in the project folder, with the build it leads readable and nothing to write with", async () => {
     const { fn, seen } = fakeQuery(successRun);
     const engine = await engineWithLogin(fn);
-    const game = "/tmp/game-workspace";
+    const project = "/tmp/project-workspace";
     const build = "/tmp/studio-scratch/autopilot/run_lead/integration";
     await engine.delegate({
       prompt: "lead the night",
-      cwd: game,
+      cwd: project,
       readOnly: true,
       resume: "chat-session",
       extraReads: [path.dirname(build)],
-      director: { runId: "run_lead", threadId: "t", project: "game", root: build, chatSession: true },
+      director: { runId: "run_lead", threadId: "t", project: "project", root: build, chatSession: true },
       liveTools: [],
       onLiveTool: async () => "",
     });
     const call = seen[0] as Record<string, unknown>;
-    assert.equal(call.cwd, game, "the chat's own session, where it lives");
+    assert.equal(call.cwd, project, "the chat's own session, where it lives");
     assert.equal(call.resume, "chat-session");
     const banned = call.disallowedTools as string[];
     for (const tool of ["Write", "Edit", "Bash"]) assert.ok(banned.includes(tool), `${tool} is not the lead's`);
@@ -775,7 +775,7 @@ describe("claude code delegated engine", () => {
     });
     let result;
     try {
-      result = await engine.delegate({ prompt: "build", cwd: "/tmp/game-workspace", effort: "high" });
+      result = await engine.delegate({ prompt: "build", cwd: "/tmp/project-workspace", effort: "high" });
     } finally {
       delete process.env.ANTHROPIC_API_KEY;
     }
@@ -869,19 +869,19 @@ describe("claude code delegated engine", () => {
     const engine = await engineWithLogin(fn);
     await engine.delegate({
       prompt: "build",
-      cwd: "/tmp/game-workspace",
+      cwd: "/tmp/project-workspace",
       extraReads: ["/tmp/stills/blame"],
-      denyReads: ["/tmp/sibling-game"],
+      denyReads: ["/tmp/sibling-project"],
     });
     const call = seen[0] as Record<string, unknown>;
     assert.deepEqual(call.additionalDirectories, [path.resolve("/tmp/stills/blame")]);
     const deny = (call.settings as { permissions: { deny: string[] } }).permissions.deny;
     // Flipped (permissions port): an absolute deny takes Claude Code's double slash.
     assert.deepEqual(
-      deny.filter((rule) => rule.includes("sibling-game")),
-      [absoluteRule("Read", "/tmp/sibling-game")],
+      deny.filter((rule) => rule.includes("sibling-project")),
+      [absoluteRule("Read", "/tmp/sibling-project")],
     );
-    if (process.platform !== "win32") assert.ok(deny.includes("Read(//tmp/sibling-game/**)"));
+    if (process.platform !== "win32") assert.ok(deny.includes("Read(//tmp/sibling-project/**)"));
     assert.ok(!deny.some((rule) => rule.includes("stills")));
   });
 
@@ -1079,7 +1079,7 @@ describe("claude code delegated engine", () => {
   });
 
   it("shows tool inputs relative to the workspace, not as absolute paths", () => {
-    const cwd = "/Users/someone/Library/Application Support/AI Game Studio/workspaces/games/hi";
+    const cwd = "/Users/someone/Library/Application Support/AI Game Studio/workspaces/projects/hi";
     const compacted = compactSdkMessage(
       {
         type: "assistant",
@@ -1602,7 +1602,7 @@ describe("the modeller on claude code (AG-930)", () => {
   it("exposes mcp__studio__blender__model only when the studio granted it, inside the one studio server", async () => {
     const plain = fakeQuery(successRun);
     const engine = await engineWithLogin(plain.fn);
-    await engine.delegate({ prompt: "build", cwd: "/tmp/game-workspace" });
+    await engine.delegate({ prompt: "build", cwd: "/tmp/project-workspace" });
     assert.deepEqual(
       (plain.seen[0] as Record<string, unknown>).allowedTools,
       // Flipped (step 1): the pinned list now ends with the web tools.
@@ -1615,7 +1615,7 @@ describe("the modeller on claude code (AG-930)", () => {
 
     await withTool.delegate({
       prompt: "build",
-      cwd: "/tmp/game-workspace",
+      cwd: "/tmp/project-workspace",
       liveTools: [
         {
           name: "blender__model",
@@ -1649,7 +1649,7 @@ describe("a connector's tool on claude code (PR4)", () => {
     const seen: Array<{ name: string; args: Record<string, unknown> }> = [];
     await engine.delegate({
       prompt: "build",
-      cwd: "/tmp/game-workspace",
+      cwd: "/tmp/project-workspace",
       // Exactly what McpRegistry.toolsFor returns: the flat projection for old readers, and the
       // server's own JSON Schema beside it for the one consumer that can use it.
       liveTools: [
@@ -1724,7 +1724,7 @@ describe("a failed studio tool on claude code (P06-F7)", () => {
     });
     await engine.delegate({
       prompt: "build",
-      cwd: "/tmp/game-workspace",
+      cwd: "/tmp/project-workspace",
       liveTools: [spec("boom"), spec("refused"), spec("fine")],
       onLiveTool: async (name) => {
         if (name === "boom") throw new Error("the page is gone");

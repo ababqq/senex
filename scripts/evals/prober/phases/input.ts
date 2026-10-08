@@ -1,7 +1,7 @@
 /**
  * The input phase: short bursts of the inputs a player tries first (movement keys, jump, a mouse
  * drag), each measured in its own sampler window against the no-input baseline, with the camera read
- * before and after. A frame is taken after every burst; those are the quick probe's gameplay frames.
+ * before and after. A frame is taken after every burst; those are the quick probe's interaction frames.
  */
 import { SECOND_MS } from "../../../../src/shared/duration.ts";
 import { ProbePhase } from "../../vocabulary.ts";

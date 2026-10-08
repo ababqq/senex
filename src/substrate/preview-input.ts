@@ -1,7 +1,7 @@
 /**
  * Preview HID — keys, clicks, look — as a plain data plan.
  *
- * Electron's `sendInputEvent` lives in {@link GamePreview}; this file is the mapping and the
+ * Electron's `sendInputEvent` lives in {@link ProjectPreview}; this file is the mapping and the
  * caps, so tests can exercise "W means KeyW" without a window.
  */
 import type { PreviewInputAction } from "../shared/preview-contract.ts";

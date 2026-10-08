@@ -1,0 +1,41 @@
+{
+  "id": "data.survives-a-reload",
+  "title": "What a person entered is still there after a reload",
+  "tags": [
+    "persist",
+    "storage",
+    "localstorage",
+    "indexeddb",
+    "reload",
+    "save",
+    "data",
+    "state",
+    "restore",
+    "autosave",
+    "refresh"
+  ],
+  "checkClass": "survives-reload",
+  "kind": "craft",
+  "pack": "data",
+  "appKinds": ["form-flow", "list-manager", "editor", "utility", "dashboard"],
+  "note": "Data is saved as it changes and restored on load; a refresh never loses work.",
+  "intent": "Losing what you entered is the failure people remember. Save to localStorage or IndexedDB as the data changes (not only on a Save button), restore it on load before the first render, version the stored shape so an old save does not crash a new build, and handle a corrupt or missing save by starting empty and saying so. Seed fixtures only when storage is empty, and keep them local (no network). Declare a demo named `reload-keeps-data` that adds an item, rebuilds the store from storage exactly as a page load would, and returns how many items there were before and after.",
+  "sketch": "demos: {\n  \"reload-keeps-data\": () => {\n    store.add({ title: \"Buy milk\" });\n    const before = store.items().length;\n    const reloaded = createStore(localStorage); // what a page load does\n    return { before, after: reloaded.items().length };\n  },\n}\n",
+  "check": {
+    "id": "survives-reload",
+    "kind": "demo",
+    "name": "reload-keeps-data",
+    "expr": "before > 0 && after == before",
+    "weight": "normal",
+    "note": "The demo `reload-keeps-data` adds an item and rebuilds the store from storage: result.after equals result.before and is above zero."
+  },
+  "port": "One store module owns persistence: `store.save()` after each mutation and `store.load()` at boot; components never touch storage.",
+  "evidence": [],
+  "stats": {
+    "applied": 0,
+    "wins": 0,
+    "losses": 0
+  },
+  "status": "candidate",
+  "origin": "seed"
+}

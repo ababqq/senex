@@ -1,6 +1,6 @@
 # Evals
 
-The offline eval harness measures how well Genex and the raw coding CLIs build a frozen game
+The offline eval harness measures how well Genex and the raw coding CLIs build a frozen project
 brief. It runs four lanes (the Genex app or a raw CLI, on Claude or Codex), measures every lane
 with one instrument, grades every lane with the same lane-neutral graders, and appends one
 closed-schema, metrics-only row per run to a local append-only ledger. Code lives in
@@ -108,18 +108,18 @@ the CLIs the raw lanes resolve; a fixture spec pins none.
 Before writing anything, main refuses with exit 78 and `eval lane refused (<code>)` when the launch
 is not a smoke launch or is a developer launch (`dev-launch`), the spec is invalid, a live spec
 lacks `STUDIO_ALLOW_LIVE_CREDENTIAL_CHECKS=1`, the mode is `bypassPermissions`, or any root it
-writes resolves outside `spec.workRoot` (the lane root) or inside `~/AI Games` or the normal
-profile. Games live in `spec.gamesRoot`, the only allowed project root; background improvement
+writes resolves outside `spec.workRoot` (the lane root) or inside `~/AI Projects` or the normal
+profile. Projects live in `spec.projectsRoot`, the only allowed project root; background improvement
 is off.
 
 `runEvalLane` checks the engine is ready and lists the model, turns off the spec's
-`disabledPlugins` as the Plugins panel's switch does and reads each back, opens a fresh game chat
+`disabledPlugins` as the Plugins panel's switch does and reads each back, opens a fresh project chat
 in the pinned permission mode, sends the brief and suffix with the commission, answers each `ask_user`
 question with the policy sentence and approves plan reviews (up to `maxAnswers`), and waits for
 idle on two consecutive polls. At the deadline it asks a running build to finish; at deadline
 plus grace it takes Stop and ends as `deadline`. `lane-report.json` records the launch path and
 budgets, run ids, the permission mode and mode served, questions and answers, the harness digest
-against the shipped seed, the template digest taken when the app seeded the game, the first
+against the shipped seed, the template digest taken when the app seeded the project, the first
 preview proxy, CLI versions, every installed plugin with whether it was on at the end, and errors. Exit is 0 when the lane reported, 1 when it failed.
 
 The runner types the app's failures like a raw lane's: an engine that was not ready is
@@ -178,7 +178,7 @@ another home; `campaign run` and grading refuse with the same line.
 `evals/cases.md` holds the public cases, parsed by `scripts/evals/cases.ts`. A case opens with
 `## C<n> · `id` — label`, needs `**Exposure:** none | dev-tuned (<reason>)`, and may set `Mode`
 (build, edit-existing, follow-up, long-horizon), `Visibility`, `Deadline`, `Follow-ups` and
-`Start from` (one folder under `tests/fixtures/evals/games/`). The brief is the first blockquote;
+`Start from` (one folder under `tests/fixtures/evals/projects/`). The brief is the first blockquote;
 `**Acceptance:**` is a fence of `[ ] text <- "phrase"` items with exactly one `**Control:**`
 item, an absurd claim no honest grader passes. `version` is sha256[:12] of the case's own block
 and `checklistVersion` the same over its checklist, so editing another case never moves it. A
@@ -191,7 +191,7 @@ first baseline. Private holdouts live in `$GENEX_EVALS_HOME/cases-private.md`, e
 marked holdout; holdout rows never enter Git or an export.
 
 Anti-fitting is a static check: `npm run check:isolation` (in `check:static` and CI, public
-cases only) scans the seed, the game template, plugin skills and `*-prompts.ts` for any 7-word
+cases only) scans the seed, the project template, plugin skills and `*-prompts.ts` for any 7-word
 brief shingle or traced checklist phrase of 4 or more words; `--with-holdouts` adds the private
 cases locally.
 
@@ -213,7 +213,7 @@ blocks from it. A missing measurement is never zero: a pin is a value, `{unavail
 | `context` | Peak and compactions |
 | `calls` | Model calls, and tool calls by `ToolCategory` (`src/shared/eval-lane.ts`: read, search, edit, shell, build, install, browser, studio, subagent, web, planning, skill, other) |
 | `cost.apiEquivalentUsd` | Tokens priced by `evals/prices.json`; one unpriced model makes it `unavailable: price-unknown` |
-| `outcome`, `output` | How the run ended, harness failure, typed no-build, questions, trace completeness, provider noise; `validateGameDir` of the stop-time snapshot, `verifiedBeforeDone` |
+| `outcome`, `output` | How the run ended, harness failure, typed no-build, questions, trace completeness, provider noise; `validateProjectDir` of the stop-time snapshot, `verifiedBeforeDone` |
 
 Claude calls are counted once per `message.id`. Tokens are normalized per engine by one rule
 the app's field rows share (`normalizedTokens` in `src/shared/eval-lane.ts`): Codex input, which
@@ -270,7 +270,7 @@ calibration covering the current prober version, grader prompt sha and grader mo
 holder touches it every minute; a waiter breaks it only when the holder is gone or its heartbeat
 stopped for 30 minutes, atomically (renamed aside, then checked again).
 
-- **Snapshots.** A watcher clones the game folder every 30 s when it changed (APFS clonefile;
+- **Snapshots.** A watcher clones the project folder every 30 s when it changed (APFS clonefile;
   `node_modules` and `.git` skipped; symlinks stay links) into `snapshots/<seq>-<atMs>/` with an
   `index.jsonl`, and always takes a read-only `final` clone at stop. The stop-time snapshot
   decides the typed no-build: `template-untouched` against the lane's template digest,
@@ -280,7 +280,7 @@ stopped for 30 minutes, atomically (renamed aside, then checked again).
   `builds/<appSha>/dist/resources/vendor` (the run is skipped as `app-build-missing` when that
   build is gone), and to the checkout's `dist/resources/vendor` for raw runs and calibration;
   `grade`, `regrade` and `calibrate` refuse `vendor-missing` (exit 2) until `npm run build` has
-  put three.js there. A game with a build script is rebuilt in a writable copy inside
+  put three.js there. A project with a build script is rebuilt in a writable copy inside
   ProcessSandbox, each step writing only its copy and the npm cache: `npm ci --ignore-scripts`
   with network to registry.npmjs.org only, then `npm run build` offline. A failed rebuild, or an
   output folder outside the copy (`../dist`, an absolute path, a linked `dist`), is unknown, never
@@ -298,7 +298,7 @@ stopped for 30 minutes, atomically (renamed aside, then checked again).
   asks for a new calibration and regrades.
 - **Quick probe** (`grade/quick-probe.ts`, `PROBER_VERSION` in `scripts/evals/prober/types.ts`):
   boot within the first-draw timeout, a 3 s idle baseline, the entrance judged by witnesses (never
-  a pixel diff), a 4 s gameplay baseline and seven input bursts. It answers the eight quick rows
+  a pixel diff), a 4 s interaction baseline and seven input bursts. It answers the eight quick rows
   with a 20 s error window. Headless Chromium uses ANGLE Metal, falling back to SwiftShader; the
   renderer is read back and frame-rate rows never gate on software.
 - **Full prober** (`prober/full-probe.ts`, phases in `prober/phases/`): the quick phases, then
@@ -309,7 +309,7 @@ stopped for 30 minutes, atomically (renamed aside, then checked again).
 - **Checklist grader** (`grade/checklist/`): one acceptance item per call, `VERDICT: YES|NO`, "if
   the evidence does not show it, NO". Two families, `claude-sonnet-5-5` and `gpt-6.1-sol` at low
   effort, three votes each; families combine by conjunction and are never summed. Evidence is at
-  most 8 gameplay frames on the game's origin plus 4 kB console and network summaries; a typed
+  most 8 interaction frames on the project's origin plus 4 kB console and network summaries; a typed
   no-build or fewer than 2 witnessed frames skips the judge. A family passing the control voids
   the grade (`graderVoid: control-passed`).
 - **Pairwise judge** (`grade/pairwise.ts`, rubric `grade/pairwise-prompt.md`): per case and rep,
@@ -567,7 +567,7 @@ and `campaign run` over the four lanes, `grade --quick` with fixture graders (ev
 functions under a synthetic calibration, never a model), `report`, `validate-ledger` and the
 guard; then a version campaign of `fixture-genex` on a base build and a candidate with a
 boot-breaking defect, where `check` must exit regression (2) or probable (3). The runner writes
-the calibration game into the game the app seeded, since fixture engines never edit one. Probing
+the calibration project into the project the app seeded, since fixture engines never edit one. Probing
 uses Playwright's Chromium when it launches, else a typed `scripted` stand-in (`--scripted-probe`
 forces it). It needs a logged-in macOS GUI session; evidence goes to
 `.studio-dev/evidence/eval-fixture/<stamp>/`. It is a local or dispatched runner, not a CI job.
@@ -584,7 +584,7 @@ five-minute rows read `unknown`); both set `STUDIO_BROWSER_TESTS=1`.
 - The live path has not run: the six spikes need the owner's live opt-in. S1: eval homes and
   complete Codex host-skill suppression (whether `codex exec` accepts the suppression flags in
   leaf position). S2: raw Claude in `auto` with the eval home and the Codex lead's sandbox
-  settings. S3: template games boot without a shim (grades pin `shimMode: none`). S4: Lane A runs
+  settings. S3: template projects boot without a shim (grades pin `shimMode: none`). S4: Lane A runs
   headless with zero clicks. S5: Chromium with ANGLE Metal on Apple Silicon (without it, probes fall back
   to SwiftShader and frame-rate rows do not gate). S6: stream facts on the
   installed CLIs; until then a Codex auth or quota failure ends as `crash`, not a typed failure.

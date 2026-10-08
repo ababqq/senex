@@ -43,10 +43,10 @@ async function turnRig(replies: FakeReply[]): Promise<Rig> {
 describe("turn loop", () => {
   it("materialises the prompt from the event log, including tool results", async () => {
     const rig = await turnRig([
-      { toolCalls: [{ id: "c1", name: "list_games", arguments: {} }], text: "Checking." },
-      { text: "There are no games yet." },
+      { toolCalls: [{ id: "c1", name: "list_projects", arguments: {} }], text: "Checking." },
+      { text: "There are no projects yet." },
     ]);
-    await rig.core.sendUserMessage("what games exist?");
+    await rig.core.sendUserMessage("what projects exist?");
     await waitForLog(rig.core, (log) => log.some((e) => e.data.type === "turn_ended"), 30_000, "turn_ended");
 
     const completions = rig.server.requests.filter((r) => r.path.startsWith("/v1/chat/completions"));
@@ -68,7 +68,7 @@ describe("turn loop", () => {
     // `<plugin>__skill` tool).
     const system = String(second.messages.find((m) => m.role === "system")?.content ?? "");
     assert.match(system, /## Your skills/);
-    // The slugs the seed actually ships. `game-contract` was named here until M4.8a retired it
+    // The slugs the seed actually ships. `project-contract` was named here until M4.8a retired it
     // (it was a stale second copy of docs/CONTRACT.md that no run code read).
     assert.match(system, /facet-decomposition/);
     assert.match(system, /\(director\)/);
@@ -85,7 +85,7 @@ describe("turn loop", () => {
     );
 
     // Tools are advertised every round.
-    assert.ok((second.tools ?? []).some((tool) => tool.function.name === "list_games"));
+    assert.ok((second.tools ?? []).some((tool) => tool.function.name === "list_projects"));
     assert.ok((second.tools ?? []).some((tool) => tool.function.name === "press_keys"));
     assert.ok((second.tools ?? []).some((tool) => tool.function.name === "screenshot"));
   });
@@ -124,7 +124,7 @@ describe("turn loop", () => {
     const rig = await turnRig([
       {
         toolCalls: [
-          { id: "c1", name: "remember", arguments: { key: "favourite_genre", value: "racing games" } },
+          { id: "c1", name: "remember", arguments: { key: "favourite_genre", value: "racing projects" } },
           {
             id: "c2",
             name: "install_tool",
@@ -146,7 +146,7 @@ describe("turn loop", () => {
       },
       { text: "Done." },
     ]);
-    await rig.core.sendUserMessage("remember I like racing games and add a lap timer");
+    await rig.core.sendUserMessage("remember I like racing projects and add a lap timer");
     await waitForLog(rig.core, (log) => log.some((e) => e.data.type === "turn_ended"), 45_000, "turn_ended");
 
     const completions = rig.server.requests.filter((r) => r.path.startsWith("/v1/chat/completions"));
@@ -163,7 +163,7 @@ describe("turn loop", () => {
       (second.tools ?? []).some((tool) => tool.function.name === "time_lap"),
       "the new tool is still offered",
     );
-    const described = (second.tools ?? []).find((tool) => tool.function.name === "list_games")?.function.description;
+    const described = (second.tools ?? []).find((tool) => tool.function.name === "list_projects")?.function.description;
     assert.ok(described && !system(1).includes(described), "a tool's description is sent once, with its schema");
 
     // The next turn reads them afresh.
@@ -178,12 +178,12 @@ describe("turn loop", () => {
     const next = rig.server.requests.filter((r) => r.path.startsWith("/v1/chat/completions")).at(-1)!.body as {
       messages: Array<{ role: string; content?: unknown }>;
     };
-    assert.match(String(next.messages.find((m) => m.role === "system")?.content ?? ""), /racing games/);
+    assert.match(String(next.messages.find((m) => m.role === "system")?.content ?? ""), /racing projects/);
   });
 
   it("keeps the log as the only state: a restart resumes the same conversation", async () => {
     const rig = await turnRig([{ text: "Noted." }]);
-    await rig.core.sendUserMessage("remember that I like fast games");
+    await rig.core.sendUserMessage("remember that I like fast projects");
     await waitForLog(rig.core, (log) => log.some((e) => e.data.type === "turn_ended"), 30_000, "turn_ended");
 
     await rig.core.host.restart();
@@ -199,7 +199,7 @@ describe("turn loop", () => {
     const completions = rig.server.requests.filter((r) => r.path.startsWith("/v1/chat/completions"));
     const last = completions.at(-1)!.body as { messages: Array<{ role: string; content?: unknown }> };
     const text = last.messages.map((m) => String(m.content ?? "")).join("\n");
-    assert.match(text, /remember that I like fast games/, "the restarted self still sees the whole conversation");
+    assert.match(text, /remember that I like fast projects/, "the restarted self still sees the whole conversation");
   });
 
   it("reports a tool failure to the model instead of ending the turn", async () => {
@@ -224,7 +224,7 @@ describe("turn loop", () => {
   it("stops a runaway turn at the round limit", async () => {
     // Every reply asks for another tool call: without the guard this would never end.
     const rig = await startRig({
-      respond: () => ({ toolCalls: [{ id: `c${Math.random()}`, name: "list_games", arguments: {} }] }),
+      respond: () => ({ toolCalls: [{ id: `c${Math.random()}`, name: "list_projects", arguments: {} }] }),
     });
     rigs.push(rig);
     await rig.core.host.dispatch({
@@ -367,7 +367,7 @@ describe("full self-modification (M4)", () => {
           },
         ],
       },
-      { toolCalls: [{ id: "c2", name: "list_games", arguments: {} }] },
+      { toolCalls: [{ id: "c2", name: "list_projects", arguments: {} }] },
       { text: "I broke a tool; the rest still works." },
     ]);
     await rig.core.sendUserMessage("install something broken");
@@ -429,7 +429,7 @@ describe("memory policy", () => {
     const rig = await turnRig([
       {
         toolCalls: [
-          { id: "m1", name: "remember", arguments: { key: "taste", value: "Simeon likes fast, punchy games" } },
+          { id: "m1", name: "remember", arguments: { key: "taste", value: "Simeon likes fast, punchy projects" } },
         ],
       },
       { toolCalls: [{ id: "m2", name: "remember", arguments: { key: "current_task", value: "adding rings" } }] },
@@ -572,7 +572,7 @@ describe("engine fallback (M2)", () => {
         sessionId: "preserved-session",
       }),
     });
-    await rig.core.sendUserMessage("Build a tiny stopped fixture game", { engine: "stopped-vendor" });
+    await rig.core.sendUserMessage("Build a tiny stopped fixture project", { engine: "stopped-vendor" });
     const events = await waitForLog(
       rig.core,
       (log) => log.some((e) => e.data.type === "turn_ended"),
@@ -581,10 +581,10 @@ describe("engine fallback (M2)", () => {
     );
     const serialized = JSON.stringify(events);
     assert.match(serialized, /Stopped\. Finished edits are preserved/);
-    assert.doesNotMatch(serialized, /Contractor finished|The game loads clean|build_observation/);
+    assert.doesNotMatch(serialized, /Contractor finished|The project loads clean|build_observation/);
   });
 
-  it("chat with a delegated engine hands the ask to the contractor in a game workspace", async () => {
+  it("chat with a delegated engine hands the ask to the contractor in a project workspace", async () => {
     const rig = await turnRig([]);
     const briefs: Array<{ prompt: string; cwd: string }> = [];
     const vendor: Engine = {
@@ -611,7 +611,7 @@ describe("engine fallback (M2)", () => {
     };
     rig.core.engines.register(vendor);
 
-    await rig.core.sendUserMessage("Build a tiny pong game", { engine: "vendor" });
+    await rig.core.sendUserMessage("Build a tiny pong project", { engine: "vendor" });
     const events = await waitForLog(
       rig.core,
       (log) => log.some((e) => e.data.type === "turn_ended"),
@@ -619,13 +619,13 @@ describe("engine fallback (M2)", () => {
       "turn_ended",
     );
 
-    // The ask became a brief in a scaffolded game workspace, not an engine.complete call.
+    // The ask became a brief in a scaffolded project workspace, not an engine.complete call.
     assert.equal(briefs.length, 1);
-    const games = await rig.core.games.list();
-    assert.equal(games.length, 1);
-    assert.equal(games[0]!.name, "tiny-pong");
-    assert.ok(briefs[0]!.cwd.endsWith(games[0]!.name), "the contractor works inside the game workspace");
-    assert.ok(briefs[0]!.prompt.includes("Build a tiny pong game"));
+    const projects = await rig.core.projects.list();
+    assert.equal(projects.length, 1);
+    assert.equal(projects[0]!.name, "tiny-pong");
+    assert.ok(briefs[0]!.cwd.endsWith(projects[0]!.name), "the contractor works inside the project workspace");
+    assert.ok(briefs[0]!.prompt.includes("Build a tiny pong project"));
     assert.ok(briefs[0]!.prompt.includes("CLAUDE.md"), "the brief points at the workspace contract");
 
     // The transcript reads like a delegate_to_contractor tool call plus a normal reply.
@@ -673,20 +673,20 @@ describe("engine fallback (M2)", () => {
       },
     };
     rig.core.engines.register(vendor);
-    await rig.core.games.scaffold("old-game", { title: "old game" });
-    await rig.core.games.scaffold("other-game", { title: "other game" });
+    await rig.core.projects.scaffold("old-project", { title: "old project" });
+    await rig.core.projects.scaffold("other-project", { title: "other project" });
 
-    // Explicit project: the brief lands there, not in the newest game.
-    await rig.core.sendUserMessage("Add a boss fight to the arena", { engine: "vendor", project: "old-game" });
+    // Explicit project: the brief lands there, not in the newest project.
+    await rig.core.sendUserMessage("Add a boss fight to the arena", { engine: "vendor", project: "old-project" });
     await waitForLog(rig.core, (log) => log.some((e) => e.data.type === "turn_ended"), 30_000, "turn 1");
-    assert.ok(briefs[0]!.cwd.endsWith("old-game"), "the chosen project wins over the newest one");
+    assert.ok(briefs[0]!.cwd.endsWith("old-project"), "the chosen project wins over the newest one");
 
-    // newProject: a fresh scaffold even though games exist — a new idea never lands in an old game.
-    await rig.core.sendUserMessage("Build a chess puzzle game", { engine: "vendor", newProject: true });
+    // newProject: a fresh scaffold even though projects exist — a new idea never lands in an old project.
+    await rig.core.sendUserMessage("Build a chess puzzle project", { engine: "vendor", newProject: true });
     await waitForLog(rig.core, (log) => log.filter((e) => e.data.type === "turn_ended").length >= 2, 30_000, "turn 2");
     assert.ok(briefs[1]!.cwd.endsWith("chess-puzzle"), `scaffolded fresh, got ${briefs[1]!.cwd}`);
-    const games = await rig.core.games.list();
-    assert.equal(games.length, 3);
+    const projects = await rig.core.projects.list();
+    assert.equal(projects.length, 3);
   });
 
   it("refuses a second contractor in the same project while one is building", async () => {
@@ -707,7 +707,7 @@ describe("engine fallback (M2)", () => {
       },
     };
     rig.core.engines.register(vendor);
-    await rig.core.games.scaffold("pong", { title: "pong" });
+    await rig.core.projects.scaffold("pong", { title: "pong" });
 
     const delegate = rig.core.api()["engine.delegate"] as unknown as (p: {
       engine: string;
@@ -741,7 +741,7 @@ describe("engine fallback (M2)", () => {
       },
     };
     rig.core.engines.register(vendor);
-    await rig.core.games.scaffold("pong", { title: "pong" });
+    await rig.core.projects.scaffold("pong", { title: "pong" });
 
     const delegate = rig.core.api()["engine.delegate"] as unknown as (p: {
       engine: string;
@@ -1000,7 +1000,7 @@ describe("engine fallback (M2)", () => {
     };
     rig.core.engines.register(vendor);
 
-    await rig.core.sendUserMessage("Build a tiny pong game", { engine: "vendor" });
+    await rig.core.sendUserMessage("Build a tiny pong project", { engine: "vendor" });
     const events = await waitForLog(
       rig.core,
       (log) => log.some((e) => e.data.type === "turn_ended"),
@@ -1029,7 +1029,7 @@ describe("engine fallback (M2)", () => {
     };
     rig.core.engines.register(vendor);
 
-    await rig.core.sendUserMessage("Build a tiny pong game", { engine: "vendor" });
+    await rig.core.sendUserMessage("Build a tiny pong project", { engine: "vendor" });
     const events = await waitForLog(
       rig.core,
       (log) => log.some((e) => e.data.type === "turn_ended" || e.data.type === "error"),
@@ -1076,19 +1076,19 @@ describe("chat intake", () => {
     // "make me - a racing thing please" once became `--racing-thing`: the dash survived as a
     // content word and the scaffold rejected the name, throwing out of the whole turn.
     const cases: Array<[ask: string, name: string]> = [
-      ["Build a tiny pong game", "tiny-pong"],
-      ["Build a chess puzzle game", "chess-puzzle"],
+      ["Build a tiny pong project", "tiny-pong"],
+      ["Build a chess puzzle project", "chess-puzzle"],
       ["make me - a racing thing please", "racing-thing"],
       ["make a -neon racer", "neon-racer"],
-      ["---", "game"],
-      ["", "game"],
+      ["---", "project"],
+      ["", "project"],
     ];
     for (const [ask, name] of cases) {
       assert.equal(nameFromAsk(ask), name, `nameFromAsk(${JSON.stringify(ask)})`);
     }
   });
 
-  it("a short ask in a chat bound to a game is an instruction, not smalltalk", async () => {
+  it("a short ask in a chat bound to a project is an instruction, not smalltalk", async () => {
     const rig = await turnRig([]);
     const briefs: string[] = [];
     const vendor: Engine = {
@@ -1109,7 +1109,7 @@ describe("chat intake", () => {
       },
     };
     rig.core.engines.register(vendor);
-    await rig.core.games.scaffold("pong", { title: "pong" });
+    await rig.core.projects.scaffold("pong", { title: "pong" });
 
     await rig.core.sendUserMessage("add fog", { engine: "vendor", project: "pong" });
     await waitForLog(rig.core, (log) => log.some((e) => e.data.type === "turn_ended"), 30_000, "turn_ended");
@@ -1143,7 +1143,7 @@ describe("chat intake", () => {
     await waitForLog(rig.core, (log) => log.some((e) => e.data.type === "turn_ended"), 30_000, "turn_ended");
 
     assert.equal(delegations, 0, "'hi' is not a brief");
-    assert.equal((await rig.core.games.list()).length, 0, "'hi' must never become a project");
+    assert.equal((await rig.core.projects.list()).length, 0, "'hi' must never become a project");
     const messages = await rig.core.store.listMessages(rig.core.mainThread);
     assert.match(messages.at(-1)?.content ?? "", /What should we make\?/);
   });
@@ -1295,7 +1295,7 @@ describe("delegated build observation", () => {
   it("a black screen fails the build even though the contractor reported success", async () => {
     const rig = await observedBuildRig();
     rig.preview.pixelStatsNext = { ...rig.preview.pixelStatsNext, meanLuma: 0.4, litFraction: 0 };
-    await rig.core.sendUserMessage("Build a tiny pong game", { engine: "vendor" });
+    await rig.core.sendUserMessage("Build a tiny pong project", { engine: "vendor" });
 
     const observation = await lastObservation(rig);
     assert.equal(observation.ok, false, "the contractor's word must not outrank the pixels");
@@ -1312,7 +1312,7 @@ describe("delegated build observation", () => {
 
   it("a lit, moving build passes and carries no reason", async () => {
     const rig = await observedBuildRig();
-    await rig.core.sendUserMessage("Build a tiny pong game", { engine: "vendor" });
+    await rig.core.sendUserMessage("Build a tiny pong project", { engine: "vendor" });
     const observation = await lastObservation(rig);
     assert.equal(observation.ok, true);
     assert.equal(observation.reason, null);
@@ -1320,7 +1320,7 @@ describe("delegated build observation", () => {
 
   it("keeps the delegation's own time, turns and usage, and what the preview's readiness answered", async () => {
     const rig = await observedBuildRig();
-    await rig.core.sendUserMessage("Build a tiny pong game", { engine: "vendor" });
+    await rig.core.sendUserMessage("Build a tiny pong project", { engine: "vendor" });
     const observation = await lastObservation(rig);
     assert.equal(observation.durationMs, 120_000);
     assert.equal(observation.turns, 3);
@@ -1331,7 +1331,7 @@ describe("delegated build observation", () => {
 
   it("marks the reply as the delegation's report, so its build record is not counted again", async () => {
     const rig = await observedBuildRig();
-    await rig.core.sendUserMessage("Build a tiny pong game", { engine: "vendor" });
+    await rig.core.sendUserMessage("Build a tiny pong project", { engine: "vendor" });
     await lastObservation(rig);
     const events = await rig.core.listAllEvents();
     const reports = events.filter((e) => e.data.type === EventKind.Messages && e.data.usage);
@@ -1348,9 +1348,9 @@ describe("delegated build observation", () => {
 
   it("records a project's first ready preview once, however many builds follow", async () => {
     const rig = await observedBuildRig();
-    await rig.core.sendUserMessage("Build a tiny pong game", { engine: "vendor" });
-    const game = String((await lastObservation(rig)).project);
-    await rig.core.sendUserMessage("Make the paddles blue", { engine: "vendor", project: game });
+    await rig.core.sendUserMessage("Build a tiny pong project", { engine: "vendor" });
+    const project = String((await lastObservation(rig)).project);
+    await rig.core.sendUserMessage("Make the paddles blue", { engine: "vendor", project: project });
     const events = await waitForLog(
       rig.core,
       (log) =>
@@ -1360,7 +1360,7 @@ describe("delegated build observation", () => {
       "second build",
     );
     const projects = customEvents(events, "build_observation").map((observation) => observation.project);
-    assert.deepEqual(projects, [game, game], "both builds are of the one game");
+    assert.deepEqual(projects, [project, project], "both builds are of the one project");
     const firsts = customEvents(events, "preview_ready");
     assert.equal(firsts.length, 1, "only the first ready preview is the first");
     const [first] = firsts;
@@ -1385,7 +1385,7 @@ describe("delegated build observation", () => {
         gesture: { needed: false, done: false, reasons: [] },
       },
     });
-    await rig.core.sendUserMessage("Build a tiny pong game", { engine: "vendor" });
+    await rig.core.sendUserMessage("Build a tiny pong project", { engine: "vendor" });
     const observation = await lastObservation(rig);
     assert.equal((observation.ready as { ready?: boolean } | null)?.ready, false);
     const events = await rig.core.store.listEvents(rig.core.mainThread);
@@ -1396,7 +1396,7 @@ describe("delegated build observation", () => {
     const rig = await observedBuildRig();
     // Chat builds owe no window.__studio — only unattended runs are judged on the contract.
     rig.preview.next = { __missing: true };
-    await rig.core.sendUserMessage("Build a tiny pong game", { engine: "vendor" });
+    await rig.core.sendUserMessage("Build a tiny pong project", { engine: "vendor" });
     const observation = await lastObservation(rig);
     assert.equal(observation.ok, true);
   });
@@ -1448,7 +1448,7 @@ async function settleRun(rig: Rig): Promise<void> {
 }
 
 describe("intake launch", () => {
-  // The chat's folder is the answer to "where is my game". The interviewer only ferries a slug,
+  // The chat's folder is the answer to "where is my project". The interviewer only ferries a slug,
   // and the night it won, a second empty folder appeared in the rail with no chat attached: the
   // run built there while the user typed into the chat bound to the first folder.
   it("an intake from a bound chat builds in that chat's folder, whatever slug the interviewer passed", async () => {
@@ -1476,7 +1476,7 @@ describe("intake launch", () => {
             {
               name: "start_autopilot",
               args: {
-                goal: "a cozy fishing game where the fish talk back",
+                goal: "a cozy fishing project where the fish talk back",
                 direction: "cold blue dusk",
                 project: "cold-blue-dusk",
               },
@@ -1486,10 +1486,10 @@ describe("intake launch", () => {
       },
     };
     rig.core.engines.register(vendor);
-    await rig.core.games.scaffold("pond-life", { title: "pond life" });
-    const thread = await rig.core.threadForGame("pond-life");
+    await rig.core.projects.scaffold("pond-life", { title: "pond life" });
+    const thread = await rig.core.threadForProject("pond-life");
 
-    await rig.core.sendUserMessage("a cozy fishing game where the fish talk back", {
+    await rig.core.sendUserMessage("a cozy fishing project where the fish talk back", {
       thread,
       engine: "vendor",
       autopilot: { hours: 1 },
@@ -1510,9 +1510,9 @@ describe("intake launch", () => {
       // What the folder needed the moment it was commissioned rides on the run (M2.6): the
       // night's first step is installing the studio contract when the page never loads it.
       assert.equal(registered.readiness?.contract, "loaded", "the studio's own template already loads it");
-      const games = await rig.core.games.list();
+      const projects = await rig.core.projects.list();
       assert.deepEqual(
-        games.map((g) => g.name),
+        projects.map((g) => g.name),
         ["pond-life"],
         "no second folder was scaffolded for the slug",
       );
@@ -1526,7 +1526,7 @@ describe("intake launch", () => {
       assert.doesNotMatch(
         tonight!.content ?? "",
         /studio's connection/,
-        "and nothing is promised about a connection this game already has",
+        "and nothing is promised about a connection this project already has",
       );
     } finally {
       // The launched night outlives the assertions; stop it and let it write its own ending
@@ -1558,7 +1558,7 @@ describe("intake launch", () => {
           studioToolCalls: [
             {
               name: "start_autopilot",
-              args: { goal: "a cozy fishing game where the fish talk back", direction: "cold blue dusk" },
+              args: { goal: "a cozy fishing project where the fish talk back", direction: "cold blue dusk" },
             },
           ],
         };
@@ -1566,7 +1566,7 @@ describe("intake launch", () => {
     };
     rig.core.engines.register(vendor);
 
-    await rig.core.sendUserMessage("a cozy fishing game where the fish talk back", {
+    await rig.core.sendUserMessage("a cozy fishing project where the fish talk back", {
       engine: "vendor",
       autopilot: { hours: 1 },
     });
@@ -1580,13 +1580,13 @@ describe("intake launch", () => {
     try {
       // The first sentence named the folder (nameFromAsk) before a word of the interview; the run
       // and the chat's binding must agree, so exactly one folder exists.
-      const games = await rig.core.games.list();
+      const projects = await rig.core.projects.list();
       assert.deepEqual(
-        games.map((g) => g.name),
-        [nameFromAsk("a cozy fishing game where the fish talk back")],
+        projects.map((g) => g.name),
+        [nameFromAsk("a cozy fishing project where the fish talk back")],
       );
       const registered = customEvents(events, "run_registered")[0] as { project?: string };
-      assert.equal(registered.project, games[0]!.name);
+      assert.equal(registered.project, projects[0]!.name);
     } finally {
       await rig.core.stopThread(rig.core.mainThread).catch(() => {});
       await settleRun(rig);
@@ -1640,9 +1640,9 @@ describe("intake launch", () => {
         messages.some((m) => /continuing on ollama\.$/.test(m.content ?? "")),
         "a chat's fallback is said without promising a night",
       );
-      const games = await rig.core.games.list();
+      const projects = await rig.core.projects.list();
       assert.deepEqual(
-        games.map((g) => g.name),
+        projects.map((g) => g.name),
         [nameFromAsk(ask)],
         "no second folder for the local model's slug",
       );

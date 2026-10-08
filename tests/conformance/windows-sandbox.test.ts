@@ -68,22 +68,22 @@ const at = (...parts: string[]) => [PROFILE, ...parts].join("\\");
 describe("grant union", () => {
   it("collapses repeats, nested folders and reads inside writes, comparing names without case", () => {
     const union = grantUnion([
-      { write: [at("AI Games"), at("ai games", "Pong")], read: [at("AI Games", "assets"), "D:\\Tools"] },
+      { write: [at("AI Projects"), at("ai projects", "Pong")], read: [at("AI Projects", "assets"), "D:\\Tools"] },
       { write: [at("AppData", "Roaming", "Genex", "scratch")], read: ["d:\\tools\\node", "D:\\Tools"] },
     ]);
-    assert.deepEqual(union.write, [at("AI Games"), at("AppData", "Roaming", "Genex", "scratch")]);
+    assert.deepEqual(union.write, [at("AI Projects"), at("AppData", "Roaming", "Genex", "scratch")]);
     assert.deepEqual(union.read, ["D:\\Tools"]);
   });
 
   it("covers a folder inside a granted one; a read is covered by a write, never the other way", () => {
-    const applied = { write: [at("AI Games")], read: ["D:\\Tools"] };
+    const applied = { write: [at("AI Projects")], read: ["D:\\Tools"] };
     const table: Array<[string, { write: string[]; read: string[] }, boolean]> = [
-      ["write inside a write root", { write: [at("AI Games", "Pong")], read: [] }, true],
-      ["read inside a write root", { write: [], read: [at("ai games", "Pong")] }, true],
+      ["write inside a write root", { write: [at("AI Projects", "Pong")], read: [] }, true],
+      ["read inside a write root", { write: [], read: [at("ai projects", "Pong")] }, true],
       ["read inside a read root", { write: [], read: ["D:\\Tools\\node"] }, true],
       ["write inside a read root", { write: ["D:\\Tools\\node"], read: [] }, false],
-      ["a sibling with the root's name as prefix", { write: [at("AI Games2")], read: [] }, false],
-      ["an escape through ..", { write: [at("AI Games", "..", "Documents")], read: [] }, false],
+      ["a sibling with the root's name as prefix", { write: [at("AI Projects2")], read: [] }, false],
+      ["an escape through ..", { write: [at("AI Projects", "..", "Documents")], read: [] }, false],
     ];
     for (const [label, needed, covered] of table) assert.equal(grantsCover(applied, needed), covered, label);
   });
@@ -94,7 +94,7 @@ describe("read-attributes grants above each root", () => {
     const dirs = ancestorDirs(PROFILE, [
       at("AppData", "Local", "Temp", "run-1", "ws"),
       at("AppData", "Local", "Programs", "Genex", "app-0.1.0"),
-      at("AI Games"),
+      at("AI Projects"),
     ]);
     assert.deepEqual(dirs, [
       at("AppData"),
@@ -109,11 +109,11 @@ describe("read-attributes grants above each root", () => {
   it("never names the profile, a folder outside it, a root or a folder inside a root", () => {
     const table: Array<[string, string[], string[]]> = [
       ["the profile itself", [PROFILE], []],
-      ["directly under the profile", [at("AI Games")], []],
-      ["another drive", ["D:\\Games\\Pong"], []],
+      ["directly under the profile", [at("AI Projects")], []],
+      ["another drive", ["D:\\Projects\\Pong"], []],
       ["another user's profile with a shared prefix", ["C:\\Users\\Annabel\\AppData\\x"], []],
       ["an escape through ..", [at("AppData", "..", "..", "Bob", "x", "y")], []],
-      ["a root inside another root", [at("AI Games"), at("AI Games", "sub", "Pong")], []],
+      ["a root inside another root", [at("AI Projects"), at("AI Projects", "sub", "Pong")], []],
       [
         "case differs from the profile",
         ["c:\\users\\ann\\AppData\\Local\\x"],
@@ -429,11 +429,11 @@ describe("toolchain and deny paths", () => {
     // Off the profile (another drive) BUILTIN\Users can usually read, so a secret created there
     // after the session started would be readable unless its deny was stamped up front.
     const exists = (p: string) => p.endsWith(".ssh");
-    const within = { roots: [at("AI Games")], profile: PROFILE };
+    const within = { roots: [at("AI Projects")], profile: PROFILE };
     const offProfile = "D:\\Keys\\deploy.pem";
-    const paths = [at(".ssh"), at(".aws"), at("AI Games", "Pong", ".env"), at(".SSH"), offProfile];
+    const paths = [at(".ssh"), at(".aws"), at("AI Projects", "Pong", ".env"), at(".SSH"), offProfile];
     const kept = keepWindowsDenies(paths, within, exists);
-    assert.deepEqual(kept, [at(".ssh"), at("AI Games", "Pong", ".env"), offProfile]);
+    assert.deepEqual(kept, [at(".ssh"), at("AI Projects", "Pong", ".env"), offProfile]);
   });
 });
 
@@ -685,7 +685,7 @@ function session(options: { realDenies?: boolean; profile?: string } = {}) {
   return { session: value, runtime, ancestors };
 }
 
-const GAMES = at("AI Games");
+const PROJECTS = at("AI Projects");
 const WS = at("AppData", "Roaming", "Genex", "workspaces");
 const LATE = "D:\\Elsewhere\\Pong";
 
@@ -744,8 +744,8 @@ describe("the grant session", () => {
 
   it("a member whose grants are already covered changes nothing", async () => {
     const s = session();
-    await s.session.join({}, { grants: { write: [GAMES], read: [] }, config: BASE_CONFIG });
-    await s.session.join({}, { grants: { write: [path.win32.join(GAMES, "Pong")], read: [] }, config: BASE_CONFIG });
+    await s.session.join({}, { grants: { write: [PROJECTS], read: [] }, config: BASE_CONFIG });
+    await s.session.join({}, { grants: { write: [path.win32.join(PROJECTS, "Pong")], read: [] }, config: BASE_CONFIG });
     await s.session.settled();
     assert.deepEqual(s.runtime.calls, ["initialize"]);
     assert.equal(s.session.regrants, 0);
@@ -754,10 +754,10 @@ describe("the grant session", () => {
   it("waits for running commands, then applies every queued folder in one regrant", async () => {
     const s = session();
     const owner = {};
-    await s.session.join(owner, { grants: { write: [GAMES], read: [] }, config: BASE_CONFIG });
+    await s.session.join(owner, { grants: { write: [PROJECTS], read: [] }, config: BASE_CONFIG });
     const release = await s.session.acquire();
-    s.session.update(owner, { write: [GAMES, LATE], read: [] });
-    s.session.update(owner, { write: [GAMES, LATE], read: ["D:\\Tools"] });
+    s.session.update(owner, { write: [PROJECTS, LATE], read: [] });
+    s.session.update(owner, { write: [PROJECTS, LATE], read: ["D:\\Tools"] });
     await new Promise((resolve) => setImmediate(resolve));
     assert.deepEqual(s.runtime.calls, ["initialize"], "nothing is reset under a running command");
     assert.equal(s.session.covers({ write: [LATE], read: [] }), false);
@@ -766,7 +766,7 @@ describe("the grant session", () => {
     await s.session.settled();
     assert.deepEqual(s.runtime.calls, ["initialize", "reset", "initialize"]);
     assert.equal(s.session.regrants, 1);
-    assert.deepEqual(s.runtime.last().filesystem.allowWrite, [GAMES, LATE]);
+    assert.deepEqual(s.runtime.last().filesystem.allowWrite, [PROJECTS, LATE]);
     assert.deepEqual(s.runtime.last().filesystem.allowRead, ["D:\\Tools"]);
     assert.equal(s.session.covers({ write: [LATE], read: [] }), true);
   });
@@ -774,9 +774,9 @@ describe("the grant session", () => {
   it("a command that arrives during a regrant waits for it", async () => {
     const s = session();
     const owner = {};
-    await s.session.join(owner, { grants: { write: [GAMES], read: [] }, config: BASE_CONFIG });
+    await s.session.join(owner, { grants: { write: [PROJECTS], read: [] }, config: BASE_CONFIG });
     const open = s.runtime.hold();
-    s.session.update(owner, { write: [GAMES, LATE], read: [] });
+    s.session.update(owner, { write: [PROJECTS, LATE], read: [] });
     let acquired = false;
     const waiting = s.session.acquire().then((release) => {
       acquired = true;
@@ -793,7 +793,7 @@ describe("the grant session", () => {
     const s = session();
     s.runtime.failInitialize("not_provisioned");
     await assert.rejects(
-      s.session.join({}, { grants: { write: [GAMES], read: [] }, config: BASE_CONFIG }),
+      s.session.join({}, { grants: { write: [PROJECTS], read: [] }, config: BASE_CONFIG }),
       /not_provisioned/,
     );
     const release = await s.session.acquire();
@@ -807,11 +807,11 @@ describe("the grant session", () => {
       ...BASE_CONFIG,
       filesystem: { ...BASE_CONFIG.filesystem, denyRead: paths },
     });
-    await s.session.join({}, { grants: { write: [GAMES], read: [] }, config: denying([at(".ssh")]) });
-    await s.session.join({}, { grants: { write: [GAMES], read: [] }, config: denying([at(".SSH")]) });
+    await s.session.join({}, { grants: { write: [PROJECTS], read: [] }, config: denying([at(".ssh")]) });
+    await s.session.join({}, { grants: { write: [PROJECTS], read: [] }, config: denying([at(".SSH")]) });
     await s.session.settled();
     assert.equal(s.session.regrants, 0);
-    await s.session.join({}, { grants: { write: [GAMES], read: [] }, config: denying([at("secrets")]) });
+    await s.session.join({}, { grants: { write: [PROJECTS], read: [] }, config: denying([at("secrets")]) });
     await s.session.settled();
     assert.equal(s.session.regrants, 1);
     assert.deepEqual(s.runtime.last().filesystem.denyRead, [at(".ssh"), at(".SSH"), at("secrets")]);
@@ -821,7 +821,7 @@ describe("the grant session", () => {
     const s = session();
     const stays = {};
     const leaves = {};
-    await s.session.join(stays, { grants: { write: [GAMES], read: [] }, config: BASE_CONFIG });
+    await s.session.join(stays, { grants: { write: [PROJECTS], read: [] }, config: BASE_CONFIG });
     await s.session.join(leaves, { grants: { write: [LATE], read: [] }, config: BASE_CONFIG });
     await s.session.settled();
     assert.equal(s.session.covers({ write: [LATE], read: [] }), true);
@@ -832,17 +832,17 @@ describe("the grant session", () => {
     release();
     await s.session.settled();
     assert.equal(s.session.regrants, 2);
-    assert.deepEqual(s.runtime.last().filesystem.allowWrite, [GAMES]);
+    assert.deepEqual(s.runtime.last().filesystem.allowWrite, [PROJECTS]);
     assert.equal(s.session.covers({ write: [LATE], read: [] }), false);
-    assert.equal(s.session.covers({ write: [GAMES], read: [] }), true);
+    assert.equal(s.session.covers({ write: [PROJECTS], read: [] }), true);
   });
 
   it("a member that leaves nothing only it needed changes nothing", async () => {
     const s = session();
     const leaves = {};
-    await s.session.join({}, { grants: { write: [GAMES], read: [] }, config: BASE_CONFIG });
+    await s.session.join({}, { grants: { write: [PROJECTS], read: [] }, config: BASE_CONFIG });
     await s.session.join(leaves, {
-      grants: { write: [path.win32.join(GAMES, "Pong")], read: [] },
+      grants: { write: [path.win32.join(PROJECTS, "Pong")], read: [] },
       config: BASE_CONFIG,
     });
     s.session.leave(leaves);
@@ -855,7 +855,7 @@ describe("the grant session", () => {
   it("the last member out releases every grant, and a later join starts the session again", async () => {
     const s = session();
     const only = {};
-    await s.session.join(only, { grants: { write: [GAMES], read: [] }, config: BASE_CONFIG });
+    await s.session.join(only, { grants: { write: [PROJECTS], read: [] }, config: BASE_CONFIG });
     s.session.leave(only);
     await s.session.settled();
     assert.deepEqual(s.runtime.calls, ["initialize", "reset"]);
@@ -869,13 +869,13 @@ describe("the grant session", () => {
   it("an srt-win timeout is tried again, up to three attempts in all", async () => {
     const s = session();
     s.runtime.failInitialize("srt_win_timeout", "srt_win_timeout");
-    await s.session.join({}, { grants: { write: [GAMES], read: [] }, config: BASE_CONFIG });
+    await s.session.join({}, { grants: { write: [PROJECTS], read: [] }, config: BASE_CONFIG });
     assert.deepEqual(s.runtime.calls, ["initialize", "initialize", "initialize"]);
 
     const stuck = session();
     stuck.runtime.failInitialize("srt_win_timeout", "srt_win_timeout", "srt_win_timeout");
     await assert.rejects(
-      stuck.session.join({}, { grants: { write: [GAMES], read: [] }, config: BASE_CONFIG }),
+      stuck.session.join({}, { grants: { write: [PROJECTS], read: [] }, config: BASE_CONFIG }),
       /srt_win_timeout/,
     );
     assert.equal(stuck.runtime.calls.length, 3);
@@ -885,8 +885,8 @@ describe("the grant session", () => {
     const s = session();
     const a = {};
     const b = {};
-    await s.session.join(a, { grants: { write: [GAMES], read: [] }, config: withDomains([]) });
-    await s.session.join(b, { grants: { write: [GAMES], read: [] }, config: withDomains(["localhost"]) });
+    await s.session.join(a, { grants: { write: [PROJECTS], read: [] }, config: withDomains([]) });
+    await s.session.join(b, { grants: { write: [PROJECTS], read: [] }, config: withDomains(["localhost"]) });
     s.session.network(a, withDomains(["registry.npmjs.org"]));
     assert.deepEqual(s.runtime.calls, ["initialize", "update"]);
     assert.deepEqual(s.runtime.last().network.allowedDomains, ["registry.npmjs.org", "localhost"]);
@@ -897,9 +897,12 @@ describe("the grant session", () => {
     // regrant had already built its config with the registry, and nothing pushed the closing.
     const s = session();
     const owner = {};
-    await s.session.join(owner, { grants: { write: [GAMES], read: [] }, config: withDomains(["registry.npmjs.org"]) });
+    await s.session.join(owner, {
+      grants: { write: [PROJECTS], read: [] },
+      config: withDomains(["registry.npmjs.org"]),
+    });
     const open = s.runtime.hold();
-    s.session.update(owner, { write: [GAMES, LATE], read: [] });
+    s.session.update(owner, { write: [PROJECTS, LATE], read: [] });
     await new Promise((resolve) => setImmediate(resolve));
     s.session.network(owner, withDomains([]));
     open();
@@ -910,7 +913,7 @@ describe("the grant session", () => {
 
   it("dispose resets and takes back the folders above the roots", async () => {
     const s = session();
-    await s.session.join({}, { grants: { write: [GAMES], read: [] }, config: BASE_CONFIG });
+    await s.session.join({}, { grants: { write: [PROJECTS], read: [] }, config: BASE_CONFIG });
     await s.session.dispose();
     assert.deepEqual(s.runtime.calls, ["initialize", "reset"]);
     assert.equal(s.ancestors.revoked(), 1);

@@ -64,7 +64,7 @@ export const CASE_ID = "grading-case";
 /** The absurd control item's text; the fake grader never says yes to it. */
 export const CONTROL_TEXT = "a dragon reads the score aloud";
 /** The origin the fake server serves on. */
-export const GAME_ORIGIN = "http://127.0.0.1:43111";
+export const PROJECT_ORIGIN = "http://127.0.0.1:43111";
 
 const PNG_MAGIC = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
@@ -249,7 +249,7 @@ export function collectedRow(spec: CollectedRowSpec): RunRow {
   return withGradeId(row);
 }
 
-/** One snapshot of a run: whether its game boots and is playable when probed. */
+/** One snapshot of a run: whether its project boots and is playable when probed. */
 export interface SnapshotSpec {
   atMs: number;
   boots: boolean;
@@ -312,8 +312,8 @@ export function fakeServe(log: FakeLog): ServeSnapshot {
     log.served.push(options.root);
     const state = JSON.parse(await readFile(path.join(options.root, STATE_FILE), "utf8")) as SnapshotSpec;
     return {
-      url: `${GAME_ORIGIN}/?snapshot=${encodeURIComponent(options.root)}`,
-      origin: GAME_ORIGIN,
+      url: `${PROJECT_ORIGIN}/?snapshot=${encodeURIComponent(options.root)}`,
+      origin: PROJECT_ORIGIN,
       root: options.root,
       servedVia: servedViaOf(state),
       noBuild: state.rebuildFailed ? (state.rebuildNoBuild ?? NoBuild.BuildFailed) : null,
@@ -338,7 +338,7 @@ function resultFor(state: SnapshotSpec, options: QuickProbeOptions, frames: Fram
     rendererMode: RendererMode.Gpu,
     servedVia: options.servedVia ?? ServedVia.AsIs,
     evidence: {
-      gameOrigin: GAME_ORIGIN,
+      projectOrigin: PROJECT_ORIGIN,
       frames,
       consoleSummaryPath: path.join(options.evidenceDir, "console-summary.json"),
       networkSummaryPath: path.join(options.evidenceDir, "network-summary.json"),
@@ -365,7 +365,7 @@ export function fakeQuickProbe(log: FakeLog): RunQuickProbe {
     for (let index = 0; index < frameCount; index += 1) {
       const file = path.join(options.evidenceDir, `frame-${index}.png`);
       await writeFile(file, Buffer.concat([PNG_MAGIC, Buffer.from(`square ${index}`)]));
-      frames.push({ path: file, atMs: 1_000 * (index + 2), phase: ProbePhase.InputBurst, origin: GAME_ORIGIN, width: 8, height: 8 });
+      frames.push({ path: file, atMs: 1_000 * (index + 2), phase: ProbePhase.InputBurst, origin: PROJECT_ORIGIN, width: 8, height: 8 });
     }
     return resultFor(state, options, frames);
   };

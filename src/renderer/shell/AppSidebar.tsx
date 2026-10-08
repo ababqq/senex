@@ -15,7 +15,7 @@ import type { ShellChrome } from "./use-shell-chrome.ts";
 
 const SIDEBAR_PANE = "h-full border-r border-line bg-base px-3 pt-12";
 
-/** The sidebar: games, chats and notifications, behind the bootstrap's own loading and failure. */
+/** The sidebar: projects, chats and notifications, behind the bootstrap's own loading and failure. */
 export function AppSidebar({
   app,
   chrome,
@@ -34,11 +34,11 @@ export function AppSidebar({
   const { records: threads, status: threadStatus, activeThreadId, project, room } = useThreadsView();
   const launch = useLaunch((s) => s.launch);
   const atHome = room === Room.Home && !launch;
-  const { games, building, stagedCount } = useSidebarLibrary();
-  // A game home is starting has one row: a placeholder until it is made and listed, then its own.
+  const { projects, building, stagedCount } = useSidebarLibrary();
+  // A project home is starting has one row: a placeholder until it is made and listed, then its own.
   const launching = useMemo(
-    () => launchInSidebar(launch, (name) => games.some((game) => game.name === name)),
-    [launch, games],
+    () => launchInSidebar(launch, (name) => projects.some((entry) => entry.name === name)),
+    [launch, projects],
   );
   const update = useUpdate((s) => s.ready);
   const busyThreads = useMemo(() => busyThreadIds(threadStatus), [threadStatus]);
@@ -59,7 +59,7 @@ export function AppSidebar({
         failed={({ error, retry, retrying }) => (
           <div className={SIDEBAR_PANE}>
             <LoadFailed
-              what="games and chats"
+              what="projects and chats"
               error={error ?? undefined}
               onRetry={retry}
               retrying={retrying}
@@ -81,7 +81,7 @@ export function AppSidebar({
           onSettings={() => dialogs.openSettings()}
           stagedCount={stagedCount}
           threads={threads}
-          games={games}
+          projects={projects}
           activeThreadId={pluginsOpen ? null : activeThreadId}
           activeProject={pluginsOpen || room === Room.Home ? null : project}
           atHome={atHome && !pluginsOpen}
@@ -90,15 +90,15 @@ export function AppSidebar({
           building={building}
           busyThreads={busyThreads}
           threadStatus={threadStatus}
-          onNewGame={navigation.newGame}
+          onNewProject={navigation.newProject}
           onSelectThread={navigation.selectThread}
-          onSelectGame={navigation.selectGame}
-          onRenameGame={(game) => dialogs.dispatch({ type: "game", kind: "rename", game })}
-          onPinGame={(game) => {
-            void app.saveGame(game.name, { pinned: !game.pinned }).catch(notifyFailure);
+          onSelectProject={navigation.selectProject}
+          onRenameProject={(entry) => dialogs.dispatch({ type: "project", kind: "rename", project: entry })}
+          onPinProject={(entry) => {
+            void app.saveProject(entry.name, { pinned: !entry.pinned }).catch(notifyFailure);
           }}
-          onDeleteGame={(game) => dialogs.dispatch({ type: "game", kind: "delete", game })}
-          onChangeCover={(game) => dialogs.dispatch({ type: "game", kind: "cover", game })}
+          onDeleteProject={(entry) => dialogs.dispatch({ type: "project", kind: "delete", project: entry })}
+          onChangeCover={(entry) => dialogs.dispatch({ type: "project", kind: "cover", project: entry })}
           update={update}
           onRestartToUpdate={restartToUpdate}
           onDownloadUpdate={downloadUpdate}

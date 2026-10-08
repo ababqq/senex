@@ -11,7 +11,7 @@
  *
  * Injection is what actually reaches the model that builds: per iteration the harness writes
  * `<worktree>/.studio/BRIEF.md` — the scoreboard, the failing checks, the retained attempts,
- * and only the recipes relevant to what is failing now — and the game's `CLAUDE.md` points
+ * and only the recipes relevant to what is failing now — and the project's `CLAUDE.md` points
  * the contractor at it. Retrieval is by check id and tags, never an 800-line dump.
  */
 import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
@@ -30,7 +30,7 @@ import {
 import { renderScoreboard } from "./checks.ts";
 import { nearestReference } from "./style.ts";
 import { facetNotes } from "./repo.ts";
-import { gameLine } from "./kinds.ts";
+import { appLine, drawsScene } from "./kinds.ts";
 import { roleEngine, RoleKey, toolCall } from "./model-roles.ts";
 import { clip, CLIP_BRIEF, CLIP_DETAIL, CLIP_QUOTE, CLIP_REASON, sharesStem } from "./text.ts";
 import { isRecord } from "./json.ts";
@@ -62,7 +62,7 @@ const MAX_RECIPE_EVIDENCE = 24;
 const MAX_CONTRACT_LESSONS = 40;
 /**
  * What a builder's brief carries: ledger defects, the judge's polish notes, earlier rounds (the
- * latest), diff-stat lines each, this game's lessons and past runs' lessons. Six defects, not
+ * latest), diff-stat lines each, this project's lessons and past runs' lessons. Six defects, not
  * twelve: the golden-goal night's briefs were 27K, more than half of it defect material, and the
  * builders spent their rounds on it instead of the move.
  */
@@ -70,7 +70,7 @@ const MAX_BRIEF_DEFECTS = 6;
 const MAX_BRIEF_POLISH = 3;
 const EARLIER_ROUNDS_SHOWN = 3;
 const DIFF_STAT_LINES = 12;
-const MAX_GAME_LESSONS = 5;
+const MAX_PROJECT_LESSONS = 5;
 const MAX_BRIEF_LESSONS = 12;
 /** A recipe is promoted after this many wins (and more wins than losses), and retired after this many losses outnumbering its wins this many times over. */
 const PROMOTE_AFTER_WINS = 2;
@@ -90,6 +90,8 @@ export interface Recipe {
   /** "technique" (how the harness can see and drive a build) or "craft" (an opinion about looks). */
   kind: string;
   pack: string;
+  /** The kinds of software (loop/kinds.ts) this recipe is for; empty means every kind. */
+  appKinds: string[];
   note: string;
   intent: string;
   sketch: string;
@@ -158,7 +160,7 @@ export type RecipeStatus = (typeof RecipeStatus)[keyof typeof RecipeStatus];
 /** Every recipe status, for code that checks one at run time. */
 export const RECIPE_STATUS: string[] = Object.values(RecipeStatus);
 
-/** Whose a recipe is: the game it was found in, or every game. */
+/** Whose a recipe is: the project it was found in, or every project. */
 const RecipeScope = {
   Project: "project",
   Global: "global",
@@ -166,7 +168,7 @@ const RecipeScope = {
 /**
  * What a recipe IS. `technique` is the original meaning: how to make the harness able to see
  * and drive a build at all (the named camera rig, the seeded step, the draw-call capture) —
- * the few things whose checks are still on the board of every game. `craft` is an opinion
+ * the few things whose checks are still on the board of every project. `craft` is an opinion
  * about how a thing should look, which used to be a catalogue check imposed on every plan and
  * is now retrieved: it reaches a builder when its check fails, when a judge names the matching
  * defect, or when a plan asks for it by name.
@@ -179,7 +181,23 @@ export type RecipeKind = (typeof RecipeKind)[keyof typeof RecipeKind];
 /** Every recipe kind, for code that checks one at run time. */
 export const RECIPE_KINDS: string[] = Object.values(RecipeKind);
 
-/** A recipe kept for one game, asked about by another one. */
+/**
+ * The recipes that apply to one kind of software. A recipe that names no kind is for every kind;
+ * a project whose kind is not known yet is shown only those, because a weapon's silhouette is no
+ * advice for a settings form and nothing yet says it is not one. The craft menu and the
+ * retrieval for failing checks both read this; resolving a recipe a plan names does not.
+ */
+export function recipesForKind(
+  recipes: readonly Recipe[] | null | undefined,
+  kind: string | null | undefined,
+): Recipe[] {
+  const wanted = String(kind ?? "").toLowerCase();
+  return (recipes ?? []).filter(
+    (recipe) => recipe.appKinds.length === 0 || (wanted && recipe.appKinds.includes(wanted)),
+  );
+}
+
+/** A recipe kept for one project, asked about by another one. */
 function belongsElsewhere(recipe: Recipe, project: string | null | undefined): boolean {
   return (
     recipe.scope === RecipeScope.Project && Boolean(project) && Boolean(recipe.project) && recipe.project !== project
@@ -200,6 +218,7 @@ export function normalizeRecipe(raw: AnyRecord | null | undefined): Recipe | nul
     // A recipe written before craft existed is a technique: that is what they all were.
     kind: RECIPE_KINDS.includes(raw.kind) ? raw.kind : RecipeKind.Technique,
     pack: slug(raw.pack ?? "", "").slice(0, PACK_CHARS),
+    appKinds: recipeTags(raw.appKinds),
     // One line, for the menu. The intent is the how; this is what it is for.
     note: String(raw.note ?? "")
       .replace(/\s+/g, " ")
@@ -235,8 +254,8 @@ function recipeStats(raw: AnyRecord | null | undefined): Recipe["stats"] {
 function recipeProvenance(raw: AnyRecord): Pick<Recipe, "origin" | "scope" | "project" | "retiredBecause"> {
   return {
     origin: clip(raw.origin ?? "seed", ORIGIN_CHARS),
-    // A spike's recipe is scoped to the game it was proven in until it wins elsewhere: what
-    // solved one game's ragdoll is a guess for the next, not a technique.
+    // A spike's recipe is scoped to the project it was proven in until it wins elsewhere: what
+    // solved one project's ragdoll is a guess for the next, not a technique.
     scope: raw.scope === RecipeScope.Project ? RecipeScope.Project : RecipeScope.Global,
     ...(raw.project ? { project: String(raw.project).slice(0, PROJECT_CHARS) } : {}),
     ...(raw.retiredBecause ? { retiredBecause: String(raw.retiredBecause).slice(0, CLIP_REASON) } : {}),
@@ -461,8 +480,8 @@ export function recipeFromSpike({
  * Craft: the opinions that used to be law.
  *
  * The seed shipped forty-one hand-written opinions about northern-European winter villages in
- * `library/checks.json`, and every plan for every game got them offered as reusable checks —
- * a racing game was told what a snow ridge on a branch must measure. They now live in
+ * `library/checks.json`, and every plan for every project got them offered as reusable checks —
+ * a racing project was told what a snow ridge on a branch must measure. They now live in
  * `library/recipes` as craft recipes, each carrying the check body it used to be, and they
  * reach a builder three ways: the check fails (exact retrieval by id, the oldest path), a
  * judge names the defect the recipe is about (retrieval from prose, `checksFromDefects`), or
@@ -490,7 +509,7 @@ export function craftChecks(
 
 /**
  * The craft library as a menu the planner reads: one line per recipe, grouped by pack, so a
- * plan can ask for the few its game actually needs. Deliberately small — forty-one one-liners
+ * plan can ask for the few its project actually needs. Deliberately small — forty-one one-liners
  * with their notes is seven kilobytes of prompt, and the point of this change was that nobody
  * has to read them all. `perPack` lines per pack, notes cut to CRAFT_NOTE_CHARS, and the whole
  * block dropped back line by line (largest pack first) until it fits CRAFT_MENU_MAX.
@@ -682,7 +701,7 @@ export function craftForNewCheck(
  */
 /** What one iteration's `.studio/BRIEF.md` is written from. */
 export interface BriefOptions {
-  run: Pick<Run, "runId" | "goal"> & Partial<Pick<Run, "reference" | "game" | "engine" | "builderEngine">>;
+  run: Pick<Run, "runId" | "goal"> & Partial<Pick<Run, "reference" | "app" | "engine" | "builderEngine">>;
   /** The facet loop passes its seam here too; briefWithMovedSections (facet-loop.ts) renders it, not renderBrief. */
   ownsMain?: boolean;
   entryMain?: string;
@@ -705,14 +724,14 @@ export interface BriefOptions {
   style?: StyleForBrief | null;
   flags?: AnyRecord[];
   lessons?: string[];
-  gameLessons?: string[];
+  projectLessons?: string[];
   move?: AnyRecord | null;
   liveness?: string | null;
   fix?: AnyRecord | null;
   screen?: boolean;
   critic?: string;
   template?: boolean;
-  game?: AnyRecord | null;
+  app?: AnyRecord | null;
 }
 
 /** Per-camera style distance to the stills, now and the round before. */
@@ -743,25 +762,25 @@ export function renderBrief({
   /** The builder's own `HARNESS:` flags acknowledged by the loop. */
   flags = [],
   lessons = [],
-  /** What earlier nights on THIS game cost (loop/ledger.ts) — already one sentence each. */
-  gameLessons = [],
+  /** What earlier nights on THIS project cost (loop/ledger.ts) — already one sentence each. */
+  projectLessons = [],
   /** This iteration's structural move: `{ what, why?, milestoneId?, check?, mandatory?, ladder?, polishStreak? }`. */
   move = null,
   /** The liveness critic's last card, already rendered to lines (judge.ts renderLiveness). */
   liveness = null,
   /** THE FIX: a biggest gap the judge repeated — `{ what, checkId?, streak, mandatory, recipe? }`; `recipe` is the craft recipe retrieved for the defect sentence. */
   fix = null,
-  /** false for a game the user brought with its own UI and input handling — the one-screen rule is the template's, not this game's. */
+  /** false for a project the user brought with its own UI and input handling — the one-screen rule is the template's, not this project's. */
   screen = true,
-  /** Which critic asked the liveness question — "place" (a world you stand in) or "screen" (a board, a puzzle, a builder). */
-  critic = "place",
-  /** false for a game the user brought: the determinism, one-input-path and Blender rules are the studio template's craft law, not this game's (M4.6). */
+  /** Which critic asked the liveness question — "screen" (software you operate) or "place" (a 3D world you stand in). */
+  critic = "screen",
+  /** false for a project the user brought: the determinism, one-input-path and Blender rules are the studio template's craft law, not this project's (M4.6). */
   template = true,
-  /** The night's declared game — kind, traits and play script (loop/kinds.ts). Its one line heads the brief the way it heads every judge call. */
-  game = null,
+  /** The night's declared project — kind, traits and play script (loop/kinds.ts). Its one line heads the brief the way it heads every judge call. */
+  app: app = null,
 }: BriefOptions): string {
   const lines = [
-    ...briefHeader(run, spec, iteration, game),
+    ...briefHeader(run, spec, iteration, app),
     ...steeringSection(steering),
     ...moveSection(move),
     ...fixSection(fix, template),
@@ -777,7 +796,7 @@ export function renderBrief({
     ...attemptsSection(attempts),
     ...recipesSection(recipes),
     ...briefRules(run, spec, { screen, template, resumed }),
-    ...lessonsSections(gameLessons, lessons),
+    ...lessonsSections(projectLessons, lessons),
   ];
   return lines
     .filter((line) => line !== undefined && line !== null)
@@ -785,19 +804,19 @@ export function renderBrief({
     .replace(/\n{3,}/g, "\n\n");
 }
 
-/** The brief's head: the facet, the run and its game, the intent, identity, seam and checks. */
+/** The brief's head: the facet, the run and its project, the intent, identity, seam and checks. */
 function briefHeader(
   run: BriefOptions["run"],
   spec: BriefOptions["spec"],
   iteration: number,
-  game: AnyRecord | null,
+  app: AnyRecord | null,
 ): string[] {
   const notes = run.reference?.notes ? ` — ${run.reference.notes}` : "";
   return [
     `# Brief — facet "${spec.title}" (${spec.id}), iteration ${iteration}`,
     ``,
     `Run ${run.runId} · goal: ${run.goal}`,
-    gameLine(game ?? run?.game),
+    appLine(app ?? run?.app),
     run.reference?.name ? `Reference / direction: ${run.reference.name}${notes}` : "",
     ``,
     `## Intent`,
@@ -854,13 +873,13 @@ function fixSection(fix: AnyRecord | null, template: boolean): string[] {
     fix.recipe
       ? `The library has a recipe for exactly this: ${fix.recipe.title} (${fix.recipe.id}) — it is under "Recipes that apply" below. Port it; do not invent a fourth way.`
       : "",
-    // The named modules are the studio template's own (foliage.js, materials.js). A game the
+    // The named modules are the studio template's own (foliage.js, materials.js). A project the
     // user brought has neither, and the builder's seam forbids inventing them at those paths,
-    // so it hears the same rule in its own game's terms. The Blender clause stays on the run,
+    // so it hears the same rule in its own project's terms. The Blender clause stays on the run,
     // not on the shape: the modeller is granted to an own-shape worker too.
     template
       ? `Replace the mechanism behind it, do not tune it. A faceted or smooth solid that should read as something organic (a tree, a bush, hay, an animal) is rebuilt from cards or parts (\`foliage.js\`); a flat wash that should read as a material gets a baked material kind (\`materials.js\`); a thing that floats gets a contact patch and sinks. Land it in the same build as the move — the move comes first, this before the rest of the ledger.`
-      : `Replace the mechanism behind it, do not tune it. A faceted or smooth solid that should read as something organic (a tree, a bush, hay, an animal) is rebuilt out of cards or parts, the way this game already builds its objects; a flat wash that should read as a material gets a material this game's renderer can bake; a thing that floats gets a contact patch and sinks. Land it in the same build as the move — the move comes first, this before the rest of the ledger.`,
+      : `Replace the mechanism behind it, do not tune it. A faceted or smooth solid that should read as something organic (a tree, a bush, hay, an animal) is rebuilt out of cards or parts, the way this project already builds its objects; a flat wash that should read as a material gets a material this project's renderer can bake; a thing that floats gets a contact patch and sinks. Land it in the same build as the move — the move comes first, this before the rest of the ledger.`,
     ``,
   ];
 }
@@ -1011,7 +1030,7 @@ function recipesSection(recipes: readonly RecipeHit[]): string[] {
   ];
 }
 
-/** The rules that do not change, in the template's terms or the game's own. */
+/** The rules that do not change, in the template's terms or the project's own. */
 function briefRules(
   run: BriefOptions["run"],
   spec: BriefOptions["spec"],
@@ -1019,18 +1038,20 @@ function briefRules(
 ): string[] {
   return [
     `## Rules that do not change`,
-    `- Tag every object you create: \`obj.userData.tag = "<tag>"\` — untagged objects are invisible to scene checks and do not count.`,
+    drawsScene(run.app)
+      ? `- Tag every object you create: \`obj.userData.tag = "<tag>"\` — untagged objects are invisible to scene checks and do not count.`
+      : `- Make what you build measurable: a probe in \`probes()\` for what it holds, a view in \`views\` that shows its screen (and its empty and error states), a demo in \`demos\` for a workflow the generic exercise cannot reach.`,
     screen
-      ? `- ONE SCREEN: all UI goes through \`__studio.hud\` (text/bar/crosshair/flash, drawn into the canvas). No DOM elements, no second HUD quad, no camera-parented panels — the harness-owned checks no-dom-ui and single-hud fail the build otherwise.`
-      : `- THE GAME'S OWN SCREEN: this game has its own UI and input handling — keep them as they are; do not add __studio.hud overlays or a second input path.`,
+      ? `- THE PAGE IS THE PRODUCT: build the interface in the DOM — real buttons, links, labels and headings, landmarks, a visible focus ring, text that wraps, every control named. Handle empty, loading and error states and show a failure on the page. The harness-owned checks controls-named and no-horizontal-overflow measure this off the page itself.`
+      : `- THE PROJECT'S OWN SCREEN: this project has its own UI and input handling — keep them as they are; do not rebuild its screens or add a second input path.`,
     template
-      ? `- ONE INPUT PATH: read keys from ctx.keys (Mouse1/Mouse2 included), mouse look from ctx.look, wheel from ctx.wheel — never add your own pointer-lock or mousemove listeners; studio.js owns them and feeds the same ctx a human's mouse does.`
-      : `- THIS GAME'S INPUT PATH: it already reads its own keys and mouse — leave that alone. The studio's input arrives as real DOM events on the page, so the listeners this game has are the ones that get it.`,
+      ? `- INPUT: the harness drives real clicks, typing and keys, so ordinary DOM event handlers on real elements are the input path. A canvas project that passes update reads keys from ctx.keys (Mouse1/Mouse2 included), look from ctx.look, wheel from ctx.wheel — never add your own pointer-lock or mousemove listeners; studio.js owns them.`
+      : `- THIS PROJECT'S INPUT PATH: it already reads its own keys and mouse — leave that alone. The studio's input arrives as real DOM events on the page, so the listeners this project has are the ones that get it.`,
     template
-      ? `- Keep window.__studio working (installStudio with scene/renderer/camera/player passed). A build the harness cannot inspect is a loss.`
-      : `- Keep the studio able to see this game. It attaches to whatever your three renders — do not fight it; and where the entry calls \`installStudio({ renderer, player })\`, leave those two lines in. A build the harness cannot inspect is a loss.`,
+      ? `- Keep window.__studio working (installStudio with probes, views and demos). A build the harness cannot drive is a loss.`
+      : `- Keep the studio able to see this project. It attaches to the page and watches what is done to it — do not fight it; and where the entry calls \`installStudio({ probes })\`, leave those lines in. A build the harness cannot inspect is a loss.`,
     template
-      ? `- Determinism: rng from update(), no Math.random, no wall clock.`
+      ? `- Determinism: rng from update() or reset(seed), no Math.random, no wall clock, no network.`
       : `- Determinism: the studio seeds Math.random and owns the clock for this page, so the same seed replays the same run — take time from the delta your own loop already computes, never from a second clock of your own.`,
     `- Capture (${toolCall(roleEngine(run, RoleKey.Builder), "capture")}) after every meaningful change and LOOK before you finish; write what you tried and why in ${facetNotes(spec.id)}.`,
     `- A line beginning \`HARNESS:\` in ${facetNotes(spec.id)} is read by the loop, not by the next builder: use it to say a check cannot pass as written (name the check id) or that a camera cannot see what it asks — the planner re-points the check instead of you burning iterations.`,
@@ -1041,16 +1062,16 @@ function briefRules(
 }
 
 /**
- * The game's own lessons before the general ones: what this exact game cost last time beats
- * what some other game taught, and both sit below the steering the user gave tonight.
+ * The project's own lessons before the general ones: what this exact project cost last time beats
+ * what some other project taught, and both sit below the steering the user gave tonight.
  */
-function lessonsSections(gameLessons: readonly string[], lessons: readonly string[]): string[] {
+function lessonsSections(projectLessons: readonly string[], lessons: readonly string[]): string[] {
   const lines: string[] = [];
-  if (gameLessons.length)
+  if (projectLessons.length)
     lines.push(
       ``,
-      `## LAST TIME ON THIS GAME (earlier runs on this exact game — do not pay for them again)`,
-      ...gameLessons.slice(0, MAX_GAME_LESSONS).map((l) => `- ${l}`),
+      `## LAST TIME ON THIS PROJECT (earlier runs on this exact project — do not pay for them again)`,
+      ...projectLessons.slice(0, MAX_PROJECT_LESSONS).map((l) => `- ${l}`),
     );
   if (lessons.length)
     lines.push(

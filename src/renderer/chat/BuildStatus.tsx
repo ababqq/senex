@@ -7,7 +7,7 @@ import { BuildCard } from "./BuildCard.tsx";
 /**
  * A build running while the chat itself is free — the only thing the chat shows for it. Its one
  * line is what is happening now, one thing at a time; the picture is the lead's own view of the
- * game, small, once there is something in it to see. Its clock sits on the right: how long it has
+ * project, small, once there is something in it to see. Its clock sits on the right: how long it has
  * run, and under it the most it was given ("up to 10h"), a cap the build may finish well inside.
  * The whole card opens Builds.
  */

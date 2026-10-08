@@ -148,7 +148,7 @@ export const CITATION_ROOTS = ["src/", "scripts/", "tests/"] as const;
  * refreshes (or backs up) every install's copy. Old citations in it are cleaned up only alongside
  * a deliberate seed change, never by this check.
  */
-export const CITATION_EXEMPT = ["src/harness-seed/", "src/game-template/", "src/harness-boot/"] as const;
+export const CITATION_EXEMPT = ["src/harness-seed/", "src/project-template/", "src/harness-boot/"] as const;
 const citationAllowed = new Set(["docs/agent/knowledge-map.json", ".gitignore"]);
 /**
  * Tracked files under CITATION_ROOTS that name a local-only Markdown document. A document is a

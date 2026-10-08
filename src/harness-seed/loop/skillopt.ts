@@ -380,7 +380,7 @@ async function distillLessons(
     model,
     class: IMPROVEMENT_WORK,
     systemPrompt: [
-      "You maintain a short list of lessons that go into every game builder's brief. Each lesson is one concrete, general sentence a builder can act on (a helper's shape, a merge rule, a capture habit, a check to run before re-tuning).",
+      "You maintain a short list of lessons that go into every project builder's brief. Each lesson is one concrete, general sentence a builder can act on (a helper's shape, a merge rule, a capture habit, a check to run before re-tuning).",
       "From the builders' own notes below, propose at most 4 NEW lessons that recur or would clearly recur, and name any CURRENT lesson that the notes show is wrong. Never restate a current lesson.",
       'Reply with JSON only: {"add":["…"],"remove":["exact current lesson text"],"rationale":"…"}',
     ].join("\n"),
@@ -452,7 +452,7 @@ function latestRunEngine(events: readonly HarnessEvent[]): { engine: string; mod
 }
 
 /**
- * Evidence lives wherever it happened. Chat builds log to their game's thread and runs log to
+ * Evidence lives wherever it happened. Chat builds log to their project's thread and runs log to
  * theirs, so a pass that read only one thread would starve — mine the whole log, in one global
  * (UUIDv7) order.
  */
@@ -637,8 +637,8 @@ const TASK_MINERS: Partial<Record<string, TaskMiner>> = {
 /** How a proposal is described for the person who uses the app: the analyst's and the describer's rules. */
 const PLAIN_WORDS_RULES = [
   "They are not technical and never read this file. `title`: at most eight plain words starting with a verb,",
-  "saying what the agent will do differently (for example \"Check the player's view before finishing a",
-  'scene"). `summary`: one to three short plain sentences about the same change. No file, skill, tool or',
+  'saying what the agent will do differently (for example "Check a narrow window before finishing a',
+  'screen"). `summary`: one to three short plain sentences about the same change. No file, skill, tool or',
   "camera names, no jargon.",
 ];
 const DESCRIBE_REPLY = 'Reply with JSON only: {"title":"…","summary":["…"]}';
@@ -667,8 +667,8 @@ async function analyse(
     "Look for COMMON patterns across the trajectories, not one-offs. Propose only edits that would",
     "generalise to the next task. Do not duplicate advice the file already contains.",
     "",
-    "The file serves every kind of game the studio builds. Never write a rule for one genre, sport or",
-    "game (its players, pitch, referee or weapons): a lesson only this game needs is not an edit here.",
+    "The file serves every kind of project the studio builds. Never write a rule for one genre, sport or",
+    "project (its players, pitch, referee or weapons): a lesson only this project needs is not an edit here.",
     "",
     "BE CONCRETE: quote the exact threshold, section name, or format. Vague rules do not change",
     "behaviour; specific numeric or structural rules do.",
@@ -831,7 +831,7 @@ async function gateCandidate(
     "You are choosing between two versions of an agent's instructions.",
     "You do not know which is current. Judge only which would handle the listed tasks better.",
     "Prefer the one with concrete, checkable rules. Penalise vagueness, duplication and bloat.",
-    "The instructions serve every kind of game: count a rule written for one genre, sport or game against its version.",
+    "The instructions serve every kind of project: count a rule written for one genre, sport or project against its version.",
     "If they are equivalent, say tie.",
     "",
     'Reply with JSON only: {"pick":"A"|"B"|"tie","reason":"…"}',

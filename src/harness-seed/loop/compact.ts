@@ -56,7 +56,7 @@ const CHUNK_CHARS_PER_TOKEN = 3;
 const SUMMARY_MAX_TOKENS = 1024;
 
 const SUMMARY_SYSTEM = [
-  "You compress a conversation between a user and a game-building studio into a briefing for the studio's next turn.",
+  "You compress a conversation between a user and a project-building studio into a briefing for the studio's next turn.",
   "Keep, in this order: what the user asked for (their own words where short), every decision made and its reason, the current state of the work (files, features, known bugs), and anything promised but not done.",
   "Plain prose, at most 400 words. No preamble, no headers, no commentary about the compression itself.",
 ].join(" ");

@@ -1,8 +1,8 @@
 /**
- * The shell a game's terminal opens. macOS and Linux: the account's login shell. Windows: Git
+ * The shell a project's terminal opens. macOS and Linux: the account's login shell. Windows: Git
  * Bash when Git for Windows is installed (the harness and the snapshots already need Git, and its
  * shell reads like the one on a Mac), else Windows PowerShell. Every Windows shell is named by
- * its full path, so nothing on PATH or in the game folder can stand in for it.
+ * its full path, so nothing on PATH or in the project folder can stand in for it.
  */
 import { existsSync } from "node:fs";
 import path from "node:path";

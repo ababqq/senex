@@ -1,0 +1,41 @@
+{
+  "id": "a11y.every-control-named",
+  "title": "Every button, link and field has a name",
+  "tags": [
+    "button",
+    "link",
+    "field",
+    "label",
+    "name",
+    "aria",
+    "icon",
+    "accessible",
+    "screen",
+    "reader",
+    "controls",
+    "a11y"
+  ],
+  "checkClass": "controls-named",
+  "kind": "craft",
+  "pack": "a11y",
+  "note": "Every visible button, link and field has a name a screen reader can say: text, aria-label or a label element.",
+  "intent": "An icon-only button is a button with no name: a screen reader says \"button\" and a person using voice control cannot ask for it. Give every control its name where a person would look for it: visible text for buttons and links, a <label for> (or a wrapping <label>) for every field, and aria-label only where the design truly has no room for text (an icon button gets aria-label=\"Delete task\" and a title). A placeholder is not a label: it disappears when you type. Names should say what the control does in this context (\"Delete task: Buy milk\"), not repeat \"button\" or \"click here\". The page reports how many displayed controls it could not name in state().ui.unnamedControls and which ones in ui.unnamedSample.",
+  "sketch": "function iconButton({ label, icon, onClick }) {\n  const b = document.createElement(\"button\");\n  b.type = \"button\";\n  b.setAttribute(\"aria-label\", label);\n  b.title = label;\n  b.append(icon);\n  b.addEventListener(\"click\", onClick);\n  return b;\n}\n",
+  "check": {
+    "id": "controls-named",
+    "kind": "probe",
+    "expr": "ui.unnamedControls == 0",
+    "needs": ["ui.unnamedControls"],
+    "weight": "normal",
+    "note": "Every displayed button, link and field has an accessible name; the page counts the ones that do not in state().ui.unnamedControls."
+  },
+  "port": "Whoever writes a component writes its label with it: icon buttons take a required `label` argument, fields are built by one helper that always emits the <label>.",
+  "evidence": [],
+  "stats": {
+    "applied": 0,
+    "wins": 0,
+    "losses": 0
+  },
+  "status": "candidate",
+  "origin": "seed"
+}

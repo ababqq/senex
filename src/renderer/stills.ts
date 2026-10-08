@@ -4,7 +4,7 @@
  * - a run-folder still (`readRunStill`), cached per path and version;
  * - a run-level capture (`base`, `final`) that is written once, read again whenever its `retry`
  *   key changes and never cached, so a capture that did not exist yet is picked up later;
- * - a picture inside the game (`readProjectAsset`, contained and byte-checked), cached per game,
+ * - a picture inside the project (`readProjectAsset`, contained and byte-checked), cached per project,
  *   file, size and version — a card asks for a thumbnail, the lightbox for the whole picture.
  *
  * The Builds timeline and the Assets stage both re-render on every log tick; the caches mean

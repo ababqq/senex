@@ -48,7 +48,7 @@ test("toolbarItems keeps enabled installed plugins only and honours requiresProj
     plugin("none", undefined),
   ];
   assert.deepEqual(
-    toolbarItems(plugins, "game").map((e) => e.key),
+    toolbarItems(plugins, "project").map((e) => e.key),
     ["a:demo", "a:two", "a:three"],
   );
   assert.deepEqual(
@@ -63,10 +63,10 @@ test("toolbarItems keeps enabled installed plugins only and honours requiresProj
     toolbarItems(plugins, "").map((e) => e.key),
     ["a:two"],
   );
-  const [first] = toolbarItems(plugins, "game");
+  const [first] = toolbarItems(plugins, "project");
   assert.equal(first!.plugin.manifest.id, "a");
   assert.deepEqual(first!.item, item());
-  assert.deepEqual(toolbarItems([], "game"), []);
+  assert.deepEqual(toolbarItems([], "project"), []);
 });
 test("toolbarStatusFrom sanitizes badge, title, disabled and tone and rejects non-objects", () => {
   for (const value of [null, undefined, "Draft", 3, true, ["Draft"]]) assert.equal(toolbarStatusFrom(value), null);

@@ -6,7 +6,7 @@ import { Switch } from "../ui/switch.tsx";
 import { problemWords } from "../words.ts";
 import { REWIND_WORDS, restoresByDefault, rewindBusyLabel, rewindFilesWords } from "./rewind-words.ts";
 
-/** What the dialog says about the game files: checking, refused, or what they will do. */
+/** What the dialog says about the project files: checking, refused, or what they will do. */
 function RewindFilesBody({
   files,
   refused,

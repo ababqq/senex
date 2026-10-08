@@ -19,7 +19,7 @@ body:
     attributes:
       label: Steps to reproduce
       placeholder: |
-        1. Create a new game from the brief "..."
+        1. Create a new project from the brief "..."
         2. ...
     validations:
       required: true

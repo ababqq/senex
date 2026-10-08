@@ -7,7 +7,7 @@ import type { RoundFlow } from "../flow.ts";
 import { pinFixRecipe } from "../rules.ts";
 import { briefWithMovedSections, facetPrompt, promptImagesFor } from "../prompt.ts";
 
-/** A template game's entry module, when the shape names none. */
+/** A template project's entry module, when the shape names none. */
 const DEFAULT_ENTRY = "src/main.js";
 
 /** The brief (`.studio/BRIEF.md` in the worktree) and the prompt that points at it. */
@@ -69,23 +69,23 @@ function pickRecipes(loop: FacetLoop, round: FacetRound): void {
 
 /** Everything `renderBrief` renders: the contract, the board, the last attempts, the recipes and this round's move and fix. */
 function briefInput(loop: FacetLoop, round: FacetRound) {
-  const { critic, game, lessons, ownShape, ownsMain, result, run, shape, spec } = loop;
+  const { critic, app: app, lessons, ownShape, ownsMain, result, run, shape, spec } = loop;
   const last = result.attempts.at(-1);
   return {
     run,
     spec,
     iteration: round.iteration,
     screen: !ownShape,
-    // Which world this worker is in (M4.6): the studio's template, or a game the user
+    // Which world this worker is in (M4.6): the studio's template, or a project the user
     // brought. The brief's determinism, one-input-path and materials lines are the
-    // template's rules and are not asked of somebody's own game.
+    // template's rules and are not asked of somebody's own project.
     template: !ownShape,
     ownsMain,
     entryMain: shape?.main ?? DEFAULT_ENTRY,
     ownShape,
     build: shape?.build ?? null,
     critic,
-    game,
+    app: app,
     board: loop.board,
     comparison: last?.iteration === round.iteration - 1 ? { flips: last.flips, regressions: last.regressions } : null,
     attempts: result.attempts,
@@ -99,9 +99,9 @@ function briefInput(loop: FacetLoop, round: FacetRound) {
     style: styleInput(loop),
     flags: loop.flags,
     lessons,
-    // What earlier nights on this game cost. The director loads them once and hangs them on
+    // What earlier nights on this project cost. The director loads them once and hangs them on
     // the run so every worker's BRIEF.md carries the same five (loop/ledger.ts).
-    gameLessons: run.gameLessons ?? [],
+    projectLessons: run.projectLessons ?? [],
     move: loop.currentMove,
     fix: loop.currentFix,
     liveness: loop.lastLiveness ? renderLiveness(loop.lastLiveness) : null,
@@ -126,11 +126,11 @@ export function facetPromptFor(
   round: FacetRound,
   { resumed, briefText = null, fix = null }: { resumed: boolean; briefText?: string | null; fix?: AnyRecord | null },
 ): string {
-  const { game, gapHistory, legacy, ownShape, ownsMain, result, run, shape, spec, worktree } = loop;
+  const { app: app, gapHistory, legacy, ownShape, ownsMain, result, run, shape, spec, worktree } = loop;
   return facetPrompt({
     shape,
     ownShape,
-    game,
+    app: app,
     run,
     spec,
     iteration: round.iteration,

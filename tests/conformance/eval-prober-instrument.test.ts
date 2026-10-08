@@ -388,7 +388,7 @@ test("the look record starts at the lock: samples before it are not observed, sa
 });
 
 test("a yaw observed and then FROZEN stays observed: the record does not forget what the ring dropped", async () => {
-  // The reviewer's case: a shimmed FollowCamera game that turned on the
+  // The reviewer's case: a shimmed FollowCamera project that turned on the
   // directions drag and froze two minutes later. Under the first cut the
   // retained slice held only the frozen tail and the yaw was gone.
   const h = boot({ refuse: "reject", userActivation: true });
@@ -489,7 +489,7 @@ test("a sample with no ground heading is a sample and not a heading, and yields 
 
 /* ------------------------------------------------------------ the fullscreen door */
 
-/** Call the patched `requestFullscreen` the way a game would. */
+/** Call the patched `requestFullscreen` the way a project would. */
 function requestFullscreen(h: Harness): Promise<void> {
   const request = h.element.requestFullscreen;
   assert.ok(request, "the engine offers requestFullscreen");
@@ -513,12 +513,12 @@ test("FULLSCREEN, INSTRUMENT ONLY: a refused request is counted with its refusal
   );
   h.setClock(2000);
   let sawRejection = false;
-  // The game's own catch still runs: the promise is observed, never replaced.
+  // The project's own catch still runs: the promise is observed, never replaced.
   await requestFullscreen(h).catch(() => {
     sawRejection = true;
   });
   await tick();
-  assert.equal(sawRejection, true, "the game sees exactly what the browser did");
+  assert.equal(sawRejection, true, "the project sees exactly what the browser did");
   const fs = h.snapshot().fullscreen;
   assert.equal(fs.requested, 1);
   assert.equal(fs.granted, false);

@@ -1,5 +1,5 @@
 /**
- * What a game and a run hold: reference frames and run artifacts saved, the user's feedback on a
+ * What a project and a run hold: reference frames and run artifacts saved, the user's feedback on a
  * run, and a project's assets listed, previewed and read back through the contained readers.
  * Composed by `StudioCore`; its state stays in the core.
  */
@@ -13,9 +13,9 @@ import {
   reconcileGeneratedAssets,
   joinProjectAssets,
   readGenexJobs,
-  walkGameAssets,
-} from "../game-assets.ts";
-import type { ProjectAssets } from "../../shared/game-assets.ts";
+  walkProjectAssets,
+} from "../project-assets.ts";
+import type { ProjectAssets } from "../../shared/project-assets.ts";
 import path from "node:path";
 import { rewindsOf, withoutRewound } from "../../shared/chat-rewind.ts";
 import { latestRun } from "../../shared/coordinator.ts";
@@ -37,7 +37,7 @@ const MESSAGE = {
   feedbackEmpty: "feedback text is empty",
   feedbackNeedsThread: "feedback needs the run's thread",
   invalidRetainedRef: "Invalid retained asset reference",
-  notThisGamesAsset: "Asset does not belong to this game",
+  notThisProjectsAsset: "Asset does not belong to this project",
   notContained: "Asset is not a contained regular file",
   assetRequired: "Project and asset are required.",
   recordedAssetUnavailable: "Recorded asset is unavailable.",
@@ -54,7 +54,7 @@ const MAX_PRESENCE_FILES = 200;
 /** The longest label a run's feedback keeps. */
 const FEEDBACK_LABEL_CHARS = 120;
 
-/** A reference still written into the game; `created` when this call added the file. */
+/** A reference still written into the project; `created` when this call added the file. */
 export interface SavedReference {
   file: string;
   bytes: number;
@@ -95,12 +95,12 @@ export class AssetService {
   }
 
   /**
-   * Persist mood-board frames into `<project>/references/` (scaffolded per game, agent-readable,
-   * recognised by user-paths). Closes the game.write-is-string-only gap without widening
-   * game.write itself. Names are content-hashed so re-sending the same board is idempotent.
+   * Persist mood-board frames into `<project>/references/` (scaffolded per project, agent-readable,
+   * recognised by user-paths). Closes the project.write-is-string-only gap without widening
+   * project.write itself. Names are content-hashed so re-sending the same board is idempotent.
    */
   async saveReferenceFrames(project: string, frames: ReferenceFrame[]): Promise<SavedReference[]> {
-    const dir = path.join(this.#core.games.dirFor(project), "references");
+    const dir = path.join(this.#core.projects.dirFor(project), "references");
     await ensureDir(dir);
     const saved: SavedReference[] = [];
     const skipped: string[] = [];
@@ -126,9 +126,9 @@ export class AssetService {
       await writeFile(file, data);
       saved.push({ file, bytes: data.length, created });
     }
-    if (saved.length) this.#core.emit(UiEvent.GameChanged, { project, file: "references" });
+    if (saved.length) this.#core.emit(UiEvent.ProjectChanged, { project, file: "references" });
     if (skipped.length)
-      this.#core.emit(UiEvent.GameChanged, {
+      this.#core.emit(UiEvent.ProjectChanged, {
         project,
         file: "references",
         warning: `reference stills skipped (unreadable format): ${skipped.join(", ")}`,
@@ -218,17 +218,17 @@ export class AssetService {
   }
 
   /**
-   * What the game holds, read-only: the walk of its own asset folders joined with the project's
+   * What the project holds, read-only: the walk of its own asset folders joined with the project's
    * delivery ledger and the Genex plugin's job records. The ledger is passed in because the
    * renderer's bootstrap tail is not the project's whole log — `RunSummaryReader.forProject`
    * reads that, and the join ignores every event belonging to another project.
    */
   async projectAssets(project: string, ledger: readonly EventEnvelope[] = []): Promise<ProjectAssets> {
-    const dir = this.#core.games.dirFor(project);
+    const dir = this.#core.projects.dirFor(project);
     const autopilot = path.join(this.#core.layout.scratch, "autopilot");
     // Independent reads, side by side: the Assets stage polls this every ten seconds.
     const [walk, jobs, scratchRoot, listing, checkpoints] = await Promise.all([
-      walkGameAssets(dir),
+      walkProjectAssets(dir),
       readGenexJobs(this.#core.layout.engineHomes, project).catch(() => []),
       realpath(autopilot).catch(() => autopilot),
       this.#git(dir, ["worktree", "list", "--porcelain", "-z"]).catch(() => ""),
@@ -236,7 +236,7 @@ export class AssetService {
     ]);
     const workspaces = assetWorkspaces(listing, this.#core.layout.scratch, scratchRoot);
     return reconcileGeneratedAssets(
-      this.#core.games.dirFor(project),
+      this.#core.projects.dirFor(project),
       this.#core.layout.engineHomes,
       joinProjectAssets({
         project,
@@ -253,16 +253,16 @@ export class AssetService {
   }
 
   /**
-   * One image from inside a game, for the Assets stage. A second contained reader, never a
-   * widening of {@link StudioCore.readRunStill}: this one is bounded to the game's asset folders,
+   * One image from inside a project, for the Assets stage. A second contained reader, never a
+   * widening of {@link StudioCore.readRunStill}: this one is bounded to the project's asset folders,
    * or — for `genex-inspection` — to the one saved frame inside a named job folder.
    */
   async retainedAssetFile(project: string, ref: string): Promise<string> {
-    await this.#core.assertProjectAllowed(this.#core.games.dirFor(project));
+    await this.#core.assertProjectAllowed(this.#core.projects.dirFor(project));
     const output = genexOutputFile(ref);
     const dir = output && genexJobDir(this.#core.layout.engineHomes, project, output.jobId);
     if (!output || !dir) throw new Error(MESSAGE.invalidRetainedRef);
-    if (!(await this.#ownsGenexJob(project, output.jobId))) throw new Error(MESSAGE.notThisGamesAsset);
+    if (!(await this.#ownsGenexJob(project, output.jobId))) throw new Error(MESSAGE.notThisProjectsAsset);
     const engineHomes = await realpath(this.#core.layout.engineHomes);
     const root = path.join(engineHomes, "genex", "projects", project, "jobs", output.jobId, "output");
     const file = path.join(root, output.file);
@@ -285,19 +285,19 @@ export class AssetService {
       if (!(await this.#ownsGenexJob(p.project, ref.jobId))) throw new Error(MESSAGE.recordedAssetUnavailable);
       return readAssetPreview(path.join(dir, "output"), ref.path.join("/"), [], p.maxBytes);
     }
-    return readAssetPreview(this.#core.games.dirFor(p.project), p.file, undefined, p.maxBytes);
+    return readAssetPreview(this.#core.projects.dirFor(p.project), p.file, undefined, p.maxBytes);
   }
 
-  /** Whether this game's own Genex records hold the job. */
+  /** Whether this project's own Genex records hold the job. */
   async #ownsGenexJob(project: string, jobId: string): Promise<boolean> {
     return (await readGenexJobs(this.#core.layout.engineHomes, project)).some((job) => job.id === jobId);
   }
 
-  /** Which of these delivered files the game folder holds now: regular files, never links or escapes. */
+  /** Which of these delivered files the project folder holds now: regular files, never links or escapes. */
   async presentProjectAssets(p: { project: string; files: string[] }): Promise<string[]> {
     const malformed = !p || typeof p.project !== "string" || !Array.isArray(p.files);
     if (malformed) throw new Error(MESSAGE.filesRequired);
-    const dir = this.#core.games.dirFor(p.project);
+    const dir = this.#core.projects.dirFor(p.project);
     await this.#core.assertProjectAllowed(dir);
     const root = await realpath(dir);
     const present: string[] = [];
@@ -315,11 +315,11 @@ export class AssetService {
     return present;
   }
 
-  /** The rigs of these GLB and glTF files in the game folder, read from their headers; other files are skipped. */
+  /** The rigs of these GLB and glTF files in the project folder, read from their headers; other files are skipped. */
   async projectModelRigs(p: { project: string; files: string[] }): Promise<ModelRig[]> {
     const malformed = !p || typeof p.project !== "string" || !Array.isArray(p.files);
     if (malformed) throw new Error(MESSAGE.filesRequired);
-    const dir = this.#core.games.dirFor(p.project);
+    const dir = this.#core.projects.dirFor(p.project);
     await this.#core.assertProjectAllowed(dir);
     const root = await realpath(dir);
     const rigs: ModelRig[] = [];

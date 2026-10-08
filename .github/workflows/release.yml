@@ -79,7 +79,7 @@ jobs:
         continue-on-error: true
         run: node tests/e2e/run-build-smoke.mjs
       # Its menu-levels fixture scored 55 and 56 on one seed on the runner (0.1.0 rehearsal).
-      - name: Game shapes e2e (non-blocking until fixed)
+      - name: Project shapes e2e (non-blocking until fixed)
         continue-on-error: true
         run: node tests/e2e/run-shapes-e2e.mjs
       - run: npm run test:terminal

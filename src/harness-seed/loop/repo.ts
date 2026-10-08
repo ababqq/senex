@@ -1,5 +1,5 @@
 /**
- * How the studio touches a game's repository — one committer, refs nobody has to look at, and
+ * How the studio touches a project's repository — one committer, refs nobody has to look at, and
  * one place for a builder's notes.
  *
  * The morning after the first real night, the user's own repo held eleven `attempt/*` branches,
@@ -46,7 +46,7 @@ export function spikeRef(runId: string, facetId: string, spikeId: string): strin
   return runRef(runId, "spikes", facetId, spikeId);
 }
 
-/** Where a builder keeps its own working notes — never the root, which is the game's own. */
+/** Where a builder keeps its own working notes — never the root, which is the project's own. */
 export function facetNotes(facetId: string): string {
   return `docs/notes/NOTES.${facetId}.md`;
 }

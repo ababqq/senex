@@ -1,6 +1,6 @@
 # Local asset viewer samples
 
-Small, synthetic format samples created locally for Studio's preview acceptance; no paid generations or user game assets.
+Small, synthetic format samples created locally for Studio's preview acceptance; no paid generations or user project assets.
 
 - Blender 4.5.4 default Suzanne mesh, one material and 49-frame Z-rotation: GLB, separate glTF/buffer, FBX, OBJ/MTL, STL, PLY.
 - Blender default scene + Suzanne with Draco compression: compressed.glb.

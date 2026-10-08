@@ -8,7 +8,7 @@ import { BonsaiEngine } from "../../substrate/engines/bonsai.ts";
 import { BonsaiRuntime } from "../../substrate/bonsai/runtime.ts";
 import { BONSAI_RUNTIME, BONSAI_REVISION } from "../../substrate/bonsai/manifest.ts";
 import type { StudioCore } from "../studio-core.ts";
-import type { GamePreview } from "../preview.ts";
+import type { ProjectPreview } from "../preview.ts";
 import type { DelegateResult } from "../../substrate/engines/types.ts";
 import { MINUTE_MS, SECOND_MS } from "../../shared/duration.ts";
 import { EngineId } from "../../shared/providers.ts";
@@ -28,12 +28,12 @@ const MESSAGE = {
   noDelegate: "the host has no engine.delegate",
 } as const;
 
-/** The view the generated game is played and captured in. */
+/** The view the generated project is played and captured in. */
 const VIEW = { x: 0, y: 0, width: 960, height: 640 };
 /** The local builder gets this long and this many turns. */
 const BUILD_TIMEOUT_MS = 16 * MINUTE_MS;
 const BUILD_MAX_TURNS = 40;
-/** How long the generated game has to boot, and how long a killed runtime has to go. */
+/** How long the generated project has to boot, and how long a killed runtime has to go. */
 const BOOT_TIMEOUT_MS = 15 * SECOND_MS;
 const EXIT_TIMEOUT_MS = 5 * SECOND_MS;
 /** A frame at least this lit shows content. */
@@ -49,7 +49,7 @@ type BaseBrief = (input: {
 interface Acceptance {
   core: StudioCore;
   engine: BonsaiEngine;
-  preview: GamePreview;
+  preview: ProjectPreview;
   model: string;
   out: string;
   report: Record<string, unknown>;
@@ -58,14 +58,14 @@ interface Acceptance {
 
 export async function runBonsaiAcceptance(
   core: StudioCore,
-  _preview: GamePreview,
+  _preview: ProjectPreview,
   root: string,
   model: string,
 ): Promise<number> {
   const baseBrief = await loadBaseBrief(core);
   const createPreview = core.options.createHeadlessPreview;
   if (!createPreview) throw new Error(MESSAGE.needsPreview);
-  const preview = (await createPreview()) as GamePreview;
+  const preview = (await createPreview()) as ProjectPreview;
   const out = path.join(root, model.endsWith("ptq1_0") ? "live-ptq" : "live-pq");
   await mkdir(out, { recursive: true });
   const engine = new BonsaiEngine({
@@ -89,8 +89,8 @@ export async function runBonsaiAcceptance(
     },
   };
   try {
-    const project = await buildTheGame(acceptance, baseBrief);
-    await playTheGame(acceptance, project);
+    const project = await buildTheProject(acceptance, baseBrief);
+    await playTheProject(acceptance, project);
     await crashAndRecover(acceptance);
   } catch (err) {
     acceptance.check("acceptance completed without error", false, (err as Error).stack);
@@ -131,11 +131,11 @@ async function startReport(core: StudioCore, model: string, checks: unknown[]): 
   };
 }
 
-/** The local builder writes the game through the same host call a run's builder uses. */
-async function buildTheGame(acceptance: Acceptance, baseBrief: BaseBrief) {
+/** The local builder writes the project through the same host call a run's builder uses. */
+async function buildTheProject(acceptance: Acceptance, baseBrief: BaseBrief) {
   const { core, preview, model, check, report } = acceptance;
-  const project = await core.games.scaffold("bonsai-live-game", { title: "Bonsai local acceptance" });
-  const threadId = await core.threadForGame(project.name);
+  const project = await core.projects.scaffold("bonsai-live-project", { title: "Bonsai local acceptance" });
+  const threadId = await core.threadForProject(project.name);
   preview.setBounds(VIEW);
   preview.setVisible(true);
   const api = core.api() as unknown as Record<string, (p: unknown) => Promise<unknown>>;
@@ -161,8 +161,8 @@ async function buildTheGame(acceptance: Acceptance, baseBrief: BaseBrief) {
   return project;
 }
 
-/** Boot the game, press Space, and have the model look at the frame. */
-async function playTheGame(acceptance: Acceptance, project: { name: string; dir: string }): Promise<void> {
+/** Boot the project, press Space, and have the model look at the frame. */
+async function playTheProject(acceptance: Acceptance, project: { name: string; dir: string }): Promise<void> {
   const { engine, preview, model, check, report } = acceptance;
   preview.setBounds(VIEW);
   await preview.load(project.name, "index.html", project.dir);
@@ -170,7 +170,7 @@ async function playTheGame(acceptance: Acceptance, project: { name: string; dir:
     timeoutMs: BOOT_TIMEOUT_MS,
     intervalMs: 200,
   });
-  check("generated game booted", ready);
+  check("generated project booted", ready);
   const before = await preview.evaluate("window.bonsaiAcceptance?.score");
   await preview.input([
     { type: "press", combo: "Space" },
@@ -178,10 +178,10 @@ async function playTheGame(acceptance: Acceptance, project: { name: string; dir:
   ]);
   const after = await preview.evaluate("window.bonsaiAcceptance?.score");
   const scored = typeof before === "number" && typeof after === "number" && after > before;
-  check("real keyboard input changes game score", scored, { before, after });
+  check("real keyboard input changes project score", scored, { before, after });
   const shot = await preview.screenshotWithStats(85, { surface: "page" });
-  await writeFile(path.join(acceptance.out, "game.jpg"), shot.jpeg);
-  check("game renders visible content", shot.stats.litFraction > MIN_LIT_FRACTION, shot.stats);
+  await writeFile(path.join(acceptance.out, "project.jpg"), shot.jpeg);
+  check("project renders visible content", shot.stats.litFraction > MIN_LIT_FRACTION, shot.stats);
   const vision = await engine.complete({
     model,
     effort: ReasoningEffort.Low,

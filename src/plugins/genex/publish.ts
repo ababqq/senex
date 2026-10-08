@@ -7,7 +7,7 @@ import {
   GenexPublishJobState,
   GenexPublishKind,
   GenexPublishPhase,
-  type GenexGameManifest,
+  type GenexProjectManifest,
   type GenexPublishJob,
   type GenexPublishState,
 } from "../../shared/genex.ts";
@@ -32,19 +32,19 @@ export const PUBLISH_ERROR_TAIL_CHARS = 3000;
 export const MESSAGE = {
   UnknownAfterRestart: "Upload outcome is unknown after restart. Check the deployment page before retrying.",
   CannotReach: "Genex could not be reached to check this upload. Check again later.",
-  DidNotLand: "The upload did not reach Genex: the hosted game is unchanged. You can upload again.",
-  CannotTell: "Genex cannot tell whether this upload went live. Check the game page, then allow a new upload.",
+  DidNotLand: "The upload did not reach Genex: the hosted project is unchanged. You can upload again.",
+  CannotTell: "Genex cannot tell whether this upload went live. Check the project page, then allow a new upload.",
   StillRunning: "This upload is still running",
   NotCurrent: "That upload is no longer the current one",
   OnlyDraftUpdated: "Only the draft page was updated: the public version is unchanged. Publish again to update it.",
   AllowedNewUpload: "You checked the deployment page and allowed a new upload.",
   ConnectFirst: "Connect Genex Tools first",
   AuthorizationExpired: "Genex authorization expired. Reconnect Genex Tools before uploading.",
-  NoHostedProject: "Genex did not create a hosted project for this game",
+  NoHostedProject: "Genex did not create a hosted project for this project",
   NoStagingIdentity: "Upload recorded; staging identity is not yet available",
   RevisionMismatch: "Hosted staging revision does not match this upload yet",
-  NotInGallery: "This game is not in the gallery yet",
-  NothingOnline: "Nothing is online for this game yet",
+  NotInGallery: "This project is not in the gallery yet",
+  NothingOnline: "Nothing is online for this project yet",
   UnrecognizedLink: "Unrecognized Genex page link",
   InvalidProject: "Invalid project",
   NeedsGit: "Publishing needs git on this Mac. Install git (Xcode command line tools or Homebrew) and try again.",
@@ -56,7 +56,7 @@ export const MESSAGE = {
     `Genex does not record this build's sign-in support (shipped ${shipped}, Genex reports ${reported})`,
 } as const;
 
-/** Genex's own record of a hosted game, read by slug. `missing`: there is no hosted project. */
+/** Genex's own record of a hosted project, read by slug. `missing`: there is no hosted project. */
 export interface HostedStaging {
   revision: string | null;
   status?: string;
@@ -82,13 +82,13 @@ const hasSlug = (meta: HostedMeta | null | undefined): meta is HostedMeta & { sl
   typeof meta?.slug === "string" && meta.slug !== "";
 const isListed = (meta: HostedMeta | null | undefined) => meta?.status === GenexHostedStatus.Published;
 
-/** Whether a listed game is listed again: only when the name it is listed under changes. */
+/** Whether a listed project is listed again: only when the name it is listed under changes. */
 export const needsRelisting = (meta: HostedMeta | null | undefined, listedTitle: string | undefined, title?: string) =>
   isListed(meta) && title !== undefined && title !== listedTitle;
 
 /**
  * The CLI phases after the draft upload and its test, in order. A draft stops there. Publishing
- * makes that tested build the public version, then lists the game the first time, or again when
+ * makes that tested build the public version, then lists the project the first time, or again when
  * its name changed; nothing goes public before the draft passed.
  */
 export function publicSteps(
@@ -121,7 +121,7 @@ const CLI_ARGS_FOR_PHASE: Partial<Record<GenexPublishPhase, string[]>> = {
 };
 
 /**
- * The CLI arguments that carry out an upload phase. Listing names the game; a game listed before
+ * The CLI arguments that carry out an upload phase. Listing names the project; a project listed before
  * under another name (or none Studio sent) also has its cover redrawn, since Genex paints the name on it.
  */
 export function publishArgs(
@@ -134,11 +134,11 @@ export function publishArgs(
 }
 
 /**
- * The package.json of Studio's publish copy: the game's Genex SDK versions and `genex` settings,
- * which the CLI reads from the folder it runs in and sends with every upload. Null when the game
+ * The package.json of Studio's publish copy: the project's Genex SDK versions and `genex` settings,
+ * which the CLI reads from the folder it runs in and sends with every upload. Null when the project
  * names none, so no package.json is left behind.
  */
-export function workspaceManifest(project: string, manifest: GenexGameManifest | undefined): object | null {
+export function workspaceManifest(project: string, manifest: GenexProjectManifest | undefined): object | null {
   if (!manifest) return null;
   return {
     name: project.toLowerCase(),
@@ -242,7 +242,7 @@ export function markReady(job: GenexPublishJob, at: string): void {
 }
 
 /**
- * What a finished upload records about the game's pages: when each was updated, the name a
+ * What a finished upload records about the project's pages: when each was updated, the name a
  * publish listed it under, and the page link the CLI printed for this attempt.
  */
 export function recordPages(state: GenexPublishState, job: GenexPublishJob, shared: string | undefined, at: string) {
@@ -270,7 +270,7 @@ export function dashboardFor(meta: HostedMeta | null | undefined): string {
   return isGenexLink(origin) ? String(origin).replace(/\/+$/, "") : DEFAULT_DASHBOARD;
 }
 
-/** Both pages of a hosted game. The CLI prints the same forms; a printed link wins when it is one of ours. */
+/** Both pages of a hosted project. The CLI prints the same forms; a printed link wins when it is one of ours. */
 export function publishUrls(meta: HostedMeta | null | undefined): { draftUrl?: string; galleryUrl?: string } {
   if (!hasSlug(meta)) return {};
   const dashboard = dashboardFor(meta);
@@ -317,7 +317,7 @@ const LINK_TARGETS = new Set<string>(Object.values(PublishLinkTarget));
 export const linkTarget = (target: string | undefined): PublishLinkTarget =>
   target !== undefined && LINK_TARGETS.has(target) ? (target as PublishLinkTarget) : PublishLinkTarget.Draft;
 
-/** The page link for a target: the play link is the verified draft, or the listed game's own. */
+/** The page link for a target: the play link is the verified draft, or the listed project's own. */
 export function linkFor(state: GenexPublishState, target: PublishLinkTarget): string | undefined {
   if (target === PublishLinkTarget.Gallery) return state.galleryUrl;
   if (target === PublishLinkTarget.Draft) return state.draftUrl;

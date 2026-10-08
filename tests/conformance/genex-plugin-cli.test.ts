@@ -97,9 +97,9 @@ test("extracted plugin invokes its packaged pinned CLI; lost submission survives
     await registry.init();
     await Promise.all([registry.action("genex", "unlock", {}), registry.action("genex", "status", {})]);
     assert.equal(rootReads, 1);
-    const game = path.join(temp, "game");
-    await mkdir(game);
-    const binding = { project: "fixture", directory: game },
+    const project = path.join(temp, "project");
+    await mkdir(project);
+    const binding = { project: "fixture", directory: project },
       args = { operation: "model", prompt: "fixture cottage" };
     const connected = await registry.action("genex", "status", {}, binding);
     assert.equal(connected.enabled, true, "sign-in makes assets available without a paid-tools switch");
@@ -108,9 +108,9 @@ test("extracted plugin invokes its packaged pinned CLI; lost submission survives
       false,
       "Studio uses the CLI supported no-local-allowance mode",
     );
-    const nextGame = await registry.action("genex", "status", {}, { ...binding, project: "next-game" });
-    assert.equal(nextGame.enabled, true, "a subsequent game needs no new asset enablement");
-    assert.equal(nextGame.allowance.allowance.enforced, false, "subsequent games have no hidden allowance gate");
+    const nextProject = await registry.action("genex", "status", {}, { ...binding, project: "next-project" });
+    assert.equal(nextProject.enabled, true, "a subsequent project needs no new asset enablement");
+    assert.equal(nextProject.allowance.allowance.enforced, false, "subsequent projects have no hidden allowance gate");
     assert.equal(creates, 0, "status never generates assets");
     assert.ok(
       !registry
@@ -146,10 +146,10 @@ test("extracted plugin invokes its packaged pinned CLI; lost submission survives
  * the export on the draft page and makes that build the public version, then a draft on its own.
  * Nothing here leaves the machine — the API is a local http server, the "managed repo" is a bare
  * git repo on disk, and `export.stage` is answered by a stub the way the host answers it. What
- * this pins is where the hosted project lands (Studio's own copy), that the user's game folder
- * stays untouched, and that a second press neither re-creates the project nor re-lists the game.
+ * this pins is where the hosted project lands (Studio's own copy), that the user's project folder
+ * stays untouched, and that a second press neither re-creates the project nor re-lists the project.
  */
-test("publish creates the hosted project in Studio-owned storage and makes the exported draft public without touching the game", async (t) => {
+test("publish creates the hosted project in Studio-owned storage and makes the exported draft public without touching the project", async (t) => {
   const git = await new Promise<boolean>((resolve) => {
     const child = spawn("git", ["--version"], { stdio: "ignore" });
     child.on("error", () => resolve(false));
@@ -194,14 +194,14 @@ test("publish creates the hosted project in Studio-owned storage and makes the e
       return reply.json({
         project: {
           id: "p1",
-          slug: "fixture-game",
+          slug: "fixture-project",
           cloneUrl: pushUrl,
-          playUrl: "https://fixture-game.genex.technology/",
+          playUrl: "https://fixture-project.genex.technology/",
         },
       });
     }
-    if (url === "/api/projects/by-slug/fixture-game")
-      return reply.json({ project: { slug: "fixture-game", status, stagingCommitSha } });
+    if (url === "/api/projects/by-slug/fixture-project")
+      return reply.json({ project: { slug: "fixture-project", status, stagingCommitSha } });
     if (url === "/api/projects/p1/push-token" && method === "POST") return reply.json({ pushUrl, managed: true });
     if (url === "/api/projects/p1/publish" && method === "POST") {
       listings++;
@@ -248,20 +248,20 @@ test("publish creates the hosted project in Studio-owned storage and makes the e
     const data = path.join(temp, "data");
     await mkdir(data);
     await writeFile(path.join(data, "settings.json"), JSON.stringify({ enabled: true }));
-    const game = path.join(temp, "game");
-    await mkdir(game);
-    const binding = { project: "fixture", directory: game };
+    const project = path.join(temp, "project");
+    await mkdir(project);
+    const binding = { project: "fixture", directory: project };
     const service = async (_id: string, method: string, _args: unknown, bound?: { project: string }) => {
       if (method === "storage.root") return data;
       if (method === "credentials.read") return "synthetic-plugin-token";
       if (method === "events.emit") return true;
       if (method === "export.stage") {
-        // What the host does: a public copy of the game staged under plugin storage, never in it.
+        // What the host does: a public copy of the project staged under plugin storage, never in it.
         const target = path.join(data, "publish", String(bound?.project), "dist");
         await mkdir(target, { recursive: true });
         await writeFile(
           path.join(target, "index.html"),
-          '<!doctype html><meta charset="utf-8"><title>Fixture game</title><canvas id="game"></canvas>',
+          '<!doctype html><meta charset="utf-8"><title>Fixture project</title><canvas id="project"></canvas>',
         );
         return { dir: target, files: 1, included: ["index.html"], excluded: [] };
       }
@@ -310,8 +310,8 @@ test("publish creates the hosted project in Studio-owned storage and makes the e
     await registry.init();
     await registry.action("genex", "unlock", {}, binding);
 
-    // One press publishes: Studio exports the game, and the CLI puts that build on the draft page
-    // and makes the same build the public version, listing the game the first time.
+    // One press publishes: Studio exports the project, and the CLI puts that build on the draft page
+    // and makes the same build the public version, listing the project the first time.
     const first = await registry.action("genex", "publish-gallery", { title: "Fixture Racing" }, binding);
     assert.equal(first.job.state, "running");
     assert.equal(first.job.kind, "gallery");
@@ -323,22 +323,22 @@ test("publish creates the hosted project in Studio-owned storage and makes the e
     );
     assert.equal(published.job.state, "done", published.job.error);
     assert.equal(published.job.phase, "ready", published.job.checkError);
-    assert.equal(published.slug, "fixture-game");
+    assert.equal(published.slug, "fixture-project");
     assert.equal(published.status, "published");
     assert.equal(published.title, "Fixture Racing", "the dialog's name reaches the listing");
-    assert.equal(published.draftUrl, "https://genex.games/draft/fixture-game");
+    assert.equal(published.draftUrl, "https://genex.games/draft/fixture-project");
     assert.ok(published.readyDraft, "the draft page serves the published build");
     assert.equal(creates, 1);
     assert.equal(listings, 1);
     assert.equal(promotes, 1);
     assert.equal(deploys, 1, "the draft and the public version are one upload");
-    // The hosted identity lives in Studio's copy; the user's game folder learns nothing.
+    // The hosted identity lives in Studio's copy; the user's project folder learns nothing.
     assert.equal(
       JSON.parse(await readFile(path.join(data, "publish/fixture/.genex/project.json"), "utf8")).slug,
-      "fixture-game",
+      "fixture-project",
     );
     assert.equal(
-      await readFile(path.join(game, ".genex/project.json"), "utf8").then(
+      await readFile(path.join(project, ".genex/project.json"), "utf8").then(
         () => true,
         () => false,
       ),
@@ -362,7 +362,7 @@ test("publish creates the hosted project in Studio-owned storage and makes the e
     });
     assert.match(refs, /refs\/heads\/preview/);
 
-    // Publishing a listed game again updates the draft and promotes that build.
+    // Publishing a listed project again updates the draft and promotes that build.
     const again = await registry.action("genex", "publish-gallery", {}, binding);
     const updated = await registry.action(
       "genex",
@@ -387,7 +387,7 @@ test("publish creates the hosted project in Studio-owned storage and makes the e
     );
     assert.equal(draft.job.state, "done", draft.job.error);
     assert.equal(draft.job.phase, "ready", draft.job.checkError);
-    assert.equal(draft.status, "published", "the game stays listed");
+    assert.equal(draft.status, "published", "the project stays listed");
     assert.equal(promotes, 2, "a draft never replaces the public version");
     assert.equal(deploys, 3);
   } finally {

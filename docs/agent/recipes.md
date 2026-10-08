@@ -62,7 +62,7 @@ A new `ctx.call("<name>")` the harness uses.
    code that needs the same work calls a typed core method or service, not `api()[…]`; public
    core methods stay pinned by `tests/conformance/core-surface.test.ts`.
 3. Treat every parameter as hostile: the harness is agent-edited code. When a param names a file,
-   a folder or a game folder, add its zod schema to `HARNESS_PARAM_SCHEMAS` (only those fields,
+   a folder or a project folder, add its zod schema to `HARNESS_PARAM_SCHEMAS` (only those fields,
    optional ones `.nullish()`); `HarnessHost` refuses a malformed call with `InvalidParams`
    before the handler runs. Still resolve the path by realpath inside its owned root in the
    handler.
@@ -158,7 +158,7 @@ No core change. See [the plugin guide](../PLUGIN_GUIDE.md) and [plugin contract]
 2. Built-in stage view: extend `StageView` and `VIEWS` in `src/renderer/stage.ts`, the
    `ViewSwitcher` in `src/renderer/panels/PreviewPanel.tsx` (`data-stage-action`), and the
    stage switching in `src/renderer/shell/use-stage-views.ts` and `shell/WorkspaceStage.tsx`.
-   Full-stage views must hide the native game view through the preview bounds call.
+   Full-stage views must hide the native project view through the preview bounds call.
 3. Panel control: add a stable `data-*` attribute or aria-label and keep existing ones;
    smoke runners select by them. Add or update the row in [the feature map](feature-map.md).
 4. Follow [the design workflow](design.md) for UI decisions.
@@ -171,7 +171,7 @@ No core change. See [the plugin guide](../PLUGIN_GUIDE.md) and [plugin contract]
 Delivery through `assets.deliver` is already format-agnostic; preview and classification are
 not.
 
-1. Format: one row in `ASSET_FORMATS` in `src/shared/game-assets.ts` — kind, preview mode,
+1. Format: one row in `ASSET_FORMATS` in `src/shared/project-assets.ts` — kind, preview mode,
    MIME, and whether it is a raster thumbnail or a model texture. The inventory, the preview's
    MIME map, main's contained readers (`isImageFile`) and the audio checks (`isAudioFile`) all
    read that row.
@@ -180,7 +180,7 @@ not.
    `scripts/build.mjs`.
 4. UI only if the new mode needs it: `src/renderer/panels/AssetThumbnail.tsx`,
    `AssetPreview.tsx`.
-5. Tests: `tests/conformance/asset-preview.test.ts` and `game-assets.test.ts`; add a small
+5. Tests: `tests/conformance/asset-preview.test.ts` and `project-assets.test.ts`; add a small
    synthetic sample to `tests/fixtures/asset-previews/` and note its source in its README.
 
 ## Zustand store

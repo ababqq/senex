@@ -1,6 +1,6 @@
 /**
  * Calibration (§8.8) through its runner, with a fake prober and the real checklist grader on a fake
- * `GraderComplete`: the committed fixtures and the game template are copied into a work folder,
+ * `GraderComplete`: the committed fixtures and the project template are copied into a work folder,
  * null fixtures must score 0 on L2 and the checklist, `template-untouched` must be typed `noBuild`,
  * the known-good mini-golf must pass, and a grader that says yes to anything turns calibration red.
  * Nothing is written into the committed fixtures.
@@ -16,7 +16,7 @@ import { CALIBRATION_EXPECTATIONS, KNOWN_GOOD_MIN_CHECKLIST } from "../../script
 import { scoredItemCount } from "../../scripts/evals/grade/checklist/score.ts";
 import {
   CALIBRATION_FIXTURES_DIR,
-  GAME_TEMPLATE_DIR,
+  PROJECT_TEMPLATE_DIR,
   materializeFixture,
 } from "../../scripts/evals/calibrate/fixtures.ts";
 import {
@@ -44,7 +44,7 @@ import { tmpDir } from "../helpers/tmp.ts";
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const FIXTURES = path.join(REPO, CALIBRATION_FIXTURES_DIR);
-const TEMPLATE = path.join(REPO, GAME_TEMPLATE_DIR);
+const TEMPLATE = path.join(REPO, PROJECT_TEMPLATE_DIR);
 const PNG_MAGIC = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 const PROBER_VERSION = "synthetic-prober/1";
 const MARKER = "probed-here.txt";
@@ -112,7 +112,7 @@ function fakeProber(evidenceRoot: string, seen = SEEN): { prober: CalibrationPro
       });
     }
     const evidence: EvidenceRefs = {
-      gameOrigin: "http://127.0.0.1:43000",
+      projectOrigin: "http://127.0.0.1:43000",
       frames,
       consoleSummaryPath: "",
       networkSummaryPath: "",

@@ -1,5 +1,5 @@
 /** What the Builds tab reads off an asset job: its first picture, its kind in words, and whether it is still being made. */
-import { type AssetKind, assetFormat, assetKind } from "../../../shared/game-assets.ts";
+import { type AssetKind, assetFormat, assetKind } from "../../../shared/project-assets.ts";
 import type { AssetInfo } from "../../run-graph.ts";
 import { AssetCardState, BLENDER_SOURCE } from "../../run-graph-assets.ts";
 

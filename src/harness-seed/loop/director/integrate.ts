@@ -28,7 +28,7 @@ import {
   flagRarelyMeasurable,
   learnedTonight,
   readLedger,
-  saveGameLessons,
+  saveProjectLessons,
   trimLedger,
 } from "../ledger.ts";
 import { unionMergeMain } from "../merge.ts";
@@ -76,7 +76,7 @@ const INTEGRATE_REFUSAL = {
   alreadyIn: (id: string, commit: string) =>
     `worker ${id}'s commit ${shortSha(commit)} is already on the integration branch`,
   checkpoint: (error: unknown) =>
-    `Asset checkpoint needs attention: ${error}. Preserve local assets; do not move them out of the game or replace them with remote URLs.`,
+    `Asset checkpoint needs attention: ${error}. Preserve local assets; do not move them out of the project or replace them with remote URLs.`,
   dirty:
     "Your integration worktree has unrelated uncommitted edits. Host-delivered assets have been checkpointed. Resolve those edits before integrating; keep director notes in .studio/DIRECTOR.md, which the host already persists. Never move or delete assets to clear this check.",
 } as const;
@@ -135,14 +135,14 @@ function refusedOver(paths: readonly string[], error: string): boolean {
 }
 
 /**
- * The landing's words about the game folder, to the lead (its `finish` answer, `run_status`) and on
+ * The landing's words about the project folder, to the lead (its `finish` answer, `run_status`) and on
  * the night's log. The same rule as `named`: no parentheses.
  */
 const LANDING_WORDS = {
   uncommitted: (paths: readonly string[], ref: string) =>
-    `git would not land this build over what is uncommitted in the game folder — ${named(paths)}. No worker did this: your own commands there or the user may have, so leave it as it is — tell the user what, and that Make it live in Builds, or land_build in this chat, lands this build from ${ref} once it is kept or undone`,
-  leftInGame: (paths: readonly string[]) =>
-    `the game folder still has uncommitted changes the landing left as they were — ${named(paths)}; they are not part of this build`,
+    `git would not land this build over what is uncommitted in the project folder — ${named(paths)}. No worker did this: your own commands there or the user may have, so leave it as it is — tell the user what, and that Make it live in Builds, or land_build in this chat, lands this build from ${ref} once it is kept or undone`,
+  leftInProject: (paths: readonly string[]) =>
+    `the project folder still has uncommitted changes the landing left as they were — ${named(paths)}; they are not part of this build`,
 } as const;
 
 /**
@@ -222,7 +222,7 @@ interface MergeReadiness {
  * The integration worktree, ready to take a merge: the host's delivered assets checkpointed, and
  * nothing else uncommitted in it. A director with its own hands clears what else is there itself;
  * for a lead, which writes nothing (one session), the studio sets it aside on a ref of the run
- * (lead-session.ts `setAsideStrays`) — so a game that builds in place never stops its merges.
+ * (lead-session.ts `setAsideStrays`) — so a project that builds in place never stops its merges.
  */
 async function checkpointAssets(night: Night, label: string): Promise<MergeReadiness> {
   const { ctx, integrationWorktree, run } = night;
@@ -319,7 +319,7 @@ async function mergeWorker(
 }
 
 /**
- * The health pass: does the integrated build run, on the requested state? The user's own game
+ * The health pass: does the integrated build run, on the requested state? The user's own project
  * may be a repository of its own inside the folder. When the studio was not allowed to version
  * it, this build carries none of the work done inside it — said on the health pass rather than
  * landing a build that silently contains nothing (2026-09-07). The build runs; it is empty, and
@@ -378,7 +378,7 @@ async function recordHealth(night: Night, worker: Worker, health: Evidence, star
   await decision(
     `the integrated build ${shortSha(head)} did not pass its health pass: ${problems} — the director must fix it or judge it before it can land`,
     started
-      ? "the merged build carries nothing from the folder inside your game that keeps its own history; what was built there cannot be made live"
+      ? "the merged build carries nothing from the folder inside your project that keeps its own history; what was built there cannot be made live"
       : "the merged build did not start when it was checked; the lead is fixing it before it can go live",
   );
 }
@@ -555,11 +555,11 @@ function finishAnswer(night: Night, landed: AnyRecord): string {
   const end = "End your session now with a one-paragraph summary for the user";
   // The close judged the build after the lead's summary was written: what the landing may claim
   // is the lead's to pass on, and no more.
-  const left = landed.leftInGame
-    ? ` — ${LANDING_WORDS.leftInGame(landed.leftInGame)} — tell the user, and leave them as they are`
+  const left = landed.leftInProject
+    ? ` — ${LANDING_WORDS.leftInProject(landed.leftInProject)} — tell the user, and leave them as they are`
     : "";
   if (landed.ok)
-    return `the run is closed — the integrated build ${shortSha(state.integrationHead)} is live in the game folder (${landed.line})${left}. ${end}; say what the landing may claim, in brackets above, and claim no more.`;
+    return `the run is closed — the integrated build ${shortSha(state.integrationHead)} is live in the project folder (${landed.line})${left}. ${end}; say what the landing may claim, in brackets above, and claim no more.`;
   const outcome = landed.reason ? ` — not landed: ${landed.reason}` : "";
   return `the run is closed${outcome}. ${end}.`;
 }
@@ -619,8 +619,8 @@ export function landingClaim(
 }
 
 /**
- * A repository of the user's own inside the game folder, which the fork holds as files (the
- * consent the Open Game sheet recorded) while the folder itself still holds it as a pointer.
+ * A repository of the user's own inside the project folder, which the fork holds as files (the
+ * consent the Open Project sheet recorded) while the folder itself still holds it as a pointer.
  * Landing that is not a merge — the folder's own `.git` is renamed aside and the fork's
  * conversion commit joined as a second parent (`versionNestedForLanding`) — and it is the one
  * place the studio touches somebody else's version history, so it belongs to the user's own
@@ -635,7 +635,7 @@ async function nestedRefusal(night: Night): Promise<AnyRecord | null> {
   const carried = pointers.filter((rel) => !stillPointers.includes(rel));
   if (!carried.length) return null;
   return notLanded(
-    `${carried.map((rel) => `${rel}/`).join(", ")} is the user's own repository inside the game folder and this build holds it as ordinary files — the studio may not add it to the game's own history from here; the user can make this build live from the outcome card`,
+    `${carried.map((rel) => `${rel}/`).join(", ")} is the user's own repository inside the project folder and this build holds it as ordinary files — the studio may not add it to the project's own history from here; the user can make this build live from the outcome card`,
     NotLandedReason.NestedNotVersioned,
   );
 }
@@ -665,16 +665,16 @@ async function commitFinalEdits(night: Night): Promise<AnyRecord | null> {
   return null;
 }
 
-/** The item a merge under way in the game folder is named by among its uncommitted paths. */
+/** The item a merge under way in the project folder is named by among its uncommitted paths. */
 const MERGE_UNDER_WAY = "a merge under way";
 
 /**
- * What is uncommitted in the game folder as the landing meets it (`git status --porcelain`): each
+ * What is uncommitted in the project folder as the landing meets it (`git status --porcelain`): each
  * path, and whether the folder is held — something staged or unmerged, or a merge of its own under
  * way even with nothing to show (`MERGE_HEAD`). Git merges into no held folder, and a failed
  * merge's `--abort` would undo that merge. A folder git cannot read answers nothing.
  */
-async function gameFolderChanges(night: Night): Promise<{ paths: string[]; held: boolean }> {
+async function projectFolderChanges(night: Night): Promise<{ paths: string[]; held: boolean }> {
   const { ctx, run } = night;
   const label = `director:${run.runId}:land-status`;
   const at = { project: run.project };
@@ -692,14 +692,14 @@ async function gameFolderChanges(night: Night): Promise<{ paths: string[]; held:
 }
 
 /**
- * Land the integrated build in the game folder: one `--no-ff` merge, aborted on a conflict, and
+ * Land the integrated build in the project folder: one `--no-ff` merge, aborted on a conflict, and
  * never forced. This used to answer a conflict with `git reset --hard` onto the run's head — the
  * night overwriting commits nobody asked it to touch. Now the build stays on its ref, the close
  * says why, and "Make it live" lands it once the folder can take it (studio-core `landBuild`, which
  * refuses a folder with uncommitted changes). Those changes may be the user's or a lead's own
- * commands' (it runs in the game folder), so they are named, never blamed on anyone — only when
+ * commands' (it runs in the project folder), so they are named, never blamed on anyone — only when
  * git's refusal names them: a hook or a held lock is not theirs to answer for. A held folder
- * (`gameFolderChanges`) is not merged into at all.
+ * (`projectFolderChanges`) is not merged into at all.
  */
 export async function landIntegration(night: Night, land: boolean): Promise<AnyRecord> {
   const { baseCommit, ctx, integrationRef, landingClaim, note, projectDir, report, run, state, syncHead } = night;
@@ -711,7 +711,7 @@ export async function landIntegration(night: Night, land: boolean): Promise<AnyR
   if (nested) return nested;
   const uncommitted = await commitFinalEdits(night);
   if (uncommitted) return uncommitted;
-  const changed = await gameFolderChanges(night);
+  const changed = await projectFolderChanges(night);
   if (changed.held)
     return notLanded(LANDING_WORDS.uncommitted(changed.paths, integrationRef), NotLandedReason.UncommittedChanges);
   const merge = await mergeNoFf(ctx, { project: run.project }, state.integrationHead, {
@@ -733,22 +733,22 @@ export async function landIntegration(night: Night, land: boolean): Promise<AnyR
   report.deliveredHead = await headOf(ctx, projectDir).catch(() => null);
   report.integrationHead = state.integrationHead;
   await ctx.call(HostMethod.PreviewLoad, { project: run.project }).catch(() => {});
-  if (changed.paths.length) note(LANDING_WORDS.leftInGame(changed.paths));
+  if (changed.paths.length) note(LANDING_WORDS.leftInProject(changed.paths));
   return {
     ok: true,
     ...landingClaim(state.integrationHead),
-    ...(changed.paths.length ? { leftInGame: changed.paths } : {}),
+    ...(changed.paths.length ? { leftInProject: changed.paths } : {}),
   };
 }
 
 /**
- * What the game keeps from tonight: the lessons file the next night's briefs read, and the
+ * What the project keeps from tonight: the lessons file the next night's briefs read, and the
  * check catalogue weighted by what could actually be measured. The catalogue side is what the
  * classic pipeline has always done at its close and the director never did — the lead's own
  * checks, with their thresholds, become reusable — plus the `rarelyMeasurable` flag, which is
  * how a check that has told nobody anything for three rounds stops being written again.
  */
-export async function keepGameLessons(night: Night) {
+export async function keepProjectLessons(night: Night) {
   const { ctx, priorLedger, run, state, tonight } = night;
   const records = await trimLedger(
     ctx.workspace,
@@ -756,7 +756,7 @@ export async function keepGameLessons(night: Night) {
     await readLedger(ctx.workspace, run.project).catch(() => []),
   ).catch(() => []);
   const all = records.length ? records : [...priorLedger, ...tonight];
-  await saveGameLessons(ctx.workspace, run.project, all).catch(() => {});
+  await saveProjectLessons(ctx.workspace, run.project, all).catch(() => {});
   const catalogue = await loadCatalogue(ctx.workspace).catch(() => null);
   if (!catalogue) return;
   for (const worker of state.workers.values()) {
@@ -764,7 +764,7 @@ export async function keepGameLessons(night: Night) {
       recordCatalogueOutcomes(catalogue, worker.spec, worker.result.board, CheckOrigin.Director, {
         runId: run.runId,
         genres: run.genres ?? [],
-        kind: run.game?.kind ?? null,
+        kind: run.app?.kind ?? null,
       });
   }
   flagRarelyMeasurable(catalogue, all);
@@ -781,19 +781,19 @@ function landingResult(landed: AnyRecord): AnyRecord {
 }
 
 /**
- * The night as one outcome, and then what the game's whole ledger now amounts to. This runs on
+ * The night as one outcome, and then what the project's whole ledger now amounts to. This runs on
  * every close — finish, the clock, a limit, a quit, a crash — and never asks a model: writing
  * down what happened is a record, not a self-change, so no switch gates it. The sentence is the
  * close verdict's, which says *why* nothing was made live rather than repeating that nothing was.
  * What the next night learns from it is kept only while the user lets Studio improve itself.
  */
 async function keepTheRecord(night: Night, landed: AnyRecord, because: string): Promise<void> {
-  const { ctx, keepGameLessons, ledgerFacts, remember, report, tonight } = night;
+  const { ctx, keepProjectLessons, ledgerFacts, remember, report, tonight } = night;
   await remember(closeRecord({ ...ledgerFacts(), landed: landed.ok === true, because }));
   await night.ledgerWrites;
   if (await learningOn(ctx)) {
     report.learned = learnedTonight(tonight);
-    await keepGameLessons();
+    await keepProjectLessons();
   }
 }
 

@@ -15,7 +15,7 @@ import { PLYLoader } from "three/addons/loaders/PLYLoader.js";
 import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { assetCompanion, assetExtension, assetPreviewMode } from "../shared/asset-preview.ts";
-import { assetFormat } from "../shared/game-assets.ts";
+import { assetFormat } from "../shared/project-assets.ts";
 
 /** The most memory a model's own files may take in the preview. */
 const RESOURCE_LIMIT_BYTES = 100 * 1024 * 1024;

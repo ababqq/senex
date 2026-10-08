@@ -27,7 +27,7 @@ const SCANNED: PluginScan = {
 test("characterization: a first install of bundled Genex names every capability, server and skill", () => {
   assert.equal(
     installDetail({ manifest: genex }),
-    "Genex Tools 1.5.0 from bundled runs as trusted native code in a crash-isolated child process — not an OS sandbox. Publisher: Genex. Capabilities: credentials, observe, jobs, network, external-auth, project.write, export (new: credentials, observe, jobs, network, external-auth, project.write, export). Starts 2 MCP servers on your Mac, as trusted native code with the environment it declares: creator (creator-mcp.mjs, GENEX_ENV_FILE); blender (Studio's own Genex CLI, GENEX_API_URL, GENEX_BLENDER_URL, GENEX_ENV_FILE). Studio runs 3 tools for it: cli (runs Studio's Genex CLI); cli-paid (runs Studio's Genex CLI, with your consent each time); package (installs Genex packages in the game, with your consent each time). Gives agents 11 skills: creator-mcp, asset-preference, publishing, genex (read on demand), genex-threejs-multiplayer (read on demand), genex-threejs-embed-auth (read on demand), genex-llm-in-games (read on demand), genex-tool-llm (read on demand), genex-monetization (read on demand), genex-tool-publish (read on demand), genex-updates (read on demand). Scan: bundled — not scanned.",
+    "Genex Tools 1.5.0 from bundled runs as trusted native code in a crash-isolated child process — not an OS sandbox. Publisher: Genex. Capabilities: credentials, observe, jobs, network, external-auth, project.write, export (new: credentials, observe, jobs, network, external-auth, project.write, export). Starts 2 MCP servers on your Mac, as trusted native code with the environment it declares: creator (creator-mcp.mjs, GENEX_ENV_FILE); blender (Studio's own Genex CLI, GENEX_API_URL, GENEX_BLENDER_URL, GENEX_ENV_FILE). Studio runs 3 tools for it: cli (runs Studio's Genex CLI); cli-paid (runs Studio's Genex CLI, with your consent each time); package (installs Genex packages in the project, with your consent each time). Gives agents 11 skills: creator-mcp, asset-preference, publishing, genex (read on demand), genex-threejs-multiplayer (read on demand), genex-threejs-embed-auth (read on demand), genex-llm-in-games (read on demand), genex-tool-llm (read on demand), genex-monetization (read on demand), genex-tool-publish (read on demand), genex-updates (read on demand). Scan: bundled — not scanned.",
   );
 });
 
@@ -35,7 +35,7 @@ test("characterization: an update marks new capabilities and servers", () => {
   const before = { ...genex, capabilities: genex.capabilities.slice(0, 3), mcpServers: genex.mcpServers?.slice(0, 1) };
   assert.equal(
     installDetail({ manifest: genex, before }),
-    "Genex Tools 1.5.0 from bundled runs as trusted native code in a crash-isolated child process — not an OS sandbox. Publisher: Genex. Capabilities: credentials, observe, jobs, network, external-auth, project.write, export (new: network, external-auth, project.write, export). Starts 2 MCP servers on your Mac, as trusted native code with the environment it declares: creator (creator-mcp.mjs, GENEX_ENV_FILE); blender (new) (Studio's own Genex CLI, GENEX_API_URL, GENEX_BLENDER_URL, GENEX_ENV_FILE). Studio runs 3 tools for it: cli (runs Studio's Genex CLI); cli-paid (runs Studio's Genex CLI, with your consent each time); package (installs Genex packages in the game, with your consent each time). Gives agents 11 skills: creator-mcp, asset-preference, publishing, genex (read on demand), genex-threejs-multiplayer (read on demand), genex-threejs-embed-auth (read on demand), genex-llm-in-games (read on demand), genex-tool-llm (read on demand), genex-monetization (read on demand), genex-tool-publish (read on demand), genex-updates (read on demand). Scan: bundled — not scanned.",
+    "Genex Tools 1.5.0 from bundled runs as trusted native code in a crash-isolated child process — not an OS sandbox. Publisher: Genex. Capabilities: credentials, observe, jobs, network, external-auth, project.write, export (new: network, external-auth, project.write, export). Starts 2 MCP servers on your Mac, as trusted native code with the environment it declares: creator (creator-mcp.mjs, GENEX_ENV_FILE); blender (new) (Studio's own Genex CLI, GENEX_API_URL, GENEX_BLENDER_URL, GENEX_ENV_FILE). Studio runs 3 tools for it: cli (runs Studio's Genex CLI); cli-paid (runs Studio's Genex CLI, with your consent each time); package (installs Genex packages in the project, with your consent each time). Gives agents 11 skills: creator-mcp, asset-preference, publishing, genex (read on demand), genex-threejs-multiplayer (read on demand), genex-threejs-embed-auth (read on demand), genex-llm-in-games (read on demand), genex-tool-llm (read on demand), genex-monetization (read on demand), genex-tool-publish (read on demand), genex-updates (read on demand). Scan: bundled — not scanned.",
   );
 });
 
@@ -119,13 +119,13 @@ test("a bundled update without scans marks changes from the manifest alone", () 
 
 test("tools Studio runs itself are named with what they do and whether each asks first", () => {
   const expected =
-    " Studio runs 3 tools for it: cli (runs Studio's Genex CLI); cli-paid (runs Studio's Genex CLI, with your consent each time); package (installs Genex packages in the game, with your consent each time).";
+    " Studio runs 3 tools for it: cli (runs Studio's Genex CLI); cli-paid (runs Studio's Genex CLI, with your consent each time); package (installs Genex packages in the project, with your consent each time).";
   assert.ok(installDetail({ manifest: genex }).includes(expected));
   const update = installDetail({
     manifest: genex,
     before: { ...genex, tools: genex.tools.filter((t) => t.name !== "package") },
   });
-  assert.ok(update.includes("package (new) (installs Genex packages in the game, with your consent each time)."));
+  assert.ok(update.includes("package (new) (installs Genex packages in the project, with your consent each time)."));
   const withoutHostTools = { ...genex, tools: genex.tools.filter((t) => t.host === undefined) };
   assert.doesNotMatch(installDetail({ manifest: withoutHostTools }), /Studio runs/);
 });

@@ -11,7 +11,7 @@ export type WorkClass = 'user' | 'improvement';
 export type HarnessWorkClass = WorkClass;
 // ↑ src/shared/harness-api.ts
 
-/** A snapshot's reach: the harness workspace, the game, or both. */
+/** A snapshot's reach: the harness workspace, the project, or both. */
 export type HarnessSnapshotScope = "harness" | "game" | "both";
 // ↑ src/shared/harness-api.ts
 
@@ -33,8 +33,8 @@ export type SelfWriteResult =
   | { ok: false; stage: SelfEditStage; message: string };
 // ↑ src/shared/harness-api.ts
 
-/** An image the harness reads from a game folder: the bytes decide the type, never the extension. */
-export interface GameImageRead {
+/** An image the harness reads from a project folder: the bytes decide the type, never the extension. */
+export interface ProjectImageRead {
   kind: "image";
   mimeType: string;
   data: string;
@@ -170,7 +170,7 @@ export interface StudioToolSpec {
 // ↑ src/shared/engine-requests.ts
 
 export type PreviewInputAction =
-  /** `stepMs` advances the page's own loop between the press and the release, so a game that reads a key inside its frame sees it held (M4.1). It is honoured only while the studio owns the clock. */
+  /** `stepMs` advances the page's own loop between the press and the release, so a project that reads a key inside its frame sees it held (M4.1). It is honoured only while the studio owns the clock. */
   | { type: "tap"; keys: string[]; stepMs?: number }
   | { type: "down"; keys: string[] }
   | { type: "up"; keys: string[] }
@@ -228,7 +228,7 @@ export interface PreviewSetup {
   actions?: PreviewInputAction[];
   /** A `config.demos` entry that reaches the state deterministically — preferred when it exists. */
   demo?: string;
-  /** Milliseconds to let the game settle after the script; default 400. */
+  /** Milliseconds to let the project settle after the script; default 400. */
   settleMs?: number;
   /** A dotted state path and the value it must hold (`equals`), or merely be truthy. */
   verify?: { path: string; equals?: unknown; truthy?: boolean };
@@ -291,8 +291,8 @@ export interface DelegateOwnership {
 
 /**
  * The director's session: the run's integration worktree it orchestrates from (`root`). A waking
- * night's lead sits in the game folder instead and leads `root`, leaving the game's changes to its
- * workers: the host honours its grant only with `readOnly`, for this game's own run, and hands the
+ * night's lead sits in the project folder instead and leads `root`, leaving the project's changes to its
+ * workers: the host honours its grant only with `readOnly`, for this project's own run, and hands the
  * engine `root`'s checked real path (delegation.ts `#leadRoot`).
  */
 export interface DelegateDirectorGrant {
@@ -304,7 +304,7 @@ export interface DelegateDirectorGrant {
   /**
    * The lead IS its chat's own session (one session): the session it answers with becomes the
    * chat's bookmark (`contractor`), so the chat goes on in it after the night. Honoured only for a
-   * lead in its game's folder.
+   * lead in its project's folder.
    */
   chatSession?: boolean;
 }
@@ -340,7 +340,7 @@ export interface HarnessDelegateParams {
   engine?: string;
   prompt: string;
   project: string;
-  /** Build here instead of the live game folder — a facet worktree under scratch. */
+  /** Build here instead of the live project folder — a facet worktree under scratch. */
   cwd?: string;
   threadId?: string;
   model?: string;
@@ -385,14 +385,14 @@ export interface AssetAvailability {
   }>;
   usage: "unverified" | "observed" | "verified";
 }
-// ↑ src/shared/game-assets.ts
+// ↑ src/shared/project-assets.ts
 
 export type AssetKind = "image" | "model" | "audio" | "video" | "other";
-// ↑ src/shared/game-assets.ts
+// ↑ src/shared/project-assets.ts
 
 /** `genex` and `blender` are the two the studio ships; any other value is a plugin id. */
 export type AssetSource = "genex" | "blender" | "imported" | (string & {});
-// ↑ src/shared/game-assets.ts
+// ↑ src/shared/project-assets.ts
 
 export interface ProjectAsset {
   availability?: AssetAvailability;
@@ -416,7 +416,7 @@ export interface ProjectAsset {
    */
   pluginStatus?: string;
   at?: string;
-  /** Evidence a plugin recorded about the file being loaded by the running game — an observation, never proof. */
+  /** Evidence a plugin recorded about the file being loaded by the running project — an observation, never proof. */
   use?: { stage: "unconfirmed" | "integrated" | "verified"; inspectionId?: string; observedAt?: string };
   /** Absolute path of a render PNG under the run folder, readable through `readRunStill`. */
   render?: string | null;
@@ -425,14 +425,14 @@ export interface ProjectAsset {
   facetId?: string;
   iteration?: number;
 }
-// ↑ src/shared/game-assets.ts
+// ↑ src/shared/project-assets.ts
 
 export interface ProjectAssets {
   project: string;
   assets: ProjectAsset[];
   /**
-   * Jobs with no file in the game yet: the plugin's own word for each (`pluginStatus`), and
-   * `delivered` when the job did deliver files earlier that the game no longer holds.
+   * Jobs with no file in the project yet: the plugin's own word for each (`pluginStatus`), and
+   * `delivered` when the job did deliver files earlier that the project no longer holds.
    */
   jobs?: Array<{
     source: string;
@@ -447,7 +447,7 @@ export interface ProjectAssets {
   truncated: boolean;
   skipped: Array<{ file: string; why: string }>;
 }
-// ↑ src/shared/game-assets.ts
+// ↑ src/shared/project-assets.ts
 
 /** One model's share of a session, in `Usage`'s units (a row of Claude's `modelUsage`). */
 export interface ModelTokenUsage {
@@ -504,8 +504,8 @@ export interface SnapshotGitRefs {
   game?: string;
   harness?: string;
   /**
-   * The branch a game snapshot was taken on (`refs/heads/…`), `null` when HEAD was detached,
-   * absent on harness-only and older records. A game restore refuses when it moved.
+   * The branch a project snapshot was taken on (`refs/heads/…`), `null` when HEAD was detached,
+   * absent on harness-only and older records. A project restore refuses when it moved.
    */
   gameBranch?: string | null;
 }
@@ -541,7 +541,7 @@ export type EventData =
       scope: SnapshotScope;
       git: SnapshotGitRefs;
       healthy?: boolean;
-      /** False when `healthy` vouches for the game half only (see `SnapshotRecord.harness_healthy`). */
+      /** False when `healthy` vouches for the project half only (see `SnapshotRecord.harness_healthy`). */
       harness_healthy?: false;
       reason?: string;
     }
@@ -550,7 +550,7 @@ export type EventData =
       snapshot_id: string;
       reason: string;
       scope: SnapshotScope;
-      /** The rescue snapshot of the game folder, committed just before the folder was reset. */
+      /** The rescue snapshot of the project folder, committed just before the folder was reset. */
       rescue_snapshot_id?: string;
     }
   | { type: "custom"; event_type: string; payload?: unknown };
@@ -588,7 +588,7 @@ export interface Revision {
 }
 // ↑ src/shared/optimization.ts
 
-/** A host-owned optimizer worktree (`substrate/game-candidate.ts`), as `optimization.open` answers it. */
+/** A host-owned optimizer worktree (`substrate/project-candidate.ts`), as `optimization.open` answers it. */
 export interface OptimizationCandidate {
   candidateId: string;
   project: string;
@@ -603,7 +603,7 @@ export interface OptimizationCandidate {
 
 /**
  * One entry of the snapshot index (`substrate/snapshots.ts`): the commits a snapshot holds, plus —
- * for a game — the branch it was taken on (`SnapshotGitRefs.gameBranch`). It rides inside `git` so
+ * for a project — the branch it was taken on (`SnapshotGitRefs.gameBranch`). It rides inside `git` so
  * the `snapshot_created` event carries it and a rebuilt index still has it.
  */
 export interface SnapshotRecord {
@@ -614,7 +614,7 @@ export interface SnapshotRecord {
   reason: string;
   healthy: boolean;
   /**
-   * False when `healthy` speaks for the game half only: a "both" snapshot of a won round holds a
+   * False when `healthy` speaks for the project half only: a "both" snapshot of a won round holds a
    * harness nobody has booted yet, and the watchdog must not rewind to it (R2). Marking the
    * record healthy later (a restart, an inherited non-code diff) vouches for both halves.
    */
@@ -825,7 +825,7 @@ export interface StudioSettingsView {
 export interface OutcomeView {
   state: "unknown" | "running" | "paused" | "failed" | "cancelled" | "finished";
   /**
-   * `delivered`: the build is in the game. `superseded`: a build was delivered, but a newer
+   * `delivered`: the build is in the project. `superseded`: a build was delivered, but a newer
    * integrated build was not. `available`: an integrated build exists that was not delivered
    * (yet). `none`: nothing to show.
    */
@@ -968,9 +968,9 @@ export interface HardwareReport {
 }
 // ↑ src/shared/studio-api.ts
 
-/** Host-owned presentation metadata. Folder identity and game files never change on rename. */
+/** Host-owned presentation metadata. Folder identity and project files never change on rename. */
 export type CoverStyle = "world" | "relic" | "city";
-// ↑ src/shared/game-library.ts
+// ↑ src/shared/project-library.ts
 
 export type LegacyShaderCover = {
   kind: "shader";
@@ -980,7 +980,7 @@ export type LegacyShaderCover = {
   poster: string;
   custom: boolean;
 };
-// ↑ src/shared/game-library.ts
+// ↑ src/shared/project-library.ts
 
 /** A family whose looks are named palettes, drawn by the shared sphere program. */
 export type PaletteFamily = 'aurora' | 'clouds' | 'bands' | 'marble' | 'ember' | 'ocean';
@@ -1002,38 +1002,38 @@ export type CoverRecipe = {
   seed: number;
   /** 0 still to 1 lively; absent means the default pace. */
   motion?: number;
-  /** Rolled by the host at birth; the agent may replace it once with a look that fits the game. */
+  /** Rolled by the host at birth; the agent may replace it once with a look that fits the project. */
   placeholder?: true;
 };
 // ↑ src/shared/cover-recipe.ts
 
-export type GameCover =
+export type ProjectCover =
   | { kind: "procedural"; seed: number; style: CoverStyle; palette: number }
   | { kind: "image"; dataUrl: string }
   | LegacyShaderCover
   | CoverRecipe;
-// ↑ src/shared/game-library.ts
+// ↑ src/shared/project-library.ts
 
-export interface GameLibraryEntry {
+export interface ProjectLibraryEntry {
   title?: string;
   pinned?: boolean;
   removed?: boolean;
   /** Folder trust is host metadata; project files cannot grant it. */
   trustProjectSettings?: boolean;
-  cover?: GameCover;
+  cover?: ProjectCover;
   primaryThreadId?: string;
-  /** The title waits for the game's first idea; any title given since clears it. */
+  /** The title waits for the project's first idea; any title given since clears it. */
   provisional?: boolean;
 }
-// ↑ src/shared/game-library.ts
+// ↑ src/shared/project-library.ts
 
 /**
- * What kind of game a folder holds, decided from the libraries and runtimes it actually loads —
+ * What kind of project a folder holds, decided from the libraries and runtimes it actually loads —
  * never from the entry filename. `src/main.js` is Vite's stock layout as much as the studio's,
- * and reading it as "the template" is what served the user's own three.js game raw, with a bare
+ * and reading it as "the template" is what served the user's own three.js project raw, with a bare
  * `three` import nothing could resolve (flautout-remix/wreckage, 2026-09-07).
  *
- * The kind says what the game *is*; `build` and `serve` say how it runs. A bundled Phaser game
+ * The kind says what the project *is*; `build` and `serve` say how it runs. A bundled Phaser project
  * is `phaser`, not `three-vite`.
  */
 export type ProjectKind =
@@ -1044,7 +1044,7 @@ export type ProjectKind =
   | "phaser"
   | "engine-export"
   | "own-script";
-// ↑ src/shared/game-project.ts
+// ↑ src/shared/project-folder.ts
 
 /**
  * How a project runs. The studio's own template needs no build: `index.html` loads `src/main.js`
@@ -1056,9 +1056,9 @@ export type ProjectKind =
 export interface ProjectShape {
   /** The page the preview serves, relative to the project — inside the build output when there is a build. */
   entry: string;
-  /** The game's real entry module: what the main owner edits and other facets wire into. */
+  /** The project's real entry module: what the main owner edits and other facets wire into. */
   main: string;
-  /** Shell command that produces `entry` from the sources; null when the game runs as written. */
+  /** Shell command that produces `entry` from the sources; null when the project runs as written. */
   build: string | null;
   /**
    * What "Install packages" runs — the manager the folder's own lockfile names, because
@@ -1067,7 +1067,7 @@ export interface ProjectShape {
    */
   install: string | null;
   /**
-   * The folder brought its own game. Explicit, because no filename can carry it: a game may keep
+   * The folder brought its own project. Explicit, because no filename can carry it: a project may keep
    * the template's entry name and still be entirely its own, and the studio must never write its
    * scaffold beside a real one.
    */
@@ -1077,46 +1077,46 @@ export interface ProjectShape {
   /** The folder the served page lives in, relative to the project; "." when it is served as written. */
   serve: string;
   /**
-   * How long this game asks the studio to wait for it to boot, in milliseconds — clamped to a
+   * How long this project asks the studio to wait for it to boot, in milliseconds — clamped to a
    * minute, so a rewritten studio.json can cost at most that much patience. The user's knob (or
    * a worker's): the studio reads it and never writes it. Absent when the folder declares none,
    * and then the studio waits its own default.
    */
   bootMs?: number;
 }
-// ↑ src/shared/game-project.ts
+// ↑ src/shared/project-folder.ts
 
-export interface GameProject {
+export interface Project {
   primaryThreadId?: string;
   pinned?: boolean;
-  cover?: GameLibraryEntry["cover"];
+  cover?: ProjectLibraryEntry["cover"];
   lastOpenedAt?: string;
   name: string;
   dir: string;
   title: string;
   createdAt: string;
-  /** `~/AI Games/pong` or `~/coding/my-game` — what the UI shows. */
+  /** `~/AI Projects/pong` or `~/coding/my-project` — what the UI shows. */
   pathLabel: string;
   /** False when this folder is not a child of the default library. */
   library: boolean;
-  /** How the game runs — the studio's own no-build shape, or a project with its own build. */
+  /** How the project runs — the studio's own no-build shape, or a project with its own build. */
   shape: ProjectShape;
-  /** `shape.own`: the folder brought its own game, so the studio builds it and serves its output. */
+  /** `shape.own`: the folder brought its own project, so the studio builds it and serves its output. */
   built: boolean;
-  /** Named before anyone said what the game is: its first idea renames it in place (`nameFromIdea`). */
+  /** Named before anyone said what the project is: its first idea renames it in place (`nameFromIdea`). */
   provisional?: boolean;
 }
-// ↑ src/shared/game-project.ts
+// ↑ src/shared/project-folder.ts
 
 /**
- * A game folder's content stamps from one walk (`game.contentStamp` with `split`): everything,
- * and the game's sources without docs/ and Markdown. Null is unknown: the preview check runs.
+ * A project folder's content stamps from one walk (`project.contentStamp` with `split`): everything,
+ * and the project's sources without docs/ and Markdown. Null is unknown: the preview check runs.
  */
 export interface ContentStamps {
   all: string | null;
   source: string | null;
 }
-// ↑ src/shared/game-project.ts
+// ↑ src/shared/project-folder.ts
 
 export interface ProjectRecent {
   name: string;
@@ -1125,18 +1125,18 @@ export interface ProjectRecent {
   dir: string;
   openedAt: string;
 }
-// ↑ src/shared/game-project.ts
+// ↑ src/shared/project-folder.ts
 
 export type ContractWord = 'loaded' | 'attached' | 'missing';
-// ↑ src/shared/game-project.ts
+// ↑ src/shared/project-folder.ts
 
 /**
  * What the studio's instrumentation actually got hold of on a page it just served (M4.2b).
  *
- * `game.validate` answers the same question from the folder's sources — a static judgement
+ * `project.validate` answers the same question from the folder's sources — a static judgement
  * about a page nobody loaded. This is the live one: the page is served, waited for and asked
- * what the hook attached to. `installed` is a game that calls `installStudio` itself,
- * `attached` is a game the hook found by watching it render, `none` is neither.
+ * what the hook attached to. `installed` is a project that calls `installStudio` itself,
+ * `attached` is a project the hook found by watching it render, `none` is neither.
  */
 export interface AttachReport {
   ok: boolean;
@@ -1144,7 +1144,7 @@ export interface AttachReport {
   /**
    * Did the studio's own page layer load at all? Every number below is read through it, so a
    * `false` here says the report is empty because the instrumentation never arrived — not
-   * because the game is unconnected.
+   * because the project is unconnected.
    */
   shim: boolean;
   reach: string | null;
@@ -1161,16 +1161,16 @@ export interface AttachReport {
   loadError: string | null;
   consoleErrors: number | null;
 }
-// ↑ src/shared/game-project.ts
+// ↑ src/shared/project-folder.ts
 
-/** What `game.export` wrote: the public roots it assembled, and what it left out. */
+/** What `project.export` wrote: the public roots it assembled, and what it left out. */
 export interface ExportResult {
   dir: string;
   files: number;
   included: string[];
   excluded: string[];
 }
-// ↑ src/shared/game-project.ts
+// ↑ src/shared/project-folder.ts
 
 /** A still of the named title the critic compares against. */
 export interface ReferenceFrame {
@@ -1257,13 +1257,13 @@ export interface PreviewPixelStats extends PixelStats {
   kind?: "webgl" | "webgl2" | "webgpu" | "2d" | null;
   /**
    * Who took this picture (M4.9a). `shim` is the studio's own end-of-frame read off the canvas;
-   * `game` is a picture the build's own `capture()` answered with — the facade delegates
-   * `capture()` and `captureInfo()` to the game, so a `game` frame and the draw count beside it
+   * `project` is a picture the build's own `capture()` answered with — the facade delegates
+   * `capture()` and `captureInfo()` to the project, so a `project` frame and the draw count beside it
    * are the build's claim about itself, and a check that counts draws must not read them as the
    * canvas's own answer.
    */
-  provenance?: "shim" | "game" | null;
-  /** Which rungs the page-side capture climbed to get this frame (`frame`, `pump`, `async`, `game`). */
+  provenance?: "shim" | "project" | null;
+  /** Which rungs the page-side capture climbed to get this frame (`frame`, `pump`, `async`, `project`). */
   ladder?: string[] | null;
 }
 // ↑ src/shared/preview-contract.ts
@@ -1464,7 +1464,7 @@ export interface HarnessHostApi {
       snapshotId: string;
       project?: string;
       reason?: string;
-      /** Narrows the restore below what the record captured, e.g. game-only from a "both" snapshot. */
+      /** Narrows the restore below what the record captured, e.g. project-only from a "both" snapshot. */
       scope?: HarnessSnapshotScope;
     };
     result: boolean;
@@ -1472,7 +1472,7 @@ export interface HarnessHostApi {
   "snapshot.list": { params: void; result: SnapshotRecord[] };
   "snapshot.markHealthy": { params: { snapshotId: string }; result: boolean };
   "snapshot.diff": { params: { workspace?: string; from: string; to?: string }; result: string };
-  /** A detached, playable, sandbox-writable fork of a game under scratch, at `commit` or the live HEAD. */
+  /** A detached, playable, sandbox-writable fork of a project under scratch, at `commit` or the live HEAD. */
   "snapshot.worktree": {
     params: { project: string; commit?: string; name: string; runId?: string };
     result: { path: string; commit: string };
@@ -1485,7 +1485,7 @@ export interface HarnessHostApi {
     result: { ready: boolean; reason: string; hostedVerified: false };
   };
   "plugins.tools": { params: void; result: { tools: PluginTool[]; guidance: string; revision: number } };
-  /** What this game's builders can use, for a conversation that cannot call it (the local coordinator). */
+  /** What this project's builders can use, for a conversation that cannot call it (the local coordinator). */
   "capabilities.describe": { params: { threadId: string; project?: string }; result: string };
   "plugins.invoke": {
     params: { project: string; threadId?: string; name: string; args: Record<string, unknown> };
@@ -1512,7 +1512,7 @@ export interface HarnessHostApi {
     params: void;
     result: {
       settings: StudioSettingsView;
-      games: Array<{ name: string; title: string }>;
+      projects: Array<{ name: string; title: string }>;
       recentActivity: StudioActivityItem[];
       pendingProposals: Array<{ skill: string; title?: string; summary?: string[]; rationale: string | undefined }>;
     };
@@ -1546,41 +1546,44 @@ export interface HarnessHostApi {
   };
   "engine.hardware": { params: void; result: HardwareReport };
 
-  // — games —
-  "game.list": { params: void; result: GameProject[] };
-  "game.setCover": { params: { project: string; threadId?: string } & Record<string, unknown>; result: string };
+  // — projects —
+  "project.list": { params: void; result: Project[] };
+  "project.setCover": { params: { project: string; threadId?: string } & Record<string, unknown>; result: string };
   /** Harnesses installed before recipes still author custom GLSL covers through this. */
-  "game.setCoverShader": { params: { project: string; surface: string; threadId?: string }; result: LiveToolResult };
+  "project.setCoverShader": { params: { project: string; surface: string; threadId?: string }; result: LiveToolResult };
   /**
    * The folder's content stamp; `split` answers both stamps from one walk ({@link ContentStamps}).
    * A caller that does not ask gets the full stamp as a string, as before.
    */
-  "game.contentStamp": { params: { project: string; split?: boolean }; result: string | ContentStamps | null };
-  "game.recents": { params: void; result: ProjectRecent[] };
-  "game.scaffold": { params: { name: string; title?: string; threadId?: string; kind?: string }; result: GameProject };
-  "game.validate": {
+  "project.contentStamp": { params: { project: string; split?: boolean }; result: string | ContentStamps | null };
+  "project.recents": { params: void; result: ProjectRecent[] };
+  "project.scaffold": { params: { name: string; title?: string; threadId?: string; kind?: string }; result: Project };
+  "project.validate": {
     params: { project: string; candidateId?: string };
     result: { ok: boolean; problems: string[]; warnings: string[]; contract: ContractWord };
   };
-  /** The live half of `game.validate`: serve the page, wait for it, ask what the hook got hold of. */
-  "game.attached": {
+  /** The live half of `project.validate`: serve the page, wait for it, ask what the hook got hold of. */
+  "project.attached": {
     params: { project: string; root?: string; entry?: string; candidateId?: string };
     result: AttachReport;
   };
   /** v2 contract upgrade: an older `src/studio.js` gets the shipped template's copy, the old one kept beside it. */
-  "game.upgradeContract": {
+  "project.upgradeContract": {
     params: { project: string };
     result: { upgraded: boolean; reason?: string; materialsAdded?: boolean; backup?: string | null };
   };
-  "game.read": { params: { project: string; file: string; candidateId?: string }; result: string | GameImageRead };
-  "game.write": {
+  "project.read": {
+    params: { project: string; file: string; candidateId?: string };
+    result: string | ProjectImageRead;
+  };
+  "project.write": {
     params: { project: string; file: string; contents: string; candidateId?: string };
     result: { bytes: number };
   };
-  "game.tree": { params: { project: string; candidateId?: string }; result: string[] };
-  "game.export": { params: { project: string; target?: string }; result: ExportResult };
+  "project.tree": { params: { project: string; candidateId?: string }; result: string[] };
+  "project.export": { params: { project: string; target?: string }; result: ExportResult };
   /** The stills in `<project>/references/`, sniffed and resized. */
-  "game.references": {
+  "project.references": {
     params: { project: string; max?: number; maxPx?: number };
     result: { frames: ReferenceFrame[]; skipped: Array<{ file: string; why: string }> };
   };
@@ -1621,7 +1624,7 @@ export interface HarnessHostApi {
   "preview.pageUi": { params: { handle?: string }; result: unknown };
   "preview.state": { params: { handle?: string }; result: unknown };
   "preview.call": { params: { method: string; arg?: unknown; handle?: string }; result: unknown };
-  /** Read-only JS over the game's own graph; the answer is untrusted JSON, size-capped by the port. */
+  /** Read-only JS over the project's own graph; the answer is untrusted JSON, size-capped by the port. */
   "preview.evaluate": { params: { expression: string; handle?: string }; result: unknown };
   /** A `vision` check's crop, cut from a saved judged frame — never re-captured. */
   "preview.crop": {
@@ -1647,7 +1650,7 @@ export interface HarnessHostApi {
     params: { handle?: string; x?: number; y?: number; keys?: string[] };
     result: { knocked: boolean; trusted: boolean | null };
   };
-  /** What the user's own window is showing right now: their game folder, or a build they chose to play. */
+  /** What the user's own window is showing right now: their project folder, or a build they chose to play. */
   "preview.showing": {
     params: void;
     result: { project: string; root: string | null; entry: string | undefined; loaded: string | null } | null;
@@ -1753,7 +1756,7 @@ export interface RunReference {
   shots: string[];
   notes?: string;
   /**
-   * "reference" is a real game to beat (the blind panel is the exit); "direction" is free text
+   * "reference" is a real project to beat (the blind panel is the exit); "direction" is free text
    * to push toward — no panel, the run spends its whole budget iterating.
    */
   kind?: "reference" | "direction";
@@ -1783,7 +1786,7 @@ export interface RunSpec {
   directorLoop?: "wake" | "turn";
   /**
    * gauntlet reference bar — Named / Fetchable / Comparable. `kind` widens it:
-   * "reference" is a real game to beat (the blind panel is the exit condition); "direction" is
+   * "reference" is a real project to beat (the blind panel is the exit condition); "direction" is
    * free text to push toward — no reference panel. Completion is controlled by budgets.
    */
   reference: RunReference;
@@ -1862,7 +1865,7 @@ export type DispatchAction =
       stills?: ReferenceFrame[];
       /** How many of `stills` the composer attached (they come first); a rewind gives them back. */
       pickedImages?: number;
-      /** Reference files this message saved in the game (relative paths); a rewind with files removes them. */
+      /** Reference files this message saved in the project (relative paths); a rewind with files removes them. */
       references?: string[];
       /** Composer Loop: the chat may start an unattended build when the ask needs one. */
       loop?: LoopCommission;

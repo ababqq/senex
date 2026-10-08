@@ -8,8 +8,8 @@ test("existing chat coordinators see current builder capabilities without receiv
   const rig = await startRig({ replies: [] });
   try {
     const project = "capability-chat";
-    await rig.core.games.scaffold(project);
-    const threadId = await rig.core.createGameThread(project);
+    await rig.core.projects.scaffold(project);
+    const threadId = await rig.core.createProjectThread(project);
     const api = rig.core.api() as unknown as Record<string, (p: any) => Promise<any>>;
     for (const engine of ["codex", "claude-code", "bonsai"]) {
       let seen: DelegateRequest | undefined;
@@ -36,7 +36,7 @@ test("existing chat coordinators see current builder capabilities without receiv
       await rig.core.plugins.setEnabled("genex", true);
       await call();
       assert.match(seen!.prompt, /genex__asset/);
-      assert.match(seen!.prompt, /capabilities of this game's builders/);
+      assert.match(seen!.prompt, /capabilities of this project's builders/);
       assert.match(seen!.prompt, /cannot call them in this conversation/);
       assert.match(seen!.prompt, /"account":"locked"/);
       assert.ok(!seen!.liveTools?.some((t) => t.name.startsWith("genex__")));
@@ -78,7 +78,7 @@ test("existing chat coordinators see current builder capabilities without receiv
     assert.match(completion!.messages.map((message) => message.content).join("\n"), /genex__asset/);
     assert.match(
       completion!.messages.map((message) => message.content).join("\n"),
-      /capabilities of this game's builders/,
+      /capabilities of this project's builders/,
     );
     assert.match(completion!.messages.map((message) => message.content).join("\n"), /"account":"unlocked"/);
     assert.doesNotMatch(

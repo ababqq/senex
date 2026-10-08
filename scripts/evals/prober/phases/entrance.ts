@@ -84,7 +84,7 @@ function parseOccluded(json: string | null): StartControlSignal["occluded"] {
   }
 }
 
-/** Find, click and re-check the game's own start control. */
+/** Find, click and re-check the project's own start control. */
 async function tryStartControl(ctx: PhaseContext): Promise<StartControlSignal> {
   const found = await ctx.page.evaluate(findStartControlInPage, CHROME_DENY_SOURCE);
   if (!found) {
@@ -147,7 +147,7 @@ export async function entrancePhase(ctx: PhaseContext, idleMoved: boolean | null
   const control = await tryNamedKeys(ctx, await tryStartControl(ctx), keysRefused);
   const pressAnyKey = control.found ? null : await tryPressAnyKey(ctx, keysRefused);
   // The centre click is the gesture a click-to-lock door or an audio unlock needs; a door already
-  // seen to open does not get a stray click into the game.
+  // seen to open does not get a stray click into the project.
   const alreadyIn = control.gone === true || pressAnyKey?.gone === true;
   const centreClicked = alreadyIn ? false : await guardedCentreClick(ctx);
   await ctx.sleep(ENTRANCE_SETTLE_MS);

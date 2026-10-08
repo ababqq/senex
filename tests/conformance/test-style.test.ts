@@ -44,10 +44,10 @@ import path from 'node:path';
 import vm from 'node:vm';
 import { App } from '../../src/renderer/App.tsx';
 const read = (rel: string) => fs.readFileSync(path.join('src/harness-seed', rel), 'utf8');
-declare const gameDir: string;
+declare const projectDir: string;
 App();
 read('judge/rubric.md');
-fs.readFileSync(path.join(gameDir, 'src', 'main.js'), 'utf8');
+fs.readFileSync(path.join(projectDir, 'src', 'main.js'), 'utf8');
 fs.readFileSync('src/plugin-sdk/panel.js');
 vm.runInNewContext(fs.readFileSync('src/plugin-sdk/panel.js', 'utf8'), {});
 fs.readFileSync('tests/fixtures/data.json', 'utf8');
@@ -65,7 +65,7 @@ test("flags each way a test reads studio source as text, and nothing else", (t) 
       "11:src/renderer/App.tsx",
     ],
   );
-  // Imports, markdown rubrics, a game's own files, bytes and source executed in a VM are not source-text tests.
+  // Imports, markdown rubrics, a project's own files, bytes and source executed in a VM are not source-text tests.
   assert.deepEqual(sourceReads(root, "tests/conformance/clean.test.ts"), []);
 });
 

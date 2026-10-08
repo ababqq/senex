@@ -2,7 +2,7 @@
  * The Genex app eval lane's launch guard and log readers (evals plan §5.3): a `--studio-eval-lane`
  * launch is refused before any core starts unless it is a smoke launch, live providers are
  * explicitly allowed, the mode is not Bypass, and every root it writes sits inside the spec's
- * work root by real path, outside `~/AI Games` and the normal profile. Refusing creates nothing.
+ * work root by real path, outside `~/AI Projects` and the normal profile. Refusing creates nothing.
  */
 import assert from "node:assert/strict";
 import { mkdir, readdir, symlink, writeFile } from "node:fs/promises";
@@ -32,8 +32,8 @@ const SAFE: EvalLaunchFacts = {
   liveAllowed: false,
   permissionMode: PermissionMode.Auto,
   workRoot: WORK,
-  roots: [`${WORK}/userdata`, `${WORK}/games`, `${WORK}/report`],
-  aiGames: `${HOME}/AI Games`,
+  roots: [`${WORK}/userdata`, `${WORK}/projects`, `${WORK}/report`],
+  aiProjects: `${HOME}/AI Projects`,
   defaultUserData: `${HOME}/Library/Application Support/Genex`,
 };
 
@@ -49,7 +49,7 @@ describe("eval launch refusal (pure)", () => {
       refusal: EvalLaunchRefusal.BypassMode,
     },
     {
-      name: "a work root that holds the normal games",
+      name: "a work root that holds the normal projects",
       facts: { workRoot: HOME, roots: [`${HOME}/eval/userdata`] },
       refusal: EvalLaunchRefusal.WorkRootTooBroad,
     },
@@ -59,14 +59,14 @@ describe("eval launch refusal (pure)", () => {
       refusal: EvalLaunchRefusal.WorkRootTooBroad,
     },
     {
-      name: "games in ~/AI Games",
-      facts: { roots: [`${WORK}/userdata`, `${HOME}/AI Games/eval`] },
-      refusal: EvalLaunchRefusal.InsideAiGames,
+      name: "projects in ~/AI Projects",
+      facts: { roots: [`${WORK}/userdata`, `${HOME}/AI Projects/eval`] },
+      refusal: EvalLaunchRefusal.InsideAiProjects,
     },
     {
-      name: "games that are ~/AI Games itself",
-      facts: { roots: [`${HOME}/AI Games`] },
-      refusal: EvalLaunchRefusal.InsideAiGames,
+      name: "projects that are ~/AI Projects itself",
+      facts: { roots: [`${HOME}/AI Projects`] },
+      refusal: EvalLaunchRefusal.InsideAiProjects,
     },
     {
       name: "the normal profile's userData",
@@ -80,17 +80,17 @@ describe("eval launch refusal (pure)", () => {
     },
     {
       name: "a sibling run's folder",
-      facts: { roots: [`${HOME}/genex-evals/work/run-2/games`] },
+      facts: { roots: [`${HOME}/genex-evals/work/run-2/projects`] },
       refusal: EvalLaunchRefusal.OutsideWorkRoot,
     },
     {
       name: "a prefix-sharing sibling (run-1x)",
-      facts: { roots: [`${WORK}x/games`] },
+      facts: { roots: [`${WORK}x/projects`] },
       refusal: EvalLaunchRefusal.OutsideWorkRoot,
     },
     {
       name: "a dot-dot escape",
-      facts: { roots: [`${WORK}/games/../../run-2`] },
+      facts: { roots: [`${WORK}/projects/../../run-2`] },
       refusal: EvalLaunchRefusal.OutsideWorkRoot,
     },
   ];
@@ -110,7 +110,7 @@ function specIn(work: string, patch: Record<string, unknown> = {}) {
     engine: EngineId.ClaudeCode,
     model: "fixture-v1",
     effort: "high",
-    brief: "A small synthetic game brief.",
+    brief: "A small synthetic project brief.",
     suffix: "You have about 90 minutes.",
     commission: { autopilot: {} },
     permissionMode: PermissionMode.Auto,
@@ -119,7 +119,7 @@ function specIn(work: string, patch: Record<string, unknown> = {}) {
     answerPolicy: AnswerPolicy.NoAnswers,
     maxAnswers: 3,
     codexHostSkillSuppression: false,
-    gamesRoot: path.join(work, "games"),
+    projectsRoot: path.join(work, "projects"),
     userDataRoot: path.join(work, "userdata"),
     workRoot: work,
     homes: { claude: path.join(work, "homes", "claude"), codex: path.join(work, "homes", "codex") },
@@ -134,16 +134,16 @@ async function tree(dir: string): Promise<string[]> {
   return (await readdir(dir, { recursive: true })).map(String).sort();
 }
 
-/** A run's work folder beside a fake home with its games and profile. */
+/** A run's work folder beside a fake home with its projects and profile. */
 async function layout() {
   const base = await tmpDir("studio-eval-guard-");
   const work = path.join(base, "work", "run-1");
-  const aiGames = path.join(base, "home", "AI Games");
+  const aiProjects = path.join(base, "home", "AI Projects");
   const defaultUserData = path.join(base, "home", "Library", "Genex");
   await mkdir(work, { recursive: true });
-  await mkdir(aiGames, { recursive: true });
+  await mkdir(aiProjects, { recursive: true });
   await mkdir(defaultUserData, { recursive: true });
-  return { base, work, aiGames, defaultUserData };
+  return { base, work, aiProjects, defaultUserData };
 }
 
 type Dirs = Awaited<ReturnType<typeof layout>>;
@@ -163,7 +163,7 @@ async function open(
     fixtureFlag: false,
     liveAllowed: false,
     userData: input.userData ?? path.join(dirs.work, "userdata"),
-    aiGames: dirs.aiGames,
+    aiProjects: dirs.aiProjects,
     defaultUserData: dirs.defaultUserData,
   });
 }
@@ -175,22 +175,22 @@ const HOSTILE: Array<{
   refusal: EvalLaunchRefusal;
 }> = [
   {
-    name: "games reached through a link out of the work root",
+    name: "projects reached through a link out of the work root",
     prepare: async (dirs) => {
       const outside = path.join(dirs.base, "outside");
       await mkdir(outside);
       await symlink(outside, path.join(dirs.work, "escape"));
-      return { spec: specIn(dirs.work, { gamesRoot: path.join(dirs.work, "escape", "games") }) };
+      return { spec: specIn(dirs.work, { projectsRoot: path.join(dirs.work, "escape", "projects") }) };
     },
     refusal: EvalLaunchRefusal.OutsideWorkRoot,
   },
   {
-    name: "games reached through a link into ~/AI Games",
+    name: "projects reached through a link into ~/AI Projects",
     prepare: async (dirs) => {
-      await symlink(dirs.aiGames, path.join(dirs.work, "games-link"));
-      return { spec: specIn(dirs.work, { gamesRoot: path.join(dirs.work, "games-link") }) };
+      await symlink(dirs.aiProjects, path.join(dirs.work, "projects-link"));
+      return { spec: specIn(dirs.work, { projectsRoot: path.join(dirs.work, "projects-link") }) };
     },
-    refusal: EvalLaunchRefusal.InsideAiGames,
+    refusal: EvalLaunchRefusal.InsideAiProjects,
   },
   {
     name: "a dangling link on the way to the report",
@@ -226,7 +226,7 @@ const HOSTILE: Array<{
     refusal: EvalLaunchRefusal.NotSmoke,
   },
   {
-    name: "a developer launch, whose core runs on its dev profile and games, not the checked roots",
+    name: "a developer launch, whose core runs on its dev profile and projects, not the checked roots",
     prepare: async (dirs) => ({ spec: specIn(dirs.work), devLaunch: true }),
     refusal: EvalLaunchRefusal.DevLaunch,
   },
@@ -236,8 +236,8 @@ const HOSTILE: Array<{
     refusal: EvalLaunchRefusal.InvalidSpec,
   },
   {
-    name: "a relative games root",
-    prepare: async (dirs) => ({ spec: specIn(dirs.work, { gamesRoot: "games" }) }),
+    name: "a relative projects root",
+    prepare: async (dirs) => ({ spec: specIn(dirs.work, { projectsRoot: "projects" }) }),
     refusal: EvalLaunchRefusal.InvalidSpec,
   },
   {

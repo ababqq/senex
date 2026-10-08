@@ -65,12 +65,12 @@ const CAPABILITIES = [
 /**
  * Two substrate calls need to know which chat they belong to, so the ctx supplies it rather
  * than trusting every call site to remember: `engine.complete` so a Stop can abort it
- * mid-generation, and `game.scaffold` so the chat that asked for a game becomes that game's
+ * mid-generation, and `project.scaffold` so the chat that asked for a project becomes that project's
  * chat. The scaffold binding used to live only in the delegation path, so a local model
- * calling the `new_game` tool left its chat unbound forever — and an unbound chat is the one
+ * calling the `new_project` tool left its chat unbound forever — and an unbound chat is the one
  * the ＋ button hands back, which is how ＋ stopped opening anything new.
  */
-const CARRIES_THREAD = new Set<string>([HostMethod.EngineComplete, HostMethod.GameScaffold]);
+const CARRIES_THREAD = new Set<string>([HostMethod.EngineComplete, HostMethod.ProjectScaffold]);
 
 export async function createStudio(host: Host) {
   let shuttingDown = false;
@@ -98,7 +98,7 @@ export async function createStudio(host: Host) {
       await compactions.get(threadId);
       return chatWaitsFor(studio, threadId, next);
     },
-    // Steer reaches the chat's own turn only: while a build of this chat or its game is open,
+    // Steer reaches the chat's own turn only: while a build of this chat or its project is open,
     // messages keep the build's path.
     (threadId, action) => !buildHolds(studio, threadId, action.project),
     (threadId, action) => leadDoor(studio, threadId, action),
@@ -338,7 +338,7 @@ async function compactOnRequest(studio: Studio, action: Extract<DispatchAction, 
 
 /**
  * The status lines. Status is per-thread: chats work in parallel and each shows only its own
- * line — a run in one game must never paint "self-improving" over every chat. A thread shows its
+ * line — a run in one project must never paint "self-improving" over every chat. A thread shows its
  * run's line when it has one, else its chat's.
  */
 function createStatusBoard(host: Host) {

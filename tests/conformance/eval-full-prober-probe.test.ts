@@ -55,8 +55,8 @@ import {
 } from "../../scripts/evals/vocabulary.ts";
 import { tmpDir } from "../helpers/tmp.ts";
 
-const GAME = "http://127.0.0.1:4173";
-const URL_ = `${GAME}/index.html`;
+const PROJECT = "http://127.0.0.1:4173";
+const URL_ = `${PROJECT}/index.html`;
 const SAMPLE_EVERY_MS = 100;
 const RAD = Math.PI / 180;
 const GPU = "ANGLE (Apple, ANGLE Metal Renderer: Apple M3)";
@@ -85,8 +85,8 @@ interface Scenario {
   inverted?: boolean;
 }
 
-/** A game on a virtual clock: W walks forward, S back, pointer deltas turn the camera, input shows. */
-function fakeGame(s: Scenario) {
+/** A project on a virtual clock: W walks forward, S back, pointer deltas turn the camera, input shows. */
+function fakeProject(s: Scenario) {
   let now = 0;
   let clicked = false;
   let respondUntil = -1;
@@ -100,8 +100,8 @@ function fakeGame(s: Scenario) {
     pageErrors: [],
     network: [
       { url: URL_, method: "GET", status: 200, resourceType: "document", failure: null, startedAtMs: 0 },
-      { url: `${GAME}/main.js`, method: "GET", status: 200, resourceType: "script", failure: null, startedAtMs: 5 },
-      { url: `${GAME}/theme.ogg`, method: "GET", status: 200, resourceType: "media", failure: null, startedAtMs: 9 },
+      { url: `${PROJECT}/main.js`, method: "GET", status: 200, resourceType: "script", failure: null, startedAtMs: 5 },
+      { url: `${PROJECT}/theme.ogg`, method: "GET", status: 200, resourceType: "media", failure: null, startedAtMs: 9 },
     ],
     navigations: [{ atMs: 0, url: URL_ }],
     documentStatus: 200,
@@ -264,7 +264,7 @@ const SHORT_SOAK_BUDGET_MS = 600_000;
 
 async function probe(s: Scenario, extra: { soakMs?: number; rendererMode?: RendererMode } = {}) {
   const { evidenceDir, lockPath } = await setup();
-  const game = fakeGame(s);
+  const project = fakeProject(s);
   const result = await runFullProbe(
     URL_,
     {
@@ -274,15 +274,15 @@ async function probe(s: Scenario, extra: { soakMs?: number; rendererMode?: Rende
       soakMs: extra.soakMs,
       budgetMs: extra.soakMs === undefined ? undefined : SHORT_SOAK_BUDGET_MS,
     },
-    { launch: async () => game.browser, sleep: game.sleep, lockPath },
+    { launch: async () => project.browser, sleep: project.sleep, lockPath },
   );
-  return { result, evidenceDir, lockPath, game };
+  return { result, evidenceDir, lockPath, project };
 }
 
 const ALL_ROWS = Object.values(ProbeRow);
 
 describe("runFullProbe", () => {
-  it("answers every row for a game that boots, enters, walks the right way, survives the soak and draws on a phone", async () => {
+  it("answers every row for a project that boots, enters, walks the right way, survives the soak and draws on a phone", async () => {
     const { result, evidenceDir, lockPath } = await probe({ drawsAtMs: 2_000, mouse: true });
     assert.deepEqual(Object.keys(result.rows).sort(), [...ALL_ROWS].sort());
     assert.deepEqual(
@@ -293,7 +293,7 @@ describe("runFullProbe", () => {
     const passes = [
       ProbeRow.L1BuildsAndBoots,
       ProbeRow.L1NoErrors60s,
-      ProbeRow.L1StayedOnGame,
+      ProbeRow.L1StayedOnProject,
       ProbeRow.L1Survives5min,
       ProbeRow.L1FrameRateFloor,
       ProbeRow.L2Enterable,
@@ -324,7 +324,7 @@ describe("runFullProbe", () => {
     assert.equal(result.judgeEvidence.sufficient, true);
     for (const f of result.evidence.frames) {
       assert.ok(f.atMs > 2_000, "never before the first render");
-      assert.equal(f.origin, GAME);
+      assert.equal(f.origin, PROJECT);
       assert.ok(fs.existsSync(f.path));
     }
     assert.ok(fs.existsSync(path.join(evidenceDir, FULL_SCORECARD_FILE)));
@@ -372,11 +372,11 @@ describe("runFullProbe", () => {
 
   it("A SHORT SOAK WITHOUT A CHOSEN BUDGET still runs in full: the budget floor holds it", async () => {
     const { evidenceDir, lockPath } = await setup();
-    const game = fakeGame({ drawsAtMs: 1_000 });
+    const project = fakeProject({ drawsAtMs: 1_000 });
     const result = await runFullProbe(
       URL_,
       { firstDrawTimeoutMs: 10_000, rendererMode: RendererMode.Gpu, evidenceDir, soakMs: 30_000 },
-      { launch: async () => game.browser, sleep: game.sleep, lockPath },
+      { launch: async () => project.browser, sleep: project.sleep, lockPath },
     );
     assert.equal(result.soakMs, 30_000);
     assert.ok((result.soakRanMs ?? 0) >= 30_000, "the whole short soak ran");
@@ -391,9 +391,9 @@ describe("runFullProbe", () => {
   });
 
   it("A PAGE WITH NO MOUSE still drags (synthetically) and the scorecard says what it could not send", async () => {
-    const { result, game } = await probe({ drawsAtMs: 1_000 }, { soakMs: 30_000 });
+    const { result, project } = await probe({ drawsAtMs: 1_000 }, { soakMs: 30_000 });
     assert.equal(result.rows[ProbeRow.L2InputChangesState], CheckResult.Pass);
-    assert.ok(game.pressed.length > 0);
+    assert.ok(project.pressed.length > 0);
     const scorecard = JSON.parse(fs.readFileSync(result.scorecardPath, "utf8")) as { notes: string[] };
     assert.ok(scorecard.notes.some((n) => /hover move\(s\) were skipped: the page has no mouse/.test(n)));
   });
@@ -412,7 +412,7 @@ describe("quick or full is a type", () => {
     rendererMode: RendererMode.Gpu,
     servedVia: ServedVia.AsIs,
     evidence: {
-      gameOrigin: GAME,
+      projectOrigin: PROJECT,
       frames: [],
       consoleSummaryPath: "",
       networkSummaryPath: "",

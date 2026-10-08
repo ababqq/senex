@@ -193,7 +193,7 @@ const REPLACED_BY: Readonly<Record<string, GenexStudioTool>> = {
 export interface GenexCliRequest {
   command: GenexCliCommand;
   argv: string[];
-  /** It runs against the game's hosted project, mirrored into the run folder. */
+  /** It runs against the project's hosted project, mirrored into the run folder. */
   project: boolean;
   paid: boolean;
 }

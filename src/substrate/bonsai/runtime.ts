@@ -105,7 +105,7 @@ export interface Machine {
 
 /**
  * A server no request has held for this long is stopped: it keeps the weights, projector and KV
- * cache in memory (about 10 GB on a 16 GB Mac) beside game previews. The next request reloads it.
+ * cache in memory (about 10 GB on a 16 GB Mac) beside project previews. The next request reloads it.
  */
 export const IDLE_STOP_MS = 5 * MINUTE_MS;
 

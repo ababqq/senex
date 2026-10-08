@@ -1,7 +1,7 @@
 /**
  * The playtester's shorthands: press keys, look, click, wait, read the state, save a screenshot.
  * They sit beside the computer tool on the same pooled window of the build under test; each one
- * acts, leaves a frame on the agent's screen and answers with the game's state.
+ * acts, leaves a frame on the agent's screen and answers with the project's state.
  */
 import { writeFile } from "node:fs/promises";
 import { type ScreenAct, ScreenDeed } from "../../shared/agent-screen.ts";
@@ -17,7 +17,7 @@ export const PlaytestTool = {
   Look: "look",
   Click: "click",
   Screenshot: "screenshot",
-  GameState: "game_state",
+  ProjectState: "project_state",
   Wait: "wait",
 } as const;
 export type PlaytestTool = (typeof PlaytestTool)[keyof typeof PlaytestTool];
@@ -39,7 +39,7 @@ const num = (description: string) => ({ type: "number", description });
 export const PLAYTEST_TOOLS: readonly LiveTool[] = [
   {
     name: PlaytestTool.PressKeys,
-    description: `Press keys in the game the way a player would (w,a,s,d,space,shift,arrows…). Hold with holdMs (default ${PLAYTEST_LIMITS.defaultHoldMs}). Returns the game's state afterwards — then screenshot to SEE what happened.`,
+    description: `Press keys in the project the way a player would (w,a,s,d,space,shift,arrows…). Hold with holdMs (default ${PLAYTEST_LIMITS.defaultHoldMs}). Returns the project's state afterwards — then screenshot to SEE what happened.`,
     parameters: {
       type: "object",
       properties: {
@@ -62,24 +62,24 @@ export const PLAYTEST_TOOLS: readonly LiveTool[] = [
   },
   {
     name: PlaytestTool.Click,
-    description: "Click in the game view. x,y as 0–1 fractions of the view (omit for centre).",
+    description: "Click in the project view. x,y as 0–1 fractions of the view (omit for centre).",
     parameters: { type: "object", properties: { x: num("0–1 fraction"), y: num("0–1 fraction") } },
   },
   {
     name: PlaytestTool.Screenshot,
     description:
-      "Save a screenshot of what you see right now to a file and return its path — Read the file to look at it. Pass a camera name to switch viewpoints first (eye:here is your own eyes).",
-    parameters: { type: "object", properties: { camera: str("optional camera name, e.g. eye:here, default") } },
+      "Save a screenshot of what you see right now to a file and return its path — Read the file to look at it. Pass a view name to switch screens first (default is the page as it loads).",
+    parameters: { type: "object", properties: { camera: str("optional view name, e.g. empty, default") } },
   },
   {
-    name: PlaytestTool.GameState,
+    name: PlaytestTool.ProjectState,
     description:
-      "The game's own state numbers (position, score, phase, fps). Self-reported — a screenshot is the truth.",
+      "The project's own state numbers (position, score, phase, fps). Self-reported — a screenshot is the truth.",
     parameters: { type: "object", properties: {} },
   },
   {
     name: PlaytestTool.Wait,
-    description: `Let the game run for a moment (ms, max ${PLAYTEST_LIMITS.maxWaitMs}), then report the state.`,
+    description: `Let the project run for a moment (ms, max ${PLAYTEST_LIMITS.maxWaitMs}), then report the state.`,
     parameters: {
       type: "object",
       properties: { ms: num(`milliseconds, max ${PLAYTEST_LIMITS.maxWaitMs}`) },
@@ -142,7 +142,7 @@ const HANDLERS: Record<PlaytestTool, PlaytestHandler> = {
     await ctx.sleep(clamp(Number(args.ms) || 0, 0, PLAYTEST_LIMITS.maxWaitMs));
     return stateText(live);
   },
-  [PlaytestTool.GameState]: async (live) => stateText(live),
+  [PlaytestTool.ProjectState]: async (live) => stateText(live),
   [PlaytestTool.Screenshot]: async (live, args, ctx) => {
     const camera = typeof args.camera === "string" && args.camera.trim() ? args.camera.trim() : null;
     if (camera) await live.studioCall("debugCamera", camera).catch(() => null);

@@ -6,7 +6,7 @@
  * params do not declare, or answers something its result does not describe, fails the typecheck.
  * The harness is plain JavaScript and is copied, not imported: its calls are held to the same
  * method names by `tests/conformance/rpc-surface.test.ts`, and its params — for every method that
- * names a file, a folder or a game folder — by {@link HARNESS_PARAM_SCHEMAS}, which
+ * names a file, a folder or a project folder — by {@link HARNESS_PARAM_SCHEMAS}, which
  * `substrate/harness-host.ts` checks before a message reaches its handler.
  *
  * The schemas complement the host's own containment; they never replace it. A path that passes
@@ -32,15 +32,15 @@ import type {
   ToolDefinition,
 } from "./engine-requests.ts";
 import type { ConversationRecord, EventData, EventEnvelope, Message, SnapshotRecord } from "./event-log.ts";
-import type { ProjectAssets } from "./game-assets.ts";
+import type { ProjectAssets } from "./project-assets.ts";
 import type {
   AttachReport,
   ContentStamps,
   ContractWord,
   ExportResult,
-  GameProject,
+  Project,
   ProjectRecent,
-} from "./game-project.ts";
+} from "./project-folder.ts";
 import type { McpLiveTool } from "./mcp.ts";
 import type { SteerDelivery } from "./message-queue.ts";
 import type { ModelPreferences } from "./model-preferences.ts";
@@ -74,7 +74,7 @@ export type WorkClass = (typeof WorkClass)[keyof typeof WorkClass];
 /** Budget class of a completion or delegation; anything but `improvement` is user work. */
 export type HarnessWorkClass = WorkClass;
 
-/** A snapshot's reach: the harness workspace, the game, or both. */
+/** A snapshot's reach: the harness workspace, the project, or both. */
 export type HarnessSnapshotScope = "harness" | "game" | "both";
 
 /**
@@ -92,8 +92,8 @@ export type SelfWriteResult =
   | { ok: true; file: string; snapshotId: string; postSnapshotId: string; checked: string[] }
   | { ok: false; stage: SelfEditStage; message: string };
 
-/** An image the harness reads from a game folder: the bytes decide the type, never the extension. */
-export interface GameImageRead {
+/** An image the harness reads from a project folder: the bytes decide the type, never the extension. */
+export interface ProjectImageRead {
   kind: "image";
   mimeType: string;
   data: string;
@@ -164,7 +164,7 @@ export interface HarnessDelegateParams {
   engine?: string;
   prompt: string;
   project: string;
-  /** Build here instead of the live game folder — a facet worktree under scratch. */
+  /** Build here instead of the live project folder — a facet worktree under scratch. */
   cwd?: string;
   threadId?: string;
   model?: string;
@@ -270,7 +270,7 @@ export interface HarnessHostApi {
       snapshotId: string;
       project?: string;
       reason?: string;
-      /** Narrows the restore below what the record captured, e.g. game-only from a "both" snapshot. */
+      /** Narrows the restore below what the record captured, e.g. project-only from a "both" snapshot. */
       scope?: HarnessSnapshotScope;
     };
     result: boolean;
@@ -278,7 +278,7 @@ export interface HarnessHostApi {
   "snapshot.list": { params: void; result: SnapshotRecord[] };
   "snapshot.markHealthy": { params: { snapshotId: string }; result: boolean };
   "snapshot.diff": { params: { workspace?: string; from: string; to?: string }; result: string };
-  /** A detached, playable, sandbox-writable fork of a game under scratch, at `commit` or the live HEAD. */
+  /** A detached, playable, sandbox-writable fork of a project under scratch, at `commit` or the live HEAD. */
   "snapshot.worktree": {
     params: { project: string; commit?: string; name: string; runId?: string };
     result: { path: string; commit: string };
@@ -291,7 +291,7 @@ export interface HarnessHostApi {
     result: { ready: boolean; reason: string; hostedVerified: false };
   };
   "plugins.tools": { params: void; result: { tools: PluginTool[]; guidance: string; revision: number } };
-  /** What this game's builders can use, for a conversation that cannot call it (the local coordinator). */
+  /** What this project's builders can use, for a conversation that cannot call it (the local coordinator). */
   "capabilities.describe": { params: { threadId: string; project?: string }; result: string };
   "plugins.invoke": {
     params: { project: string; threadId?: string; name: string; args: Record<string, unknown> };
@@ -318,7 +318,7 @@ export interface HarnessHostApi {
     params: void;
     result: {
       settings: StudioSettingsView;
-      games: Array<{ name: string; title: string }>;
+      projects: Array<{ name: string; title: string }>;
       recentActivity: StudioActivityItem[];
       pendingProposals: Array<{ skill: string; title?: string; summary?: string[]; rationale: string | undefined }>;
     };
@@ -352,41 +352,44 @@ export interface HarnessHostApi {
   };
   "engine.hardware": { params: void; result: HardwareReport };
 
-  // — games —
-  "game.list": { params: void; result: GameProject[] };
-  "game.setCover": { params: { project: string; threadId?: string } & Record<string, unknown>; result: string };
+  // — projects —
+  "project.list": { params: void; result: Project[] };
+  "project.setCover": { params: { project: string; threadId?: string } & Record<string, unknown>; result: string };
   /** Harnesses installed before recipes still author custom GLSL covers through this. */
-  "game.setCoverShader": { params: { project: string; surface: string; threadId?: string }; result: LiveToolResult };
+  "project.setCoverShader": { params: { project: string; surface: string; threadId?: string }; result: LiveToolResult };
   /**
    * The folder's content stamp; `split` answers both stamps from one walk ({@link ContentStamps}).
    * A caller that does not ask gets the full stamp as a string, as before.
    */
-  "game.contentStamp": { params: { project: string; split?: boolean }; result: string | ContentStamps | null };
-  "game.recents": { params: void; result: ProjectRecent[] };
-  "game.scaffold": { params: { name: string; title?: string; threadId?: string; kind?: string }; result: GameProject };
-  "game.validate": {
+  "project.contentStamp": { params: { project: string; split?: boolean }; result: string | ContentStamps | null };
+  "project.recents": { params: void; result: ProjectRecent[] };
+  "project.scaffold": { params: { name: string; title?: string; threadId?: string; kind?: string }; result: Project };
+  "project.validate": {
     params: { project: string; candidateId?: string };
     result: { ok: boolean; problems: string[]; warnings: string[]; contract: ContractWord };
   };
-  /** The live half of `game.validate`: serve the page, wait for it, ask what the hook got hold of. */
-  "game.attached": {
+  /** The live half of `project.validate`: serve the page, wait for it, ask what the hook got hold of. */
+  "project.attached": {
     params: { project: string; root?: string; entry?: string; candidateId?: string };
     result: AttachReport;
   };
   /** v2 contract upgrade: an older `src/studio.js` gets the shipped template's copy, the old one kept beside it. */
-  "game.upgradeContract": {
+  "project.upgradeContract": {
     params: { project: string };
     result: { upgraded: boolean; reason?: string; materialsAdded?: boolean; backup?: string | null };
   };
-  "game.read": { params: { project: string; file: string; candidateId?: string }; result: string | GameImageRead };
-  "game.write": {
+  "project.read": {
+    params: { project: string; file: string; candidateId?: string };
+    result: string | ProjectImageRead;
+  };
+  "project.write": {
     params: { project: string; file: string; contents: string; candidateId?: string };
     result: { bytes: number };
   };
-  "game.tree": { params: { project: string; candidateId?: string }; result: string[] };
-  "game.export": { params: { project: string; target?: string }; result: ExportResult };
+  "project.tree": { params: { project: string; candidateId?: string }; result: string[] };
+  "project.export": { params: { project: string; target?: string }; result: ExportResult };
   /** The stills in `<project>/references/`, sniffed and resized. */
-  "game.references": {
+  "project.references": {
     params: { project: string; max?: number; maxPx?: number };
     result: { frames: ReferenceFrame[]; skipped: Array<{ file: string; why: string }> };
   };
@@ -427,7 +430,7 @@ export interface HarnessHostApi {
   "preview.pageUi": { params: { handle?: string }; result: unknown };
   "preview.state": { params: { handle?: string }; result: unknown };
   "preview.call": { params: { method: string; arg?: unknown; handle?: string }; result: unknown };
-  /** Read-only JS over the game's own graph; the answer is untrusted JSON, size-capped by the port. */
+  /** Read-only JS over the project's own graph; the answer is untrusted JSON, size-capped by the port. */
   "preview.evaluate": { params: { expression: string; handle?: string }; result: unknown };
   /** A `vision` check's crop, cut from a saved judged frame — never re-captured. */
   "preview.crop": {
@@ -453,7 +456,7 @@ export interface HarnessHostApi {
     params: { handle?: string; x?: number; y?: number; keys?: string[] };
     result: { knocked: boolean; trusted: boolean | null };
   };
-  /** What the user's own window is showing right now: their game folder, or a build they chose to play. */
+  /** What the user's own window is showing right now: their project folder, or a build they chose to play. */
   "preview.showing": {
     params: void;
     result: { project: string; root: string | null; entry: string | undefined; loaded: string | null } | null;
@@ -569,20 +572,20 @@ export const HostMethod = {
   CoordinatorTool: "coordinator.tool",
   EngineDelegations: "engine.delegations",
   EngineHardware: "engine.hardware",
-  GameList: "game.list",
-  GameSetCover: "game.setCover",
-  GameSetCoverShader: "game.setCoverShader",
-  GameContentStamp: "game.contentStamp",
-  GameRecents: "game.recents",
-  GameScaffold: "game.scaffold",
-  GameValidate: "game.validate",
-  GameAttached: "game.attached",
-  GameUpgradeContract: "game.upgradeContract",
-  GameRead: "game.read",
-  GameWrite: "game.write",
-  GameTree: "game.tree",
-  GameExport: "game.export",
-  GameReferences: "game.references",
+  ProjectList: "project.list",
+  ProjectSetCover: "project.setCover",
+  ProjectSetCoverShader: "project.setCoverShader",
+  ProjectContentStamp: "project.contentStamp",
+  ProjectRecents: "project.recents",
+  ProjectScaffold: "project.scaffold",
+  ProjectValidate: "project.validate",
+  ProjectAttached: "project.attached",
+  ProjectUpgradeContract: "project.upgradeContract",
+  ProjectRead: "project.read",
+  ProjectWrite: "project.write",
+  ProjectTree: "project.tree",
+  ProjectExport: "project.export",
+  ProjectReferences: "project.references",
   PreviewLoad: "preview.load",
   PreviewProfile: "preview.profile",
   PreviewReload: "preview.reload",
@@ -622,7 +625,7 @@ void hostMethodsAreListed;
 
 // ── params schemas for the path-bearing methods ─────────────────────────────────────────────
 //
-// A path-bearing method names a file, a folder or a game folder (`project`). Each schema checks
+// A path-bearing method names a file, a folder or a project folder (`project`). Each schema checks
 // exactly those fields plus the identifiers they are joined with, and lets every other field
 // through untouched: the handler receives the params as sent, never the parsed copy, so a call
 // that passes behaves exactly as it did before the check existed. Optional fields accept `null`,
@@ -663,18 +666,18 @@ export const HARNESS_PARAM_SCHEMAS = {
     playtest: z.object({ project, root: text, runId: optionalText, facetId: optionalText }).nullish(),
     director: z.object({ project, root: text, runId: text }).nullish(),
   }),
-  "game.setCover": z.object({ project }),
-  "game.setCoverShader": z.object({ project }),
-  "game.contentStamp": z.object({ project }),
-  "game.scaffold": z.object({ name: text }),
-  "game.validate": z.object({ project }),
-  "game.attached": z.object({ project, root: optionalText, entry: optionalText }),
-  "game.upgradeContract": z.object({ project }),
-  "game.read": z.object({ project, file: text }),
-  "game.write": z.object({ project, file: text }),
-  "game.tree": z.object({ project }),
-  "game.export": z.object({ project, target: optionalText }),
-  "game.references": z.object({ project }),
+  "project.setCover": z.object({ project }),
+  "project.setCoverShader": z.object({ project }),
+  "project.contentStamp": z.object({ project }),
+  "project.scaffold": z.object({ name: text }),
+  "project.validate": z.object({ project }),
+  "project.attached": z.object({ project, root: optionalText, entry: optionalText }),
+  "project.upgradeContract": z.object({ project }),
+  "project.read": z.object({ project, file: text }),
+  "project.write": z.object({ project, file: text }),
+  "project.tree": z.object({ project }),
+  "project.export": z.object({ project, target: optionalText }),
+  "project.references": z.object({ project }),
   "preview.load": z.object({ project, entry: optionalText, root: optionalText }),
   "preview.crop": z.object({ runId: text, path: text }).nullish(),
   "preview.diff": z.object({ runId: text, a: text, b: text }).nullish(),

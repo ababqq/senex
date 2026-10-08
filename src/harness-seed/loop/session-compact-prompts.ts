@@ -3,7 +3,7 @@
 /** The handover turn, sent to the session that remembers the chat; its reply is the summary. */
 export const SESSION_HANDOVER_ASK = [
   `HANDOVER: this chat continues in a new session that remembers nothing of this one.`,
-  `Write its handover as your reply: what the person asked for (their own words where short), every decision made and why, the current state of the game (files, features, known bugs), what was tried and failed, and anything promised but not done. At most about 40 lines.`,
+  `Write its handover as your reply: what the person asked for (their own words where short), every decision made and why, the current state of the project (files, features, known bugs), what was tried and failed, and anything promised but not done. At most about 40 lines.`,
   `Change nothing in this turn.`,
 ].join("\n");
 

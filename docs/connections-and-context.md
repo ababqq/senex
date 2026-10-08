@@ -11,19 +11,19 @@ still have a locked or disconnected account. Reading that state uses the current
 it does not open credential storage. Unlocking an account does not approve tool-specific
 permissions or charges.
 
-The game composer Add menu exposes installed plugins and configured MCP connectors. Manage opens
+The project composer Add menu exposes installed plugins and configured MCP connectors. Manage opens
 Plugins; Setup opens that plugin's registered settings panel. Connecting a source does not
 create a new conversation. The next provider request resolves the enabled, project-scoped tool
 registry. An active native session receives a refreshed tool contract at its next supported
 response/session boundary; Studio retains the conversation and its provider resume identity.
 Setup opens the plugin detail page with its registered settings panel already expanded.
-The Plugins workspace preserves the mounted conversation and game stage; Back to workspace
-or a sidebar game returns without a reload. Skills has these sections, in order
+The Plugins workspace preserves the mounted conversation and project stage; Back to workspace
+or a sidebar project returns without a reload. Skills has these sections, in order
 (`[data-skills-section]`):
 
-- **This game** (`game`, with a game open): the game folder's own `.claude/skills` and
+- **This project** (`project`, with a project open): the project folder's own `.claude/skills` and
   `.claude/commands` (Claude Code builders) and `.agents/skills` (Codex builders), read over
-  `studio:skills.project` with every root confined to the game by realpath and oversized files
+  `studio:skills.project` with every root confined to the project by realpath and oversized files
   skipped with a warning. Builders load these from the folder themselves; Studio never writes them.
 - **Studio skills** (`studio`): the active Studio-owned `skills/*.md` inventory, used by local
   chat, the run planner and the director.
@@ -38,14 +38,14 @@ or a sidebar game returns without a reload. Skills has these sections, in order
   file skill shows its summary and “Read by agents on demand”, and opening it reads the file over
   `studio:plugins.skill`; a plugin’s page shows what its last update added, changed or removed.
 
-A plugin’s switch, here and in the composer’s Add menu (hint “All games”), turns it on or off for
-every game. When a plugin or skill a resumed builder session was given has been withdrawn since,
+A plugin’s switch, here and in the composer’s Add menu (hint “All projects”), turns it on or off for
+every project. When a plugin or skill a resumed builder session was given has been withdrawn since,
 that session’s next brief opens with a notice to ignore its earlier instructions and not to call
 its tools. Discovery does not execute skills, import hooks/MCP servers or prove use in a
 conversation. Refresh skills rechecks the inventory; errors are distinct from an empty list.
 Studio archives remain excluded; Claude shared-skill links are confined to known skill roots.
 
-Connection/account setup is available through the game composer's Add menu and Plugins. The chat has no separate
+Connection/account setup is available through the project composer's Add menu and Plugins. The chat has no separate
 connection disclosure or enabled-source count. Revision comparison stays in the host snapshot
 instead of adding configuration numbers to the composer.
 Activity includes delegated workspace sessions and direct completions,
@@ -147,7 +147,7 @@ wins over a bundled seed. No remove/reinstall workaround is required for a norma
 
 ## Model setup and activity
 
-Settings below Harness opens Model Providers, Local Models and Harness. Add more models in the game model
+Settings below Harness opens Model Providers, Local Models and Harness. Add more models in the project model
 list opens Model Providers, preserving the conversation and restoring composer focus on
 dismissal. Model Providers contains one row per Claude Code/Codex connection with its CLI version and state;
 Local Models contains downloadable models and their durable installation status. First-launch
@@ -163,14 +163,14 @@ Codex bridge instructions use JSON for numeric/boolean plugin arguments as well 
 schemas. String-only tools retain simple flags; validation never silently coerces a string into
 an agent's numeric or boolean request.
 
-A read-only follow-up that leaves the game's content unchanged does not reload the preview or
+A read-only follow-up that leaves the project's content unchanged does not reload the preview or
 warn about an untouched empty scaffold. The bounded content stamp includes Git-ignored runtime
 assets/build output as well as tracked files. Tool bookkeeping is excluded. An unknown stamp or
 a changed file retains the normal preview/health checks. This does not alter run judging.
 
 ## Context ownership and controls
 
-The game composer's Context panel shows the selected provider/model's working capacity, separately from the
+The project composer's Context panel shows the selected provider/model's working capacity, separately from the
 last measured session's usage. Worker/judge measurements do not overwrite the orchestrator's
 meter. Missing telemetry stays unknown; it does not become zero. A model switch does not borrow
 the previous provider's percentage. Keep going retains the recorded session model/effort and its
@@ -181,8 +181,8 @@ provider reports running.
 Studio's app-wide conversation has no tool, role or context menu. It uses the resolved single
 model's completion API, recorded user/assistant messages, current images and a host snapshot of
 recent activity/settings/proposals. The conversation is windowed automatically for each request;
-the full history remains saved. It does not resume a native game coordinator or expose project tools.
-The session checkpoint controls below describe game conversations and delegated build sessions.
+the full history remains saved. It does not resume a native project coordinator or expose project tools.
+The session checkpoint controls below describe project conversations and delegated build sessions.
 
 Auto-compaction policy is host-owned, by model or by chat-and-model; the composer states only that
 context compacts automatically and no longer edits the threshold. A threshold applies only to the
@@ -244,7 +244,7 @@ opens to the summary in one framed box when there is one.
 
 ### Switching the chat's model
 
-The person may switch a game chat's model at any message, and the chat stays one conversation
+The person may switch a project chat's model at any message, and the chat stays one conversation
 (`loop/chat-continuity.ts`). A session goes on only while it is the chat's latest (`goesOn`): a
 model switched back to after another one answered starts a fresh session, since its own missed
 those turns, and Compact now works on that latest session only. A fresh session mid-conversation
@@ -254,7 +254,7 @@ is briefed with the original request, the latest instruction, the last messages 
 carry everything since the last written summary, the log is first summarised on the new model
 (`briefSummary`, `loop/compact.ts`), which ends the earlier sessions as any written summary does;
 a short chat costs nothing extra. The new model gets the conversation, not the previous model's
-own context (files it read, commands it ran): it reads the game's folder as it needs.
+own context (files it read, commands it ran): it reads the project's folder as it needs.
 
 A Bonsai response stopped by its output limit cannot dispatch partial tool arguments. The session
 retains usage and existing work, asks for a smaller edit at most twice, then reports a recoverable
@@ -339,8 +339,8 @@ Test results remain separate diagnostics.
 ### Genex: sign in, then generate
 
 The bundled Genex plugin is enabled by default and contributes a **Genex** button beside
-Live/Assets. Sign in once; connected accounts can generate assets in the current game and
-subsequent games without a separate paid-tools switch, spending confirmation or project allowance.
+Live/Assets. Sign in once; connected accounts can generate assets in the current project and
+subsequent projects without a separate paid-tools switch, spending confirmation or project allowance.
 The sign-in flow states that generated assets use Genex credits. Required service terms still
 belong to Genex's authorization flow. Disable/remove the plugin or disconnect to stop access.
 Legacy paid-tools settings and saved local allowance files are not deleted, but no longer gate
@@ -386,17 +386,17 @@ flow installs this added server with launch-change review and preserves the save
 
 Genex 1.5.0 reaches existing installations through the standard Update flow, whose trust dialog
 lists its skills and the tools Studio runs for it. Builder briefs index Genex's guide and its
-platform cards (multiplayer, player identity, LLM in games, monetization, publishing, updates);
+platform cards (multiplayer, player identity, LLM in projects, monetization, publishing, updates);
 agents read a card with `genex__skill` before that work, and the host serves it from the plugin,
-never from or into the game folder.
+never from or into the project folder.
 
 With an unlocked account, agents also reach Studio's pinned Genex CLI: `genex__cli` for free
 commands (doctor, budget, LLM models, job status and cancel, shop list) and, after a consent card,
-`genex__cli-paid` for commands that spend or change what the game sells. Studio runs every command
-in a throwaway folder of its own, never the game, with only the Genex API reachable; setup,
+`genex__cli-paid` for commands that spend or change what the project sells. Studio runs every command
+in a throwaway folder of its own, never the project, with only the Genex API reachable; setup,
 sign-in, publishing and generation commands are refused and point to the matching Genex tool.
 `genex__package` adds `@genex-ai/multiplayer` or `@genex-ai/embed-sdk` at Studio's pin to a
-build game after consent, opening the npm registry for that one install; Studio-template games
+build project after consent, opening the npm registry for that one install; Studio-template projects
 without `package.json` cannot add them. Multiplayer is tested only on the published draft: build,
 add the package, publish a draft with `genex__publish`, then play the draft link. Studio's
 preview stays single-player. Fixture profiles refuse the CLI and package tools.
@@ -539,7 +539,7 @@ with roots off and confirm another project's idle transport is not shown as conn
 Exercise Compact now on Claude Code and Codex through the UI and correlate the precise provider
 session metadata/boundary with its meter; the next turn must resume the same session. Restore
 temporary local thresholds. Download/verify Bonsai through
-Model setup, close/reopen progress, then select it in the same chat. Make a real game edit, use
+Model setup, close/reopen progress, then select it in the same chat. Make a real project edit, use
 the input in the actual preview, Stop/resume, and put its context under a controlled threshold.
 Record model inference separately from UI scaffolding and mark unsupported/live-unavailable
 telemetry honestly. Reuse pinned download bytes when appropriate, labelling that as verification
@@ -571,10 +571,10 @@ tokens, consent codes or account balances in public evidence.
 
 ### Context popover and native Live regression
 
-Build smoke checks the Context panel beside a live game, preserves native bounds for
+Build smoke checks the Context panel beside a live project, preserves native bounds for
 non-overlapping context/model panels, moves the real mounted panel over/off Live to verify
 occlusion/restoration without closing, and exercises Escape. Developer readiness captures the
-game with the chat model picker open. Actual packaged UI must show the game and context panel
+project with the chat model picker open. Actual packaged UI must show the project and context panel
 together; a passing hide-and-restore assertion alone does not prove that interaction is usable.
 
 ### Reliability acceptance
@@ -583,14 +583,14 @@ together; a passing hide-and-restore assertion alone does not prove that interac
 structured/legacy arguments, real Git checkpoint isolation and stale deployment rejection.
 `genex-plugin-cli.test.ts` exercises the pinned CLI through a synthetic hosted API, including
 exact uploaded marker verification; it is not live Genex acceptance. Existing Blender/native
-security and Stop assertions remain required. `game-export.test.ts` covers local module and
+security and Stop assertions remain required. `project-export.test.ts` covers local module and
 runtime decoder retention. Verify real original/derivative models and audio in Chromium and
 an external export, then one authorized unlisted hosted draft and a changed-marker update.
 Record unexecuted gates explicitly. Never regenerate an existing asset to make a test pass.
 
 2026-09-22 implementation evidence: real Blender 4.5.4 imported the fishing run's retained
 5,895,508-byte trout through the public native transform recipe, exported a derivative and two
-renders, preserving the original SHA-256. This proves staged import/export, not in-game use
+renders, preserving the original SHA-256. This proves staged import/export, not in-project use
 or hosted readiness. Retain the actual observation in local evidence and summarize its limits in the PR.
 
 Reliability acceptance also guards preview-pool exhaustion and candidate load failure without
@@ -601,4 +601,4 @@ acceptance reports live under `.studio-dev/evidence/<task>/`, with selected evid
 
 ### Asset preview acceptance
 
-Run `npm test -- tests/conformance/asset-preview.test.ts tests/conformance/game-assets.test.ts` for format routing and contained reads. Real Electron Build smoke can additionally consume an explicitly prepared local directory with `node tests/e2e/run-build-smoke.mjs --studio-assets-smoke-dir=/absolute/test-directory` (also `--packaged`). This copies files into the isolated smoke project; it never modifies the originals or generates paid assets. The optional matrix exercises animated GLB/glTF/FBX, OBJ/STL/PLY, HDR/EXR/KTX2 (including Basis), Draco, optional retained GLB/MP3, WAV/video/GIF/text and corrupt-file errors. The checked-in `tests/fixtures/asset-previews` directory is a reusable input; the optional retained files are not included. Inspect captured pixels and animation/media time; opening a dialog alone is insufficient. Close/reopen must stop media and release the viewer.
+Run `npm test -- tests/conformance/asset-preview.test.ts tests/conformance/project-assets.test.ts` for format routing and contained reads. Real Electron Build smoke can additionally consume an explicitly prepared local directory with `node tests/e2e/run-build-smoke.mjs --studio-assets-smoke-dir=/absolute/test-directory` (also `--packaged`). This copies files into the isolated smoke project; it never modifies the originals or generates paid assets. The optional matrix exercises animated GLB/glTF/FBX, OBJ/STL/PLY, HDR/EXR/KTX2 (including Basis), Draco, optional retained GLB/MP3, WAV/video/GIF/text and corrupt-file errors. The checked-in `tests/fixtures/asset-previews` directory is a reusable input; the optional retained files are not included. Inspect captured pixels and animation/media time; opening a dialog alone is insufficient. Close/reopen must stop media and release the viewer.

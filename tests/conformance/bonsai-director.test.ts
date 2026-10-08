@@ -18,7 +18,7 @@ it("a local director uses real persisted local workers, integrates their work an
   let n = 0;
   const results: string[] = [];
   try {
-    const project = await rig.core.games.scaffold("bonsai-director", { title: "Local director" });
+    const project = await rig.core.projects.scaffold("bonsai-director", { title: "Local director" });
     const complete = async (r: CompleteRequest): Promise<CompleteResponse> => {
       const release = await queue.acquire(r.signal ?? new AbortController().signal);
       try {

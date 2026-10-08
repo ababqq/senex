@@ -1,10 +1,10 @@
 /**
  * Delegation: `engine.delegate` (a brief handed to a coding engine in one folder, under one lock),
- * the tools a session is given (computer, director, playtest), and the game-file access they share.
+ * the tools a session is given (computer, director, playtest), and the project-file access they share.
  * Composed by `StudioCore`; its state stays in the core.
  */
 import { uuidv7 } from "../../substrate/ids.ts";
-import { replaceableCover } from "../../shared/game-library.ts";
+import { replaceableCover } from "../../shared/project-library.ts";
 import { COVER_TOOL } from "../../shared/cover-recipe.ts";
 import { ChatActivityPhase, SessionActivityRole, delegationActivityScope } from "../../shared/chat-activity.ts";
 import { CustomEvent, customRecord } from "../../shared/custom-events.ts";
@@ -25,7 +25,7 @@ import { coordinatorTools, isRunControl, runControlTools } from "../../shared/co
 import { createHash } from "node:crypto";
 import { lstat, readFile, readdir, realpath } from "node:fs/promises";
 import { ensureDir, realpathNearest } from "../../substrate/fsx.ts";
-import { isImageFile } from "../../substrate/game-workspace.ts";
+import { isImageFile } from "../../substrate/project-workspace.ts";
 import type { HostMethod, HarnessParams, HarnessResult } from "../../shared/harness-api.ts";
 import { describeUnknownImage, sniffImage } from "../../substrate/image-sniff.ts";
 import { git } from "../../substrate/snapshots.ts";
@@ -74,21 +74,21 @@ export const DEFAULT_CHAT_DELEGATION_TIMEOUT_MS = 6 * HOUR_MS;
 /** A director tool answers within this (the Codex bridge shim waits ten minutes; a wait is capped at four). */
 export const DIRECTOR_TOOL_TIMEOUT_MS = 11 * MINUTE_MS;
 
-/** Told to a session that can set the game's cover. Model-facing: it reads this as written. */
+/** Told to a session that can set the project's cover. Model-facing: it reads this as written. */
 const COVER_TOOL_GUIDANCE =
-  "For a new game, call set_game_cover once to pick a sidebar cover look that suits the brief. It is a small side task; never let it delay the game.";
+  "For a new project, call set_project_cover once to pick a sidebar cover look that suits the brief. It is a small side task; never let it delay the project.";
 
 /** How many stills a message may name for the model, and how large each may be. */
 const MAX_NAMED_STILLS = 4;
 const MAX_STILL_BYTES = 8 * 1024 * 1024;
-/** How deep `game.tree` walks a game folder. */
-const GAME_TREE_DEPTH = 6;
-/** Folders `game.tree` never lists, beside anything hidden. */
-const GAME_TREE_SKIPPED: ReadonlySet<string> = new Set(["node_modules", "export"]);
+/** How deep `project.tree` walks a project folder. */
+const PROJECT_TREE_DEPTH = 6;
+/** Folders `project.tree` never lists, beside anything hidden. */
+const PROJECT_TREE_SKIPPED: ReadonlySet<string> = new Set(["node_modules", "export"]);
 /** How many images a brief carries to the engine. */
 const MAX_BRIEF_IMAGES = 16;
 
-/** Why a delegation or a game-file path is refused, as the harness and the engines read it. */
+/** Why a delegation or a project-file path is refused, as the harness and the engines read it. */
 const MESSAGE = {
   foreignCwd: (cwd: string) => `delegation cwd must be the project folder or a scratch worktree: ${cwd}`,
   outsideProject: (file: string) => `path is outside this project's folder: ${file}`,
@@ -127,7 +127,7 @@ type DirectorGrant = NonNullable<DelegateParams["director"]>;
 const DIRECTOR_LOOK: LiveTool = {
   name: DirectorTool.Look,
   description:
-    'Point your window (the computer tool and capture) at a build of this run: "integration" (your worktree, the default), a worker id (its worktree, edits included), or "live" (the game folder the user sees). Reloads the build through its served entry, replays the requested-state setup, and returns a screenshot. Everything you then click, press and capture happens in that build.',
+    'Point your window (the computer tool and capture) at a build of this run: "integration" (your worktree, the default), a worker id (its worktree, edits included), or "live" (the project folder the user sees). Reloads the build through its served entry, replays the requested-state setup, and returns a screenshot. Everything you then click, press and capture happens in that build.',
   parameters: {
     type: "object",
     properties: { target: { type: "string", description: "integration | live | <worker id>" } },
@@ -170,7 +170,7 @@ interface DelegationGrants {
   playShotsDir: string | null;
   director: DirectorGrant | null;
   directorShotsDir: string | null;
-  /** The folders the host itself derived for it (its game, its frames, a director's run folders). */
+  /** The folders the host itself derived for it (its project, its frames, a director's run folders). */
   hostReads: string[];
   /** Those, and the folders the brief names. */
   extraReads: string[];
@@ -203,12 +203,12 @@ interface DelegationSession {
   activityScope: ActivityScope;
   /** A director's turn ends without a `turn_ended`, so the host records how it ended. */
   leadTurn: boolean;
-  /** A lead that is its chat's own session, in the game folder: its session is the chat's bookmark. */
+  /** A lead that is its chat's own session, in the project folder: its session is the chat's bookmark. */
   chatLead: boolean;
   /**
-   * A lead in its game's folder: the worktree it leads, as its seat checked it (`seat.leads`). Its
+   * A lead in its project's folder: the worktree it leads, as its seat checked it (`seat.leads`). Its
    * plugins act there (the binding's directory), as a director's in its worktree, so what they
-   * deliver reaches the game when the night lands; and, the lead not being the chat's turn, another
+   * deliver reaches the project when the night lands; and, the lead not being the chat's turn, another
    * turn's end leaves its consent cards and connector calls going. Null otherwise.
    */
   leads: string | null;
@@ -257,9 +257,9 @@ interface SessionTools {
  * The one condition that decides whether this session gets host tools at all. Judges and
  * critics never reach here (they `complete()`); a playtester or another read-only session, the
  * coordinator and an optimization candidate are all sessions with a narrower job than "build this
- * game", and a connector is exactly the kind of reach they should not have. A chat that may launch
+ * project", and a connector is exactly the kind of reach they should not have. A chat that may launch
  * a build is a full contractor and gets what the Auto chat gets, and so does a build's lead: the
- * `readOnly` of its brief marks its seat in the game folder (`#leadRoot`), the host's own finding
+ * `readOnly` of its brief marks its seat in the project folder (`#leadRoot`), the host's own finding
  * decides, and its plugins act on the build it leads (`DelegationSession.leads`).
  */
 function hostToolsEligible(p: DelegateParams, candidate: OptimizationCandidate | null, seat: DelegationSeat): boolean {
@@ -332,7 +332,7 @@ function honouredRunControls(p: DelegateParams): RunControlGrant | null {
 /** Where a delegation sits and how its director grant reads there (`#seatOf`). */
 interface DelegationSeat {
   /**
-   * A lead in its game's folder: the integration worktree of this game's run it leads, as the real
+   * A lead in its project's folder: the integration worktree of this project's run it leads, as the real
    * path that was checked (`#leadRoot`) — its grant's root, its reads and its lock. Null otherwise.
    */
   leads: string | null;
@@ -340,7 +340,7 @@ interface DelegationSeat {
 
 /**
  * The director (director, 2026-09-07): honoured only for the worktree the session runs in — its own
- * integration worktree, under scratch — or, for a waking night's lead, for its game's folder while
+ * integration worktree, under scratch — or, for a waking night's lead, for its project's folder while
  * it leads that worktree (`#seatOf`), which the grant then names by its checked real path.
  */
 function honouredDirector(p: DelegateParams, cwd: string, seat: DelegationSeat): DirectorGrant | null {
@@ -350,8 +350,8 @@ function honouredDirector(p: DelegateParams, cwd: string, seat: DelegationSeat):
   return path.resolve(director.root) === cwd ? director : null;
 }
 
-/** The game a thread is bound to (`metadata.project`), if any. */
-function threadGame(thread: ConversationRecord): string | undefined {
+/** The project a thread is bound to (`metadata.project`), if any. */
+function threadProject(thread: ConversationRecord): string | undefined {
   const project = (thread.metadata as { project?: unknown } | undefined)?.project;
   return typeof project === "string" ? project : undefined;
 }
@@ -363,7 +363,7 @@ function startsRun(event: EventEnvelope, runId: string): boolean {
   return custom.payload.runId === runId;
 }
 
-/** A run's start names no game, or `project`. */
+/** A run's start names no project, or `project`. */
 function startNames(event: EventEnvelope, project: string): boolean {
   const named = customRecord(event.data)?.payload.project;
   return named === undefined || named === project;
@@ -390,7 +390,7 @@ class DelegationRefusedError extends Error {
 /**
  * Field by field, because the engine is handed only what the studio recognises. `template` and
  * `neverLock` are in this list for a reason nothing else would catch: dropping them typechecks,
- * every unit test passes, and a game the user brought silently keeps the template's locks and
+ * every unit test passes, and a project the user brought silently keeps the template's locks and
  * the template's wiring rule.
  */
 export function normalizeOwnership(raw: DelegateOwnership | undefined): DelegateOwnership | undefined {
@@ -517,7 +517,7 @@ export class DelegationService {
     if (!path.isAbsolute(text)) return text;
     const root = path.resolve(text);
     const allowed = [
-      path.resolve(this.#core.games.dirFor(d.project)),
+      path.resolve(this.#core.projects.dirFor(d.project)),
       path.join(path.resolve(this.#core.layout.scratch), "autopilot", d.runId),
     ];
     if (!allowed.some((a) => isInside(a, root))) return `look: ${root} is not a build of this run`;
@@ -579,13 +579,13 @@ export class DelegationService {
    * at an arbitrary directory" must not be a thing it can ask for.
    */
   async delegationCwd(project: string, cwd?: string): Promise<string> {
-    const live = path.resolve(this.#core.games.dirFor(project));
+    const live = path.resolve(this.#core.projects.dirFor(project));
     if (!cwd) return live;
     const resolved = path.resolve(cwd);
     // TQ-1: on real paths — a link under scratch is somewhere else entirely.
     // M1: a worktree is sent as the real path that was checked, not as a name under the
     // sandbox-writable scratch that can be repointed between this check and the spawn. The
-    // game's own folder is the registered one, exactly as when no cwd is named.
+    // project's own folder is the registered one, exactly as when no cwd is named.
     const real = await realpath(resolved).catch(() => null);
     if (real) {
       if (real === (await realpath(live).catch(() => null))) return live;
@@ -596,32 +596,32 @@ export class DelegationService {
   }
 
   /**
-   * A game file the harness reads or writes (TQ-1), checked on real paths: the folder may hold
+   * A project file the harness reads or writes (TQ-1), checked on real paths: the folder may hold
    * links the harness's own processes planted. A write never goes through a link leaf, and the
-   * folder it lands in must really be inside the game; a read's real target must be inside the
-   * game or a folder the user named for it.
+   * folder it lands in must really be inside the project; a read's real target must be inside the
+   * project or a folder the user named for it.
    */
-  async gameFile(project: string, file: string, mode: "read" | "write" = "write"): Promise<string> {
+  async projectFile(project: string, file: string, mode: "read" | "write" = "write"): Promise<string> {
     await this.#x.assertHarnessRoot(project, null);
-    const base = path.resolve(this.#core.games.dirFor(project));
+    const base = path.resolve(this.#core.projects.dirFor(project));
     const target = path.isAbsolute(file) ? path.resolve(file) : path.resolve(base, file);
     const outside = () => new Error(MESSAGE.outsideProject(file));
     const realBase = await realpath(base).catch(() => null);
     if (!realBase) throw outside();
     const link = (await lstat(target).catch(() => null))?.isSymbolicLink() === true;
     const checked = { file, base, realBase, target, link, outside };
-    if (mode === "write") return this.#writableGameFile(checked);
-    return this.#readableGameFile(project, checked);
+    if (mode === "write") return this.#writableProjectFile(checked);
+    return this.#readableProjectFile(project, checked);
   }
 
-  async #writableGameFile(c: CheckedGameFile): Promise<string> {
+  async #writableProjectFile(c: CheckedProjectFile): Promise<string> {
     if (!isInside(c.base, c.target)) throw c.outside();
     if (c.link) throw new Error(MESSAGE.symlink(c.file));
     if (!isInside(c.realBase, await realpathNearest(path.dirname(c.target)))) throw c.outside();
     return c.target;
   }
 
-  async #readableGameFile(project: string, c: CheckedGameFile): Promise<string> {
+  async #readableProjectFile(project: string, c: CheckedProjectFile): Promise<string> {
     if (!this.isReadable(project, c.target)) throw c.outside();
     const real = await realpath(c.target).catch(() => null);
     if (!real) {
@@ -647,9 +647,9 @@ export class DelegationService {
   }
 
   /**
-   * Sibling folders the contractor must not Read: other games, and the folder's neighbours where the
+   * Sibling folders the contractor must not Read: other projects, and the folder's neighbours where the
    * studio keeps workspaces. Never a folder it was allowed (`extraReads`, which a caller extends
-   * with the delegation's own game), nor anything around a game the person keeps elsewhere.
+   * with the delegation's own project), nor anything around a project the person keeps elsewhere.
    */
   async workspaceDenyReads(cwd: string, extraReads: string[]): Promise<string[]> {
     const resolvedCwd = path.resolve(cwd);
@@ -661,17 +661,17 @@ export class DelegationService {
     };
 
     const deny: string[] = [];
-    for (const game of await this.#core.games.list()) {
-      const dir = path.resolve(game.dir);
+    for (const project of await this.#core.projects.list()) {
+      const dir = path.resolve(project.dir);
       if (!allowed(dir)) deny.push(dir);
     }
-    // Neighbours are scanned only where the studio keeps workspaces (other games, other
-    // worktrees). A game the person keeps in their home folder has the whole home as neighbours:
+    // Neighbours are scanned only where the studio keeps workspaces (other projects, other
+    // worktrees). A project the person keeps in their home folder has the whole home as neighbours:
     // denying those would take the toolchain (~/.nvm), git's config and Claude's own files from
     // the sandboxed shell.
     const parent = path.dirname(resolvedCwd);
-    const { gamesRoot, scratch } = this.#core.layout;
-    const owned = [gamesRoot, scratch].some((root) => isInside(root, parent));
+    const { projectsRoot, scratch } = this.#core.layout;
+    const owned = [projectsRoot, scratch].some((root) => isInside(root, parent));
     for (const entry of owned ? await readdir(parent, { withFileTypes: true }).catch(() => []) : []) {
       if (!entry.isDirectory() && !entry.isSymbolicLink()) continue;
       const dir = path.resolve(parent, entry.name);
@@ -689,7 +689,7 @@ export class DelegationService {
   }
 
   isReadable(project: string, target: string): boolean {
-    const base = path.resolve(this.#core.games.dirFor(project));
+    const base = path.resolve(this.#core.projects.dirFor(project));
     if (isInside(base, target)) return true;
     for (const root of this.#x.readRoots.get(project) ?? []) {
       if (isInside(root, target)) return true;
@@ -721,13 +721,13 @@ export class DelegationService {
     return out;
   }
 
-  async gameTree(project: string): Promise<string[]> {
-    const base = this.#core.games.dirFor(project);
+  async projectTree(project: string): Promise<string[]> {
+    const base = this.#core.projects.dirFor(project);
     const out: string[] = [];
     const walk = async (dir: string, depth: number): Promise<void> => {
-      if (depth > GAME_TREE_DEPTH) return;
+      if (depth > PROJECT_TREE_DEPTH) return;
       for (const entry of await readdir(dir, { withFileTypes: true }).catch(() => [])) {
-        if (entry.name.startsWith(".") || GAME_TREE_SKIPPED.has(entry.name)) continue;
+        if (entry.name.startsWith(".") || PROJECT_TREE_SKIPPED.has(entry.name)) continue;
         const full = path.join(dir, entry.name);
         if (entry.isDirectory()) await walk(full, depth + 1);
         else out.push(toPosixRelative(path.relative(base, full)));
@@ -742,8 +742,8 @@ export class DelegationService {
     const { engineId, workClass, cwd } = target;
     // Read before the lock is taken: nothing may await between the free check and the lock.
     const seat = await this.#seatOf(p, target);
-    // A lead holds the build it leads, never its game's folder: the chat's other turns there, and
-    // Make it live, go on while it thinks (one session). Its prompt leaves the game's changes to
+    // A lead holds the build it leads, never its project's folder: the chat's other turns there, and
+    // Make it live, go on while it thinks (one session). Its prompt leaves the project's changes to
     // its builders; the chat's mode alone decides what it may do.
     const lock = seat.leads ?? cwd;
     this.#assertFolderFree(lock, p);
@@ -840,8 +840,8 @@ export class DelegationService {
    * no sibling-folder deny list; nor does a build's lead or the run's coordinator, the chat's main
    * agent, whose reads beyond its folders the chat's mode decides. Another engine's chat session
    * follows the chat's mode as far as that engine can (`permissionModesFor`) and keeps the
-   * unattended fence: it is denied the other games and, where the studio keeps workspaces, its
-   * folder's neighbours; a worktree still reads its own game (its node_modules link and git point
+   * unattended fence: it is denied the other projects and, where the studio keeps workspaces, its
+   * folder's neighbours; a worktree still reads its own project (its node_modules link and git point
    * there).
    */
   async #reach(
@@ -865,7 +865,7 @@ export class DelegationService {
       const recorded = await this.#x.permissions.chatReads(session.threadId, p.extraReads ?? [], []);
       return { person: null, lead, extraReads: [...grants.hostReads, ...recorded], denyReads: [], reachesMac: true };
     }
-    const allowed = [...grants.extraReads, this.#core.games.dirFor(p.project)];
+    const allowed = [...grants.extraReads, this.#core.projects.dirFor(p.project)];
     return {
       person,
       lead: null,
@@ -879,7 +879,7 @@ export class DelegationService {
    * The permissions of the chat's own session a person is answering, or null for every other
    * delegation. The chat's own turn only, on any engine (each honours the chat's mode as far as it
    * can, `permissionModesFor`): the brief has no narrower job, it answers a message (`chatTurn`,
-   * which the permission service checks the person sent on this thread) and it works in its game's
+   * which the permission service checks the person sent on this thread) and it works in its project's
    * own folder. A build's lead and the run's coordinator answer the chat too, from their own seats
    * (`#leadSession`), on an engine that asks about every call.
    */
@@ -891,7 +891,7 @@ export class DelegationService {
     const chatsOwn = !unattendedBrief(p) && !session.leadTurn && isChatsOwnSession(p);
     const { chatTurn } = session;
     if (!chatsOwn || !chatTurn || typeof p.threadId !== "string") return null;
-    if (target.workCwd !== path.resolve(this.#core.games.dirFor(p.project))) return null;
+    if (target.workCwd !== path.resolve(this.#core.projects.dirFor(p.project))) return null;
     return this.#x.permissions.forSession({
       project: p.project,
       threadId: p.threadId,
@@ -905,9 +905,9 @@ export class DelegationService {
 
   /**
    * How a build's lead or the run's coordinator asks, or null (unattended work). Only where its engine
-   * asks and the seat is the host's own finding: this game's lead of a run started in this chat,
+   * asks and the seat is the host's own finding: this project's lead of a run started in this chat,
    * answering the chat (`chatTurn` is its run), or the coordinator of such a run answering one of
-   * the person's messages. The permission service then checks the thread is this game's open chat
+   * the person's messages. The permission service then checks the thread is this project's open chat
    * (and, for the coordinator, that the message is one the person sent and still unanswered), and
    * routes every question by the chat's mode.
    */
@@ -983,7 +983,7 @@ export class DelegationService {
   }
 
   async #workCwd(p: DelegateParams, engineId: string, candidate: OptimizationCandidate | null): Promise<string> {
-    // The registrar has a stable, separate home. It can read the game but cannot write
+    // The registrar has a stable, separate home. It can read the project but cannot write
     // the live folder or collide with a base builder's session/bridge/lock.
     if (p.coordinator && p.threadId) {
       const home = createHash("sha256").update(p.threadId).digest("hex").slice(0, 24);
@@ -993,36 +993,36 @@ export class DelegationService {
     return this.delegationCwd(p.project, p.cwd);
   }
 
-  /** What an optimization candidate's worker may never write: the game, its git and the runs. */
+  /** What an optimization candidate's worker may never write: the project, its git and the runs. */
   async #optimizationFence(project: string, candidate: OptimizationCandidate): Promise<{ denyWrites: string[] }> {
-    const gameDir = this.#core.games.dirFor(project);
+    const projectDir = this.#core.projects.dirFor(project);
     return {
       denyWrites: [
         path.join(candidate.root, ".git"),
-        gameDir,
-        (await git(gameDir, ["rev-parse", "--absolute-git-dir"])).trim(),
+        projectDir,
+        (await git(projectDir, ["rev-parse", "--absolute-git-dir"])).trim(),
         this.#core.layout.runs,
       ],
     };
   }
 
   /**
-   * Whether this delegation sits in its game's own folder, and whether its director grant is a
+   * Whether this delegation sits in its project's own folder, and whether its director grant is a
    * lead's there (one session): the lead of a waking night is its chat's own session, so it sits
-   * in the game folder and reads the run's integration worktree it leads (`root`) without writing.
+   * in the project folder and reads the run's integration worktree it leads (`root`) without writing.
    */
   async #seatOf(p: DelegateParams, target: DelegationTarget): Promise<DelegationSeat> {
-    const live = path.resolve(this.#core.games.dirFor(p.project));
-    // The game's own folder: no build worktree, no coordinator home, no candidate.
-    const gameFolder = !p.coordinator && !target.candidate && target.cwd === live;
-    return { leads: gameFolder ? await this.#leadRoot(p, live) : null };
+    const live = path.resolve(this.#core.projects.dirFor(p.project));
+    // The project's own folder: no build worktree, no coordinator home, no candidate.
+    const projectFolder = !p.coordinator && !target.candidate && target.cwd === live;
+    return { leads: projectFolder ? await this.#leadRoot(p, live) : null };
   }
 
   /**
-   * The worktree a lead in its game's folder leads, as its checked real path — or null, and the
-   * grant is dropped. Honoured only for a lead that writes nothing (`readOnly`), of this game, for a
-   * worktree of this game's own repository inside its run's own folder under scratch, of a run the
-   * host's records say is this game's (`#runOfGame`).
+   * The worktree a lead in its project's folder leads, as its checked real path — or null, and the
+   * grant is dropped. Honoured only for a lead that writes nothing (`readOnly`), of this project, for a
+   * worktree of this project's own repository inside its run's own folder under scratch, of a run the
+   * host's records say is this project's (`#runOfProject`).
    */
   async #leadRoot(p: DelegateParams, live: string): Promise<string | null> {
     const d = p.director;
@@ -1033,7 +1033,7 @@ export class DelegationService {
     const root = await realpath(d.root).catch(() => null);
     if (!runFolder || !root || !isBelow(runFolder, root)) return null;
     if (!(await sameRepository(live, root))) return null;
-    return (await this.#runOfGame(p.project, d.runId)) ? root : null;
+    return (await this.#runOfProject(p.project, d.runId)) ? root : null;
   }
 
   /**
@@ -1049,19 +1049,19 @@ export class DelegationService {
   }
 
   /**
-   * The host's own records say this run is this game's: it was started in a chat of this game and in
-   * no other game's chat. Any run id can hold a worktree of any game (`snapshot.worktree`), so the
+   * The host's own records say this run is this project's: it was started in a chat of this project and in
+   * no other project's chat. Any run id can hold a worktree of any project (`snapshot.worktree`), so the
    * folder alone never says whose run it is.
    */
-  async #runOfGame(project: string, runId: string): Promise<boolean> {
-    return this.#startedInGame(project, await this.#runStarts(runId));
+  async #runOfProject(project: string, runId: string): Promise<boolean> {
+    return this.#startedInProject(project, await this.#runStarts(runId));
   }
 
-  /** This game's run (`#runOfGame`), started in this chat. */
+  /** This project's run (`#runOfProject`), started in this chat. */
   async #runOfChat(project: string, threadId: string, runId: string): Promise<boolean> {
     const starts = await this.#runStarts(runId);
     if (!starts.some((event) => event.thread_id === threadId)) return false;
-    return this.#startedInGame(project, starts);
+    return this.#startedInProject(project, starts);
   }
 
   /** The records that started (or restarted) this run, in any chat. */
@@ -1069,11 +1069,13 @@ export class DelegationService {
     return (await this.#core.activityEvents()).filter((event) => startsRun(event, runId));
   }
 
-  /** Some start, and every one in a chat of this game, naming no other game. */
-  async #startedInGame(project: string, starts: readonly EventEnvelope[]): Promise<boolean> {
+  /** Some start, and every one in a chat of this project, naming no other project. */
+  async #startedInProject(project: string, starts: readonly EventEnvelope[]): Promise<boolean> {
     if (!starts.length) return false;
-    const games = new Map((await this.#core.store.listThreads()).map((thread) => [thread.id, threadGame(thread)]));
-    return starts.every((event) => games.get(event.thread_id) === project && startNames(event, project));
+    const projects = new Map(
+      (await this.#core.store.listThreads()).map((thread) => [thread.id, threadProject(thread)]),
+    );
+    return starts.every((event) => projects.get(event.thread_id) === project && startNames(event, project));
   }
 
   #assertFolderFree(lock: string, p: DelegateParams): void {
@@ -1086,7 +1088,7 @@ export class DelegationService {
 
   /**
    * The capture, playtest and director grants, each honoured only for the folder this delegation
-   * builds in — and a lead's director grant for its game's folder (`seat`).
+   * builds in — and a lead's director grant for its project's folder (`seat`).
    */
   #grants(p: DelegateParams, cwd: string, seat: DelegationSeat): DelegationGrants {
     const runs = this.#core.layout.runs;
@@ -1103,7 +1105,7 @@ export class DelegationService {
     const playShotsDir = playtest ? runShotsDir(runs, playtest.runId, playtest.facetId, ShotKind.Playtest) : null;
     // The capture output rides along as a read root, so the contractor can Read its own frames.
     const hostReads = [
-      ...(p.coordinator ? [this.#core.games.dirFor(p.project)] : []),
+      ...(p.coordinator ? [this.#core.projects.dirFor(p.project)] : []),
       ...(selfShotsDir ? [selfShotsDir] : []),
       ...(playShotsDir ? [playShotsDir] : []),
       ...(director ? this.#directorReads(p.project, director, seat) : []),
@@ -1113,12 +1115,16 @@ export class DelegationService {
   }
 
   /**
-   * What a director may read: its run's artifacts, its game's folder, and under scratch its run's
+   * What a director may read: its run's artifacts, its project's folder, and under scratch its run's
    * whole folder — or, for a lead, only the worktree it leads, by the real path its seat checked.
    */
   #directorReads(project: string, director: DirectorGrant, seat: DelegationSeat): string[] {
     const runFolder = path.join(this.#core.layout.scratch, "autopilot", director.runId);
-    return [runDir(this.#core.layout.runs, director.runId), seat.leads ?? runFolder, this.#core.games.dirFor(project)];
+    return [
+      runDir(this.#core.layout.runs, director.runId),
+      seat.leads ?? runFolder,
+      this.#core.projects.dirFor(project),
+    ];
   }
 
   #session(
@@ -1141,7 +1147,7 @@ export class DelegationService {
       ...(chatTurn && target.steersMidTurn ? { door: openDoor() } : {}),
       threadId,
       hostTools: hostToolsEligible(p, target.candidate, seat),
-      // The chat's coordinator speaks for this game in its chat without the builders' tools: it
+      // The chat's coordinator speaks for this project in its chat without the builders' tools: it
       // reads what the builders have, never instructions for tools it cannot call (which read
       // as "Genex is unavailable" to the user).
       conversational: Boolean(p.coordinator),
@@ -1222,7 +1228,7 @@ export class DelegationService {
   ): Promise<void> {
     const { engineId, cwd } = target;
     // Covers belong to the desktop host (which also bakes legacy GLSL covers); test rigs opt in.
-    if (session.hostTools && this.#core.options.renderGameCover) await this.#offerCover(p.project, tools);
+    if (session.hostTools && this.#core.options.renderProjectCover) await this.#offerCover(p.project, tools);
     if (session.runControls) assertRunControlsFree(tools);
     // A director's turn is the build's line between its parts (planning), never "Connecting tools" on each wake.
     if (session.hostTools && !session.leadTurn)
@@ -1259,7 +1265,7 @@ export class DelegationService {
   }
 
   async #offerCover(project: string, tools: SessionTools): Promise<void> {
-    const cover = (await this.#core.games.presentation(project)).cover;
+    const cover = (await this.#core.projects.presentation(project)).cover;
     if (replaceableCover(cover)) tools.cover = [COVER_TOOL];
     if (tools.cover.length && tools.plugins.some((tool) => tool.name === COVER_TOOL.name))
       throw new Error(MESSAGE.toolCollision(COVER_TOOL.name));
@@ -1313,7 +1319,7 @@ export class DelegationService {
     const ownership = normalizeOwnership(p.ownership);
     return {
       contextPolicy: (await this.#core.contextPreferences.get(engineId, p.model ?? "", p.threadId)).policy,
-      trustedProjectSettings: (await this.#core.games.presentation(p.project)).trustProjectSettings === true,
+      trustedProjectSettings: (await this.#core.projects.presentation(p.project)).trustProjectSettings === true,
       ...(optimization ? { optimization } : {}),
       prompt: this.#prompt(p, session, tools, reach),
       cwd: workCwd,
@@ -1458,10 +1464,10 @@ export class DelegationService {
   ): Promise<LiveToolResult> {
     const signal = session.abort.signal;
     if (tools.cover.some((tool) => tool.name === name))
-      return this.#x.setGameCover(p.project, args, p.threadId, signal);
+      return this.#x.setProjectCover(p.project, args, p.threadId, signal);
     if (session.runControls && isRunControl(name))
       return this.#x.conversation.runControl(session.threadId, session.runControls, name, args, session.abort);
-    // A lead's plugins act on the build it leads, never the live game folder it sits in, and its
+    // A lead's plugins act on the build it leads, never the live project folder it sits in, and its
     // calls outlive the chat's turns, ending with its own session instead.
     const directory = session.leads ?? target.cwd;
     const binding = { project: p.project, directory, ...(p.threadId ? { threadId: p.threadId } : {}) };
@@ -1531,8 +1537,8 @@ export class DelegationService {
   }
 }
 
-/** A checked game-file path: the game's folder (lexical and real) and whether the leaf is a link. */
-interface CheckedGameFile {
+/** A checked project-file path: the project's folder (lexical and real) and whether the leaf is a link. */
+interface CheckedProjectFile {
   file: string;
   base: string;
   realBase: string;

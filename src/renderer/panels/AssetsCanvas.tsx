@@ -1,7 +1,7 @@
 /** Asset inventory with local image, media, model and animation previews. */
 import type { JSX } from "react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { assetJobStalled, type ProjectAsset } from "../../shared/game-assets.ts";
+import { assetJobStalled, type ProjectAsset } from "../../shared/project-assets.ts";
 import { foldMotions, type FoldedMotions } from "../../shared/model-rig.ts";
 import { layoutAssets, type PendingJob } from "../assets-layout.ts";
 import { useCanvasView, gridTransform } from "../canvas-view.ts";
@@ -205,7 +205,7 @@ function AssetsZoom({
   );
 }
 
-/** The canvas's camera: fitted once per game, with small collections kept at their natural size. */
+/** The canvas's camera: fitted once per project, with small collections kept at their natural size. */
 function useAssetsCamera(project: string, loaded: boolean, layout: Layout) {
   const canvas = useCanvasView({ initial: { k: 1, tx: 0, ty: 0 } });
   const { viewRef, fit, zoomBy } = canvas;
@@ -218,8 +218,8 @@ function useAssetsCamera(project: string, loaded: boolean, layout: Layout) {
     },
     [fit, zoomBy, viewRef],
   );
-  // Another game is another canvas: fitted again. (Before the fit below, so the new game's first fit sticks.)
-  // biome-ignore lint/correctness/useExhaustiveDependencies: a new game is the reason to fit again
+  // Another project is another canvas: fitted again. (Before the fit below, so the new project's first fit sticks.)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a new project is the reason to fit again
   useEffect(() => {
     fitted.current = null;
   }, [project]);
@@ -252,9 +252,9 @@ function useEscapeClears(selected: string | null, previewOpen: boolean, clear: (
   }, [selected, previewOpen]);
 }
 
-/** The game's asset inventory from the library store, which keeps it fresh while the canvas is open. */
+/** The project's asset inventory from the library store, which keeps it fresh while the canvas is open. */
 function useProjectAssets(project: string) {
-  // The library store keeps this game's inventory fresh while the canvas is open: one read on a
+  // The library store keeps this project's inventory fresh while the canvas is open: one read on a
   // plugin's or a delivery's word, and a walk every ten seconds for hand-dropped files.
   useEffect(() => studio().library.watchAssets(project), [project]);
   const ledger = useLibrary((s) => assetsOf(s, project).value);
@@ -263,12 +263,12 @@ function useProjectAssets(project: string) {
   return { ledger, loadError, refresh, assets: ledger?.assets ?? [], pending: ledger?.jobs ?? NO_PENDING };
 }
 
-/** The selected asset and the one open in the preview: cleared for another game, moved to a job the stage asks for. */
+/** The selected asset and the one open in the preview: cleared for another project, moved to a job the stage asks for. */
 function useAssetSelection(project: string, assets: ProjectAsset[], focusJob: string | null | undefined) {
   const [selected, setSelected] = useState<string | null>(null);
   const [previewAsset, setPreviewAsset] = useState<ProjectAsset | null>(null);
-  // Another game is another canvas: nothing selected, nothing open.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: a new game clears the selection and the preview
+  // Another project is another canvas: nothing selected, nothing open.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a new project clears the selection and the preview
   useEffect(() => {
     setSelected(null);
     setPreviewAsset(null);
@@ -282,7 +282,7 @@ function useAssetSelection(project: string, assets: ProjectAsset[], focusJob: st
 }
 
 /**
- * The game's animation files folded into the models they move, by the models' headers (newest model
+ * The project's animation files folded into the models they move, by the models' headers (newest model
  * first), or null until the headers are read. A folded file gets no card of its own.
  */
 function useFoldedMotions(project: string, assets: ProjectAsset[]): FoldedMotions | null {
@@ -377,7 +377,7 @@ export function AssetsCanvas({ project, onNotice, focusJob }: Props): JSX.Elemen
 
       {ledger?.truncated ? (
         <div className="absolute top-2.5 right-2.5 rounded-control bg-surface px-2 py-1 text-micro text-ink-3 shadow-btn">
-          This game has more files than the canvas lists.
+          This project has more files than the canvas lists.
         </div>
       ) : null}
 

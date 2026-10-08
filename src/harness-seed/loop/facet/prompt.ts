@@ -1,6 +1,6 @@
 /** What the facet loop says to its builder: the prompt, the steer, the wind-down ask, the images and the brief's moved sections. */
 import { CheckKind, CheckWeight, HARNESS_CHECKS, renderChecks } from "../spec.ts";
-import { GAME_KINDS, describePlayScript, playScriptFor } from "../kinds.ts";
+import { APP_KINDS, describePlayScript, drawsScene, playScriptFor } from "../kinds.ts";
 import { roleEngine, RoleKey, toolCall } from "../model-roles.ts";
 import { facetNotes } from "../repo.ts";
 import { CLIP_QUOTE } from "../text.ts";
@@ -96,7 +96,7 @@ function withDoneSection(body: string, spec: AnyRecord | null | undefined): stri
 function seamRule(spec: AnyRecord | null | undefined, ownShape: boolean): string {
   const owned = spec?.owns?.length ? spec.owns.join(", ") : null;
   if (ownShape)
-    return `- YOUR SEAM: ${owned ?? "every file of this game except its entry module, the studio contract and index.html"}. It is the user's own code — read what is around your seam before you change anything, follow the conventions the game already has, and do not rename, restyle or reformat a file you did not have to change.`;
+    return `- YOUR SEAM: ${owned ?? "every file of this project except its entry module, the studio contract and index.html"}. It is the user's own code — read what is around your seam before you change anything, follow the conventions the project already has, and do not rename, restyle or reformat a file you did not have to change.`;
   return `- YOUR FILES: put this facet's work in its own module — ${owned ?? `src/${String(spec?.id ?? "facet").replace(/[^a-z0-9-]/g, "")}.js`} (split further under src/ if it grows).`;
 }
 
@@ -152,7 +152,7 @@ export function steerPrompt(texts: readonly unknown[]): string {
  */
 export const WIND_DOWN_ASK = [
   `TIME: your build turn is at its limit — the studio looks at what you have in a few minutes.`,
-  `Start nothing new. Finish the edit you are inside so the game still runs, reload it and read the console, write what you did and what is left in your notes, then stop.`,
+  `Start nothing new. Finish the edit you are inside so the project still runs, reload it and read the console, write what you did and what is left in your notes, then stop.`,
 ].join("\n");
 
 /**
@@ -250,7 +250,7 @@ function promptInput({
   fix = null,
   shape = null,
   ownShape = false,
-  game = null,
+  project = null,
   ...rest
 }: AnyRecord): PromptInput {
   const { briefFile } = rest;
@@ -274,7 +274,7 @@ function promptInput({
     fix,
     shape,
     ownShape,
-    game,
+    project,
     entryMain: shape?.main ?? "src/main.js",
     // Every section below that .studio/BRIEF.md already carries is rendered ONCE (M4.8b). A
     // delegated engine reads the file — the loop wrote it into the worktree and the prompt's
@@ -427,22 +427,22 @@ function openingPrompt(p: PromptInput): string {
     .replace(/\n{3,}/g, "\n\n");
 }
 
-/** What kind of game this is, and the controls the harness drives before every judgement (M4.4). */
-function kindLine(game: AnyRecord | null): string {
-  if (!game?.kind || !GAME_KINDS[game.kind]) return "";
-  return `GAME KIND: ${GAME_KINDS[game.kind].says}. Before every judgement the harness drives ${describePlayScript(playScriptFor(game))}, then photographs what that left.`;
+/** What kind of project this is, and the controls the harness drives before every judgement (M4.4). */
+function kindLine(app: AnyRecord | null): string {
+  if (!app?.kind || !APP_KINDS[app.kind]) return "";
+  return `PROJECT KIND: ${APP_KINDS[app.kind].says}. Before every judgement the harness drives ${describePlayScript(playScriptFor(app))}, then photographs what that left.`;
 }
 
 /** The opening's head: who the builder is, the goal, the facet, and the contract when there is no brief. */
 function openingHead(p: PromptInput): string[] {
   const { run, spec: facet, pointsAtBrief } = p;
   return [
-    `You are building ONE FACET of a game inside Autopilot run ${run.runId}, iteration ${p.iteration}.`,
+    `You are building ONE FACET of a project inside Autopilot run ${run.runId}, iteration ${p.iteration}.`,
     ``,
-    `GAME GOAL: ${run.goal}`,
+    `PROJECT GOAL: ${run.goal}`,
     `PROJECT: ${run.project}`,
-    // A game that declares no kind says nothing here.
-    kindLine(p.game),
+    // A project that declares no kind says nothing here.
+    kindLine(p.app),
     // Eleven sections live in .studio/BRIEF.md and are rendered there only (M4.8b). What stays
     // in the prompt is what the brief cannot carry: who you are, the goal, the pointer at the
     // file, the user's own words, this iteration's move and fix, and the last build's news.
@@ -466,7 +466,7 @@ function openingHead(p: PromptInput): string[] {
       : `THE CONTRACT — these checks are verified mechanically after every build; a build is accepted only when it flips at least one to pass and regresses none:\n${renderChecks(p.spec.checks)}`,
     ``,
     p.worktree
-      ? `You are working in an isolated copy of the game. Touch only what this facet needs — other facets are being built in parallel and their accepted work is merged into your copy between iterations.`
+      ? `You are working in an isolated copy of the project. Touch only what this facet needs — other facets are being built in parallel and their accepted work is merged into your copy between iterations.`
       : `Work only on this facet. Other facets get their own turns — do not start unrelated work.`,
     ``,
   ];
@@ -475,7 +475,7 @@ function openingHead(p: PromptInput): string[] {
 /**
  * Two paragraphs, because a worker builds in one of two worlds (M4.6). In the studio's
  * template a facet is a module under src/ and the entry carries a wiring block everyone adds
- * one line to. In a game the user brought there is no such block: the worker is given a seam —
+ * one line to. In a project the user brought there is no such block: the worker is given a seam —
  * a path, a folder or a glob — and everything else is somebody's existing code. Both, and the
  * four bullets under them, are in the brief when there is one.
  */
@@ -486,8 +486,8 @@ function ownershipLines(p: PromptInput): string[] {
 
 function seamOwnership({ spec: facet, entryMain, ownsMain }: PromptInput): string[] {
   return [
-    `YOUR SEAM IN THIS GAME (it is the user's own code — everything outside your seam already works):`,
-    `- Your seam is ${facet.owns?.length ? facet.owns.join(", ") : "every file of this game except its entry module, the studio contract and index.html"}. Read what is around it before you change anything; follow the conventions the game already has rather than the ones you would have chosen.`,
+    `YOUR SEAM IN THIS PROJECT (it is the user's own code — everything outside your seam already works):`,
+    `- Your seam is ${facet.owns?.length ? facet.owns.join(", ") : "every file of this project except its entry module, the studio contract and index.html"}. Read what is around it before you change anything; follow the conventions the project already has rather than the ones you would have chosen.`,
     ownsMain
       ? `- This worker OWNS ${entryMain} and src/studio.js — you may restructure them, and you wire in other workers' modules when they appear.`
       : `- This worker does NOT own ${entryMain}, src/studio.js or index.html. If your work needs a change in one of them, say so in your summary and leave it: the director makes that edit, or gives it to whoever owns the entry.`,
@@ -505,25 +505,27 @@ function templateOwnership({ spec: facet, entryMain, ownsMain }: PromptInput): s
   ];
 }
 
-/** Notes, tags and the one-screen rule: the conventions the brief carries when there is one. */
+/** Notes, tags and the screen rule: the conventions the brief carries when there is one. */
 function conventionLines(p: PromptInput): string[] {
   if (p.pointsAtBrief) return [];
   return [
     `- Keep your working notes in ${facetNotes(p.spec.id)} — do not edit the shared NOTES.md; the integrator folds notes together.`,
-    `- Tag every object you create (obj.userData.tag = "<tag>") with the tag names the checks use. Untagged objects do not exist to the checks.`,
-    p.ownShape ? ownShapeLine(p) : oneScreenLine(p),
+    drawsScene(p.run?.app)
+      ? `- Tag every object you create (obj.userData.tag = "<tag>") with the tag names the checks use. Untagged objects do not exist to the checks.`
+      : `- Give every screen you build a probe (what it holds), a view (so it can be photographed, empty and error states included) and, for a workflow the generic exercise cannot reach, a demo. What cannot be measured does not exist to the checks.`,
+    p.ownShape ? ownShapeLine(p) : pageLine(p),
   ];
 }
 
 function ownShapeLine({ entryMain, shape }: PromptInput): string {
   const built = shape?.build ? `, it is built with \`${shape.build}\`` : "";
   const runBuild = shape?.build
-    ? ` Run \`${shape.build}\` before you finish: the studio runs the same build before every preview, and a build that fails is a black screen for every critic.`
+    ? ` Run \`${shape.build}\` before you finish: the studio runs the same build before every preview, and a build that fails is a blank screen for every critic.`
     : "";
-  return `- THIS GAME HAS ITS OWN SHAPE: its entry is ${entryMain}${built} and the studio serves ${shape?.entry ?? "index.html"}. Keep its UI and input handling as they are — no __studio.hud overlays, no second input path. Keep window.__studio working (installStudio in ${entryMain}).${runBuild}`;
+  return `- THIS PROJECT HAS ITS OWN SHAPE: its entry is ${entryMain}${built} and the studio serves ${shape?.entry ?? "index.html"}. Keep its UI and input handling as they are — do not rebuild its screens or add a second input path. Keep window.__studio working (installStudio in ${entryMain}).${runBuild}`;
 }
 
-function oneScreenLine({ spec: facet }: PromptInput): string {
+function pageLine({ spec: facet }: PromptInput): string {
   // Only the harness-owned checks this facet actually carries — under the declared-only rule a
   // board may carry none of them, and naming a check nobody scores teaches the wrong lesson.
   const harnessOnBoard = (facet.checks ?? [])
@@ -533,7 +535,7 @@ function oneScreenLine({ spec: facet }: PromptInput): string {
   const enforced = harnessOnBoard.length
     ? ` The harness-owned check${one ? "" : "s"} ${harnessOnBoard.join(", ")} enforce${one ? "s" : ""} this.`
     : "";
-  return `- ONE SCREEN, ONE INPUT PATH: all UI through __studio.hud (drawn into the canvas; no DOM, no second HUD); all input from ctx.keys / ctx.look / ctx.wheel (studio.js owns pointer lock and the mouse).${enforced} A label that belongs to something in the world — a player's name, a marker over a target — is a sprite or mesh in the scene, attached to that object and tagged with it (never hud), so it moves and hides with it; __studio.hud holds only what stays on the screen.`;
+  return `- THE PAGE IS THE PRODUCT: build the interface in the DOM — real buttons, links, labels and headings, landmarks, a visible focus ring, text that wraps, every control named, empty, loading and error states handled, a failure shown on the page. Input is real clicks and keystrokes on real elements; a canvas project that passes update reads ctx.keys / ctx.look / ctx.wheel (studio.js owns pointer lock and the mouse).${enforced}`;
 }
 
 /** The last build's news: its failure, the legacy gap, or the board. */
@@ -640,7 +642,7 @@ function setupLine(setup: AnyRecord): string {
   const how = setup.note ?? (setup.demo ? `demo "${setup.demo}"` : `${(setup.actions ?? []).length} input action(s)`);
   const equals = setup.verify && "equals" in setup.verify ? ` == ${JSON.stringify(setup.verify.equals)}` : "";
   const verified = setup.verify ? `, verified by ${setup.verify.path}${equals}` : "";
-  return `THE REQUESTED STATE: the window opens on the state this run is about — the studio replays a setup script after every load (${how})${verified}. Every judge, every capture and the check "requested-state" look there, not at the boot screen. If a capture or screenshot says the state was not reached, that is the first thing to fix — the way a player reaches it, not by changing what the game boots into.`;
+  return `THE REQUESTED STATE: the window opens on the state this run is about — the studio replays a setup script after every load (${how})${verified}. Every judge, every capture and the check "requested-state" look there, not at the boot screen. If a capture or screenshot says the state was not reached, that is the first thing to fix — the way a player reaches it, not by changing what the project boots into.`;
 }
 
 /** The demo ask, the builder's hands and eyes, and what to check before finishing. */
@@ -666,7 +668,7 @@ function closingLines({ run, worktree, pointsAtBrief }: PromptInput): string[] {
     ...(pointsAtBrief
       ? []
       : [
-          `- Make sure the game still loads and window.__studio still works (installStudio with scene/renderer/camera/player) — a build that cannot be verified counts as a loss.`,
+          `- Make sure the project still loads and window.__studio still works (installStudio with probes, views and demos) — a build that cannot be verified counts as a loss.`,
         ]),
   ];
 }

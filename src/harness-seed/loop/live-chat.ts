@@ -108,14 +108,14 @@ export async function chatWaitsFor(
   }
 }
 
-/** Does an open build hold this chat or its game (a legacy second chat of a game answers for its build too)? */
+/** Does an open build hold this chat or its project (a legacy second chat of a project answers for its build too)? */
 export function buildHolds(studio: Studio, threadId: string, project?: string | null): boolean {
-  const ofGame = (active: ActiveRun): boolean => Boolean(project) && active.run?.project === project;
-  return heldRuns(studio).some((active) => !active.done && (active.threadId === threadId || ofGame(active)));
+  const ofProject = (active: ActiveRun): boolean => Boolean(project) && active.run?.project === project;
+  return heldRuns(studio).some((active) => !active.done && (active.threadId === threadId || ofProject(active)));
 }
 
 /**
- * The run under way on this chat or game, once any run that has closed there is past its
+ * The run under way on this chat or project, once any run that has closed there is past its
  * self-improvement pass: a new build waits that pass out instead of being refused.
  */
 export async function runUnderWay(studio: Studio, threadId: string, project: string): Promise<ActiveRun | undefined> {

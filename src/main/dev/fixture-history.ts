@@ -1,5 +1,5 @@
 /**
- * The build history of the fixture game (`build-history`, `run-controls`, `sentinel`,
+ * The build history of the fixture project (`build-history`, `run-controls`, `sentinel`,
  * `studio-activity`): a first night whose base failed, and a lead's night that landed its build.
  */
 import fs from "node:fs/promises";
@@ -58,7 +58,7 @@ export async function hasLandedNight(core: StudioCore, threadId: string): Promis
 /**
  * A lead's night that landed its build: no shared base, builders instead of rounds of a plan, a
  * merged build the health pass passed, and a morning card with the night's report. Nothing here
- * rewrites the game's files or the history it already has.
+ * rewrites the project's files or the history it already has.
  */
 export async function seedLandedNight(core: StudioCore, project: string, threadId: string): Promise<void> {
   const run = fixtureRun({ runId: LANDED_RUN });
@@ -227,7 +227,7 @@ function closeVerdict() {
     pass: "close",
     at: "2026-09-07T23:05:00.000Z",
     build: { head: "beef1234aa", worker: null, round: null },
-    against: { head: null, what: "the game you had" },
+    against: { head: null, what: "the project you had" },
     observed: { ok: true, problems: [], cameras: [], demos: [], consoleFresh: [], consoleInherited: [] },
     measured: NOTHING_MEASURED,
     seen: unseen("challenger"),

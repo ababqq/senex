@@ -340,7 +340,7 @@ export async function codexGlobalSkills(cwd: string, login: CodexSkillLogin | nu
   return output;
 }
 
-/** Where a game folder keeps the skills its builders load, and which builders load each. */
+/** Where a project folder keeps the skills its builders load, and which builders load each. */
 const PROJECT_SKILL_ROOTS: ReadonlyArray<Pick<ProjectSkill, "kind" | "engines"> & { dir: string }> = [
   { dir: ".claude/skills", kind: "skill", engines: [EngineId.ClaudeCode] },
   { dir: ".claude/commands", kind: "command", engines: [EngineId.ClaudeCode] },
@@ -348,22 +348,22 @@ const PROJECT_SKILL_ROOTS: ReadonlyArray<Pick<ProjectSkill, "kind" | "engines"> 
 ];
 
 /**
- * The skills and commands a game folder gives its builders. Discovery only, and confined to the
- * game: a root, folder or file whose real path leaves the game folder is not the game's and is not
+ * The skills and commands a project folder gives its builders. Discovery only, and confined to the
+ * project: a root, folder or file whose real path leaves the project folder is not the project's and is not
  * read. One file two roots reach (a linked `.agents/skills`) is one skill for both builders.
  */
-export async function projectSkills(gameDir: string): Promise<Omit<ProjectSkillInventory, "project">> {
-  const game = await realpath(gameDir);
+export async function projectSkills(projectDir: string): Promise<Omit<ProjectSkillInventory, "project">> {
+  const project = await realpath(projectDir);
   const found = new Map<string, ProjectSkill>();
   const warnings: string[] = [];
   for (const root of PROJECT_SKILL_ROOTS) {
-    const dir = path.join(game, root.dir);
+    const dir = path.join(project, root.dir);
     const real = await realpath(dir).catch(() => null);
-    if (!real || !isBelow(game, real)) continue;
+    if (!real || !isBelow(project, real)) continue;
     const output: SkillOutput = { skills: [], warnings: [] };
     await scanSkillRoot({ output, seen: new Set(), directories: new Set() }, dir, root.kind, root.kind === "command");
     for (const warning of output.warnings) if (!warnings.includes(warning)) warnings.push(warning);
-    for (const skill of output.skills) await addProjectSkill(found, game, skill, root);
+    for (const skill of output.skills) await addProjectSkill(found, project, skill, root);
   }
   const skills = [...found.values()].sort((a, b) => a.name.localeCompare(b.name));
   return { skills, warnings };
@@ -371,7 +371,7 @@ export async function projectSkills(gameDir: string): Promise<Omit<ProjectSkillI
 
 async function addProjectSkill(
   found: Map<string, ProjectSkill>,
-  game: string,
+  project: string,
   skill: ProviderSkill,
   root: (typeof PROJECT_SKILL_ROOTS)[number],
 ): Promise<void> {
@@ -384,7 +384,7 @@ async function addProjectSkill(
   found.set(key, {
     name: skill.name,
     description: skill.description,
-    path: toPosixRelative(path.relative(game, skill.path)),
+    path: toPosixRelative(path.relative(project, skill.path)),
     kind: root.kind,
     engines: [...root.engines],
   });

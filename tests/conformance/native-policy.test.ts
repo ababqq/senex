@@ -47,7 +47,7 @@ test("a fixture profile runs fixture-safe channels, refuses native and unclassif
     ran.push("opened");
     return true;
   });
-  handle("studio:game.create", () => {
+  handle("studio:project.create", () => {
     throw new Error("title taken");
   });
   // @ts-expect-error an unclassified channel, registered anyway to prove the runtime refusal
@@ -59,7 +59,7 @@ test("a fixture profile runs fixture-safe channels, refuses native and unclassif
     ok: false,
     error: "unsupported-in-fixture: native accounts, dialogs, downloads and external actions require a live profile",
   });
-  assert.deepEqual(await listeners.get("studio:game.create")!(studio, {}), { ok: false, error: "title taken" });
+  assert.deepEqual(await listeners.get("studio:project.create")!(studio, {}), { ok: false, error: "title taken" });
   assert.deepEqual(await listeners.get("studio:brand-new.native")!(studio, {}), {
     ok: false,
     error: "unsupported-in-fixture: studio:brand-new.native is not classified in src/main/dev/native-policy.ts",
@@ -88,12 +88,12 @@ test("plugin, connector and terminal channels answer only Studio's main frame", 
     ran++;
     return [];
   });
-  handle("studio:games", () => {
+  handle("studio:projects", () => {
     ran++;
     return [];
   });
   const subframe = { sender: studio.sender, senderFrame: "plugin-panel-frame" },
-    other = { sender: "game-webcontents", senderFrame: "game-frame" };
+    other = { sender: "project-webcontents", senderFrame: "project-frame" };
   for (const channel of ["studio:plugins.list", "studio:mcp.list", "studio:terminal.list"]) {
     for (const event of [subframe, other])
       assert.deepEqual(
@@ -103,7 +103,7 @@ test("plugin, connector and terminal channels answer only Studio's main frame", 
       );
     assert.equal((await listeners.get(channel)!(studio, {})).ok, true, channel);
   }
-  assert.deepEqual(await listeners.get("studio:games")!(other, {}), { ok: true, value: [] });
+  assert.deepEqual(await listeners.get("studio:projects")!(other, {}), { ok: true, value: [] });
   assert.equal(ran, 4);
 });
 test("a channel is never both fixture-safe and native", () => {
@@ -126,14 +126,14 @@ test("native accounts, terminals, plugin installs, external opens and Genex are 
     "studio:open-url",
     "studio:reveal-project",
     "studio:project.pick",
-    // Create game's location is chosen in the native folder picker.
-    "studio:game.location.pick",
+    // Create project's location is chosen in the native folder picker.
+    "studio:project.location.pick",
     "studio:export",
     "studio:packages.install",
     "studio:mcp.trust",
     "studio:mcp.authorize",
     "studio:notify",
-    "studio:game-file.reveal",
+    "studio:project-file.reveal",
     // A file the chat names opens in another app or the file manager, outside the profile.
     "studio:chat-file.open",
     "studio:subscription.signin",
@@ -164,7 +164,7 @@ test("fixture-safe channels run in fixtures and an unclassified one is refused t
     "studio:plugins.index",
     "studio:mcp.save",
     "studio:project.adopt",
-    "studio:game-file.read",
+    "studio:project-file.read",
     // Asking which names are files only looks.
     "studio:chat-files.resolve",
     "studio:message-images",

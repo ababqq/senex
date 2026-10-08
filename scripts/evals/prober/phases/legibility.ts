@@ -2,7 +2,7 @@
  * The two L3 legibility rows beside the quick probe's `l3.visually_legible`:
  *
  * - `l3.dark_phase` (village day→night): an OPERATOR REVIEW names the darkest playable phase and the
- *   frames that show it and says whether gameplay stayed readable; the prober measures those frames
+ *   frames that show it and says whether interaction stayed readable; the prober measures those frames
  *   with the same tiled, centre-weighted exposure report and `darkPhaseAcceptance` judges both
  *   together. No review, or a named frame the probe never wrote, is `unknown`.
  * - `l3.spatially_legible`: judge-owned. The machine declares it and always leaves it `unknown`.
@@ -29,7 +29,7 @@ function sampleOf(frame: LoggedFrame): ExposureSample {
 }
 
 /**
- * `l3.dark_phase`. The reviewed files must be eligible gameplay frames (post-gesture, page-source,
+ * `l3.dark_phase`. The reviewed files must be eligible interaction frames (post-gesture, page-source,
  * after the first render; `selectExposureFrames`): a loading card is never the dark phase.
  */
 export function darkPhaseRow(

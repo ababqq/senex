@@ -21,7 +21,7 @@ const ask = (
 ) =>
   ledger.request({
     requestId,
-    project: extra.project ?? "game",
+    project: extra.project ?? "project",
     threadId: extra.threadId ?? "t1",
     ...(extra.plan ? { plan: true } : {}),
     ...(extra.signal ? { signal: extra.signal } : {}),
@@ -110,21 +110,21 @@ test("the session's abort withdraws its request as a stop", async () => {
   assert.deepEqual(ledger.pending(), []);
 });
 
-test("a turn's end and a game's Stop withdraw only the requests in their scope", async () => {
+test("a turn's end and a project's Stop withdraw only the requests in their scope", async () => {
   const ledger = new ToolPermissions();
-  const inTurn = ask(ledger, "p1", { project: "game", threadId: "t1" });
-  const otherChat = ask(ledger, "p2", { project: "game", threadId: "t2" });
-  const otherGame = ask(ledger, "p3", { project: "other", threadId: "t3" });
+  const inTurn = ask(ledger, "p1", { project: "project", threadId: "t1" });
+  const otherChat = ask(ledger, "p2", { project: "project", threadId: "t2" });
+  const otherProject = ask(ledger, "p3", { project: "other", threadId: "t3" });
   assert.equal(ledger.cancel({ threadId: "t1" }, "turn"), 1);
   assert.deepEqual(await inTurn, { answer: null, by: "turn" });
-  assert.equal(ledger.cancel({ project: "game" }, "stop"), 1);
+  assert.equal(ledger.cancel({ project: "project" }, "stop"), 1);
   assert.deepEqual(await otherChat, { answer: null, by: "stop" });
   assert.deepEqual(
     ledger.pending().map((p) => p.requestId),
     ["p3"],
   );
   assert.equal(ledger.cancel({}, "stop"), 1, "an empty scope is the shutdown path: everything goes");
-  assert.deepEqual(await otherGame, { answer: null, by: "stop" });
+  assert.deepEqual(await otherProject, { answer: null, by: "stop" });
   assert.equal(ledger.cancel({}, "stop"), 0);
   assert.equal(ledger.resolve("p3", { decision: "allow" }), false);
 });

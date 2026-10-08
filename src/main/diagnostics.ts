@@ -20,7 +20,7 @@ export interface DiagnosticsSources {
   app: { name: string; version: string; packaged: boolean };
   versions: { electron?: string; chrome?: string; node?: string };
   os: { platform: string; arch: string; release: string };
-  paths: { userData: string; gamesRoot: string; log: string };
+  paths: { userData: string; projectsRoot: string; log: string };
   home: string;
   performance?: unknown;
   /** The harness calls the host is servicing now, oldest first (`HarnessHost.pendingRpcs`). */
@@ -71,7 +71,7 @@ export function diagnosticsText(report: Diagnostics): string {
     "",
     "Paths",
     `  Data: ${paths.userData}`,
-    `  Games: ${paths.gamesRoot}`,
+    `  Projects: ${paths.projectsRoot}`,
     `  Log: ${paths.log}`,
     "",
     ...(report.performance ? ["Performance", JSON.stringify(report.performance), ""] : []),

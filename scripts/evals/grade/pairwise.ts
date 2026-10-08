@@ -37,7 +37,7 @@ const PROMPT_HEADING = {
 
 /** What the rubric must never contain. */
 export const RubricViolation = {
-  /** The Genex runtime contract (`window.__studio`): a raw-lane game can never satisfy it. */
+  /** The Genex runtime contract (`window.__studio`): a raw-lane project can never satisfy it. */
   StudioContract: "studio-contract",
   /** Language that favours one side for being the existing one. */
   Incumbent: "incumbent",

@@ -1,0 +1,133 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>Sweep</title>
+<style>
+  html,
+  body {
+    margin: 0;
+    height: 100%;
+    background: #0b1016;
+    overflow: hidden;
+  }
+  canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+</style>
+
+<script type="importmap">
+  {
+    "imports": {
+      "three": "/vendor/three.module.js",
+      "three/": "/vendor/three/"
+    }
+  }
+</script>
+
+<script type="module">
+  // Sweep: drive the pale cube around a yard and collect twelve pickups. Nothing here knows
+  // the studio exists — no contract, no registered cameras, its own clock, its own listeners.
+  import * as THREE from "three";
+
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setPixelRatio(1);
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  document.body.appendChild(renderer.domElement);
+
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x0b1016);
+  scene.fog = new THREE.Fog(0x0b1016, 18, 46);
+
+  const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 200);
+  camera.position.set(0, 22, 14);
+  camera.lookAt(0, 0, 0);
+
+  scene.add(new THREE.HemisphereLight(0x9fc4ff, 0x0a0f16, 1.6));
+  const sun = new THREE.DirectionalLight(0xfff0d0, 1.1);
+  sun.position.set(8, 16, 6);
+  scene.add(sun);
+
+  const ground = new THREE.Mesh(
+    new THREE.PlaneGeometry(40, 40, 1, 1),
+    new THREE.MeshStandardMaterial({ color: 0x1b2a3a, roughness: 0.95 }),
+  );
+  ground.rotation.x = -Math.PI / 2;
+  scene.add(ground);
+
+  const grid = new THREE.GridHelper(40, 20, 0x2f4a63, 0x16232f);
+  grid.position.y = 0.01;
+  scene.add(grid);
+
+  // Math.random() straight, with nothing seeded by the page: the studio's seed(n) is the only
+  // thing that can make two runs of this project comparable.
+  const pickups = [];
+  const pickupGeometry = new THREE.IcosahedronGeometry(0.5, 0);
+  for (let i = 0; i < 12; i += 1) {
+    const mesh = new THREE.Mesh(
+      pickupGeometry,
+      new THREE.MeshStandardMaterial({ color: 0x7fe3b0, emissive: 0x1c5c40, roughness: 0.4 }),
+    );
+    mesh.position.set(Math.random() * 32 - 16, 0.6, Math.random() * 32 - 16);
+    scene.add(mesh);
+    pickups.push(mesh);
+  }
+
+  const player = new THREE.Mesh(
+    new THREE.BoxGeometry(1, 1, 1),
+    new THREE.MeshStandardMaterial({ color: 0xdfe7f2, roughness: 0.5 }),
+  );
+  player.position.set(0, 0.5, 0);
+  scene.add(player);
+
+  const held = new Set();
+  addEventListener("keydown", (event) => held.add(event.code));
+  addEventListener("keyup", (event) => held.delete(event.code));
+  addEventListener("resize", () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+
+  const state = { collected: 0, elapsed: 0 };
+  const SPEED = 6;
+
+  // The page's own clock: performance.now() read directly, dt computed by hand, one
+  // requestAnimationFrame chain. The studio has to take this over without being asked.
+  let previous = performance.now();
+  function frame(now) {
+    const dt = Math.min(0.05, (now - previous) / 1000);
+    previous = now;
+    state.elapsed += dt;
+
+    let x = 0;
+    let z = 0;
+    if (held.has("KeyW") || held.has("ArrowUp")) z -= 1;
+    if (held.has("KeyS") || held.has("ArrowDown")) z += 1;
+    if (held.has("KeyA") || held.has("ArrowLeft")) x -= 1;
+    if (held.has("KeyD") || held.has("ArrowRight")) x += 1;
+    if (x !== 0 || z !== 0) {
+      const length = Math.hypot(x, z);
+      player.position.x = Math.max(-19, Math.min(19, player.position.x + (x / length) * SPEED * dt));
+      player.position.z = Math.max(-19, Math.min(19, player.position.z + (z / length) * SPEED * dt));
+    }
+
+    for (const pickup of pickups) {
+      if (!pickup.visible) continue;
+      pickup.rotation.y += dt * 1.4;
+      pickup.position.y = 0.6 + Math.sin(state.elapsed * 2 + pickup.position.x) * 0.12;
+      if (pickup.position.distanceTo(player.position) < 1) {
+        pickup.visible = false;
+        state.collected += 1;
+      }
+    }
+
+    camera.position.x += (player.position.x - camera.position.x) * Math.min(1, dt * 3);
+    camera.position.z += (player.position.z + 14 - camera.position.z) * Math.min(1, dt * 3);
+    camera.lookAt(player.position.x, 0, player.position.z);
+
+    renderer.render(scene, camera);
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+</script>

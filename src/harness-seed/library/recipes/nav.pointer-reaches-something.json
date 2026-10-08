@@ -1,0 +1,28 @@
+{
+  "id": "nav.pointer-reaches-something",
+  "title": "A click on a control changes the screen",
+  "tags": ["click", "navigation", "route", "link", "tab", "menu", "view", "hash", "history", "button", "nav"],
+  "checkClass": "nav-changes-view",
+  "kind": "craft",
+  "pack": "navigation",
+  "appKinds": ["dashboard", "form-flow", "list-manager", "content-site", "editor", "data-viz", "utility"],
+  "note": "Clicks reach controls that do something visible: the route, the selection or the content changes.",
+  "intent": "The first thing anyone does is click. If nothing responds, the page feels broken whatever else is true. Wire each navigation control to a real change a person can see: a different view, a selected tab, an expanded section, a filtered list. Reflect the current view in the address (hash or history) so back works and a reload lands where you were. Mark the active item (aria-current=\"page\") and style it. Keep targets at least 40 px so they are easy to hit. The page counts navigations and visible reactions to input in state().ui.navigations and ui.reactions.",
+  "check": {
+    "id": "nav-changes-view",
+    "kind": "probe",
+    "expr": "abs(delta('ui.navigations')) > 0 || abs(delta('ui.reactions')) > 0",
+    "needs": ["ui.navigations", "ui.reactions"],
+    "weight": "identity",
+    "note": "After the scripted clicks the address or the page changed: a navigation or a reaction was counted."
+  },
+  "port": "One router module owns the current view; links are plain <a href=\"#/view\"> so the browser does the history work, and the shell renders from the route.",
+  "evidence": [],
+  "stats": {
+    "applied": 0,
+    "wins": 0,
+    "losses": 0
+  },
+  "status": "candidate",
+  "origin": "seed"
+}

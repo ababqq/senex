@@ -51,9 +51,9 @@ const VALID = "export const helper = (n: number): number => n + 1;\n";
 const BROKEN = "export const helper = (n: number): number => `${n}`;\n";
 
 describe("the self-edit gate", () => {
-  it("a validation fork cannot write a live game or abort live provider work", async () => {
+  it("a validation fork cannot write a live project or abort live provider work", async () => {
     const lite = await coreLite();
-    await lite.core.games.scaffold("pong");
+    await lite.core.projects.scaffold("pong");
     const api = lite.core.api.bind(lite.core);
     let aborts = 0;
     lite.core.api = () => ({
@@ -70,7 +70,7 @@ describe("the self-edit gate", () => {
       'export { nightRefusal } from "./run-dispatch.ts";',
       "export async function createStudio(host: Host) {",
       "  await host.call(HostMethod.EngineAbort, {}).catch(() => {});",
-      '  await host.call(HostMethod.GameWrite, {project:"pong", file:"intrusion.txt", contents:"forged"}).catch(() => {});',
+      '  await host.call(HostMethod.ProjectWrite, {project:"pong", file:"intrusion.txt", contents:"forged"}).catch(() => {});',
       '  return {status:()=>"idle", dispatch:async()=>{}, shutdown:async()=>{},',
       "    healthcheck:async()=>({ok:true, head:await host.call(HostMethod.EventsHead,{})})};",
       "}",
@@ -82,7 +82,7 @@ describe("the self-edit gate", () => {
     });
     assert.equal(outcome.ok, true, outcome.content);
     assert.equal(aborts, 0, "fork RPC never reaches the live abort handler");
-    await assert.rejects(readFile(path.join(lite.core.games.dirFor("pong"), "intrusion.txt")), { code: "ENOENT" });
+    await assert.rejects(readFile(path.join(lite.core.projects.dirFor("pong"), "intrusion.txt")), { code: "ENOENT" });
   });
   it("refuses a type-broken code edit with the compiler's diagnostics and leaves the workspace as it was", async () => {
     const lite = await coreLite();

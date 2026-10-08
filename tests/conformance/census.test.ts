@@ -48,7 +48,7 @@ const usd = (value: number) => Math.round(value * 1_000_000) / 1_000_000;
 const CODEX = path.join(FIXTURES, "codex-director-rollout.jsonl");
 /** A rollout with three tool calls, an answer, one more call and a last answer: five responses. */
 const CODEX_TOOLS = path.join(FIXTURES, "codex-worker-facet.jsonl");
-/** A playtester: read-only, started in a scratch folder the studio named, in nobody's game. */
+/** A playtester: read-only, started in a scratch folder the studio named, in nobody's project. */
 const CODEX_SCRATCH = path.join(FIXTURES, "codex-playtester-scratch.jsonl");
 /** The temp root the scratch fixture's cwd sits in. */
 const SCRATCH_TMP = "/tmp/studio-scratch-fixture";
@@ -71,15 +71,15 @@ describe("the transcript census", () => {
   });
 
   it("keys on the opening sentence and calls everything else other", () => {
-    assert.equal(classifyBrief('You are the DIRECTOR of run run-7 on the game "Two Rooms".'), "director");
+    assert.equal(classifyBrief('You are the DIRECTOR of run run-7 on the project "Two Rooms".'), "director");
     assert.equal(
-      classifyBrief("  You are building ONE FACET of a game inside Autopilot run r, iteration 1."),
+      classifyBrief("  You are building ONE FACET of a project inside Autopilot run r, iteration 1."),
       "worker:facet",
     );
     assert.equal(classifyBrief("."), "other");
     assert.equal(classifyBrief(""), "other");
     assert.equal(classifyBrief(null), "other");
-    assert.equal(classifyBrief("what does this game do?"), "other");
+    assert.equal(classifyBrief("what does this project do?"), "other");
   });
 
   it("reads a Claude session: role, turns deduplicated by message id, and the usage fields", async () => {
@@ -88,7 +88,7 @@ describe("the transcript census", () => {
     assert.equal(session.engine, "claude");
     assert.equal(session.role, "worker:facet");
     assert.equal(session.id, "11111111-2222-3333-4444-555555555555");
-    assert.equal(session.briefBytes, 176);
+    assert.equal(session.briefBytes, 179);
     assert.equal(session.turns, 2, "the repeated msg_a1 is one API call, not two");
     assert.deepEqual(session.input, { fresh: 20, cacheCreate: 1500, cacheRead: 41000, total: 42520 });
     assert.equal(session.output, 420);
@@ -133,9 +133,9 @@ describe("the transcript census", () => {
     assert.ok(session);
     assert.equal(session.engine, "codex");
     assert.equal(session.role, "director");
-    assert.equal(session.briefBytes, 157, "the <environment_context> message is not the brief");
+    assert.equal(session.briefBytes, 160, "the <environment_context> message is not the brief");
     assert.equal(session.turns, 2, "the tool call is one response and the answer after its output is another");
-    assert.equal(session.cwd, "/Users/studio/AI Games/two-rooms");
+    assert.equal(session.cwd, "/Users/studio/AI Projects/two-rooms");
   });
 
   /**
@@ -298,13 +298,15 @@ describe("the transcript census", () => {
       claudeSystem: path.join(home, ".claude"),
       codexIsolated: path.join(home, "app", "engine-homes", "codex"),
       codexSystem: path.join(home, ".codex"),
-      gameRoots: ["/Users/studio/AI Games"],
+      projectRoots: ["/Users/studio/AI Projects"],
       tmpDir: SCRATCH_TMP,
     };
-    fs.mkdirSync(path.join(homes.claudeIsolated, "projects", "-Users-studio-AI-Games-two-rooms"), { recursive: true });
+    fs.mkdirSync(path.join(homes.claudeIsolated, "projects", "-Users-studio-AI-Projects-two-rooms"), {
+      recursive: true,
+    });
     fs.copyFileSync(
       CLAUDE,
-      path.join(homes.claudeIsolated, "projects", "-Users-studio-AI-Games-two-rooms", "session.jsonl"),
+      path.join(homes.claudeIsolated, "projects", "-Users-studio-AI-Projects-two-rooms", "session.jsonl"),
     );
     fs.mkdirSync(path.join(homes.codexSystem, "sessions", "2026", "09", "08"), { recursive: true });
     fs.copyFileSync(CODEX, path.join(homes.codexSystem, "sessions", "2026", "09", "08", "rollout-fixture.jsonl"));
@@ -324,18 +326,18 @@ describe("the transcript census", () => {
     assert.deepEqual(full.roles.map((r) => r.role).sort(), ["director", "playtester", "worker:facet"]);
     assert.equal(full.looks[1]!.dropped ?? 0, 0, "nothing was dropped, so the line says nothing about dropping");
 
-    // A playtester and a judge run in a scratch folder the studio made, not in a game: filtering
-    // the owner's own home on the game roots alone emptied both rows and said nothing about it.
+    // A playtester and a judge run in a scratch folder the studio made, not in a project: filtering
+    // the owner's own home on the project roots alone emptied both rows and said nothing about it.
     const noScratch = await runCensus({ homes: { ...homes, tmpDir: "/somewhere/else" }, systemCodex: true });
     assert.equal(noScratch.sessions, 2, "a scratch folder that is not the studio's temp root is not the studio's");
     assert.equal(noScratch.looks[1]!.dropped, 1, "and the line has to say one was dropped");
     assert.ok(lookLine(noScratch.looks[1]!).endsWith("; 1 not the studio's and dropped"));
 
     const elsewhere = await runCensus({
-      homes: { ...homes, gameRoots: ["/somewhere/else"], tmpDir: "/somewhere/else" },
+      homes: { ...homes, projectRoots: ["/somewhere/else"], tmpDir: "/somewhere/else" },
       systemCodex: true,
     });
-    assert.equal(elsewhere.sessions, 1, "a Codex session that did not run in a game folder is not the studio's");
+    assert.equal(elsewhere.sessions, 1, "a Codex session that did not run in a project folder is not the studio's");
     assert.equal(elsewhere.looks[1]!.dropped, 2);
   });
 
@@ -348,18 +350,18 @@ describe("the transcript census", () => {
       claudeSystem: path.join(home, ".claude"),
       codexIsolated: path.join(home, "app", "engine-homes", "codex"),
       codexSystem: path.join(home, ".codex"),
-      gameRoots: ["/Users/studio/AI Games"],
+      projectRoots: ["/Users/studio/AI Projects"],
       tmpDir: SCRATCH_TMP,
     };
     // A sign-in on this Mac puts the studio's sessions beside the owner's own, in ~/.claude.
-    const game = path.join(homes.claudeSystem, "projects", "-Users-studio-AI-Games-two-rooms");
+    const project = path.join(homes.claudeSystem, "projects", "-Users-studio-AI-Projects-two-rooms");
     const own = path.join(homes.claudeSystem, "projects", "-Users-studio-code-private");
-    fs.mkdirSync(game, { recursive: true });
+    fs.mkdirSync(project, { recursive: true });
     fs.mkdirSync(own, { recursive: true });
-    fs.copyFileSync(CLAUDE_PRICED, path.join(game, "session.jsonl"));
+    fs.copyFileSync(CLAUDE_PRICED, path.join(project, "session.jsonl"));
     const elsewhere = fs
       .readFileSync(CLAUDE_PRICED, "utf8")
-      .replaceAll("/Users/studio/AI Games/two-rooms", "/Users/studio/code/private");
+      .replaceAll("/Users/studio/AI Projects/two-rooms", "/Users/studio/code/private");
     fs.writeFileSync(path.join(own, "session.jsonl"), elsewhere);
 
     const quiet = await runCensus({ homes });
@@ -368,7 +370,7 @@ describe("the transcript census", () => {
     assert.equal(quiet.looks[0]!.files, 2, "but the run still says what is there");
 
     const full = await runCensus({ homes, systemClaude: true });
-    assert.equal(full.sessions, 1, "a session that did not run in a game folder is not the studio's");
+    assert.equal(full.sessions, 1, "a session that did not run in a project folder is not the studio's");
     assert.equal(full.looks[0]!.dropped, 1);
     assert.ok(lookLine(full.looks[0]!).endsWith("; 1 not the studio's and dropped"));
   });
@@ -397,14 +399,14 @@ describe("the transcript census", () => {
       authStatusFn: async () => ({ loggedIn: true, method: "chatgpt", detail: "Logged in using ChatGPT" }),
       execFn,
     });
-    const game = path.join(root, "game");
-    fs.mkdirSync(game);
+    const project = path.join(root, "project");
+    fs.mkdirSync(project);
     await engine.complete({
       systemPrompt: "You are the taste judge.",
       messages: [{ role: "user", content: "Which reads better?" }],
     });
-    await engine.delegate({ prompt: "Play it", cwd: game, readOnly: true });
-    const scratch = seen.map(({ cwd }) => cwd).filter((cwd) => cwd !== game);
+    await engine.delegate({ prompt: "Play it", cwd: project, readOnly: true });
+    const scratch = seen.map(({ cwd }) => cwd).filter((cwd) => cwd !== project);
     const homes: Homes = { ...defaultHomes("/Users/fixture"), tmpDir: os.tmpdir() };
     assert.equal(scratch.length, 2, "one scratch folder for the judge, one for the playtester");
     for (const cwd of scratch)
@@ -423,7 +425,7 @@ describe("the transcript census", () => {
 
   it("counts a scratch folder the studio named as the studio's, and nobody else's", () => {
     const homes: Homes = { ...defaultHomes("/Users/fixture"), tmpDir: "/var/folders/t1" };
-    assert.equal(ownedByStudio("/Users/fixture/AI Games/two-rooms", homes), true);
+    assert.equal(ownedByStudio("/Users/fixture/AI Projects/two-rooms", homes), true);
     // Genex's data folder, and the one it had as AI Game Studio, which older transcripts name.
     for (const app of ["Genex", "AI Game Studio"])
       assert.equal(

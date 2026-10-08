@@ -216,14 +216,14 @@ function unlock(dir: string): void {
     if (entry.isDirectory()) unlock(path.join(dir, entry.name));
 }
 
-const GAME_ORIGIN = "http://127.0.0.1:43112";
+const PROJECT_ORIGIN = "http://127.0.0.1:43112";
 const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3]);
 const CONTROL = "sonnet";
 
 /** A server that serves nothing: its url names the snapshot it was asked for. */
 const fakeServe: ServeSnapshot = async (options) => ({
-  url: `${GAME_ORIGIN}/?root=${encodeURIComponent(options.root)}`,
-  origin: GAME_ORIGIN,
+  url: `${PROJECT_ORIGIN}/?root=${encodeURIComponent(options.root)}`,
+  origin: PROJECT_ORIGIN,
   root: options.root,
   servedVia: ServedVia.AsIs,
   noBuild: null,
@@ -244,7 +244,7 @@ const fakeQuickProbe: RunQuickProbe = async (url, options) => {
       path: file,
       atMs: 2_000 + index,
       phase: ProbePhase.InputBurst,
-      origin: GAME_ORIGIN,
+      origin: PROJECT_ORIGIN,
       width: 8,
       height: 8,
     });
@@ -263,7 +263,7 @@ const fakeQuickProbe: RunQuickProbe = async (url, options) => {
     rendererMode: RendererMode.Gpu,
     servedVia: ServedVia.AsIs,
     evidence: {
-      gameOrigin: GAME_ORIGIN,
+      projectOrigin: PROJECT_ORIGIN,
       frames,
       consoleSummaryPath: path.join(options.evidenceDir, "console-summary.json"),
       networkSummaryPath: path.join(options.evidenceDir, "network-summary.json"),

@@ -14,7 +14,7 @@
  */
 import { shortSha } from "../git.ts";
 import { Side } from "../judge.ts";
-import { GameTrait, isGameKind, KIND_NAMES, normalizePlayScript } from "../kinds.ts";
+import { AppTrait, isAppKind, KIND_NAMES, normalizePlayScript } from "../kinds.ts";
 import { isRunning, WorkerMode } from "../outcomes.ts";
 import { parsePlanSteering } from "../replan.ts";
 import { allowedFile, mechanicalReview } from "../review.ts";
@@ -23,7 +23,7 @@ import {
   CheckWeight,
   MoveOwner,
   normalizeFacetSpec,
-  normalizeGameTraits,
+  normalizeAppTraits,
   validateFacetSpec,
   withHarnessChecks,
   withRequestedStateCheck,
@@ -69,7 +69,7 @@ export { minutes } from "../time.ts";
  */
 export const LandingHow = {
   JudgePick: "judge-pick",
-  /** Nothing to compare it with (a new game, an unseen start): the close's judge found it shows what was asked. */
+  /** Nothing to compare it with (a new project, an unseen start): the close's judge found it shows what was asked. */
   JudgeAnsweredYes: "judge-answered-yes",
   /** Nothing to compare it with: the close's judge was sure it does not show what was asked yet. */
   JudgeAnsweredNo: "judge-answered-no",
@@ -145,7 +145,7 @@ export function startingHeads({
  * have reported a pick over another worker's dead end — or a yes to any question at all — as
  * the same thing, because nothing recorded what the comparison had been against.
  *
- * A new game, or one whose start nobody could photograph, has nothing to be preferred over: the
+ * A new project, or one whose start nobody could photograph, has nothing to be preferred over: the
  * close asks its judge whether the build shows what the user asked for (integrate.ts
  * `judgeTheLanding`), and only that answer — never a lead's free-text question — is said on the card.
  *
@@ -230,25 +230,25 @@ function entries(value: unknown, split: (value: unknown) => string[]): string[] 
 }
 
 /**
- * What kind of game this is (M4.4). Declared here or nowhere: the board, the play script the
+ * What kind of project this is (M4.4). Declared here or nowhere: the board, the play script the
  * harness drives and the line every judge reads all come from it, and nothing is assumed.
  */
-function planGame(
+function planProject(
   kind: unknown,
   play_script: unknown,
-): { game: AnyRecord | null; error?: undefined } | { error: string } {
+): { app: AnyRecord | null; error?: undefined } | { error: string } {
   const kindName = String(kind ?? "").trim();
   const quoted = kindName.slice(0, KIND_QUOTED);
-  if (kindName && !isGameKind(kindName))
+  if (kindName && !isAppKind(kindName))
     return {
       error: `plan: kind "${quoted}" is not a kind — name one of ${KIND_NAMES.join(", ")}`,
     };
   const parsedScript = parseJson(play_script);
   if (parsedScript?.__error) return { error: `plan: play_script ${parsedScript.__error}` };
   const playScript = normalizePlayScript(parsedScript);
-  if (!kindName && !playScript) return { game: null };
+  if (!kindName && !playScript) return { app: null };
   return {
-    game: normalizeGameTraits({ ...(kindName ? { kind: kindName } : {}), ...(playScript ? { playScript } : {}) }),
+    app: normalizeAppTraits({ ...(kindName ? { kind: kindName } : {}), ...(playScript ? { playScript } : {}) }),
   };
 }
 
@@ -325,7 +325,7 @@ export function compilePlan({
   const text = String(summary ?? "").trim();
   if (!text)
     return { error: "plan: summary is what this run is for, in two or three sentences the user would understand" };
-  const declared = planGame(kind, play_script);
+  const declared = planProject(kind, play_script);
   if (declared.error !== undefined) return { error: declared.error };
   const named = planParts(workers);
   if (named.error !== undefined) return { error: named.error };
@@ -337,7 +337,7 @@ export function compilePlan({
         .trim()
         .slice(0, PLAN_BASE),
       risks: lines(risks).slice(0, PLAN_RISKS),
-      game: declared.game,
+      app: declared.app,
     },
   };
 }
@@ -573,15 +573,15 @@ export interface WorkerSpecInput {
  * trait it did not mention is not declared false — it is simply not declared, and the kind (the
  * run's, unless this part differs) decides.
  */
-function withDeclaredGame<S extends FacetSpec>(
+function withDeclaredApp<S extends FacetSpec>(
   spec: S,
   { kind, traits, ownsMain, screen }: { kind: string | null; traits: string[]; ownsMain: boolean; screen: boolean },
 ): S {
-  const kindName = isGameKind(kind) ? kind : null;
+  const kindName = isAppKind(kind) ? kind : null;
   if (!kindName && !traits.length) return spec;
   const declared: AnyRecord = { ...(kindName ? { kind: kindName } : {}) };
-  for (const trait of Object.values(GameTrait)) if (traits.includes(trait)) declared[trait] = true;
-  return withHarnessChecks(spec, { ownsMain, game: normalizeGameTraits(declared), screen });
+  for (const trait of Object.values(AppTrait)) if (traits.includes(trait)) declared[trait] = true;
+  return withHarnessChecks(spec, { ownsMain, app: normalizeAppTraits(declared), screen });
 }
 
 /** What the dry run could not do when nothing in this run has looked at the fork point yet. */
@@ -604,9 +604,9 @@ function notVerifiedWords(base: AnyRecord | null, forkedFrom: string | null): st
  * Nothing is refused for it: a path the build must start reporting is a legitimate contract,
  * and a fork nobody has looked at yet simply reports `notVerified`.
  *
- * `rarelyMeasurable` is the other half of the same warning, and it comes from the game's own
+ * `rarelyMeasurable` is the other half of the same warning, and it comes from the project's own
  * ledger rather than from one commit: a check that came back unmeasured on three or more rounds
- * of this kind of game has never told anybody anything, whatever the fork point happens to
+ * of this kind of project has never told anybody anything, whatever the fork point happens to
  * report today. It is a warning, never a refusal — the honest fix is the director's.
  */
 export function compileWorkerSpec(
@@ -636,7 +636,7 @@ export function compileWorkerSpec(
     { id, title: title || id, intent: brief, owns, identity, cameras, checks, done, milestones, budgetShare: 0 },
     index,
   );
-  spec = withDeclaredGame(spec, { kind, traits, ownsMain, screen });
+  spec = withDeclaredApp(spec, { kind, traits, ownsMain, screen });
   const expr = setupVerifyExpr(setup?.verify);
   if (expr) spec = withRequestedStateCheck(spec, { expr, note: setup?.note ?? "" });
   const validated = validateFacetSpec(spec, {

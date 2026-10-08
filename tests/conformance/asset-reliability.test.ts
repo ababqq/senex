@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { reconcileGeneratedAssets } from "../../src/main/game-assets.ts";
+import { reconcileGeneratedAssets } from "../../src/main/project-assets.ts";
 import { validateArguments, validateManifest } from "../../src/substrate/plugins/manifest.ts";
 import { readFile } from "node:fs/promises";
 
@@ -11,17 +11,17 @@ test("retained generated originals survive missing delivery and renamed local co
   const root = await mkdtemp(path.join(os.tmpdir(), "asset-reliability-"));
   try {
     const id = "11111111-1111-4111-8111-111111111111",
-      game = path.join(root, "game"),
-      output = path.join(root, "genex/projects/game/jobs", id, "output");
+      project = path.join(root, "project"),
+      output = path.join(root, "genex/projects/project/jobs", id, "output");
     await mkdir(output, { recursive: true });
-    await mkdir(path.join(game, "assets"), { recursive: true });
+    await mkdir(path.join(project, "assets"), { recursive: true });
     const bytes = Buffer.alloc(6 * 1024 ** 2, 42);
     await writeFile(path.join(output, "trout.glb"), bytes);
     const jobs = [
       { id, generationId: "existing-trout", files: [`assets/genex/${id}/trout.glb`], status: "downloaded" },
     ];
-    const empty = () => ({ project: "game", assets: [], truncated: false, skipped: [] });
-    const missing = await reconcileGeneratedAssets(game, root, empty(), jobs);
+    const empty = () => ({ project: "project", assets: [], truncated: false, skipped: [] });
+    const missing = await reconcileGeneratedAssets(project, root, empty(), jobs);
     assert.equal(missing.assets.length, 1);
     assert.equal(missing.assets[0]!.availability!.originalAvailable, true);
     assert.deepEqual(
@@ -30,9 +30,9 @@ test("retained generated originals survive missing delivery and renamed local co
       "no copy anywhere: where the file is lives in availability, not in a sentence",
     );
     assert.equal(missing.assets[0]!.pluginStatus, "downloaded");
-    await writeFile(path.join(game, "assets/hero.glb"), bytes);
+    await writeFile(path.join(project, "assets/hero.glb"), bytes);
     const local = await reconcileGeneratedAssets(
-      game,
+      project,
       root,
       {
         ...empty(),
@@ -84,19 +84,19 @@ test("host checkpoint preserves unrelated staged and unstaged changes and refuse
     await mkdir(path.join(root, "assets"));
     await writeFile(path.join(root, "assets/trout.glb"), Buffer.alloc(6 * 1024 ** 2, 7));
     const checkpoints = new AssetCheckpoints(path.join(root, ".git/host-deliveries.json"));
-    await checkpoints.record("game", root, "genex", "job", ["assets/trout.glb"]);
+    await checkpoints.record("project", root, "genex", "job", ["assets/trout.glb"]);
     await writeFile(path.join(root, "notes.txt"), "staged user work");
     await git("add", "notes.txt");
     await writeFile(path.join(root, "index.html"), "unstaged user work");
-    const result = await checkpoints.checkpoint("game", root);
+    const result = await checkpoints.checkpoint("project", root);
     assert.deepEqual(result.files, ["assets/trout.glb"]);
     assert.equal(await git("diff", "--cached", "--name-only"), "notes.txt");
     assert.equal(await git("show", "HEAD:index.html"), "initial");
     assert.equal(await readFile(path.join(root, "index.html"), "utf8"), "unstaged user work");
-    assert.deepEqual((await checkpoints.checkpoint("game", root)).files, []);
+    assert.deepEqual((await checkpoints.checkpoint("project", root)).files, []);
     await writeFile(path.join(root, "assets/trout.glb"), "user replacement");
-    await assert.rejects(checkpoints.checkpoint("game", root), /was modified/);
-    await assert.rejects(checkpoints.record("game", root, "genex", "job", ["index.html"]), /Only delivered/);
+    await assert.rejects(checkpoints.checkpoint("project", root), /was modified/);
+    await assert.rejects(checkpoints.record("project", root, "genex", "job", ["index.html"]), /Only delivered/);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -109,11 +109,11 @@ test("static deployment requires its unique marker and every exact runtime file"
     const expected = await markDeployment(root, "upload-one");
     const serve = (async (url: URL | RequestInfo) =>
       new Response(await readFile(path.join(root, new URL(String(url)).pathname.slice(1))))) as typeof fetch;
-    await verifyDeployment("https://game.genex.technology/", expected, serve);
+    await verifyDeployment("https://project.genex.technology/", expected, serve);
     await writeFile(path.join(root, "main.js"), "previous build");
-    await assert.rejects(verifyDeployment("https://game.genex.technology/", expected, serve), /hosted content/);
+    await assert.rejects(verifyDeployment("https://project.genex.technology/", expected, serve), /hosted content/);
     await markDeployment(root, "upload-two");
-    await assert.rejects(verifyDeployment("https://game.genex.technology/", expected, serve), /previous deployment/);
+    await assert.rejects(verifyDeployment("https://project.genex.technology/", expected, serve), /previous deployment/);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -124,34 +124,34 @@ test("native derivative retains the staged original identity after both files ar
   try {
     const id = "11111111-1111-4111-8111-111111111111",
       native = "22222222-2222-4222-8222-222222222222";
-    const game = path.join(root, "game"),
+    const project = path.join(root, "project"),
       original = Buffer.from("original model"),
       derivative = Buffer.from("optimized model");
-    const output = path.join(root, "genex/projects/game/jobs", id, "output"),
+    const output = path.join(root, "genex/projects/project/jobs", id, "output"),
       nativeDir = path.join(root, "plugins/data/blender/native-jobs", native);
     await mkdir(output, { recursive: true });
     await mkdir(path.join(nativeDir, "delivery"), { recursive: true });
-    await mkdir(path.join(game, "assets"), { recursive: true });
+    await mkdir(path.join(project, "assets"), { recursive: true });
     await writeFile(path.join(output, "trout.glb"), original);
-    await writeFile(path.join(game, "assets/original.glb"), original);
-    await writeFile(path.join(game, "assets/small.glb"), derivative);
+    await writeFile(path.join(project, "assets/original.glb"), original);
+    await writeFile(path.join(project, "assets/small.glb"), derivative);
     await writeFile(path.join(nativeDir, "delivery/model.glb"), derivative);
     const { createHash } = await import("node:crypto");
     const hash = createHash("sha256").update(original).digest("hex");
     await writeFile(
       path.join(nativeDir, "job.json"),
       JSON.stringify({
-        project: "game",
+        project: "project",
         state: "completed",
         files: ["model.glb"],
         inputs: { model: { file: "assets/old-name.glb", sha256: hash } },
       }),
     );
     const inventory = await reconcileGeneratedAssets(
-      game,
+      project,
       root,
       {
-        project: "game",
+        project: "project",
         assets: [
           { file: "assets/original.glb", kind: "model", bytes: original.length, mtime: "now", source: "imported" },
           { file: "assets/small.glb", kind: "model", bytes: derivative.length, mtime: "now", source: "imported" },

@@ -7,7 +7,7 @@ import path from "node:path";
 import { SECOND_MS } from "../shared/duration.ts";
 import { HOST_GIT_CONFIG } from "./snapshots.ts";
 import { isBelow } from "./paths.ts";
-import type { ContentStamps } from "../shared/game-project.ts";
+import type { ContentStamps } from "../shared/project-folder.ts";
 
 /** How long a whole stamp may take; past it the stamp is unknown. */
 const STAMP_DEADLINE_MS = 5 * SECOND_MS;
@@ -23,7 +23,7 @@ const MAX_STAMPED_BYTES = 256 * 1024 ** 2;
  * by Git while still serving in Live. Only omit known tooling directories here.
  */
 const TOOLING_DIRS = [".git", ".studio", ".genex", ".claude", ".codex", ".cache", "node_modules"];
-/** Path segments that are tooling or the builders' own pages, never game content. */
+/** Path segments that are tooling or the builders' own pages, never project content. */
 const NOT_CONTENT = [...TOOLING_DIRS, "AGENTS.md", "CLAUDE.md", "NOTES.md"];
 /** Plans and notes: a turn that wrote only these changed nothing the preview can show. */
 const DOCS_DIR = "docs/";
@@ -31,7 +31,7 @@ const MARKDOWN_EXT = ".md";
 /** Stamps nobody could take. */
 const UNKNOWN_STAMPS: ContentStamps = Object.freeze({ all: null, source: null });
 
-/** A document, not game source: anything under docs/, and Markdown anywhere. */
+/** A document, not project source: anything under docs/, and Markdown anywhere. */
 function isDocument(file: string): boolean {
   return file.startsWith(DOCS_DIR) || file.toLowerCase().endsWith(MARKDOWN_EXT);
 }
@@ -102,13 +102,13 @@ async function addToStamp(
 
 /** Bounded, read-only content comparison for chat follow-ups. No commits or new ledger.
  * Unknown means the usual preview check still runs; a matching stamp proves no included
- * game source/asset bytes changed. Ignore only tooling/private files, never game assets. */
+ * project source/asset bytes changed. Ignore only tooling/private files, never project assets. */
 export async function workspaceContentStamp(directory: string): Promise<string | null> {
   return (await workspaceContentStamps(directory)).all;
 }
 
 /**
- * Both stamps from one walk of the folder: everything, and the game's sources without docs/ and
+ * Both stamps from one walk of the folder: everything, and the project's sources without docs/ and
  * Markdown — a turn that only wrote a plan or research notes changed nothing the preview shows.
  * A folder with no source at all has no source stamp (unknown).
  */

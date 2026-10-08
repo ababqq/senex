@@ -18,7 +18,7 @@ import type { ModelPickerState } from "./model-picker.ts";
 import type { PluginsState } from "./plugins.ts";
 import { type SessionState, SessionStatus } from "./session.ts";
 import { studio } from "./studio.ts";
-import { activeThread, isGameThread, roomOf, threadMeta, studioThreadOf, type ThreadsState } from "./threads.ts";
+import { activeThread, isProjectThread, roomOf, threadMeta, studioThreadOf, type ThreadsState } from "./threads.ts";
 import type { ToastsState } from "./toasts.ts";
 import type { UpdateState } from "./update.ts";
 
@@ -61,7 +61,7 @@ export const useThreadsView = () =>
   useThreads(
     useShallow((s) => {
       const active = activeThread(s);
-      const game = isGameThread(active);
+      const project = isProjectThread(active);
       return {
         records: s.records,
         status: s.status,
@@ -69,7 +69,7 @@ export const useThreadsView = () =>
         stageThreadId: s.stageThreadId,
         activeThread: active,
         room: roomOf(s),
-        project: active && game ? (threadMeta(active).project ?? null) : s.stageProject,
+        project: active && project ? (threadMeta(active).project ?? null) : s.stageProject,
         studioThread: studioThreadOf(s),
       };
     }),
@@ -77,33 +77,33 @@ export const useThreadsView = () =>
 
 /**
  * What the rail's order and the notifications read: the thread records, the open thread's id and
- * the games. One `useShallow` subscription to the threads store over its own `records` array and
- * a string, and one read of the library's own `games` array: it re-renders exactly when one of
+ * the projects. One `useShallow` subscription to the threads store over its own `records` array and
+ * a string, and one read of the library's own `projects` array: it re-renders exactly when one of
  * the three changes, as three one-field reads did.
  */
 export const useRailView = () => {
   const { records, activeThreadId } = useThreads(
     useShallow((s) => ({ records: s.records, activeThreadId: s.activeThreadId })),
   );
-  const games = useLibrary((s) => s.games);
-  return { records, activeThreadId, games };
+  const projects = useLibrary((s) => s.projects);
+  return { records, activeThreadId, projects };
 };
 
 /**
- * The library as the sidebar reads it: the store's own `games` array and `building` set, and a
+ * The library as the sidebar reads it: the store's own `projects` array and `building` set, and a
  * number. Nothing is built by the selector, so a change of `rootLabel`, `runsRoot` or the asset
  * inventories never re-renders the sidebar.
  */
 export const useSidebarLibrary = () =>
-  useLibrary(useShallow((s) => ({ games: s.games, building: s.building, stagedCount: s.stagedCount })));
+  useLibrary(useShallow((s) => ({ projects: s.projects, building: s.building, stagedCount: s.stagedCount })));
 
 /**
- * The library as the stage reads it: the store's own `games` array and two strings (or null).
+ * The library as the stage reads it: the store's own `projects` array and two strings (or null).
  * Nothing is built by the selector, so a builder starting or the staged count moving never
  * re-renders the stage.
  */
 export const useStageLibrary = () =>
-  useLibrary(useShallow((s) => ({ games: s.games, rootLabel: s.rootLabel, runsRoot: s.runsRoot })));
+  useLibrary(useShallow((s) => ({ projects: s.projects, rootLabel: s.rootLabel, runsRoot: s.runsRoot })));
 
 /**
  * The window layout the shell reads: two primitives. The chat's width is not here on purpose: it
@@ -125,12 +125,12 @@ export const useStageThreads = () =>
   useThreads(
     useShallow((state) => {
       const active = activeThread(state);
-      const game = isGameThread(active);
+      const project = isProjectThread(active);
       return {
         activeThreadId: state.activeThreadId,
         stageThreadId: state.stageThreadId,
         room: roomOf(state),
-        project: active && game ? (threadMeta(active).project ?? null) : state.stageProject,
+        project: active && project ? (threadMeta(active).project ?? null) : state.stageProject,
         activeStatus: state.activeThreadId ? state.status[state.activeThreadId] : undefined,
       };
     }),

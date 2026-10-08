@@ -17,7 +17,7 @@ export const GENEX_CLI_PROMPT = {
   UseTool: (command: string, tool: GenexStudioTool) =>
     `\`genex ${command}\` is ${tool} in Studio: call that tool instead.`,
   PaidTool: (command: string) =>
-    `\`genex ${command}\` spends coin or credits or changes what the game sells: call genex__cli-paid, which asks the user first.`,
+    `\`genex ${command}\` spends coin or credits or changes what the project sells: call genex__cli-paid, which asks the user first.`,
   FreeTool: (command: string) => `\`genex ${command}\` spends nothing: call genex__cli.`,
   ReservedFlag: (name: string) => `--${name} is set by Studio and cannot be passed.`,
   UnknownOption: (command: string, name: string, allowed: readonly string[]) =>
@@ -31,16 +31,16 @@ export const GENEX_CLI_PROMPT = {
   NeedsOption: (command: string, name: string) => `\`genex ${command}\` needs the ${name} option.`,
   Locked: "Genex is locked: ask the user to unlock Genex in Studio's Plugins page, then try again.",
   NoDraft:
-    'This game has no hosted Genex project yet. Publish a draft first with genex__publish {"operation":"draft"}, then run the command again.',
+    'This project has no hosted Genex project yet. Publish a draft first with genex__publish {"operation":"draft"}, then run the command again.',
   TimedOut: (command: string, seconds: number) =>
     `\`genex ${command}\` did not finish within ${seconds} seconds and was stopped. Check with genex__cli before repeating anything that spends.`,
   Stopped: (command: string) => `\`genex ${command}\` was stopped before it finished.`,
   UnknownPackage: (name: string, allowed: readonly string[]) =>
     `${name} is not a package genex__package adds. It adds: ${allowed.join(", ")}.`,
   NoPackageJson:
-    "This game has no package.json (it uses Studio's template and its /vendor/ import maps), so it cannot add Genex packages. Multiplayer needs a game with its own build.",
+    "This project has no package.json (it uses Studio's template and its /vendor/ import maps), so it cannot add Genex packages. Multiplayer needs a project with its own build.",
   ForeignFolder:
-    "This call is not bound to the game's own folder or one of its Studio worktrees; nothing was installed.",
+    "This call is not bound to the project's own folder or one of its Studio worktrees; nothing was installed.",
 } as const;
 
 /** How each value rule reads in a refusal. */

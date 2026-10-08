@@ -43,18 +43,18 @@ describe("morning review: stills and play", () => {
     );
     await assert.rejects(readFile(path.join(rig.core.layout.runs, "..", "..", "written.txt")));
 
-    const game = await rig.core.games.scaffold("pong");
-    await writeFile(path.join(game.dir, "index.html"), "<h1>v1</h1>\n");
+    const project = await rig.core.projects.scaffold("pong");
+    await writeFile(path.join(project.dir, "index.html"), "<h1>v1</h1>\n");
     const v1 = await rig.core.snapshot("game", "v1", "pong");
-    await writeFile(path.join(game.dir, "index.html"), "<h1>v2 live</h1>\n");
+    await writeFile(path.join(project.dir, "index.html"), "<h1>v2 live</h1>\n");
 
-    const played = await rig.core.playGameSnapshot(v1.snapshot_id, "pong");
-    assert.equal(await readFile(path.join(game.dir, "index.html"), "utf8"), "<h1>v2 live</h1>\n");
+    const played = await rig.core.playProjectSnapshot(v1.snapshot_id, "pong");
+    assert.equal(await readFile(path.join(project.dir, "index.html"), "utf8"), "<h1>v2 live</h1>\n");
     assert.equal(await readFile(path.join(played.dir, "index.html"), "utf8"), "<h1>v1</h1>\n");
     assert.equal(rig.preview.loads.at(-1), "pong");
     assert.equal(rig.preview.loadRoot, played.dir);
 
     await rig.core.api()["preview.load"]({ project: "pong" } as never);
-    assert.equal(rig.preview.loadRoot, null, "loading the live game must drop the review worktree");
+    assert.equal(rig.preview.loadRoot, null, "loading the live project must drop the review worktree");
   });
 });

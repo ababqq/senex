@@ -4,7 +4,7 @@ import type { ChatExport } from "./use-chat-export.ts";
 import type { ChatParts } from "./use-chat-panel.ts";
 
 /**
- * The chat's header, keyed by thread: its title (a game chat renames its game), export, reveal
+ * The chat's header, keyed by thread: its title (a project chat renames its project), export, reveal
  * and compaction.
  */
 export function ChatPanelHeader({
@@ -20,7 +20,7 @@ export function ChatPanelHeader({
       sidebarHidden={props.sidebarHidden}
       onToggleSidebar={props.onToggleSidebar}
       exporting={chatExport.exporting}
-      onExport={project ? chatExport.exportGame(project) : undefined}
+      onExport={project ? chatExport.exportProject(project) : undefined}
       chatTitle={chat.chatTitle}
       isStudio={chat.isStudioThread}
       isDraft={chat.isDraft}
@@ -30,7 +30,7 @@ export function ChatPanelHeader({
       compacting={composer.compact.compacting}
       onCompact={composer.compact.compactNow}
       onRename={(title) => {
-        if (project && props.onRenameGame) props.onRenameGame(project, title);
+        if (project && props.onRenameProject) props.onRenameProject(project, title);
         else if (threadId) props.onRename(threadId, title);
       }}
       onReveal={project ? () => void window.studio.revealProject(project) : undefined}

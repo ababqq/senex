@@ -104,26 +104,26 @@ test("every preload call invokes the channel the map names for it, and every cha
 
 test("the preload unwraps main's envelope: a value resolves, an error rejects with main's message", async () => {
   const { ipc } = rendererIpc((channel) =>
-    channel === "studio:games" ? { ok: true, value: [{ name: "pong" }] } : { ok: false, error: "title taken" },
+    channel === "studio:projects" ? { ok: true, value: [{ name: "pong" }] } : { ok: false, error: "title taken" },
   );
   const api = createStudioBridge(ipc);
-  assert.deepEqual(await api.games(), [{ name: "pong" }]);
-  await assert.rejects(api.createGame("Pong"), { message: "title taken" });
+  assert.deepEqual(await api.projects(), [{ name: "pong" }]);
+  await assert.rejects(api.createProject("Pong"), { message: "title taken" });
 });
 
 test("the preload sends each payload in the shape main reads", async () => {
   const { ipc, invokes } = rendererIpc();
   const api = createStudioBridge(ipc);
   await api.bootstrap();
-  await api.newGameThread();
-  await api.newGameThread("pong");
+  await api.newProjectThread();
+  await api.newProjectThread("pong");
   await api.reloadPreview();
   await api.mcpList(null);
   await api.revealProject("pong");
-  await api.adoptFolder("/games/pong", { subdir: "web" });
-  await api.createGame("Pong");
-  await api.createGame("Pong", { parent: "/Users/me/Projects" });
-  await api.pickGameLocation();
+  await api.adoptFolder("/projects/pong", { subdir: "web" });
+  await api.createProject("Pong");
+  await api.createProject("Pong", { parent: "/Users/me/Projects" });
+  await api.pickProjectLocation();
   await api.pickProject();
   await api.send("hi", { thread: "t1" });
   await api.cancelModelDownload();
@@ -135,10 +135,10 @@ test("the preload sends each payload in the shape main reads", async () => {
     { channel: "studio:preview.reload", payload: { retry: false } },
     { channel: "studio:mcp.list", payload: null },
     { channel: "studio:reveal-project", payload: { project: "pong" } },
-    { channel: "studio:project.adopt", payload: { dir: "/games/pong", subdir: "web" } },
-    { channel: "studio:game.create", payload: { title: "Pong" } },
-    { channel: "studio:game.create", payload: { title: "Pong", parent: "/Users/me/Projects" } },
-    { channel: "studio:game.location.pick", payload: undefined },
+    { channel: "studio:project.adopt", payload: { dir: "/projects/pong", subdir: "web" } },
+    { channel: "studio:project.create", payload: { title: "Pong" } },
+    { channel: "studio:project.create", payload: { title: "Pong", parent: "/Users/me/Projects" } },
+    { channel: "studio:project.location.pick", payload: undefined },
     { channel: "studio:project.pick", payload: undefined },
     { channel: "studio:send", payload: { text: "hi", thread: "t1" } },
     { channel: "studio:cancel-model-download", payload: {} },
@@ -157,12 +157,12 @@ test("push channels reach the matching subscription, and a summary subscription 
   const offTerminal = api.onTerminal((event) => heard.push(["terminal", event.type]));
   const offClaude = api.onClaudeLogin((state) => heard.push(["claude", state]));
   const offCodex = api.onCodexLogin((state) => heard.push(["codex", state.phase]));
-  push("studio:event", { type: "game.changed", payload: {} });
+  push("studio:event", { type: "project.changed", payload: {} });
   push("studio:terminal", { type: "removed", id: "t" });
   push("studio:claude-login", "state");
   push("studio:codex-login", { phase: "waiting" });
   assert.deepEqual(heard, [
-    ["event", "game.changed"],
+    ["event", "project.changed"],
     ["terminal", "removed"],
     ["claude", "state"],
     ["codex", "waiting"],
@@ -200,14 +200,14 @@ test("main pushes through the same channel names the preload subscribes to", () 
       sent.push(args);
     },
   };
-  pushToRenderer(target, "studio:event", { type: "game.changed", payload: {} });
+  pushToRenderer(target, "studio:event", { type: "project.changed", payload: {} });
   pushToRenderer(target, "studio:terminal", { type: "accessibility", enabled: true });
   // @ts-expect-error a push payload must be the subscribing listener's argument
   pushToRenderer(target, "studio:terminal", { type: "accessibility" });
   // @ts-expect-error a push channel must be one the preload subscribes to
   pushToRenderer(target, "studio:brand-new", {});
   assert.deepEqual(sent.slice(0, 2), [
-    ["studio:event", { type: "game.changed", payload: {} }],
+    ["studio:event", { type: "project.changed", payload: {} }],
     ["studio:terminal", { type: "accessibility", enabled: true }],
   ]);
 });

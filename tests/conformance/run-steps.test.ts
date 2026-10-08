@@ -307,7 +307,7 @@ describe("the status line", () => {
     const { graph, summary, rows } = rowsOf(night());
     assert.deepEqual(statusLine(graph, summary, rows), {
       tone: "green",
-      strong: "Live in your game · 17 min",
+      strong: "Live in your project · 17 min",
       rest: "all but tall mountain landed",
     });
   });
@@ -508,7 +508,7 @@ describe("the clock counts the time a build worked", () => {
 
   it("names the time on every closed build", () => {
     const { graph, summary, rows } = rowsOf(night());
-    assert.equal(statusLine(graph, summary, rows).strong, "Live in your game · 17 min");
+    assert.equal(statusLine(graph, summary, rows).strong, "Live in your project · 17 min");
     const failed = [...night({ finished: true }).slice(0, -1), event("run_finished", { failure: { message: "x" } })];
     const stopped = rowsOf(failed);
     assert.equal(statusLine(stopped.graph, stopped.summary, stopped.rows).strong, "Build failed · 17 min");
@@ -527,7 +527,7 @@ describe("a finished night reopened", () => {
     const { graph, summary, rows } = rowsOf(events);
     const reopenedAt = Date.parse(reopen.created_at);
     assert.match(statusLine(graph, summary, rows, reopenedAt + 5 * 60_000).strong, / · 5 of 30 min$/);
-    assert.equal(resultStatus(graph, summary).word, "Ready to play", "its build stands, but nothing is live yet");
+    assert.equal(resultStatus(graph, summary).word, "Ready to use", "its build stands, but nothing is live yet");
   });
 });
 
@@ -554,7 +554,7 @@ describe("between parts", () => {
 
   it("calls it ready once it ran, or says it didn't start", () => {
     const ran = rowsOf([...merged(), event("integration_health", { head: "h1", ok: true, problems: [] })]);
-    assert.equal(resultStatus(ran.graph, ran.summary).word, "Ready to play");
+    assert.equal(resultStatus(ran.graph, ran.summary).word, "Ready to use");
     const failed = rowsOf([
       ...merged(),
       event("integration_health", { head: "h1", ok: false, problems: ["black screen"] }),
@@ -568,7 +568,7 @@ describe("between parts", () => {
     pictured.summary.captures = { current: "/runs/run_ice/director/health_h1/default.jpg" };
     assert.equal(
       resultStatus(pictured.graph, pictured.summary).word,
-      "Ready to play",
+      "Ready to use",
       "a picture of the build is proof enough",
     );
   });
@@ -667,9 +667,9 @@ describe("the words a card wears", () => {
 
   it("says nothing about a build there was nothing to compare with", () => {
     const empty =
-      "Nothing to compare it with: the night started from an empty game, so this build is judged on its own.";
+      "Nothing to compare it with: the night started from an empty project, so this build is judged on its own.";
     assert.equal(buildReview(looked("judge", "first-build", empty)), null);
-    const unseen = "Nothing to compare it with: the game as it stood could not be photographed.";
+    const unseen = "Nothing to compare it with: the project as it stood could not be photographed.";
     assert.equal(buildReview(looked("judge", "no-start", unseen)), null);
   });
 });

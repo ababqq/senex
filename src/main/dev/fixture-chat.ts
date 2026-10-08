@@ -1,5 +1,5 @@
 /**
- * The chat fixtures: a long game chat with a build under way (`chat-history`, `chat-questions`),
+ * The chat fixtures: a long project chat with a build under way (`chat-history`, `chat-questions`),
  * a short chat whose every message can be rewound to, and the chats a build's feedback leaves
  * behind (`chat-feedback`), plus what each adds once the window is up.
  */
@@ -18,7 +18,7 @@ import { MINUTE_MS } from "../../shared/duration.ts";
 
 /** Why a chat fixture cannot be seeded. */
 const MESSAGE = {
-  missingGame: (project: string) => `fixture game ${project} is missing`,
+  missingProject: (project: string) => `fixture project ${project} is missing`,
 } as const;
 
 /** Messages in the long chat, and reads in its build's tool log (one of them failed). */
@@ -29,12 +29,12 @@ const LAST_READ = TOOL_READS - 1;
 /** The time limit the long chat's builds were given, so Mode shows a build's own limit. */
 const FIXTURE_BUILD_LIMIT_MS = 30 * MINUTE_MS;
 
-/** A long game chat, and a build under way in it that made a cover and names files in its reply. */
+/** A long project chat, and a build under way in it that made a cover and names files in its reply. */
 export async function seedChatHistory(core: StudioCore, project: { name: string; dir: string }, threadId: string) {
   await core.store.updateThread(core.mainThread, {
     metadata: { lastEngine: EngineId.Ollama, lastModel: FIXTURE_MODEL },
   });
-  // Seeded first, so the long chat stays the most recent game.
+  // Seeded first, so the long chat stays the most recent project.
   await seedRewindChat(core);
   await core.append(longChat(), threadId);
   const run = fixtureRun({ runId: "fixture-chat-active", project: project.name });
@@ -105,14 +105,14 @@ const said = (content: string): EventData => ({
 });
 
 /**
- * A short game chat whose every message offers Rewind: one from before the queue (no queue
+ * A short project chat whose every message offers Rewind: one from before the queue (no queue
  * record), the first queued one, one a landed build followed, one whose answer failed, and one
  * read into the answer under way. Rewinding to the one the build followed rewinds the chat alone.
  */
 export async function seedRewindChat(core: StudioCore): Promise<void> {
-  const game = await core.games.scaffold("rewind-chat", { title: "Rewind chat" });
-  const thread = await core.threadForGame(game.name);
-  const run = fixtureRun({ runId: "fixture-rewind-night", project: game.name });
+  const project = await core.projects.scaffold("rewind-chat", { title: "Rewind chat" });
+  const thread = await core.threadForProject(project.name);
+  const run = fixtureRun({ runId: "fixture-rewind-night", project: project.name });
   const boats = "fixture-rewind-boats";
   const joined = "fixture-rewind-joined";
   await core.append(
@@ -172,7 +172,7 @@ function longChat(): EventData[] {
       n % 2
         ? {
             role: "assistant",
-            content: `Update ${n}: the river path is easier to follow. The game keeps its existing controls and you can try the change in Live.`,
+            content: `Update ${n}: the river path is easier to follow. The project keeps its existing controls and you can try the change in Live.`,
           }
         : { role: "user", content: `Request ${n}: improve the river village.` },
     ],
@@ -186,7 +186,7 @@ function toolReads(): EventData[] {
     tools.push({
       type: EventKind.ToolRequested,
       tool_call_id: `read-${n}`,
-      // The last read names a file the game has, so its row carries a file link.
+      // The last read names a file the project has, so its row carries a file link.
       request: { name: "read_file", arguments: { path: n === LAST_READ ? "src/main.js" : `src/village/part-${n}.ts` } },
     });
     tools.push({
@@ -299,7 +299,7 @@ function askPermissions(core: StudioCore, fixture: { threadId: string; project: 
       title: "Claude wants to run npm install three@0.170.0 --save",
       displayName: "Run command",
       description: "Install three.js",
-      always: [{ kind: GrantKind.Rule, rule: "Bash(npm install:*)", scope: RuleScope.Game }],
+      always: [{ kind: GrantKind.Rule, rule: "Bash(npm install:*)", scope: RuleScope.Project }],
     })
     .catch((error) => console.error("Chat permission fixture failed", error));
   void core
@@ -314,8 +314,8 @@ function askPermissions(core: StudioCore, fixture: { threadId: string; project: 
 
 /** Real consent ledger/IPC, no plugin invocation or external action. The answer is durable. */
 async function askToUseTexture(core: StudioCore, fixture: { threadId: string; project: string }) {
-  const game = (await core.games.list()).find((project) => project.name === fixture.project);
-  if (!game) throw new Error(MESSAGE.missingGame(fixture.project));
+  const project = (await core.projects.list()).find((project) => project.name === fixture.project);
+  if (!project) throw new Error(MESSAGE.missingProject(fixture.project));
   // Not awaited: the question waits for the user, and the fixture must finish starting first.
   void core
     .requestConsent(
@@ -324,10 +324,10 @@ async function askToUseTexture(core: StudioCore, fixture: { threadId: string; pr
         name: "save_texture",
         description: "Save the generated texture",
         parameters: { type: "object", properties: {} },
-        confirmation: "Use the new moon texture in this game?",
+        confirmation: "Use the new moon texture in this project?",
       },
       { file: "assets/moon-texture.png" },
-      { project: fixture.project, directory: game.dir, threadId: fixture.threadId },
+      { project: fixture.project, directory: project.dir, threadId: fixture.threadId },
     )
     .catch((error) => console.error("Chat question fixture failed", error));
 }
@@ -346,8 +346,8 @@ export async function seedChatFeedback(core: StudioCore, project: string, thread
 
 /** A reply that needs ffmpeg the sandbox could not install, offered as a command the user can run. */
 async function seedCommandOffer(core: StudioCore): Promise<void> {
-  const game = await core.games.scaffold("engine-sounds", { title: "Engine sounds" });
-  const thread = await core.threadForGame(game.name);
+  const project = await core.projects.scaffold("engine-sounds", { title: "Engine sounds" });
+  const thread = await core.threadForProject(project.name);
   await core.append(
     [
       {
@@ -367,8 +367,8 @@ async function seedCommandOffer(core: StudioCore): Promise<void> {
 }
 
 async function seedDeliveredResult(core: StudioCore): Promise<void> {
-  const delivered = await core.games.scaffold("director-result", { title: "Director result" });
-  const resultThread = await core.threadForGame(delivered.name);
+  const delivered = await core.projects.scaffold("director-result", { title: "Director result" });
+  const resultThread = await core.threadForProject(delivered.name);
   const resultRun = "fixture-director-result";
   const run = fixtureRun({ runId: resultRun, project: delivered.name });
   for (const folder of ["base", "judge_1"]) {
@@ -418,9 +418,9 @@ const STOPPED_BUILDS = [
 ] as const;
 
 async function seedStoppedBuild(core: StudioCore, name: string, title: string, handoff: boolean): Promise<void> {
-  const game = await core.games.scaffold(name, { title });
-  const thread = await core.threadForGame(game.name);
-  const run = fixtureRun({ runId: `fixture-${name}`, project: game.name });
+  const project = await core.projects.scaffold(name, { title });
+  const thread = await core.threadForProject(project.name);
+  const run = fixtureRun({ runId: `fixture-${name}`, project: project.name });
   const messageId = `${name}-question`;
   const queued: EventData[] = [
     { type: EventKind.Messages, messages: [{ role: "user", content: "do you see genex tools? just answer" }] },
@@ -433,7 +433,7 @@ async function seedStoppedBuild(core: StudioCore, name: string, title: string, h
       messages: [
         {
           role: "assistant",
-          content: "Yes. Genex is installed for this game and its builders use it when the build continues.",
+          content: "Yes. Genex is installed for this project and its builders use it when the build continues.",
         },
       ],
     },
@@ -479,12 +479,12 @@ async function seedStoppedBuild(core: StudioCore, name: string, title: string, h
 
 /** A plan that failed on a model limit, waiting for another model. */
 async function seedFailedPlan(core: StudioCore): Promise<void> {
-  const recovery = await core.games.scaffold("model-recovery", { title: "Model recovery" });
-  const recoveryThread = await core.threadForGame(recovery.name);
+  const recovery = await core.projects.scaffold("model-recovery", { title: "Model recovery" });
+  const recoveryThread = await core.threadForProject(recovery.name);
   const review = {
     id: "fixture-failed-plan",
     state: "failed" as const,
-    text: "fixture:plan-unavailable: make a football game",
+    text: "fixture:plan-unavailable: make a football project",
     error: "You have reached your model limit. Choose another model.",
     options: {
       thread: recoveryThread,
@@ -501,7 +501,7 @@ async function seedFailedPlan(core: StudioCore): Promise<void> {
   await core.append([customEventData(CustomEvent.PlanReview, reviewPayload)], recoveryThread);
 }
 
-/** A build of the fixture game whose starting point ran out of time. */
+/** A build of the fixture project whose starting point ran out of time. */
 async function seedFailedBuild(core: StudioCore, project: string, threadId: string): Promise<void> {
   const run = fixtureRun({ runId: "fixture-feedback" });
   const lostTime = "The starting point could not be built before its time limit.";
@@ -514,7 +514,7 @@ async function seedFailedBuild(core: StudioCore, project: string, threadId: stri
           {
             role: "assistant",
             content:
-              "**test-4** (folder `AI Games/test-4`) — Claude Code (opus) · medium effort conducts the build interview itself and starts the run when it has what it needs.",
+              "**test-4** (folder `AI Projects/test-4`) — Claude Code (opus) · medium effort conducts the build interview itself and starts the run when it has what it needs.",
           },
         ],
       },
@@ -544,9 +544,9 @@ async function seedFailedBuild(core: StudioCore, project: string, threadId: stri
 export async function activatePlanReviews(core: StudioCore): Promise<void> {
   for (const name of ["plan-approval", "plan-changes"]) {
     const project =
-      (await core.games.list()).find((game) => game.name === name) ??
-      (await core.games.scaffold(name, { title: name }));
-    const threadId = await core.threadForGame(project.name);
+      (await core.projects.list()).find((entry) => entry.name === name) ??
+      (await core.projects.scaffold(name, { title: name }));
+    const threadId = await core.threadForProject(project.name);
     const run = fixtureRun({ runId: `fixture-${name}-${Date.now()}` });
     await core.append(
       [

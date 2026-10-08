@@ -74,8 +74,8 @@ describe("what a session is briefed with after its chat was compacted", () => {
         "events.messages": () => [{ role: "user", content: "add enemies" }],
         // The host forgets the sessions before the compaction (shared/chat-rewind.ts harnessView).
         "events.list": () => [compacted("0000009", HANDOVER)],
-        "game.list": () => [{ name: "plaza", title: "Plaza" }],
-        "game.contentStamp": () => ({ all: "same", source: "same" }),
+        "project.list": () => [{ name: "plaza", title: "Plaza" }],
+        "project.contentStamp": () => ({ all: "same", source: "same" }),
         "engine.delegate": (params) => {
           requests.push(params);
           return { ok: true, engine: "codex", turns: 1, usage: {}, sessionId: "chat-2", summary: "On it." };

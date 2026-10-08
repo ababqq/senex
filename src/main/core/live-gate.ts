@@ -1,8 +1,8 @@
 /**
  * Live stays still while the person watches it. Only the person's own action loads the live view:
- * opening a game, Reload, Play or Make live, a build they asked the chat to show while Live is out of
+ * opening a project, Reload, Play or Make live, a build they asked the chat to show while Live is out of
  * their sight (`PreviewService.liveOutOfSight`). Anything else
- * that used to change it — the harness loading the game or a run's build, a builder's checkpoint,
+ * that used to change it — the harness loading the project or a run's build, a builder's checkpoint,
  * a night landing, a rewind — is offered here instead: Live is marked behind, and the stage's
  * Reload says why and applies it (docs/product/builds-live.md).
  */
@@ -15,11 +15,11 @@ import { gitOrNull } from "../../substrate/snapshots.ts";
 /** The most uncommitted paths a folder's print reads the size and time of; past this it counts them. */
 const PRINT_MAX_PATHS = 400;
 
-/** What Live's Reload would load: the game folder, or a run's build by its commit (its folder may be gone by then). */
+/** What Live's Reload would load: the project folder, or a run's build by its commit (its folder may be gone by then). */
 export interface LiveWaiting {
   project: string;
   reason: LiveBehindReason;
-  /** The build's folder, when it is not the game folder. */
+  /** The build's folder, when it is not the project folder. */
   root: string | null;
   commit: string | null;
   note: string | null;
@@ -28,25 +28,25 @@ export interface LiveWaiting {
 /** Something that would have changed Live: a folder the harness loaded, a checkpoint, a landing, a build to show. */
 export interface LiveOffer {
   project: string;
-  /** Null (or the game folder itself) for the game folder, unless `commit` names a build. */
+  /** Null (or the project folder itself) for the project folder, unless `commit` names a build. */
   root: string | null;
   /** A build by its checked commit, whose folder the host makes when Reload plays it (`showBuild`). */
   commit?: string | null;
   note?: string | null;
 }
 
-/** A load of Live the person made: the game folder's print, or the build's folder, whose commit Live now shows. */
+/** A load of Live the person made: the project folder's print, or the build's folder, whose commit Live now shows. */
 export interface LiveLoad {
-  /** The game folder's print before the load; undefined when Live loaded something else. */
+  /** The project folder's print before the load; undefined when Live loaded something else. */
   print: string | null | undefined;
-  /** The folder Live loaded when it is not the game folder: a build's worktree, a snapshot's copy. */
+  /** The folder Live loaded when it is not the project folder: a build's worktree, a snapshot's copy. */
   root: string | null;
 }
 
 /** What the gate reads of the studio. */
 export interface LiveGateDeps {
   emit(event: LiveBehindEvent): void;
-  gameDir(project: string): string;
+  projectDir(project: string): string;
   /** What the live view last served. */
   showing(): { project: string; root: string | null } | undefined;
   /** The commit Live shows, when the studio knows it. */
@@ -99,13 +99,13 @@ async function sameFolder(a: string, b: string): Promise<boolean> {
   return left !== null && left === right;
 }
 
-/** The waiting change, the game folder as Live last loaded it, and the build Live shows. */
+/** The waiting change, the project folder as Live last loaded it, and the build Live shows. */
 export class LiveGate {
   readonly #deps: LiveGateDeps;
   #waiting: LiveWaiting | null = null;
-  /** The game folder's print when Live last loaded it. */
+  /** The project folder's print when Live last loaded it. */
   #loadedFolder: { project: string; print: string | null } | null = null;
-  /** The game Live last loaded, and the build it shows by commit (null: its folder, or not known). */
+  /** The project Live last loaded, and the build it shows by commit (null: its folder, or not known). */
   #shows: { project: string; commit: string | null } | null = null;
 
   constructor(deps: LiveGateDeps) {
@@ -117,7 +117,7 @@ export class LiveGate {
     return this.#waiting;
   }
 
-  /** What the stage reads for a game (on mount, and in each `live.behind`): what waits for Reload, and the build Live shows. */
+  /** What the stage reads for a project (on mount, and in each `live.behind`): what waits for Reload, and the build Live shows. */
   state(project: string): LiveBehindEvent {
     const waiting = this.#waiting?.project === project ? this.#waiting : null;
     return {
@@ -131,7 +131,7 @@ export class LiveGate {
 
   /** The print to record for a live load, taken before it starts: a change during the load stays a change. */
   async printBefore(project: string, root: string | null): Promise<string | null | undefined> {
-    const dir = this.#deps.gameDir(project);
+    const dir = this.#deps.projectDir(project);
     if (root !== null && !(await sameFolder(root, dir))) return undefined;
     return folderPrint(dir);
   }
@@ -161,12 +161,12 @@ export class LiveGate {
     this.#emit(was.project);
   }
 
-  /** The build Live shows of this game, by commit; null for its folder, or when Live is on another game. */
+  /** The build Live shows of this project, by commit; null for its folder, or when Live is on another project. */
   #showsOf(project: string): string | null {
     return this.#shows?.project === project ? this.#shows.commit : null;
   }
 
-  /** Live already shows this build of the game, as the gate recorded it or as the stage identified it. */
+  /** Live already shows this build of the project, as the gate recorded it or as the stage identified it. */
   #showsBuild(project: string, commit: string): boolean {
     return commit === this.#showsOf(project) || commit === this.#deps.showingHead(project);
   }
@@ -176,13 +176,13 @@ export class LiveGate {
   }
 
   /**
-   * Something would have changed Live. For the game on the stage, a folder that moved since Live
+   * Something would have changed Live. For the project on the stage, a folder that moved since Live
    * loaded it, or a build Live is not showing, waits for Reload; anything else is not Live's.
    */
   async offer(offer: LiveOffer): Promise<void> {
     const showing = this.#deps.showing();
     if (showing?.project !== offer.project) return;
-    const dir = this.#deps.gameDir(offer.project);
+    const dir = this.#deps.projectDir(offer.project);
     const folder = !offer.commit && (offer.root === null || (await sameFolder(offer.root, dir)));
     if (folder) return this.#offerFolder(offer.project, dir, offer.note ?? null);
     // A build named by commit needs no folder: Reload makes one (`showBuild`).

@@ -18,7 +18,7 @@ is product copy, not this glossary.
 - **Seed contract**: a rule both the app and the harness apply (coordinator tools, the message
   queue, model roles, skill edits). The app keeps a typed copy in `src/shared/` and never loads
   the seed's; `tests/conformance/seed-contracts.test.ts` holds the two copies together.
-- **Coordinator**: a read-only session of its own that answers a game's chat for a run no lead of
+- **Coordinator**: a read-only session of its own that answers a project's chat for a run no lead of
   the chat's own led (the long turn, the classic pipeline, a kept older seed), or a message on
   another engine than the lead's, with the run's controls (`loop/coordinator.ts`). With Loop on
   after a finished build that seated a lead, a coordinator that answers in a session reopens that
@@ -33,7 +33,7 @@ is product copy, not this glossary.
   (`src/substrate/engines/types.ts`, `registry.ts`).
 - **Plugin skill / file skill**: guidance a plugin gives agents while enabled. An inline skill's
   text rides every brief; a file skill (API 3) puts only its summary there and is read on demand
-  through the host-served `<plugin>__skill` tool, never copied into a game
+  through the host-served `<plugin>__skill` tool, never copied into a project
   (`PluginSkill` in `src/shared/plugins.ts`, `src/substrate/plugins/registry.ts`).
 - **Host tool**: a bundled Genex tool whose manifest `host` makes Studio run it instead of the
   backend: `genex__cli`, `genex__cli-paid`, `genex__package` (`PluginHostTool`,
@@ -47,8 +47,8 @@ is product copy, not this glossary.
 - **Run**: one unattended build job with a `runId`, started from chat in Loop mode
   (`loop/main.ts`; summaries in `src/shared/run-summary.ts`).
 - **Build**: what the Builds stage shows for one run or build turn: its graph, verdicts and
-  resulting game state (`src/renderer/build-progress.ts`, `src/renderer/run-graph.ts`). Not
-  `src/main/game-build.ts`, which runs a game's own build step in a shadow copy.
+  resulting project state (`src/renderer/build-progress.ts`, `src/renderer/run-graph.ts`). Not
+  `src/main/project-build.ts`, which runs a project's own build step in a shadow copy.
 - **Autopilot**: the harness's name for a Loop-mode run and the classic orchestrator used on
   completion-only engines: plan facets, build a base, loop facets, merge (`loop/autopilot.ts`).
 - **Director**: one delegated session that conducts a whole run on session-capable engines,
@@ -64,7 +64,7 @@ is product copy, not this glossary.
   (`wake-prompts.ts`). `run.directorLoop: "turn"` (or `STUDIO_DIRECTOR_LOOP=turn` in the studio's
   environment) keeps the older long turn with `wait`.
 - **Lead / one session**: a waking night's director that is its chat's own session, leaving the
-  game's changes to its workers while the build runs (`loop/director/lead-session.ts`). After the close the same
+  project's changes to its workers while the build runs (`loop/director/lead-session.ts`). After the close the same
   session answers the chat with its hands back and the run's controls — `run_status`,
   `show_build`, `land_build` (`runControls`) and a paused night's recorded `resume_run`
   (`loop/after-night.ts`).
@@ -80,12 +80,12 @@ is product copy, not this glossary.
   the log and the wake loop's state.
 - **Gauntlet**: the single-builder run with blind judging; also the one-facet case of Autopilot
   (`loop/gauntlet.ts`).
-- **Scout**: the read-only session that looks at the running game before planning
+- **Scout**: the read-only session that looks at the running project before planning
   (`loop/scout.ts`).
-- **Facet**: a planned slice of a game with its own typed spec, checks, thread and, in parallel
+- **Facet**: a planned slice of a project with its own typed spec, checks, thread and, in parallel
   runs, its own worktree (`loop/spec.ts`, `loop/facet-loop.ts`).
-- **Contractor**: the persistent builder session that writes game code for a facet or turn
-  (`loop/facet-loop.ts`, `loop/turn-loop.ts`; its page is `src/game-template/CLAUDE.md`).
+- **Contractor**: the persistent builder session that writes project code for a facet or turn
+  (`loop/facet-loop.ts`, `loop/turn-loop.ts`; its page is `src/project-template/CLAUDE.md`).
 - **Spike**: a throwaway mini-scene built in isolation when an identity check keeps failing;
   a passing spike becomes a recipe in the technique library (`loop/spike.ts`, `library/`).
 - **Judge**: a fresh-context model that compares candidates blind and names defects, never a
@@ -115,9 +115,9 @@ is product copy, not this glossary.
 
 ## Data and profiles
 
-- **Game / project**: "game" in the UI; "project" in code, the game folder's name used as the
-  `project` parameter (`src/substrate/game-workspace.ts` `GameWorkspaces`,
-  `src/shared/game-library.ts`).
+- **Project / project**: "project" in the UI; "project" in code, the project folder's name used as the
+  `project` parameter (`src/substrate/project-workspace.ts` `ProjectWorkspaces`,
+  `src/shared/project-library.ts`).
 - **Thread / conversation**: the same thing. APIs say `threadId`; the event store stores
   `conversations/<id>/events` (`src/substrate/event-store.ts`); the UI says chat.
 - **Fixture profile**: a disposable `studio:dev` profile with scripted engines and native

@@ -24,7 +24,7 @@ test("bundled plugin uses a real child, tools and settings share one contract; d
     await f.registry.setSetting("example", "greeting", "Welcome");
     assert.deepEqual(await f.registry.tool("example__greet", { name: "Ada" }, f.binding), {
       text: "Welcome Ada",
-      project: "game",
+      project: "project",
     });
     assert.equal(f.registry.list()[0]!.health, "ready");
     await f.registry.setEnabled("example", false);
@@ -249,7 +249,7 @@ test("curated artifacts require matching digest and exact manifest, without inst
     assert.equal(f.registry.list()[0]!.source, "catalog");
     assert.deepEqual(await f.registry.tool("example__greet", { name: "Ada" }, f.binding), {
       text: "Hello Ada",
-      project: "game",
+      project: "project",
     });
   } finally {
     globalThis.fetch = original;
@@ -472,7 +472,7 @@ test("publish actions are sensitive and require trusted confirmation", async () 
     assert.doesNotThrow(() =>
       validateManifest({
         ...manifest,
-        actions: [...manifest.actions, { name, label: "Publish", confirmation: "Put the game online?" }],
+        actions: [...manifest.actions, { name, label: "Publish", confirmation: "Put the project online?" }],
       }),
     );
   }
@@ -538,7 +538,7 @@ test("confirmed tools fail closed without a consent hook, honour a decline and r
     };
     assert.deepEqual(await f.registry.tool("example__shout", { text: "hi" }, f.binding), {
       text: "HI",
-      project: "game",
+      project: "project",
     });
     assert.deepEqual(seen, [
       {
@@ -675,7 +675,7 @@ test("restore re-acquires a local plugin from its recorded origin and names a go
       assert.equal(next.enabled("local-one"), true);
       assert.deepEqual(await next.tool("local-one__greet", { name: "Ada" }, f.binding), {
         text: "Hello Ada",
-        project: "game",
+        project: "project",
       });
       await next.remove("local-one");
       await rm(dir, { recursive: true, force: true });
@@ -737,7 +737,7 @@ test("code dropped under packages is listed as not-enabled until allowed; record
       assert.equal(next.list().filter((p) => p.manifest.id === "dropped").length, 1);
       assert.deepEqual(await next.tool("dropped__greet", { name: "Ada" }, f.binding), {
         text: "Hello Ada",
-        project: "game",
+        project: "project",
       });
       assert.equal(
         await stat(dropped).then(
@@ -784,7 +784,7 @@ for (const [moved, relocate] of [
         assert.equal(example.state, "enabled");
         assert.deepEqual(await next.tool("example__greet", { name: "Ada" }, f.binding), {
           text: "Hello Ada",
-          project: "game",
+          project: "project",
         });
         const saved = JSON.parse(await readFile(path.join(root, "installed.json"), "utf8"));
         assert.equal(path.dirname(saved.example.directory), path.join(root, "packages", "example"));
@@ -932,7 +932,7 @@ test("export.stage is capability-gated, needs the host export and stages under p
       seen.push({ binding, target });
       return { dir: target, files: 1, included: ["index.html"], excluded: [] };
     };
-    const target = path.join(f.services.root("example"), "publish", "game", "dist");
+    const target = path.join(f.services.root("example"), "publish", "project", "dist");
     assert.deepEqual(await f.registry.tool("example__greet", { name: "Ada" }, f.binding), {
       dir: target,
       files: 1,
@@ -941,7 +941,7 @@ test("export.stage is capability-gated, needs the host export and stages under p
     });
     assert.deepEqual(seen, [{ binding: f.binding, target }]);
     assert.ok((await stat(path.dirname(target))).isDirectory());
-    // The copy has no package.json, so the game's Genex part of its own rides along for the CLI.
+    // The copy has no package.json, so the project's Genex part of its own rides along for the CLI.
     await writeFile(
       path.join(f.binding.directory, "package.json"),
       JSON.stringify({ dependencies: { "@genex-ai/embed-sdk": "0.30.0", three: "^0.170.0" } }),
@@ -1242,7 +1242,7 @@ test("backend stderr reaches the developer debug sink without becoming plugin st
     assert.equal(lines.length, 0);
     assert.deepEqual(await f.registry.tool("noisy__greet", { name: "Ada" }, f.binding), {
       text: "ok",
-      project: "game",
+      project: "project",
     });
     assert.ok(
       await until(async () => lines.some((l) => l.id === "noisy" && l.line.includes("secret-looking output")), 2000),
@@ -1510,7 +1510,7 @@ test("a removed bundled plugin can be reinstalled after its seed grew new capabi
     );
     assert.deepEqual(await f.registry.tool("example__greet", { name: "Ada" }, f.binding), {
       text: "Hello Ada",
-      project: "game",
+      project: "project",
     });
     // And an update — the same manifest arriving from Studio while the plugin is installed — is still gated.
     const changed = await copyOf(f.root, "grown-again", (m) => {
@@ -2001,16 +2001,16 @@ async function readGenexSkill(registry: PluginRegistry, name: string, binding: {
 /**
  * The built Genex payload gives agents its vendored skills as index lines and serves each one, preface
  * first, through genex__skill in the host. Disabled, it gives nothing. Neither state writes agent
- * skill folders or contracts into the game.
+ * skill folders or contracts into the project.
  */
 test("bundled Genex indexes its vendored skills, serves them through genex__skill, and withdraws them when disabled", async () => {
   const { makeResources } = await import("../helpers/resources.ts");
   const { splitVendoredSkill } = await import("../../scripts/refresh-genex-skills.ts");
   const resources = await makeResources({ tsc: false });
   const root = await mkdtemp(path.join(os.tmpdir(), "studio-genex-skills-"));
-  const game = path.join(root, "game");
-  await mkdir(game);
-  const binding = { project: "game", directory: game };
+  const project = path.join(root, "project");
+  await mkdir(project);
+  const binding = { project: "project", directory: project };
   const vendor = JSON.parse(await readFile(path.resolve("src/plugins/genex/skills/vendor.json"), "utf8"));
   const registry = new PluginRegistry(
     path.join(root, "installed"),
@@ -2020,7 +2020,7 @@ test("bundled Genex indexes its vendored skills, serves them through genex__skil
   );
   const noAgentFiles = async () => {
     for (const entry of [".claude", ".agents", "AGENTS.md"])
-      await assert.rejects(stat(path.join(game, entry)), { code: "ENOENT" }, entry);
+      await assert.rejects(stat(path.join(project, entry)), { code: "ENOENT" }, entry);
   };
   try {
     await registry.init();

@@ -38,9 +38,9 @@ import path from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import { type ThreadStatusMap, UiEvent } from "../shared/ui-events.ts";
-import { onSoundShortcut } from "./game-sound.ts";
-import type { GameFullScreen } from "./game-full-screen.ts";
-import { wireGameFullScreen } from "./full-screen-view.ts";
+import { onSoundShortcut } from "./project-sound.ts";
+import type { ProjectFullScreen } from "./project-full-screen.ts";
+import { wireProjectFullScreen } from "./full-screen-view.ts";
 import { BootReason, HarnessState } from "../shared/protocol.ts";
 import { ClaudeCodeEngine } from "../substrate/engines/claude-code.ts";
 import { CodexEngine } from "../substrate/engines/codex.ts";
@@ -87,11 +87,11 @@ import { RELEASE_CHECK_INTERVAL_MS, latestRelease } from "./release-check.ts";
 import { UpdateAction } from "../shared/app-update.ts";
 import { gatedHostTool } from "./core/genex-cli.ts";
 import { diagnosticsText, gatherDiagnostics } from "./diagnostics.ts";
-import { renderGameCover } from "./game-cover-renderer.ts";
+import { renderProjectCover } from "./project-cover-renderer.ts";
 import { createIpcHandle, pushToRenderer } from "./ipc-handle.ts";
 import { registerBootIpc } from "./ipc/boot.ts";
 import { registerUpdateIpc } from "./ipc/update.ts";
-import { registerGamesIpc } from "./ipc/games.ts";
+import { registerProjectLibraryIpc } from "./ipc/project-library.ts";
 import { registerLearningIpc } from "./ipc/learning.ts";
 import { registerLoginIpc } from "./ipc/login.ts";
 import { registerCliInstallIpc } from "./ipc/cli-install.ts";
@@ -116,7 +116,7 @@ import { openStudioLog } from "./logs.ts";
 import { migrateLegacyUserData, userDataMigrationLine } from "./user-data-migration.ts";
 import { confirmPluginInstall, reacquirePlugin } from "./plugin-install-dialog.ts";
 import { HttpStatus, textResponse } from "./page-serve.ts";
-import { GamePreview, registerGameScheme } from "./preview.ts";
+import { ProjectPreview, registerProjectScheme } from "./preview.ts";
 import { RunSummaryReader } from "./run-summary-reader.ts";
 import { registerRunSharingIpc } from "./ipc/run-sharing.ts";
 import { createRunSharing, finishedBuildRef, launchSends, runsOrigin } from "./run-sharing.ts";
@@ -168,7 +168,7 @@ const QUITTING = "quitting";
 /** How long a developer launch waits for the renderer to show its threads, and how often it looks. */
 const HYDRATION_TIMEOUT_MS = 15 * SECOND_MS;
 const HYDRATION_POLL_MS = 100;
-/** How long a fixture session may take to open its game from the sidebar, and how often it looks. */
+/** How long a fixture session may take to open its project from the sidebar, and how often it looks. */
 const FIXTURE_OPEN_TIMEOUT_MS = 15 * SECOND_MS;
 const FIXTURE_OPEN_POLL_MS = 50;
 /** What a hydrated renderer shows: the threads, or the sandbox setup screen. */
@@ -200,7 +200,7 @@ const MESSAGE = {
   later: "Later",
   ok: "OK",
   coreNotStarted: "the studio core has not started",
-  noGameView: "the studio window has no game view",
+  noProjectView: "the studio window has no project view",
   shutdownUnfinished: (steps: string[]) => `shutdown did not finish: ${steps.join(", ")}`,
   hydrationTimeout: "renderer hydration timeout",
   pageGone: (cause: string) => `studio window renderer gone (${cause})`,
@@ -215,7 +215,7 @@ const dirname = path.dirname(fileURLToPath(import.meta.url));
 const distRoot = path.join(dirname, "..");
 
 /**
- * Read-only app resources: the harness seed, the stable bootstrap, the game template, vendored
+ * Read-only app resources: the harness seed, the stable bootstrap, the project template, vendored
  * three.js. In a packaged build these are asar-*unpacked*, because the bootstrap is spawned as a
  * child process and the vendor files are served to the preview — neither works from inside an
  * archive. `__dirname` still points at the archive, so translate it.
@@ -259,7 +259,7 @@ const dev =
 let devRuntime: Awaited<ReturnType<typeof import("./dev/runtime.ts").startRuntime>> | null = null;
 
 // Must happen before `app.whenReady()`.
-registerGameScheme([{ scheme: "studio-plugin", privileges: { standard: true, secure: true } }]);
+registerProjectScheme([{ scheme: "studio-plugin", privileges: { standard: true, secure: true } }]);
 
 const isSelfTest = hasFlag(StudioFlag.SelfTest);
 /** Boots the real app (window, UI, harness) and reports whether it came up clean, then quits. */
@@ -322,7 +322,7 @@ const welcomeFixture = !fixtureProviders || dev?.fixture === FixtureName.FirstLa
 const showsWelcome = !isSmoke && !isSelfTest && welcomeFixture;
 configureCodingClis(
   path.join(userDataRoot, "engine-homes", "coding-clis.json"),
-  [dev?.checkout ?? app.getAppPath(), dev?.games ?? path.join(app.getPath("home"), "AI Games")],
+  [dev?.checkout ?? app.getAppPath(), dev?.projects ?? path.join(app.getPath("home"), "AI Projects")],
   // An isolated launch has a test folder or a developer profile, so the core root is one of them.
   isolatedCodingDiscovery
     ? { loginPath: "", home: testUserData ?? userDataRoot, env: { PATH: "" }, standardDirs: [] }
@@ -354,9 +354,9 @@ const runSharing = createRunSharing({
 /** Built with the core (it needs the plugins root and the app version); the Plugins dialog is its only caller. */
 let marketplace: PluginMarketplace | null = null;
 let window: BrowserWindow | null = null;
-let preview: GamePreview | null = null;
-/** The Live game's full screen in the current window. */
-let gameScreen: GameFullScreen | null = null;
+let preview: ProjectPreview | null = null;
+/** The Live project's full screen in the current window. */
+let projectScreen: ProjectFullScreen | null = null;
 /** Where startup stands for the window: Ready, or the sandbox setup screen with its Retry. */
 const bootGate = createBootGate(
   process.platform,
@@ -432,7 +432,7 @@ app.on("accessibility-support-changed", (_event, enabled) => {
 });
 
 let liveThreadStatus: ThreadStatusMap = {};
-/** An eval-lane launch's view of the core's UI events (it digests the game its chat seeds); null otherwise. */
+/** An eval-lane launch's view of the core's UI events (it digests the project its chat seeds); null otherwise. */
 let evalLaneUiTap: ((event: UiEvent) => void) | null = null;
 const { codexLogin, claudeLogin } = createLoginControllers({
   terminals,
@@ -486,7 +486,7 @@ function pushUiEvent(event: UiEvent): void {
   const finished = finishedBuildRef(event);
   if (finished) void runSharing.buildFinished(finished).catch((err) => studioLog.write("main", errorMessage(err)));
   // The contractor called its checkpoint tool: the moment is worth seeing, so Live's Reload says
-  // the game changed (with the builder's note). It never reloads on its own: Live is the person's.
+  // the project changed (with the builder's note). It never reloads on its own: Live is the person's.
   if (event.type === UiEvent.DelegationCheckpoint) {
     const { project, cwd } = event.payload;
     const note = event.payload.note || null;
@@ -513,7 +513,7 @@ async function appendErrorDurably(threadId: string | undefined, message: string)
 /**
  * The eval lane an `--studio-eval-lane` launch runs and the core options it runs on, or null
  * without the switch. A refused launch (not a smoke, live without the opt-in, a root outside the
- * run's work folder, in ~/AI Games or the normal profile) exits here, before anything is written.
+ * run's work folder, in ~/AI Projects or the normal profile) exits here, before anything is written.
  */
 async function openEvalLaneLaunch(): Promise<{ launch: EvalLaunch; coreOptions: EvalCoreOptions } | null> {
   const file = flagValue(StudioFlag.EvalLane);
@@ -529,7 +529,7 @@ async function openEvalLaneLaunch(): Promise<{ launch: EvalLaunch; coreOptions: 
     fixtureFlag: hasFlag(StudioFlag.EvalFixture),
     liveAllowed: liveCredentialChecksAllowed,
     userData,
-    aiGames: path.join(app.getPath("home"), "AI Games"),
+    aiProjects: path.join(app.getPath("home"), "AI Projects"),
     defaultUserData: normalUserData,
   });
   if (opened.ok) return { launch: opened.launch, coreOptions: lane.evalCoreOptions(opened.launch, userData) };
@@ -539,14 +539,14 @@ async function openEvalLaneLaunch(): Promise<{ launch: EvalLaunch; coreOptions: 
   return new Promise<never>(() => {});
 }
 
-/** Where games live and which engines run, by kind of launch. */
+/** Where projects live and which engines run, by kind of launch. */
 function launchCoreOptions(): Partial<ConstructorParameters<typeof StudioCore>[0]> {
   if (dev) {
     const chatFixture = isChatFixture(dev.fixture);
     return {
-      gamesRoot: dev.games,
+      projectsRoot: dev.projects,
       executionPolicy: {
-        allowedProjectRoot: dev.games,
+        allowedProjectRoot: dev.projects,
         ...(fixtureProviders ? { runBackgroundImprovement: false } : {}),
       },
       ...(fixtureProviders
@@ -559,7 +559,7 @@ function launchCoreOptions(): Partial<ConstructorParameters<typeof StudioCore>[0
         : {}),
     };
   }
-  // An eval lane: real engines (or the fixture ones), games in the run's own folder, no background work.
+  // An eval lane: real engines (or the fixture ones), projects in the run's own folder, no background work.
   if (isSmoke && evalLane) return evalLane.coreOptions;
   if (isSmoke)
     return {
@@ -569,13 +569,13 @@ function launchCoreOptions(): Partial<ConstructorParameters<typeof StudioCore>[0
       ],
       executionPolicy: { runBackgroundImprovement: false },
     };
-  // Games live in a plain visible folder, not buried in Library — Finder should show them.
-  return { gamesRoot: path.join(app.getPath("home"), "AI Games") };
+  // Projects live in a plain visible folder, not buried in Library — Finder should show them.
+  return { projectsRoot: path.join(app.getPath("home"), "AI Projects") };
 }
 
 async function createCore(userData: string): Promise<StudioCore> {
   const studio = new StudioCore({
-    renderGameCover,
+    renderProjectCover,
     paths: { userData, resources },
     // Smoke runs keep everything under their throwaway userData.
     ...launchCoreOptions(),
@@ -637,8 +637,8 @@ function requireCore(): StudioCore {
   return core;
 }
 
-/** `~/AI Games`, as a human reads it — the renderer never sees absolute paths. */
-function gamesRootLabel(root: string): string {
+/** `~/AI Projects`, as a human reads it — the renderer never sees absolute paths. */
+function projectsRootLabel(root: string): string {
   const home = app.getPath("home");
   return root.startsWith(home) ? `~${root.slice(home.length)}` : root;
 }
@@ -714,7 +714,7 @@ async function createWindow(studio: StudioCore): Promise<BrowserWindow> {
 /**
  * The window a launch opens when the sandbox cannot start: the same renderer, which asks
  * `studio:boot` first and shows "Set up the protected workspace" with Retry. There is no core
- * behind it, so it has no game view and navigates nowhere.
+ * behind it, so it has no project view and navigates nowhere.
  */
 async function createSetupWindow(): Promise<BrowserWindow> {
   const win = new BrowserWindow(studioWindowOptions());
@@ -732,12 +732,12 @@ async function createSetupWindow(): Promise<BrowserWindow> {
   return win;
 }
 
-/** The game view inside the studio window, and the factory for the facets' hidden ones. */
+/** The project view inside the studio window, and the factory for the facets' hidden ones. */
 function attachPreviews(studio: StudioCore, win: BrowserWindow): void {
-  const view = new GamePreview({
-    gamesRoot: studio.layout.gamesRoot,
+  const view = new ProjectPreview({
+    projectsRoot: studio.layout.projectsRoot,
     vendorDir: path.join(resources, "vendor"),
-    resolveRoot: (name) => studio.games.dirFor(name),
+    resolveRoot: (name) => studio.projects.dirFor(name),
   });
   preview = view;
   studio.options.preview = view;
@@ -747,7 +747,7 @@ function attachPreviews(studio: StudioCore, win: BrowserWindow): void {
   // resurfaced whenever macOS reshuffled displays or Mission Control ran — four ghost windows
   // on the user's desktop mid-run. Rendering is offscreen (computer use, 2026-09-07): a hidden window with a
   // normal compositor never fires requestAnimationFrame, whatever backgroundThrottling says,
-  // so a game in it stood still — the computer-smoke fixture reported frame 0 after a
+  // so a project in it stood still — the computer-smoke fixture reported frame 0 after a
   // 600 ms W hold. Offscreen rendering paints the frames itself at 60 fps, so a worker's
   // window keeps simulating while the worker plays in it.
   const used = new Set<number>();
@@ -772,26 +772,26 @@ function attachPreviews(studio: StudioCore, win: BrowserWindow): void {
   followWindow();
   win.on("resize", followWindow);
   view.setOccluded(codexLogin.snapshot().visible);
-  wireGameSound(studio, win, view);
-  gameScreen = wireGameFullScreen({ studio, win, view, boundsSeen: previewBoundsSeen });
+  wireProjectSound(studio, win, view);
+  projectScreen = wireProjectFullScreen({ studio, win, view, boundsSeen: previewBoundsSeen });
 }
 
 /**
  * Live is heard only while Genex is in front. ⌥⌘M reaches the renderer's own keydown, except
- * while the game has the keyboard: then the key arrives here, and the renderer, which owns the
+ * while the project has the keyboard: then the key arrives here, and the renderer, which owns the
  * switch, is asked to flip it.
  */
-function wireGameSound(studio: StudioCore, win: BrowserWindow, view: GamePreview): void {
+function wireProjectSound(studio: StudioCore, win: BrowserWindow, view: ProjectPreview): void {
   const syncForeground = (): void => studio.previewForeground(!win.isDestroyed() && win.isFocused());
   win.on("focus", syncForeground);
   win.on("blur", syncForeground);
   syncForeground();
-  const game = view.view?.webContents;
-  if (game) onSoundShortcut(game, () => studio.emit(UiEvent.PreviewSoundToggle, { at: Date.now() }));
+  const project = view.view?.webContents;
+  if (project) onSoundShortcut(project, () => studio.emit(UiEvent.PreviewSoundToggle, { at: Date.now() }));
 }
 
 /** One facet's observation port, in its own hidden offscreen window and session partition. */
-function createFacetPreview(studio: StudioCore, index: number, released: () => void): GamePreview {
+function createFacetPreview(studio: StudioCore, index: number, released: () => void): ProjectPreview {
   const facetWin = new BrowserWindow({
     width: FACET_WINDOW.width,
     height: FACET_WINDOW.height,
@@ -802,14 +802,14 @@ function createFacetPreview(studio: StudioCore, index: number, released: () => v
     fullscreenable: false,
     webPreferences: { offscreen: true, sandbox: true, contextIsolation: true, nodeIntegration: false },
   });
-  const port = new GamePreview({
-    gamesRoot: studio.layout.gamesRoot,
+  const port = new ProjectPreview({
+    projectsRoot: studio.layout.projectsRoot,
     vendorDir: path.join(resources, "vendor"),
-    partition: `game-preview-facet-${index}`,
+    partition: `project-preview-facet-${index}`,
     offscreen: true,
-    // Builders, playtesters, reviewers and the lead all play the game here; only Live is heard.
+    // Builders, playtesters, reviewers and the lead all play the project here; only Live is heard.
     muted: true,
-    resolveRoot: (name) => studio.games.dirFor(name),
+    resolveRoot: (name) => studio.projects.dirFor(name),
   });
   port.attachTo(facetWin, { x: 0, y: 0, width: FACET_WINDOW.width, height: FACET_WINDOW.height });
   port.dispose = async () => {
@@ -839,7 +839,7 @@ function collectRendererConsole(win: BrowserWindow): void {
 /**
  * A link in chat is a contractor's markdown, and this window is the studio's only UI: nothing
  * a report links to may replace it. A click opens outside the window — the browser, the
- * file's own app for a document in a game folder, or Finder for anything that could run — or
+ * file's own app for a document in a project folder, or Finder for anything that could run — or
  * is refused in words, and the studio stays on screen. (2026-09-06: "[Base handoff](/…/NOTES.base-builder.md)"
  * navigated the window to a file that did not exist and left the whole app black.)
  */
@@ -875,9 +875,9 @@ async function openOutside(studio: StudioCore, win: BrowserWindow, raw: string):
 
 /** Open a link where its route says; the words of what went wrong, or "" when it opened. */
 async function openRoutedLink(studio: StudioCore, raw: string): Promise<string> {
-  const games = await studio.games.list().catch(() => []);
+  const projects = await studio.projects.list().catch(() => []);
   const route = await routeStudioLink(raw, {
-    projectDirs: [studio.layout.gamesRoot, ...games.map((game) => game.dir)],
+    projectDirs: [studio.layout.projectsRoot, ...projects.map((project) => project.dir)],
   });
   if (route.action === "external")
     return shell.openExternal(route.url).then(
@@ -983,8 +983,8 @@ async function askAfterCrashes(): Promise<void> {
 }
 
 /**
- * The last rectangle the renderer asked the native game view to take. Read only by the build
- * smoke, which proves a full-stage view (Builds, Assets, a plugin dialog) really hides the game
+ * The last rectangle the renderer asked the native project view to take. Read only by the build
+ * smoke, which proves a full-stage view (Builds, Assets, a plugin dialog) really hides the project
  * rather than merely drawing over it.
  */
 export const previewBoundsSeen: PreviewBoundsRecord = { last: null };
@@ -996,7 +996,7 @@ async function diagnosticsReport(studio: StudioCore): Promise<string> {
       app: { name: app.getName(), version: app.getVersion(), packaged: app.isPackaged },
       versions: { electron: process.versions.electron, chrome: process.versions.chrome, node: process.versions.node },
       os: { platform: process.platform, arch: process.arch, release: os.release() },
-      paths: { userData: userDataRoot, gamesRoot: studio.layout.gamesRoot, log: studioLog.file },
+      paths: { userData: userDataRoot, projectsRoot: studio.layout.projectsRoot, log: studioLog.file },
       performance: {
         ...performanceIdentity,
         ...performanceRecorder.snapshot(),
@@ -1031,7 +1031,7 @@ function registerIpc(studio: StudioCore): void {
   });
   registerThreadsIpc(handle, {
     core: studio,
-    gamesRootLabel,
+    projectsRootLabel,
     threadStatus: () => liveThreadStatus,
     pushUiEvent,
     appendErrorDurably,
@@ -1039,13 +1039,13 @@ function registerIpc(studio: StudioCore): void {
     welcome: showsWelcome,
     developer: !app.isPackaged,
   });
-  registerGamesIpc(handle, { core: studio, runSummaryReader, pushUiEvent });
+  registerProjectLibraryIpc(handle, { core: studio, runSummaryReader, pushUiEvent });
   registerModelsIpc(handle, { core: studio, subscription, pushUiEvent });
   registerPreviewIpc(handle, {
     core: studio,
     preview: () => preview,
     previewBoundsSeen,
-    fullScreen: { enter: () => gameScreen?.enter(), active: () => gameScreen?.active() ?? false },
+    fullScreen: { enter: () => projectScreen?.enter(), active: () => projectScreen?.active() ?? false },
   });
   registerRunsIpc(handle, { core: studio, runSummaryReader, keepAwake, pushUiEvent, appendErrorDurably });
   registerLearningIpc(handle, {
@@ -1093,7 +1093,7 @@ function registerIpc(studio: StudioCore): void {
       log: (line) => studioLog.write("main", line),
     }),
   );
-  registerProjectsIpc(handle, { core: studio, window: () => window, gamesRootLabel });
+  registerProjectsIpc(handle, { core: studio, window: () => window, projectsRootLabel });
   registerNotificationsIpc(handle, {
     notifications: { isSupported: () => Notification.isSupported(), create: (options) => new Notification(options) },
     window: () => window,
@@ -1133,7 +1133,7 @@ async function main(): Promise<void> {
   if (!dev) app.on("activate", reopenWindow);
 }
 
-/** Is `event` from the studio window's own top frame (not a plugin page or a game)? */
+/** Is `event` from the studio window's own top frame (not a plugin page or a project)? */
 function isStudioWindow(event: { sender: unknown; senderFrame: unknown }): boolean {
   return event.sender === window?.webContents && event.senderFrame === window?.webContents.mainFrame;
 }
@@ -1272,7 +1272,7 @@ function showExistingWindow(): void {
 interface StartedStudio {
   core: StudioCore;
   window: BrowserWindow;
-  preview: GamePreview;
+  preview: ProjectPreview;
 }
 
 /**
@@ -1341,12 +1341,12 @@ async function launchStudio(studio: StudioCore): Promise<StartedStudio | null> {
     registerIpc(studio);
     const win = await createWindow(studio);
     window = win;
-    // First launch opens on an empty library, with no game chat to select.
+    // First launch opens on an empty library, with no project chat to select.
     if (fixture?.project) await seedFixtureModel(win, fixture.threadId);
     const booted = await startHarness(studio);
     if (!booted) return null;
     if (fixture) await activateChatFixture(studio, fixture);
-    if (fixture?.project) await openFixtureGame(win, fixture.project);
+    if (fixture?.project) await openFixtureProject(win, fixture.project);
     pushUiEvent({ type: UiEvent.StudioReady, payload: { userData } });
     // Rows a closed app left unsent go now, or are dropped once a week old.
     void runSharing.flush().catch((err) => studioLog.write("main", errorMessage(err)));
@@ -1359,9 +1359,9 @@ async function launchStudio(studio: StudioCore): Promise<StartedStudio | null> {
   }
 }
 
-/** The game view `createWindow` attached; every started window has one. */
-function requirePreview(): GamePreview {
-  if (!preview) throw new Error(MESSAGE.noGameView);
+/** The project view `createWindow` attached; every started window has one. */
+function requirePreview(): ProjectPreview {
+  if (!preview) throw new Error(MESSAGE.noProjectView);
   return preview;
 }
 
@@ -1394,7 +1394,7 @@ async function servePluginIcon(studio: StudioCore, id: string): Promise<Response
   });
 }
 
-/** Give the fixture's game thread its fixture model, then reload so the renderer reads it. */
+/** Give the fixture's project thread its fixture model, then reload so the renderer reads it. */
 async function seedFixtureModel(win: BrowserWindow, threadId: string): Promise<void> {
   await win.webContents.executeJavaScript(
     `localStorage.setItem(${JSON.stringify(`studio.model.${threadId}`)},'codex::fixture-v1')`,
@@ -1403,11 +1403,11 @@ async function seedFixtureModel(win: BrowserWindow, threadId: string): Promise<v
 }
 
 /**
- * A fixture session begins in its game: every launch opens home, so the fixture opens the game
+ * A fixture session begins in its project: every launch opens home, so the fixture opens the project
  * from the sidebar as a person would, and waits until the window shows it (or the sandbox setup,
- * which has no games). A game that never opens fails the launch, as a broken fixture should.
+ * which has no projects). A project that never opens fails the launch, as a broken fixture should.
  */
-async function openFixtureGame(win: BrowserWindow, project: string): Promise<void> {
+async function openFixtureProject(win: BrowserWindow, project: string): Promise<void> {
   const row = `nav [data-project=${JSON.stringify(project)}]`;
   await win.webContents.executeJavaScript(`new Promise((resolve, reject) => {
     const until = Date.now() + ${FIXTURE_OPEN_TIMEOUT_MS};
@@ -1415,14 +1415,14 @@ async function openFixtureGame(win: BrowserWindow, project: string): Promise<voi
     const tick = () => {
       const shell = document.querySelector("[data-studio-state]");
       if (shell && shell.dataset.room === "build" && shell.dataset.project === ${JSON.stringify(project)}) return resolve(true);
-      // A window held on the sandbox setup has no games to open.
+      // A window held on the sandbox setup has no projects to open.
       if (document.querySelector("[data-sandbox-setup]")) return resolve(false);
       const button = document.querySelector(${JSON.stringify(row)});
       if (button && !clicked) {
         clicked = true;
         button.click();
       }
-      if (Date.now() > until) return reject(new Error("the fixture game did not open"));
+      if (Date.now() > until) return reject(new Error("the fixture project did not open"));
       setTimeout(tick, ${FIXTURE_OPEN_POLL_MS});
     };
     tick();
@@ -1463,7 +1463,7 @@ async function startDevRuntime(
   launch: NonNullable<typeof dev>,
   studio: StudioCore,
   win: BrowserWindow,
-  view: GamePreview,
+  view: ProjectPreview,
 ): Promise<NonNullable<typeof devRuntime>> {
   await waitForHydration(win);
   return (await import("./dev/runtime.ts")).startRuntime(

@@ -57,7 +57,7 @@ if not meshes:
     result({"ok": False, "error": "the script left no mesh objects in the scene"})
     sys.exit(1)
 
-# Measure the asset the way the game will see it: modifiers applied, world space.
+# Measure the asset the way the project will see it: modifiers applied, world space.
 depsgraph = bpy.context.evaluated_depsgraph_get()
 detail = []
 per_mesh = []   # (volume, bounds) per mesh, for the framing

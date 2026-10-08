@@ -1,9 +1,9 @@
 /**
  * Where a file a chat names is, and how it may open (shared/chat-files.ts has the renderer side).
  *
- * A name resolves against that chat's game — its folder, or the run's build when the build is
+ * A name resolves against that chat's project — its folder, or the run's build when the build is
  * newer — or, when it is absolute, wherever it is on this computer. Markdown and images of the
- * game open beside the chat. Everything else opens in the app the system uses for it, and only for
+ * project open beside the chat. Everything else opens in the app the system uses for it, and only for
  * the kinds of file that app opens as a document: programs, scripts, installers, profiles, files
  * with an exec bit and any type this list does not know are shown in the file manager instead,
  * never launched. Credentials and the studio's own secrets are not files the chat can link to.
@@ -23,7 +23,7 @@ import {
   type ChatFileOpenOutside,
   type ChatFileRef,
 } from "../shared/chat-files.ts";
-import { extensionOf, fileKind } from "../shared/game-file.ts";
+import { extensionOf, fileKind } from "../shared/project-file.ts";
 import { credentialHomes } from "../substrate/credential-homes.ts";
 import { isInside } from "../substrate/paths.ts";
 import { hostGitConfig, hostGitEnv } from "../substrate/git-policy.ts";
@@ -36,7 +36,7 @@ const MESSAGE = {
   notInBuild: "That file isn’t in the build any more.",
 } as const;
 
-/** A build's file list is read in one go; a game's history stays well under this. */
+/** A build's file list is read in one go; a project's history stays well under this. */
 const GIT_OUTPUT_MAX = 64 * 1024 * 1024;
 /** Commits whose file lists are kept: a commit's files never change. */
 const TREES_KEPT = 6;
@@ -51,13 +51,13 @@ const READ_ONLY = 0o444;
 
 export interface ChatFileScope {
   home: string;
-  /** The chat's game. `head` is the run's build; `preferBuild` while that build is running or not landed. */
-  game: { dir: string; head: string | null; preferBuild: boolean; runId: string | null } | null;
+  /** The chat's project. `head` is the run's build; `preferBuild` while that build is running or not landed. */
+  project: { dir: string; head: string | null; preferBuild: boolean; runId: string | null } | null;
   /** Where a Studio chat's relative names are. */
   workspace: string | null;
   /** Never linked: credentials and the studio's secrets. */
   deny: string[];
-  /** Run worktrees (`scratch/autopilot/<runId>/<worktree>/…`), whose paths map back into the game. */
+  /** Run worktrees (`scratch/autopilot/<runId>/<worktree>/…`), whose paths map back into the project. */
   worktrees: string | null;
   /** Where a file only the build has is copied to be opened; no agent process can write there. */
   copies: string;
@@ -175,8 +175,8 @@ function tilde(file: string, home: string): string {
 /** A path part that is a `.git` folder, in any case: APFS and NTFS ignore it. */
 const isGitPart = (part: string): boolean => part.toLowerCase() === ".git";
 
-/** A game-relative name, normalized; null when it leaves the game or reaches into `.git`. */
-function gamePath(name: string, base?: string): string | null {
+/** A project-relative name, normalized; null when it leaves the project or reaches into `.git`. */
+function projectPath(name: string, base?: string): string | null {
   const slashed = name.replace(/\\/g, "/");
   const joined = base ? path.posix.join(path.posix.dirname(base.replace(/\\/g, "/")), slashed) : slashed;
   const value = path.posix.normalize(joined).replace(/^(\.\/)+/, "");
@@ -193,16 +193,16 @@ const reachable = (root: string, file: string, deny: string[]): boolean =>
   file !== root && isInside(root, file) && !inGit(root, file) && !deny.some((dir) => isInside(dir, file));
 
 type Found =
-  /** In the game folder. */
-  | { where: "game"; rel: string; file: string; info: Stats }
+  /** In the project folder. */
+  | { where: "project"; rel: string; file: string; info: Stats }
   /** Only the run's build has it (or the build's is newer): a git blob. */
   | { where: "build"; rel: string; blob: string }
-  /** Anywhere else on this computer. `rel` when it is a run worktree's copy of a game file. */
+  /** Anywhere else on this computer. `rel` when it is a run worktree's copy of a project file. */
   | { where: "disk"; file: string; info: Stats; rel?: string };
 
-type Game = NonNullable<ChatFileScope["game"]>;
+type Project = NonNullable<ChatFileScope["project"]>;
 
-/** Markdown and images: the kinds of game file the studio shows beside the chat. */
+/** Markdown and images: the kinds of project file the studio shows beside the chat. */
 function opensBeside(file: string): boolean {
   const kind = fileKind(file);
   return kind === "markdown" || kind === "image";
@@ -286,19 +286,24 @@ export class ChatFileResolver {
       const absolute = path.resolve(name.startsWith("~") ? path.join(scope.home, name.slice(1)) : name);
       return this.#onDisk(scope, absolute, deny);
     }
-    if (scope.game) return this.#findInGame(scope.game, name, base, deny);
-    if (scope.workspace) return this.#findInWorkspace(scope, scope.workspace, gamePath(name, base), deny);
+    if (scope.project) return this.#findInProject(scope.project, name, base, deny);
+    if (scope.workspace) return this.#findInWorkspace(scope, scope.workspace, projectPath(name, base), deny);
     return null;
   }
 
-  async #findInGame(game: Game, name: string, base: string | undefined, deny: string[]): Promise<Found | null> {
-    const rel = gamePath(name, base);
+  async #findInProject(
+    project: Project,
+    name: string,
+    base: string | undefined,
+    deny: string[],
+  ): Promise<Found | null> {
+    const rel = projectPath(name, base);
     if (!rel) return null;
-    const direct = await this.#inGame(game, rel, deny);
+    const direct = await this.#inProject(project, rel, deny);
     if (direct || base || /^\.{1,2}\//.test(name)) return direct;
-    // `intro.mp4`, `video/intro.mp4`: the one file of the game with that name.
-    const [only, ...more] = await this.#named(game, rel);
-    return only !== undefined && more.length === 0 ? this.#inGame(game, only, deny) : null;
+    // `intro.mp4`, `video/intro.mp4`: the one file of the project with that name.
+    const [only, ...more] = await this.#named(project, rel);
+    return only !== undefined && more.length === 0 ? this.#inProject(project, only, deny) : null;
   }
 
   async #findInWorkspace(scope: ChatFileScope, workspace: string, rel: string | null, deny: string[]) {
@@ -315,40 +320,40 @@ export class ChatFileResolver {
     if (!file || file === path.parse(file).root || deny.some((root) => isInside(root, file))) return null;
     const info = await stat(file).catch(() => null);
     if (!info || (!info.isFile() && !info.isDirectory())) return null;
-    if (!scope.game) return { where: "disk", file, info };
-    const dir = await realpath(scope.game.dir).catch(() => null);
+    if (!scope.project) return { where: "disk", file, info };
+    const dir = await realpath(scope.project.dir).catch(() => null);
     if (dir && file !== dir && isInside(dir, file)) {
       if (inGit(dir, file)) return null;
-      return { where: "game", rel: path.relative(dir, file).split(path.sep).join("/"), file, info };
+      return { where: "project", rel: path.relative(dir, file).split(path.sep).join("/"), file, info };
     }
-    return (await this.#worktreeCopy(scope, scope.game, file, info, deny)) ?? { where: "disk", file, info };
+    return (await this.#worktreeCopy(scope, scope.project, file, info, deny)) ?? { where: "disk", file, info };
   }
 
-  /** A file in the run's worktree that is its copy of a game file; its Markdown opens beside. */
-  async #worktreeCopy(scope: ChatFileScope, game: Game, file: string, info: Stats, deny: string[]) {
+  /** A file in the run's worktree that is its copy of a project file; its Markdown opens beside. */
+  async #worktreeCopy(scope: ChatFileScope, project: Project, file: string, info: Stats, deny: string[]) {
     const worktrees = scope.worktrees ? await realpath(scope.worktrees).catch(() => null) : null;
     if (!worktrees || !isInside(worktrees, file)) return null;
     const [runId, , ...rest] = path.relative(worktrees, file).split(path.sep);
-    const ours = Boolean(runId) && runId === game.runId && rest.length > 0 && !rest.some(isGitPart);
+    const ours = Boolean(runId) && runId === project.runId && rest.length > 0 && !rest.some(isGitPart);
     if (!ours) return null;
     const rel = rest.join("/");
-    const known = await this.#inGame(game, rel, deny);
+    const known = await this.#inProject(project, rel, deny);
     return known ? ({ where: "disk", file, info, rel } as const) : null;
   }
 
-  async #inGame(game: Game, rel: string, deny: string[]): Promise<Found | null> {
-    const root = await realpath(game.dir).catch(() => null);
+  async #inProject(project: Project, rel: string, deny: string[]): Promise<Found | null> {
+    const root = await realpath(project.dir).catch(() => null);
     if (!root) return null;
     const folder = await this.#folderFile(root, rel, deny);
-    const blob = game.head ? ((await this.#tree(game.dir, game.head)).get(rel) ?? null) : null;
-    const buildFirst = blob !== null && (game.preferBuild || !folder);
-    if (!buildFirst || blob === null) return folder ? { where: "game", rel, ...folder } : null;
+    const blob = project.head ? ((await this.#tree(project.dir, project.head)).get(rel) ?? null) : null;
+    const buildFirst = blob !== null && (project.preferBuild || !folder);
+    if (!buildFirst || blob === null) return folder ? { where: "project", rel, ...folder } : null;
     // The build's copy is newer only when it differs from the folder's.
-    const same = folder?.info.isFile() === true && (await this.#blobOf(game.dir, folder.file)) === blob;
-    return folder && same ? { where: "game", rel, ...folder } : { where: "build", rel, blob };
+    const same = folder?.info.isFile() === true && (await this.#blobOf(project.dir, folder.file)) === blob;
+    return folder && same ? { where: "project", rel, ...folder } : { where: "build", rel, blob };
   }
 
-  /** The game folder's own file or folder at `rel`, when it is one the chat may link. */
+  /** The project folder's own file or folder at `rel`, when it is one the chat may link. */
   async #folderFile(root: string, rel: string, deny: string[]): Promise<{ file: string; info: Stats } | null> {
     const file = await realpath(path.join(root, ...rel.split("/"))).catch(() => null);
     if (!file || !reachable(root, file, deny)) return null;
@@ -356,10 +361,10 @@ export class ChatFileResolver {
     return info && (info.isFile() || info.isDirectory()) ? { file, info } : null;
   }
 
-  /** Files of the game (folder and build) whose path ends with `rel`. */
-  async #named(game: Game, rel: string): Promise<string[]> {
-    const pool = new Set(await this.#listing(game.dir));
-    if (game.head) for (const file of (await this.#tree(game.dir, game.head)).keys()) pool.add(file);
+  /** Files of the project (folder and build) whose path ends with `rel`. */
+  async #named(project: Project, rel: string): Promise<string[]> {
+    const pool = new Set(await this.#listing(project.dir));
+    if (project.head) for (const file of (await this.#tree(project.dir, project.head)).keys()) pool.add(file);
     return [...pool].filter((file) => file === rel || file.endsWith(`/${rel}`));
   }
 
@@ -411,14 +416,14 @@ export class ChatFileResolver {
 
   /** A read-only copy of the build's file, named as the file so its app recognizes it. */
   async #copyOut(scope: ChatFileScope, rel: string, blob: string): Promise<string> {
-    if (!scope.game || !/^[0-9a-f]{40,64}$/i.test(blob)) throw new Error(MESSAGE.notInBuild);
+    if (!scope.project || !/^[0-9a-f]{40,64}$/i.test(blob)) throw new Error(MESSAGE.notInBuild);
     const folder = path.join(scope.copies, blob.slice(0, 16));
     const file = path.join(folder, path.posix.basename(rel));
     if ((await stat(file).catch(() => null))?.isFile()) return file;
     await mkdir(folder, { recursive: true });
     const partial = path.join(folder, `.${process.pid}-${Date.now()}.partial`);
     // Read stored bytes; opening a chat link never runs smudge filters or downloads LFS content.
-    const child = spawn("git", ["-C", scope.game.dir, "cat-file", "blob", blob], {
+    const child = spawn("git", ["-C", scope.project.dir, "cat-file", "blob", blob], {
       stdio: ["ignore", "pipe", "ignore"],
       env: await this.#userGitEnv(),
     });

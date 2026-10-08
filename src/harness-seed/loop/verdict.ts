@@ -56,8 +56,8 @@ export type Against = (typeof Against)[keyof typeof Against];
 
 /** What a build was judged against, named the way the owner would name it. */
 const AGAINST: Record<string, string | null> = {
-  [Against.Start]: "the game you had",
-  [Against.Live]: "the game you had",
+  [Against.Start]: "the project you had",
+  [Against.Live]: "the project you had",
   [Against.None]: null,
   [Against.Round]: "the round before",
 };
@@ -98,7 +98,7 @@ export const NotLandedReason = {
   CouldNotLand: "could-not-land",
   NestedNotVersioned: "nested-not-versioned",
   FinalCommitFailed: "final-commit-failed",
-  /** The game folder had uncommitted changes the landing would not merge over or into. */
+  /** The project folder had uncommitted changes the landing would not merge over or into. */
   UncommittedChanges: "uncommitted-changes",
   Stopped: "stopped",
   Crashed: "crashed",
@@ -163,11 +163,11 @@ const BECAUSE: Record<string, string> = {
   "no-change": "Undone: every camera showed exactly what the round before showed.",
   "no-move": "Undone: the step it was asked for did not arrive.",
   unfixed: "Undone: the problem it was told to fix is still there.",
-  broken: "Undone: the game did not start after this build.",
+  broken: "Undone: the project did not start after this build.",
   unreachable: "Undone: the judge could not be reached, so nothing was changed.",
   stopped: "Not judged: the lead stopped this round, and the work it had done is kept.",
-  "first-build": "Nothing to compare it with: the build started from an empty game, so it is judged on its own.",
-  "no-start": "Nothing to compare it with: the game as it stood could not be photographed.",
+  "first-build": "Nothing to compare it with: the build started from an empty project, so it is judged on its own.",
+  "no-start": "Nothing to compare it with: the project as it stood could not be photographed.",
   starts: "It starts and draws its first frame.",
   "does-not-start": "It did not start when it was looked at.",
   preferred: "The judge preferred it.",
@@ -180,15 +180,16 @@ const BECAUSE: Record<string, string> = {
 /** Why a close landed nothing, in the owner's words rather than the branch's. */
 const NOT_LANDED: Record<string, string> = {
   "not-asked": "Nothing was made live: the lead kept this build aside.",
-  "nothing-new": "Nothing was made live: the build added nothing to the game you already had.",
+  "nothing-new": "Nothing was made live: the build added nothing to the project you already had.",
   "does-not-run": "Nothing was made live: this build did not start when it was checked at the end.",
-  "could-not-land": "Nothing was made live: your game folder had changes of its own, so this build was left beside it.",
+  "could-not-land":
+    "Nothing was made live: your project folder had changes of its own, so this build was left beside it.",
   "nested-not-versioned":
-    "Nothing was made live: part of this game keeps its own version history, and only you can add this build's work to it — the build is waiting for you.",
+    "Nothing was made live: part of this project keeps its own version history, and only you can add this build's work to it — the build is waiting for you.",
   "final-commit-failed":
-    "Nothing was made live: the lead's last edits could not be saved, so this build was left beside your game.",
+    "Nothing was made live: the lead's last edits could not be saved, so this build was left beside your project.",
   "uncommitted-changes":
-    "Nothing was made live: files in your game folder had changes not yet in its history, so this build was left beside it, waiting for Make it live.",
+    "Nothing was made live: files in your project folder had changes not yet in its history, so this build was left beside it, waiting for Make it live.",
   stopped: "Nothing was made live: the build was stopped before it finished.",
   crashed: "Nothing was made live: the build hit a problem and stopped early.",
 } satisfies Record<NotLandedReason, string>;

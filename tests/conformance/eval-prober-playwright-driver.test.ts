@@ -148,7 +148,7 @@ async function routed(w: FakeWorld, request: FakeRequest): Promise<boolean> {
   return decision === true;
 }
 
-/** Hostile and allowed requests from a game served at `SERVE`. */
+/** Hostile and allowed requests from a project served at `SERVE`. */
 const NETWORK_TABLE: Array<{ url: string; method: string; allowed: boolean }> = [
   { url: `${SERVE}/main.js`, method: "GET", allowed: true },
   { url: `${SERVE}/`, method: "GET", allowed: true },

@@ -39,7 +39,7 @@ function sharedBlock(): string {
   return readFileSync(pathMod.join(judgeDir, "artefact-classes.md"), "utf8").replace(/\n+$/, "");
 }
 
-/** What the three rubrics carried before the block moved out of them, frozen. */
+/** What the block says when the run declared nothing: every class, no `{when:}` clause. Frozen. */
 function frozenBlock(): string {
   return readFileSync(pathMod.join(fixtureDir, "artefact-classes-shared.md"), "utf8").replace(/\n+$/, "");
 }
@@ -55,25 +55,30 @@ describe("the artefact classes the three judges share", () => {
     assert.match(sharedBlock(), /^## Known artefact classes/);
   });
 
-  it("renders byte for byte what the rubrics used to say when the run declared nothing", () => {
-    // This is what makes the migration safe: an empty token set is the identity filter, and the
-    // fixture is the text the three rubrics shipped before the block moved.
+  it("renders every class, with no clause showing, when the run declared nothing", () => {
+    // An empty token set is the identity filter, and the fixture is the text it yields.
     assert.equal(filterArtefactClasses(sharedBlock(), []), frozenBlock());
     assert.equal(filterArtefactClasses(sharedBlock(), artefactTokens({})), frozenBlock());
     assert.equal(filterArtefactClasses(sharedBlock(), artefactTokens({ ownShape: true })), frozenBlock());
   });
 
-  it("keeps every class for a first-person run and drops [no-hands] for a game with no hands", () => {
+  it("keeps every class for a first-person run and drops the scene classes for a dashboard", () => {
     const all = filterArtefactClasses(sharedBlock(), ["template", "fps"]);
     assert.equal(all, frozenBlock(), "a shooter sees the whole list");
-    const puzzle = filterArtefactClasses(sharedBlock(), ["template", "puzzle"]);
-    assert.equal(puzzle.includes("[no-hands]"), false, "a puzzle has no first-person hands to miss");
+    const world = filterArtefactClasses(sharedBlock(), ["template", "graphics"]);
+    assert.equal(world.includes("[no-hands]"), false, "a scene that is not first-person has no hands to miss");
+    assert.ok(world.includes("[haze-plane]"), "a scene keeps the scene classes");
+    const dashboard = filterArtefactClasses(sharedBlock(), ["template", "dashboard"]);
+    for (const scene of ["[haze-plane]", "[blob]", "[no-hands]"])
+      assert.equal(dashboard.includes(scene), false, `a dashboard is not told about ${scene}`);
+    for (const page of ["[overflow]", "[unstyled]", "[no-state]", "[dead-input]"])
+      assert.ok(dashboard.includes(page), `a dashboard is told about ${page}`);
     const bullets = (block: string) => (block.match(/^- `\[[a-z-]+\]`/gm) ?? []).length;
-    assert.equal(bullets(puzzle), bullets(all) - 1, "exactly one class was dropped");
+    assert.ok(bullets(dashboard) < bullets(all), "software sees a shorter list");
   });
 
   it("never lets a {when:} clause reach a judge", () => {
-    for (const tokens of [[], ["fps"], ["puzzle"], ["top-down", "own-shape"]]) {
+    for (const tokens of [[], ["fps"], ["dashboard"], ["graphics", "own-shape"]]) {
       assert.equal(filterArtefactClasses(sharedBlock(), tokens).includes("{when:"), false, JSON.stringify(tokens));
     }
   });
@@ -84,17 +89,17 @@ describe("the artefact classes the three judges share", () => {
     assert.equal(new Set(bullets).size, bullets.length, "no class is listed twice");
   });
 
-  it("conditions [dead-input] on the GAME line and retracts it for a game that has none", () => {
+  it("conditions [dead-input] on the PROJECT line and retracts it for a project that has none", () => {
     const block = sharedBlock();
     assert.equal(block.match(/\[dead-input\]/g)?.length, 1, "the class is named once");
-    assert.match(block, /the numbers the GAME line\n {2}names as this game's input evidence are unchanged/);
-    assert.match(block, /Never report it when the GAME line says the class does not apply/);
+    assert.match(block, /the numbers the PROJECT line\n {2}names as this project's input evidence are unchanged/);
+    assert.match(block, /Never report it when the PROJECT line says the class does not apply/);
   });
 
   it("reads its tokens off the run record", () => {
     assert.deepEqual(artefactTokens(null), []);
-    assert.deepEqual(artefactTokens({ genres: [], game: {} }), []);
-    assert.deepEqual(artefactTokens({ genres: ["FPS"], game: { kind: "first-person" } }).sort(), [
+    assert.deepEqual(artefactTokens({ genres: [], app: {} }), []);
+    assert.deepEqual(artefactTokens({ genres: ["FPS"], app: { kind: "first-person" } }).sort(), [
       "first-person",
       "fps",
       "template",
@@ -128,7 +133,7 @@ describe("the two critics' rubrics", () => {
     const text = rubric("readability.md");
     assert.match(
       text,
-      /^This game is a screen, not a place a player walks through: judge what the screen tells the\nplayer, not how real the world feels\./,
+      /^This project is software people operate, not a place they walk through: judge what the screen tells\nthe person using it, not how real the world feels\./,
     );
     assert.match(
       text,
@@ -180,9 +185,9 @@ describe("judgePrompt expands the marker against a workspace", () => {
 
   it("filters the list by the run's tokens", async () => {
     const ws = workspace();
-    const text = await judgePrompt({ workspace: ws } as never, "taste-veto.md", "fallback", ["puzzle"]);
-    assert.equal(text.includes("[no-hands]"), false);
-    assert.ok(text.includes("[haze-plane]"));
+    const text = await judgePrompt({ workspace: ws } as never, "taste-veto.md", "fallback", ["dashboard"]);
+    assert.equal(text.includes("[haze-plane]"), false);
+    assert.ok(text.includes("[overflow]"));
   });
 
   it("returns the rubric unchanged when the shared file is missing", async () => {

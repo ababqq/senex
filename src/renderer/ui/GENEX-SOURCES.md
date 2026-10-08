@@ -49,13 +49,13 @@ retain their installed package licenses; the build gathers notices from actual b
 ## AG-966 search and cover adaptation (20 September 2026)
 
 Read from the owner's same sibling checkout, kept read-only:
-- `apps/web/components/header/SearchBox.tsx` → `panels/GameSearchDialog.tsx`: dialog layout,
+- `apps/web/components/header/SearchBox.tsx` → `panels/ProjectSearchDialog.tsx`: dialog layout,
   debounce, keyboard navigation and thumbnail rows, adapted to the local library.
 - `packages/catalog-search/src/{types,tokenize,buildIndex,query}.ts` → `src/shared/catalog-search/`:
   local BM25 engine, with prototype-safe index dictionaries. No package installation.
-- `apps/web/components/game-page/CoverDialog.tsx` → `panels/GameCoverDialog.tsx`: local crop,
+- `apps/web/components/project-page/CoverDialog.tsx` → `panels/ProjectCoverDialog.tsx`: local crop,
   preview and save flow. Normalize uploads to 256px PNG for Electron's native image decoder
   (the web source used WebP). No R2 upload, API request, analytics or paid AI regeneration.
 
-`shared/game-cover.ts` and the default geometric placeholder are original procedural code for
+`shared/project-cover.ts` and the default geometric placeholder are original procedural code for
 this task. Existing fonts, logo paths and third-party notices are unchanged.

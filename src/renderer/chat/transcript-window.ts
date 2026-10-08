@@ -9,7 +9,7 @@
 export const ESTIMATED_ROW_PX = 100;
 /**
  * Rows mount this many screens ahead of the viewport, both ways. A fast fling outruns a frame
- * the GPU is slow to draw (a heavy game in Live beside the chat): rows mounted screens ahead
+ * the GPU is slow to draw (a heavy project in Live beside the chat): rows mounted screens ahead
  * are drawn before they scroll into view, where rows mounted just in time show as a blank block.
  */
 export const MOUNT_SCREENS = 3;

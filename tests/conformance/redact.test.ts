@@ -235,7 +235,7 @@ describe("the event log's redactor: held values and unmistakable token shapes on
 
   it("leaves prose and code that only looks like a credential field alone", () => {
     const text =
-      "Use the api_key field; Authorization: header docs; SPRITE_KEY=hero; game.html?code=level2; access_token=see-docs";
+      "Use the api_key field; Authorization: header docs; SPRITE_KEY=hero; project.html?code=level2; access_token=see-docs";
     assert.equal(secretRedactor(() => [], redactTokens)(text), text);
   });
 });

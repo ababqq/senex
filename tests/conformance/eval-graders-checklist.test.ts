@@ -58,7 +58,7 @@ import { ZERO_TOKEN_USAGE } from "../../src/shared/eval-lane.ts";
 import { EngineId } from "../../src/shared/providers.ts";
 import { tmpDir } from "../helpers/tmp.ts";
 
-const GAME_ORIGIN = "http://127.0.0.1:41000";
+const PROJECT_ORIGIN = "http://127.0.0.1:41000";
 const PNG_MAGIC = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 const SECRET = "SYNTHETIC-SECRET-7f3a";
 
@@ -103,11 +103,11 @@ interface EvidenceFixture {
   refs: EvidenceRefs;
 }
 
-/** An evidence folder: one boot frame, `count` witnessed frames, one frame off the game's origin. */
+/** An evidence folder: one boot frame, `count` witnessed frames, one frame off the project's origin. */
 async function evidenceFixture(count = 10): Promise<EvidenceFixture> {
   const root = await tmpDir("eval-graders-evidence-");
   const frames: FrameRef[] = [];
-  const add = async (name: string, atMs: number, phase: FrameRef["phase"], origin = GAME_ORIGIN) => {
+  const add = async (name: string, atMs: number, phase: FrameRef["phase"], origin = PROJECT_ORIGIN) => {
     await writeFile(path.join(root, `${name}.png`), pngBytes(name));
     frames.push({ path: path.join(root, `${name}.png`), atMs, phase, origin, width: 8, height: 8 });
   };
@@ -119,7 +119,7 @@ async function evidenceFixture(count = 10): Promise<EvidenceFixture> {
   return {
     root,
     refs: {
-      gameOrigin: GAME_ORIGIN,
+      projectOrigin: PROJECT_ORIGIN,
       frames,
       consoleSummaryPath: "console.txt",
       networkSummaryPath: "network.txt",
@@ -268,11 +268,11 @@ describe("grader pins", () => {
 });
 
 describe("witnessed frames (Rule 18)", () => {
-  it("keeps frames after the entrance on the game's origin, and samples evenly", async () => {
+  it("keeps frames after the entrance on the project's origin, and samples evenly", async () => {
     const { refs } = await evidenceFixture(20);
-    const kept = witnessedFrames(refs.frames, refs.gameOrigin);
+    const kept = witnessedFrames(refs.frames, refs.projectOrigin);
     assert.equal(kept.length, 20);
-    assert.ok(kept.every((frame) => frame.phase !== ProbePhase.Boot && frame.origin === GAME_ORIGIN));
+    assert.ok(kept.every((frame) => frame.phase !== ProbePhase.Boot && frame.origin === PROJECT_ORIGIN));
     const picked = pickFrames(kept);
     assert.equal(picked.length, 8);
     assert.equal(picked[0], kept[0]);
@@ -438,7 +438,7 @@ describe("hostile evidence paths: nothing outside the evidence root is read or s
     path: file,
     atMs,
     phase: ProbePhase.InputBurst,
-    origin: GAME_ORIGIN,
+    origin: PROJECT_ORIGIN,
     width: 8,
     height: 8,
   });
@@ -459,7 +459,7 @@ describe("hostile evidence paths: nothing outside the evidence root is read or s
     for (const [index, hostile] of hostileFrames.entries()) {
       const summary = hostileSummaries[index % hostileSummaries.length] ?? "";
       const refs: EvidenceRefs = {
-        gameOrigin: GAME_ORIGIN,
+        projectOrigin: PROJECT_ORIGIN,
         frames: [frame("ok-0.png", 1_000), frame(hostile, 1_500), frame("ok-1.png", 2_000)],
         consoleSummaryPath: summary,
         networkSummaryPath: summary,
@@ -481,7 +481,7 @@ describe("hostile evidence paths: nothing outside the evidence root is read or s
   it("skips a run whose only frames escape, with no call", async () => {
     const { parent, root } = await hostileLayout();
     const refs: EvidenceRefs = {
-      gameOrigin: GAME_ORIGIN,
+      projectOrigin: PROJECT_ORIGIN,
       frames: [
         frame("../outside.png", 1_000),
         frame(path.join(parent, "outside.png"), 2_000),

@@ -6,7 +6,7 @@ export type StudioLayout = {
   exoharness: string;
   workspaces: string;
   harnessWs: string;
-  gamesRoot: string;
+  projectsRoot: string;
   secrets: string;
   scratch: string;
   runs: string;
@@ -20,7 +20,7 @@ export function layoutFor(userData: string): StudioLayout {
     exoharness: path.join(userData, "exoharness"),
     workspaces: path.join(userData, "workspaces"),
     harnessWs: path.join(userData, "workspaces", "harness"),
-    gamesRoot: path.join(userData, "workspaces", "games"),
+    projectsRoot: path.join(userData, "workspaces", "games"),
     secrets: path.join(userData, "secrets"),
     scratch: path.join(userData, "scratch"),
     runs: path.join(userData, "runs"),

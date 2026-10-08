@@ -1,8 +1,8 @@
 /**
- * Preview pool — N observation ports on games, addressed by handle.
+ * Preview pool — N observation ports on projects, addressed by handle.
  *
  * The visible WebContentsView is the reserved `"live"` port; headless ports are created on
- * demand by a factory the Electron layer injects (a hidden window reusing the same `game://`
+ * demand by a factory the Electron layer injects (a hidden window reusing the same `project://`
  * protocol). The pool itself is Electron-free: what a port *is* stays the caller's business,
  * the pool only leases and routes.
  *

@@ -1,5 +1,5 @@
 /**
- * Tool permission ledger: the wait between a game chat's Claude session asking to use a tool and
+ * Tool permission ledger: the wait between a project chat's Claude session asking to use a tool and
  * the person's answer in the chat. Modelled on the plugin consent ledger, with one difference:
  * the chat's own session has no timeout. Claude Code waits for the person, so this does too; the
  * delegation's own deadline and Stop still end the wait through the signal and `cancel()`. Only a
@@ -121,7 +121,7 @@ export class ToolPermissions {
 
   /**
    * Withdraw every pending request in scope. A scope key left undefined matches everything, so
-   * `{}` is the shutdown path, `{threadId}` a turn's end and `{project}` a game's Stop. A turn's
+   * `{}` is the shutdown path, `{threadId}` a turn's end and `{project}` a project's Stop. A turn's
    * end leaves a card that outlives turns (`outlivesTurn`). Returns how many were settled.
    */
   cancel(scope: { project?: string; threadId?: string }, by: WithdrawnBy): number {

@@ -174,7 +174,7 @@ describe("the director's tools and brief", () => {
       baseCommit: "abcdef1234567890",
     } as never);
     assert.match(brief, /You are the DIRECTOR of run run_d/);
-    assert.match(brief, /GAME GOAL: refine the MACBA plaza/);
+    assert.match(brief, /PROJECT GOAL: refine the MACBA plaza/);
     assert.match(brief, /OWN SHAPE: entry src\/main\.ts, built with `npm run build`/);
     assert.match(brief, /THE REQUESTED STATE: .*I opens the picker.*verified by maps\.activeId/);
     assert.match(
@@ -269,7 +269,7 @@ describe("the director's tools and brief", () => {
   });
 
   /**
-   * The step that makes somebody's own game judgeable at all (M2.6). Its brief is the base
+   * The step that makes somebody's own project judgeable at all (M2.6). Its brief is the base
    * builder's own-shape wiring task and nothing else, and the director's own brief says which
    * of the two things happened — the contract is in, or it is the lead's first job.
    */
@@ -280,7 +280,7 @@ describe("the director's tools and brief", () => {
       projectLabel: "wreckage",
       shape,
     } as never);
-    assert.match(brief, /making the game "wreckage" judgeable for run run_c/);
+    assert.match(brief, /making the project "wreckage" judgeable for run run_c/);
     assert.ok(brief.includes(contractWiringAsk(shape)), "the base builder's own sentence, not a second wording");
     assert.match(brief, /src\/studio\.d\.ts/, "and where the types are when the compiler refuses ./studio.js");
     assert.match(brief, /Run `npm run build` yourself/);
@@ -288,16 +288,16 @@ describe("the director's tools and brief", () => {
     assert.match(brief, /Do not commit; the studio commits/);
     assert.match(
       brief,
-      /GAME GOAL \(context — not this run's work\): make the crashes hurt/,
+      /PROJECT GOAL \(context — not this run's work\): make the crashes hurt/,
       "the goal is context here, not the job",
     );
-    assert.doesNotMatch(brief, /FACET WIRING/, "no facets fork from this one — it is the game as it arrived");
+    assert.doesNotMatch(brief, /FACET WIRING/, "no facets fork from this one — it is the project as it arrived");
     const unbuilt = contractBrief({
       run: { runId: "r", goal: "g" },
       projectLabel: "p",
       shape: { entry: "index.html", main: "src/main.js", build: null },
     } as never);
-    assert.doesNotMatch(unbuilt, /Run `/, "a game with no build command is asked to run nothing");
+    assert.doesNotMatch(unbuilt, /Run `/, "a project with no build command is asked to run nothing");
 
     const now = Date.now();
     const args = {
@@ -314,7 +314,7 @@ describe("the director's tools and brief", () => {
       contract: { ok: true, commit: "feedface0123456", error: null },
       startObserved: true,
     } as never);
-    assert.match(installed, /THE GAME IS JUDGEABLE NOW: it arrived without the studio contract/);
+    assert.match(installed, /THE PROJECT IS JUDGEABLE NOW: it arrived without the studio contract/);
     assert.match(installed, /wired it into src\/main\.ts and committed it \(feedface01\)/);
     assert.doesNotMatch(installed, /THE START COULD NOT BE OBSERVED/, "there is a before now, and it can be looked at");
     const failed = directorBrief({
@@ -332,19 +332,19 @@ describe("the director's tools and brief", () => {
     );
     assert.doesNotMatch(
       directorBrief({ ...args, contract: null } as never),
-      /CONTRACT NOT INSTALLED|THE GAME IS JUDGEABLE NOW/,
-      "a game that already loads it is told nothing",
+      /CONTRACT NOT INSTALLED|THE PROJECT IS JUDGEABLE NOW/,
+      "a project that already loads it is told nothing",
     );
   });
 
   /**
-   * A game that arrived as its own git repository (M2.5). With the user's consent the studio
+   * A project that arrived as its own git repository (M2.5). With the user's consent the studio
    * versions that folder inside every fork, so "nothing inside is versioned … no edit inside it
    * is ever committed" — what the brief said in both worlds — was false in exactly the world it
    * mattered in, and sent one night hand-porting 85k lines the fork already tracked. The lead can
    * always ask its own worktree, so the brief sends it there instead of guessing for it.
    */
-  it("sends the lead to its own worktree about a repository inside the game, and never claims nothing there is versioned", async () => {
+  it("sends the lead to its own worktree about a repository inside the project, and never claims nothing there is versioned", async () => {
     const now = Date.now();
     const args = {
       run: { runId: "r", project: "flautout-remix", goal: "g" },
@@ -354,7 +354,10 @@ describe("the director's tools and brief", () => {
       baseCommit: "abc1234567",
     };
     const brief = directorBrief({ ...args, nestedRepos: ["wreckage"] } as never);
-    assert.match(brief, /NESTED REPOSITORIES: wreckage — each is a git repository of its own inside the game folder/);
+    assert.match(
+      brief,
+      /NESTED REPOSITORIES: wreckage — each is a git repository of its own inside the project folder/,
+    );
     assert.match(brief, /Run `git ls-files -- <path>` in your worktree/);
     assert.match(brief, /your workers' edits inside it are committed, integrated and landed like any other/);
     assert.match(brief, /If it lists nothing, nothing inside it is versioned — vendor what the run builds on first/);
@@ -366,7 +369,7 @@ describe("the director's tools and brief", () => {
     assert.doesNotMatch(
       directorBrief({ ...args, nestedRepos: [] } as never),
       /NESTED REPOSITORIES/,
-      "a game with no repository inside it hears nothing about one",
+      "a project with no repository inside it hears nothing about one",
     );
 
     // The same question asked of a commit rather than of the lead: this is what the health pass
@@ -394,15 +397,15 @@ describe("the director's tools and brief", () => {
     assert.deepEqual(
       await unversionedNested(said("160000 commit 4b825dc642cb\twreckage"), []),
       [],
-      "and a game with no repository inside it is never asked",
+      "and a project with no repository inside it is never asked",
     );
   });
 
   /** And the user hears it before they walk away, in words that name no contract and no run. */
-  it("says in the chat that tonight starts by making the game judgeable — only when it is not", () => {
+  it("says in the chat that tonight starts by making the project judgeable — only when it is not", () => {
     const said = judgeableFirst({ contract: "missing", problems: [] } as never);
-    assert.match(said, /Your game doesn't have the studio's connection yet/);
-    assert.match(said, /whether a change made the game better/);
+    assert.match(said, /Your project doesn't have the studio's connection yet/);
+    assert.match(said, /whether a change made the project better/);
     assert.doesNotMatch(
       said,
       /contract|__studio|installStudio/,
@@ -471,7 +474,7 @@ describe("the honest landing, the plain word and the night's own starting points
       } as never),
       ["base"],
     );
-    // A resumed night standing on merged work: that head is a game and is judged like one.
+    // A resumed night standing on merged work: that head is a project and is judged like one.
     assert.deepEqual(
       startingHeads({
         fromScratch: true,
@@ -492,7 +495,7 @@ describe("the honest landing, the plain word and the night's own starting points
     );
     assert.equal(plainly("its work is on attempt/shine/3-stopped"), "its work is");
     assert.equal(
-      plainly("the base session failed: ENOENT, open '/Users/someone/games/plaza/src/world.js'"),
+      plainly("the base session failed: ENOENT, open '/Users/someone/projects/plaza/src/world.js'"),
       "the base session failed: ENOENT, open",
     );
     assert.equal(plainly("the starting point is ready"), "the starting point is ready");
@@ -763,11 +766,11 @@ describe("a worker's contract: done, compiled and dry-run", () => {
    * And what it costs to start one that cannot finish a round. The loop's gate refuses the first
    * round before it counts as one, so the worker ends with `iterations: 0` — after its worktree,
    * its window and (on an unproven fork point) a whole evidence pass. The session floor of three
-   * minutes says nothing about a game whose rounds take twenty.
+   * minutes says nothing about a project whose rounds take twenty.
    */
-  it("warns at the start when a worker's budget cannot hold one round of this game", () => {
+  it("warns at the start when a worker's budget cannot hold one round of this project", () => {
     const warned = shortBudgetWarning(12 * 60_000, 20 * 60_000);
-    assert.match(String(warned), /a round on this game has been taking about 20 min and this worker has 12 —/);
+    assert.match(String(warned), /a round on this project has been taking about 20 min and this worker has 12 —/);
     assert.match(String(warned), /Give it at least 25 min, or finish instead/);
     assert.equal(
       shortBudgetWarning(25 * 60_000, 20 * 60_000),
@@ -865,35 +868,43 @@ describe("the night's plan, before anyone builds", () => {
     );
   });
 
-  it("takes what kind of game this is on the plan, and refuses a kind that is not one", () => {
+  it("takes what kind of project this is on the plan, and refuses a kind that is not one", () => {
     const one = JSON.stringify([{ id: "board" }]);
     const board = (
-      compilePlan({ summary: "a chess board that reads", workers: one, kind: "static-board" }) as { plan: any }
+      compilePlan({ summary: "a unit converter that reads", workers: one, kind: "utility" }) as { plan: any }
     ).plan;
     assert.deepEqual(
-      board.game,
-      { kind: "static-board", hud: false, mouseLook: false, keyboardMove: false, playScript: null },
+      board.app,
+      {
+        kind: "utility",
+        ui: true,
+        navigation: false,
+        typing: true,
+        mouseLook: false,
+        keyboardMove: false,
+        playScript: null,
+      },
       "a declared kind brings its own traits and nothing else",
     );
 
     const scripted = (
       compilePlan({
-        summary: "a builder you pan around",
+        summary: "a diagram editor you pan around",
         workers: one,
-        kind: "free-camera",
+        kind: "editor",
         play_script: JSON.stringify([{ type: "drag", fromX: 100, fromY: 100, x: 300, y: 200 }]),
       }) as { plan: any }
     ).plan;
-    assert.equal(scripted.game.kind, "free-camera");
+    assert.equal(scripted.app.kind, "editor");
     assert.equal(
-      scripted.game.playScript.length,
+      scripted.app.playScript.length,
       1,
       "the play script arrives as a JSON string and lands as one normalized action",
     );
-    assert.equal(scripted.game.playScript[0].type, "drag");
+    assert.equal(scripted.app.playScript[0].type, "drag");
 
     assert.equal(
-      (compilePlan({ summary: "s", workers: one }) as { plan: any }).plan.game,
+      (compilePlan({ summary: "s", workers: one }) as { plan: any }).plan.app,
       null,
       "a plan that declares nothing declares nothing",
     );
@@ -1178,7 +1189,7 @@ describe("the studio's own look at a running worker, and whose defect it is", ()
     );
   });
 
-  it("M4.6: in a game the user brought, the look reports the seam and nothing about the template's rules", () => {
+  it("M4.6: in a project the user brought, the look reports the seam and nothing about the template's rules", () => {
     const own = {
       id: "hud",
       title: "HUD",
@@ -1192,13 +1203,20 @@ describe("the studio's own look at a running worker, and whose defect it is", ()
     const diff = "+++ b/app/hud.ts\n@@ -1,0 +1,1 @@\n+const jitter = Math.random();\n";
     const onTemplate = monitorFindings({ status, diff, spec: own, ownsMain: false, main: "src/main.ts" });
     assert.equal(onTemplate.violations.length, 2, JSON.stringify(onTemplate.violations));
-    const ownGame = monitorFindings({ status, diff, spec: own, ownsMain: false, main: "src/main.ts", template: false });
+    const ownProject = monitorFindings({
+      status,
+      diff,
+      spec: own,
+      ownsMain: false,
+      main: "src/main.ts",
+      template: false,
+    });
     assert.deepEqual(
-      ownGame.violations,
+      ownProject.violations,
       ["edited a file outside this facet's ownership (app/other.ts)"],
-      "the game's own randomness is the game",
+      "the project's own randomness is the project",
     );
-    assert.deepEqual(ownGame.files, ["app/hud.ts", "app/other.ts"]);
+    assert.deepEqual(ownProject.files, ["app/hud.ts", "app/other.ts"]);
   });
 
   it("M4.6: the seam a director types is a path, a folder or a glob — and a glob has to be quoted", () => {
@@ -1211,7 +1229,7 @@ describe("the studio's own look at a running worker, and whose defect it is", ()
     assert.match(
       owns,
       /everything but the entry, the contract and index\.html/,
-      "what an empty seam means in a game of its own",
+      "what an empty seam means in a project of its own",
     );
   });
 
@@ -1241,7 +1259,10 @@ describe("the studio's own look at a running worker, and whose defect it is", ()
         before,
         look({
           minutesInRound: 20,
-          violations: [...before.violations, "Math.random() in game code — two builds cannot be compared on one seed"],
+          violations: [
+            ...before.violations,
+            "Math.random() in project code — two builds cannot be compared on one seed",
+          ],
         }),
       )!.text,
       /^worker plaza: 20 min into round 1 — Math\.random/,
@@ -1475,7 +1496,7 @@ describe("the studio's own look at a running worker, and whose defect it is", ()
   });
 
   /**
-   * What a round on this game costs (M3.4). Every worker used to be sized on the assumption
+   * What a round on this project costs (M3.4). Every worker used to be sized on the assumption
    * that a round takes eight minutes; the rounds of the first real night took nine to
    * forty-six, so a worker given forty minutes got one round and the next one's second round
    * was cut in half. The director now reads the measurement instead of the assumption.
@@ -1930,8 +1951,8 @@ describe("a director's night through the real core and harness", () => {
     );
     rigs.push(rig);
     assert.equal(rig.core.host.hasCapability("director"), true, "the seed claims the director");
-    const project = await rig.core.games.scaffold("director-smoke", { title: "Director smoke" });
-    // The user has the game open in Live: the one load in this test that is theirs.
+    const project = await rig.core.projects.scaffold("director-smoke", { title: "Director smoke" });
+    // The user has the project open in Live: the one load in this test that is theirs.
     await rig.core.loadPreview({ project: project.name });
     const liveLoadsBefore = rig.preview.loads.length;
     const seen: { director: DelegateRequest[]; workers: DelegateRequest[] } = { director: [], workers: [] };
@@ -2080,10 +2101,10 @@ describe("a director's night through the real core and harness", () => {
       `one worker session — worker_start answered ${JSON.stringify(results.started)}; waited ${JSON.stringify(results.waited?.happened)}`,
     );
     const director = seen.director[0]!;
-    // Flipped (one session): the lead is its chat's own session — it sits in the game folder and
+    // Flipped (one session): the lead is its chat's own session — it sits in the project folder and
     // writes nothing; the integration worktree is the build it leads (its grant's root).
     const worktree = director.director!.root;
-    assert.equal(await realpath(director.cwd), await realpath(project.dir), "the lead sits in the game folder");
+    assert.equal(await realpath(director.cwd), await realpath(project.dir), "the lead sits in the project folder");
     assert.ok(worktree.includes(path.join("autopilot", runId, "integration")), worktree);
     assert.equal(director.readOnly, true, "and only reads");
     for (const name of [
@@ -2196,7 +2217,7 @@ describe("a director's night through the real core and harness", () => {
     await assert.rejects(stat(worktree), "the integration worktree is removed");
     // Flipped (2026-09-28): the user's window used to be loaded by the show and by the landing,
     // under them. Live now keeps what they opened; the show offered the integrated build and the
-    // landing the changed game folder, each on Live's Reload.
+    // landing the changed project folder, each on Live's Reload.
     assert.equal(rig.preview.loads.length, liveLoadsBefore, "nothing the night did loaded the user's Live");
     const behind = rig.events
       .filter((e) => e.type === "live.behind")
@@ -2226,29 +2247,29 @@ describe("a director's night through the real core and harness", () => {
   });
 
   /**
-   * A game with a repository of its own inside it, which the studio was not allowed to version.
+   * A project with a repository of its own inside it, which the studio was not allowed to version.
    * The merged build runs — it always did — and carries none of the work done inside that folder,
    * and `git status` cannot see the difference, because git does not walk into a gitlink. That is
    * the silent loss of 2026-09-07: a night's work reported as integrated and made live, and gone.
    * The health pass asks the commit instead, and says so in words the user reads.
    */
-  it("fails the health pass on a merge that carries nothing from a repository inside the game", async () => {
+  it("fails the health pass on a merge that carries nothing from a repository inside the project", async () => {
     const rig = await startRig(
       { replies: [] },
       { previewPoolMax: 2, createHeadlessPreview: async () => makeFakePreview() },
     );
     rigs.push(rig);
-    const project = await rig.core.games.scaffold("director-nested", { title: "Director nested" });
-    // The user's own game, inside the folder they opened: its own repository, a pointer in this one.
+    const project = await rig.core.projects.scaffold("director-nested", { title: "Director nested" });
+    // The user's own project, inside the folder they opened: its own repository, a pointer in this one.
     const nested = path.join(project.dir, "wreckage");
     await mkdir(nested, { recursive: true });
     await writeFile(path.join(nested, "car.js"), "export const car = 'wreck';\n");
     const asSomebody = ["-c", "user.email=you@example.com", "-c", "user.name=You"];
     await git(nested, ["init", "-q"]);
     await git(nested, ["add", "-A"]);
-    await git(nested, [...asSomebody, "commit", "-q", "-m", "the game so far"]);
+    await git(nested, [...asSomebody, "commit", "-q", "-m", "the project so far"]);
     await git(project.dir, ["add", "wreckage"]);
-    await git(project.dir, [...asSomebody, "commit", "-q", "-m", "the game inside the folder"]);
+    await git(project.dir, [...asSomebody, "commit", "-q", "-m", "the project inside the folder"]);
 
     const results: Record<string, any> = {};
     let brief = "";
@@ -2319,7 +2340,7 @@ describe("a director's night through the real core and harness", () => {
       .filter((e) => e.runId === runId)
       .map((e) => String(e.plain));
     assert.ok(
-      cards.some((c) => /carries nothing from the folder inside your game that keeps its own history/.test(c)),
+      cards.some((c) => /carries nothing from the folder inside your project that keeps its own history/.test(c)),
       cards.join(" | "),
     );
     assert.ok(!cards.some((c) => /did not start when it was checked/.test(c)), cards.join(" | "));
@@ -2330,33 +2351,33 @@ describe("a director's night through the real core and harness", () => {
   });
 
   /**
-   * The same folder, with the consent the Open Game sheet records (decision 1, 2026-09-08): the
+   * The same folder, with the consent the Open Project sheet records (decision 1, 2026-09-08): the
    * fork versions that repository, so an edit inside it is committed, merged and healthy like any
    * other. What the night still may not do is add it to the *user's* history — that renames their
    * own `.git` aside, and belongs to their own button (`landBuild`), not to a merge at 4 a.m.
    */
-  it("versions a consented repository inside the game, and leaves the landing of it to the user", async () => {
+  it("versions a consented repository inside the project, and leaves the landing of it to the user", async () => {
     const rig = await startRig(
       { replies: [] },
       { previewPoolMax: 2, createHeadlessPreview: async () => makeFakePreview() },
     );
     rigs.push(rig);
-    const project = await rig.core.games.scaffold("director-consented", { title: "Director consented" });
+    const project = await rig.core.projects.scaffold("director-consented", { title: "Director consented" });
     const nested = path.join(project.dir, "wreckage");
     await mkdir(nested, { recursive: true });
     await writeFile(path.join(nested, "car.js"), "export const car = 'wreck';\n");
     const asSomebody = ["-c", "user.email=you@example.com", "-c", "user.name=You"];
     await git(nested, ["init", "-q"]);
     await git(nested, ["add", "-A"]);
-    await git(nested, [...asSomebody, "commit", "-q", "-m", "the game so far"]);
-    // "Keep this folder", as the sheet writes it into the game's own studio.json.
+    await git(nested, [...asSomebody, "commit", "-q", "-m", "the project so far"]);
+    // "Keep this folder", as the sheet writes it into the project's own studio.json.
     const meta = JSON.parse(await readFile(path.join(project.dir, "studio.json"), "utf8"));
     await writeFile(
       path.join(project.dir, "studio.json"),
       `${JSON.stringify({ ...meta, versionNested: true }, null, 2)}\n`,
     );
     await git(project.dir, ["add", "wreckage", "studio.json"]);
-    await git(project.dir, [...asSomebody, "commit", "-q", "-m", "the game inside the folder"]);
+    await git(project.dir, [...asSomebody, "commit", "-q", "-m", "the project inside the folder"]);
 
     const results: Record<string, any> = {};
     fakeEngine(rig, async (request) => {
@@ -2424,7 +2445,7 @@ describe("a director's night through the real core and harness", () => {
     // …and the landing of it is the user's to make, in words that name no branch.
     assert.match(
       results.finished,
-      /not landed: wreckage\/ is the user's own repository inside the game folder/,
+      /not landed: wreckage\/ is the user's own repository inside the project folder/,
       results.finished,
     );
     assert.match(results.finished, /make this build live from the outcome card/, results.finished);
@@ -2436,7 +2457,7 @@ describe("a director's night through the real core and harness", () => {
       .find((e) => e.pass === "close")!;
     assert.match(
       String(close.because),
-      /^Nothing was made live: part of this game keeps its own version history/,
+      /^Nothing was made live: part of this project keeps its own version history/,
       String(close.because),
     );
     assert.equal(
@@ -2452,7 +2473,7 @@ describe("a director's night through the real core and harness", () => {
       { previewPoolMax: 2, createHeadlessPreview: async () => makeFakePreview() },
     );
     rigs.push(rig);
-    const project = await rig.core.games.scaffold("director-limit", { title: "Director limit" });
+    const project = await rig.core.projects.scaffold("director-limit", { title: "Director limit" });
     const results: Record<string, any> = {};
     fakeEngine(rig, async (request) => {
       if (request.director) {
@@ -2538,7 +2559,7 @@ describe("a director's night through the real core and harness", () => {
     assert.equal(await readFile(path.join(project.dir, "src", "sign.js"), "utf8"), "export const sign = 'open';\n");
     await stat(path.join(rig.core.layout.runs, runId, "director", `close_${head.slice(0, 8)}`, "verdict.json"));
 
-    // The ref outlives the worktree: the head is reachable in the game's repo.
+    // The ref outlives the worktree: the head is reachable in the project's repo.
     const api = rig.core.api() as unknown as Record<string, (p: unknown) => Promise<unknown>>;
     const refs = (await api["run.exec"]!({
       command: `git show-ref refs/studio/runs/${runId}/integration`,
@@ -2566,7 +2587,7 @@ describe("a director's night through the real core and harness", () => {
     await assert.rejects(rig.core.landBuild(project.name, "nonsense"), /not a commit hash/);
   });
   /**
-   * A game from scratch. Until now the night began on the empty scaffold: the fork gate refused
+   * A project from scratch. Until now the night began on the empty scaffold: the fork gate refused
    * every worker ("every camera renders effectively black"), `judge against=start` answered "the
    * other build could not be observed", and the director hand-built the world for twelve minutes
    * before anyone could fork. The studio builds the starting point first now — the same stage the
@@ -2585,7 +2606,7 @@ describe("a director's night through the real core and harness", () => {
     );
     rigs.push(rig);
     asEmptyScaffold(rig.preview);
-    const project = await rig.core.games.scaffold("director-scratch", { title: "From scratch" });
+    const project = await rig.core.projects.scaffold("director-scratch", { title: "From scratch" });
     const seen: { director: DelegateRequest[]; base: DelegateRequest[]; workers: DelegateRequest[] } = {
       director: [],
       base: [],
@@ -2688,7 +2709,7 @@ describe("a director's night through the real core and harness", () => {
 
     // The starting point: one base session, in the run's integration worktree, on the base brief.
     assert.equal(seen.base.length, 1, `one base session, got ${seen.base.length}`);
-    assert.match(seen.base[0]!.prompt, /You are building the starting scene/);
+    assert.match(seen.base[0]!.prompt, /You are building the first working version/);
     assert.match(seen.base[0]!.prompt, /Do not spend this stage designing a large framework/);
     assert.match(seen.base[0]!.prompt, /PREPARATION BUDGET: 3 minutes/);
     assert.ok(seen.base[0]!.timeoutMs! <= 200_000, "preparation leaves most working time to the lead");
@@ -2704,7 +2725,7 @@ describe("a director's night through the real core and harness", () => {
 
     // The director opens on it, knowing what it is.
     assert.equal(seen.director.length, 1);
-    assert.match(seen.director[0]!.prompt, /THE STARTING POINT: this game was an empty project/);
+    assert.match(seen.director[0]!.prompt, /THE STARTING POINT: this project was an empty project/);
     assert.ok(
       seen.director[0]!.prompt.includes(String(base.commit).slice(0, 10)),
       "the brief names the commit it stands on",
@@ -2752,7 +2773,9 @@ describe("a director's night through the real core and harness", () => {
       assert.doesNotMatch(String(card.plain), /\b[0-9a-f]{7,40}\b|run_[a-z0-9]{6,}|refs\//, String(card.plain));
     }
     assert.ok(
-      cards.some((c) => String(c.plain) === "this game is empty, so the studio is building the starting point first"),
+      cards.some(
+        (c) => String(c.plain) === "this project is empty, so the studio is building the starting point first",
+      ),
       cards.map((c) => c.plain).join(" | "),
     );
 
@@ -2785,7 +2808,7 @@ describe("a director's night through the real core and harness", () => {
     );
     rigs.push(rig);
     asEmptyScaffold(rig.preview);
-    const project = await rig.core.games.scaffold("director-base-fail", { title: "Base fails" });
+    const project = await rig.core.projects.scaffold("director-base-fail", { title: "Base fails" });
     const results: Record<string, any> = {};
     fakeEngine(rig, async (request) => {
       if (request.director) {
@@ -2864,7 +2887,7 @@ describe("a director's night through the real core and harness", () => {
   });
 
   /**
-   * A game the user brought that never loads the studio contract — the flautout-remix case
+   * A project the user brought that never loads the studio contract — the flautout-remix case
    * (2026-09-07). Nothing in it can be photographed, checked or compared: `window.__studio` is
    * missing, so every evidence pass reports a build that does not run, the fork gate refuses
    * every builder, and `judge against=start` can only say the other build could not be observed.
@@ -2872,8 +2895,8 @@ describe("a director's night through the real core and harness", () => {
    * commit becomes the "before" every later build is judged against. The folder the user sees is
    * not touched until finish lands the branch.
    */
-  it("a game that cannot be judged: the contract is installed first, in the worktree, and that commit is the run's before", async () => {
-    /** No window can see a game whose page never installed the contract — live or pooled. */
+  it("a project that cannot be judged: the contract is installed first, in the worktree, and that commit is the run's before", async () => {
+    /** No window can see a project whose page never installed the contract — live or pooled. */
     const previews: FakePreview[] = [];
     let wired = false;
     const running = {
@@ -2901,7 +2924,7 @@ describe("a director's night through the real core and harness", () => {
       for (const preview of previews) preview.next = { ...running };
     };
 
-    // Somebody's own Vite game: its own entry, its own build, and no call to installStudio.
+    // Somebody's own Vite project: its own entry, its own build, and no call to installStudio.
     const dir = path.join(await tmpDir("studio-unjudgeable-"), "wreckage");
     const build = "mkdir -p dist && cp index.html dist/index.html";
     await mkdir(path.join(dir, "src"), { recursive: true });
@@ -2930,9 +2953,9 @@ describe("a director's night through the real core and harness", () => {
       }),
     );
     const project = await rig.core.adoptProject(dir);
-    assert.equal(project.built, true, "the folder is somebody's own game");
+    assert.equal(project.built, true, "the folder is somebody's own project");
     assert.equal(
-      (await rig.core.games.validate(project.name)).contract,
+      (await rig.core.projects.validate(project.name)).contract,
       "missing",
       "and its page never loads the contract",
     );
@@ -2970,7 +2993,7 @@ describe("a director's night through the real core and harness", () => {
               owns: "src/crumple.ts",
             }),
           );
-          // M4.6 — the two refusals a game the user brought earns while a worker is running:
+          // M4.6 — the two refusals a project the user brought earns while a worker is running:
           // a second owner of an entry with no wiring block for them to meet in, and a worker
           // with no seam, which in somebody's own repository means nearly every file in it.
           results.refusedSecondOwner = text(
@@ -3072,27 +3095,27 @@ describe("a director's night through the real core and harness", () => {
       rig.core,
       (log) => customEvents(log, "run_finished").some((e) => e.runId === runId),
       180_000,
-      "director run_finished on an unjudgeable game",
+      "director run_finished on an unjudgeable project",
     );
 
     // One session, on the wiring task alone, in the run's own worktree.
     assert.equal(seen.contract.length, 1, `one contract session, got ${seen.contract.length}`);
-    // Flipped (one session): the lead sits in the game folder; the worktree is its grant's root.
+    // Flipped (one session): the lead sits in the project folder; the worktree is its grant's root.
     assert.equal(
       seen.contract[0]!.cwd,
       seen.director[0]!.director!.root,
       "in the integration worktree, never the live folder",
     );
-    assert.match(seen.contract[0]!.prompt, /making the game "wreckage" judgeable/);
+    assert.match(seen.contract[0]!.prompt, /making the project "wreckage" judgeable/);
     // The ask is two lines now (M4.2b/M4.6): the studio's own code is already on the page and
     // finds the scene, the camera and the frames; the renderer and the player are what it cannot guess.
     assert.match(seen.contract[0]!.prompt, /Add the two lines to src\/main\.ts \(or a module it imports\)/);
-    assert.match(seen.contract[0]!.prompt, /installStudio\(\{ renderer, player \}\)/);
+    assert.match(seen.contract[0]!.prompt, /installStudio\(\{ probes \}\)/);
     assert.match(seen.contract[0]!.prompt, /Change nothing else/);
 
     // Its commit is the night's first, and it is the wiring.
     assert.equal(results.subject, "studio: install contract", `the branch's first commit: ${results.subject}`);
-    assert.equal(Number(results.sinceStart), 1, "one commit beyond the game the user brought, and it is that one");
+    assert.equal(Number(results.sinceStart), 1, "one commit beyond the project the user brought, and it is that one");
     assert.match(results.wiredAtHead, /installStudio\(/, "the commit carries the wiring");
     assert.match(results.status.integration.head, /^[0-9a-f]{10}$/);
     assert.notEqual(
@@ -3102,7 +3125,7 @@ describe("a director's night through the real core and harness", () => {
     );
 
     // The director is told what happened, and no longer that its start could not be observed.
-    assert.match(seen.director[0]!.prompt, /THE GAME IS JUDGEABLE NOW: it arrived without the studio contract/);
+    assert.match(seen.director[0]!.prompt, /THE PROJECT IS JUDGEABLE NOW: it arrived without the studio contract/);
     assert.ok(
       seen.director[0]!.prompt.includes(results.status.integration.head),
       "the brief names the commit it stands on",
@@ -3111,7 +3134,7 @@ describe("a director's night through the real core and harness", () => {
     // (The playbook mentions the fallback by name; only the brief's own block is a heading.)
     assert.doesNotMatch(seen.director[0]!.prompt, /CONTRACT NOT INSTALLED — DO THIS FIRST/);
 
-    // The builder forks from it — the gate that used to refuse every fork on this game.
+    // The builder forks from it — the gate that used to refuse every fork on this project.
     assert.equal(results.started.started, "crumple", JSON.stringify(results.started));
     assert.ok(
       results.status.integration.head.startsWith(String(results.started.forkedFrom).slice(0, 10)) ||
@@ -3123,7 +3146,7 @@ describe("a director's night through the real core and harness", () => {
     // engine, where the hook (Claude) and the locks (Codex) read it. It used to carry nothing.
     assert.deepEqual(seen.workers[0]!.ownership?.owns, ["src/crumple.ts"], JSON.stringify(seen.workers[0]!.ownership));
     assert.equal(seen.workers[0]!.ownership?.ownsMain, true);
-    // …and the two refusals a game of its own earns while somebody is already building in it.
+    // …and the two refusals a project of its own earns while somebody is already building in it.
     assert.match(results.refusedSecondOwner, /already owns src\/main\.ts/, results.refusedSecondOwner);
     assert.match(results.refusedSecondOwner, /no FACET WIRING block/, results.refusedSecondOwner);
     assert.match(results.refusedNoSeam, /needs a seam/, results.refusedNoSeam);
@@ -3152,7 +3175,11 @@ describe("a director's night through the real core and harness", () => {
       "the landed build brought it",
     );
     assert.equal(await readFile(path.join(project.dir, "src", "crumple.ts"), "utf8"), "export const crumple = true;\n");
-    assert.equal((await rig.core.games.validate(project.name)).contract, "loaded", "the game is judgeable from now on");
+    assert.equal(
+      (await rig.core.projects.validate(project.name)).contract,
+      "loaded",
+      "the project is judgeable from now on",
+    );
     const finished = customEvents(events, "run_finished").find((e) => e.runId === runId)!;
     assert.equal(finished.landed, true, JSON.stringify(finished.stoppedBecause));
 
@@ -3161,18 +3188,18 @@ describe("a director's night through the real core and harness", () => {
       .filter((e) => e.runId === runId)
       .map((e) => String(e.plain));
     assert.ok(
-      cards.some((line) => /your game doesn't have the studio's connection yet/i.test(line)),
+      cards.some((line) => /your project doesn't have the studio's connection yet/i.test(line)),
       cards.join(" | "),
     );
     assert.ok(
-      cards.some((line) => /your game is connected to the studio now/i.test(line)),
+      cards.some((line) => /your project is connected to the studio now/i.test(line)),
       cards.join(" | "),
     );
   });
 
   /**
    * The other half of the same step: a session that says it wired the contract in but left a
-   * page that still cannot be looked at. The proof is the game answering, never the session's
+   * page that still cannot be looked at. The proof is the project answering, never the session's
    * word — so nothing is committed, nothing half-written is left for a builder to fork from,
    * and the director is told, in the brief, that this is its own first job.
    */
@@ -3230,7 +3257,7 @@ describe("a director's night through the real core and harness", () => {
             minutes: "5",
           }),
         );
-        results.finished = text(await call("finish", { summary: "the game still cannot be judged", land: "no" }));
+        results.finished = text(await call("finish", { summary: "the project still cannot be judged", land: "no" }));
         return {
           ok: true,
           engine: "codex",
@@ -3282,7 +3309,7 @@ describe("a director's night through the real core and harness", () => {
       /wire it yourself in the integration worktree — `import \{ installStudio \} from "\.\/studio\.js"`/,
       "and exactly what to do",
     );
-    assert.match(seen.director[0]!.prompt, /installStudio\(\{ renderer, player \}\)/, "which is the whole ask");
+    assert.match(seen.director[0]!.prompt, /installStudio\(\{ probes \}\)/, "which is the whole ask");
     assert.match(
       results.refused,
       /does not run/,
@@ -3293,7 +3320,7 @@ describe("a director's night through the real core and harness", () => {
       .filter((e) => e.runId === runId)
       .map((e) => String(e.plain));
     assert.ok(
-      cards.some((line) => /the studio could not add its connection to your game/i.test(line)),
+      cards.some((line) => /the studio could not add its connection to your project/i.test(line)),
       cards.join(" | "),
     );
   });
@@ -3304,7 +3331,7 @@ describe("a director's night through the real core and harness", () => {
       { previewPoolMax: 3, createHeadlessPreview: async () => makeFakePreview() },
     );
     rigs.push(rig);
-    const project = await rig.core.games.scaffold("director-stop", { title: "Director stop" });
+    const project = await rig.core.projects.scaffold("director-stop", { title: "Director stop" });
     const results: Record<string, any> = {};
     const building: Record<string, boolean> = {};
     fakeEngine(rig, async (request) => {
@@ -3394,14 +3421,14 @@ describe("a director's night through the real core and harness", () => {
     });
 
     const api = rig.core.api() as unknown as Record<string, (p: unknown) => Promise<unknown>>;
-    const inGame = async (command: string): Promise<string> =>
+    const inProject = async (command: string): Promise<string> =>
       (
         (await api["run.exec"]!({ command, project: project.name, timeoutMs: 30_000 })) as { stdout: string }
       ).stdout.trim();
     // What the user's repository looks like the evening before, to compare with the morning.
     const before = {
-      branches: await inGame("git branch --format='%(refname:short)'"),
-      tags: await inGame("git tag --list"),
+      branches: await inProject("git branch --format='%(refname:short)'"),
+      tags: await inProject("git tag --list"),
     };
 
     const runId = rig.core.newRunId();
@@ -3469,18 +3496,22 @@ describe("a director's night through the real core and harness", () => {
     assert.match(results.stopped, new RegExp(`refs/studio/runs/${runId}/attempts/plaza/1-stopped`), results.stopped);
     assert.match(results.stopped, /nothing is reset/);
     assert.match(
-      await inGame(`git show refs/studio/runs/${runId}/attempts/plaza/1-stopped:src/plaza.js`),
+      await inProject(`git show refs/studio/runs/${runId}/attempts/plaza/1-stopped:src/plaza.js`),
       /half-painted/,
     );
 
-    // …and the morning after, the game's repository looks exactly as the user left it: the
+    // …and the morning after, the project's repository looks exactly as the user left it: the
     // night's bookkeeping is all on refs of the studio's own. A first real night left eleven
-    // `attempt/*` branches and a `snap/*` tag in somebody's game (M2.7).
-    assert.equal(await inGame("git branch --format='%(refname:short)'"), before.branches, "the night added a branch");
-    assert.equal(await inGame("git tag --list"), before.tags, "the night added a tag `git push --tags` would ship");
+    // `attempt/*` branches and a `snap/*` tag in somebody's project (M2.7).
+    assert.equal(
+      await inProject("git branch --format='%(refname:short)'"),
+      before.branches,
+      "the night added a branch",
+    );
+    assert.equal(await inProject("git tag --list"), before.tags, "the night added a tag `git push --tags` would ship");
     assert.equal(before.branches, "main");
     assert.equal(before.tags, "");
-    const studioRefs = (await inGame("git for-each-ref --format='%(refname)' refs/studio/"))
+    const studioRefs = (await inProject("git for-each-ref --format='%(refname)' refs/studio/"))
       .split("\n")
       .filter(Boolean);
     assert.ok(studioRefs.includes(`refs/studio/runs/${runId}/attempts/plaza/1-stopped`), studioRefs.join(" | "));
@@ -3489,7 +3520,7 @@ describe("a director's night through the real core and harness", () => {
       `the run's own starting-point snapshot: ${studioRefs.join(" | ")}`,
     );
     // One committer, not the five a night used to leave in `git log`.
-    const committers = new Set((await inGame("git log --format='%an|%cn'")).split("\n").filter(Boolean));
+    const committers = new Set((await inProject("git log --format='%an|%cn'")).split("\n").filter(Boolean));
     assert.deepEqual([...committers], ["AI Game Studio|AI Game Studio"], [...committers].join(" | "));
 
     // A single session the director stops says the same thing: the engine's "stopped by you"
@@ -3523,7 +3554,7 @@ describe("a director's night through the real core and harness", () => {
       { previewPoolMax: 3, createHeadlessPreview: async () => makeFakePreview() },
     );
     rigs.push(rig);
-    const project = await rig.core.games.scaffold("director-steer", { title: "Director steer" });
+    const project = await rig.core.projects.scaffold("director-steer", { title: "Director steer" });
     const results: Record<string, any> = {};
     const SESSION = "plaza-session";
     const turns: Array<{ at: number; prompt: string; resume: string | null }> = [];
@@ -3705,7 +3736,7 @@ describe("a director's night through the real core and harness", () => {
       { previewPoolMax: 2, createHeadlessPreview: async () => makeFakePreview() },
     );
     rigs.push(rig);
-    const project = await rig.core.games.scaffold("director-empty-interrupt", { title: "Director empty interrupt" });
+    const project = await rig.core.projects.scaffold("director-empty-interrupt", { title: "Director empty interrupt" });
     const results: Record<string, any> = {};
     const turns: Array<{ prompt: string; resume: string | null }> = [];
     const api = rig.core.api() as unknown as Record<string, (p: unknown) => Promise<unknown>>;
@@ -3780,7 +3811,7 @@ describe("a director's night through the real core and harness", () => {
       { previewPoolMax: 2, createHeadlessPreview: async () => makeFakePreview() },
     );
     rigs.push(rig);
-    const project = await rig.core.games.scaffold("director-steer-single", { title: "Director steer single" });
+    const project = await rig.core.projects.scaffold("director-steer-single", { title: "Director steer single" });
     const results: Record<string, any> = {};
     const turns: Array<{ prompt: string; resume: string | null }> = [];
     fakeEngine(rig, async (request) => {
@@ -3896,7 +3927,7 @@ describe("a director's night through the real core and harness", () => {
       { previewPoolMax: 2, createHeadlessPreview: async () => makeFakePreview() },
     );
     rigs.push(rig);
-    const project = await rig.core.games.scaffold("director-head", { title: "Director head" });
+    const project = await rig.core.projects.scaffold("director-head", { title: "Director head" });
     const results: Record<string, any> = {};
     let sessions = 0;
     fakeEngine(rig, async (request) => {
@@ -4025,7 +4056,7 @@ describe("a director's night through the real core and harness", () => {
       { previewPoolMax: 2, createHeadlessPreview: async () => makeFakePreview() },
     );
     rigs.push(rig);
-    const project = await rig.core.games.scaffold("director-conflict", { title: "Director conflict" });
+    const project = await rig.core.projects.scaffold("director-conflict", { title: "Director conflict" });
     const results: Record<string, any> = {};
     let sessions = 0;
     fakeEngine(rig, async (request) => {
@@ -4116,7 +4147,7 @@ describe("a director's night through the real core and harness", () => {
     const close = (finished.verdicts as Array<{ pass: string; because: string }>).find((v) => v.pass === "close")!;
     assert.equal(
       close.because,
-      "Nothing was made live: your game folder had changes of its own, so this build was left beside it.",
+      "Nothing was made live: your project folder had changes of its own, so this build was left beside it.",
     );
 
     // The user's branch: their commit, their file, no merge in flight, nothing reset.
@@ -4155,7 +4186,7 @@ describe("a director's night through the real core and harness", () => {
           { previewPoolMax: 2, createHeadlessPreview: async () => makeFakePreview() },
         );
         rigs.push(rig);
-        const project = await rig.core.games.scaffold("director-resume", { title: "Director resume" });
+        const project = await rig.core.projects.scaffold("director-resume", { title: "Director resume" });
         const results: Record<string, any> = {};
         const prompts: string[] = [];
         let sessions = 0;
@@ -4167,7 +4198,7 @@ describe("a director's night through the real core and harness", () => {
           quit = resolve;
         });
         fakeEngine(rig, async (request) => {
-          // After the pause the chat's own session answers, in the game folder, with the paused
+          // After the pause the chat's own session answers, in the project folder, with the paused
           // night's resume bridged in: it records the resume, and the studio resumes the night when
           // its reply ends.
           if (!request.director && request.liveTools?.some((tool) => tool.name === "run_status")) {
@@ -4395,13 +4426,13 @@ describe("a director's night through the real core and harness", () => {
     );
 
   /**
-   * A start nobody could photograph. The run began on a game that draws a black frame (not an
+   * A start nobody could photograph. The run began on a project that draws a black frame (not an
    * empty scaffold, which is allowed to be blank): there is no "before" to compare with. The
    * director used to be told nothing and answered `judge against=start` with "the other build
    * could not be observed" — thirteen times in one night, once per judge call it wasted.
    */
   it("a start nobody could photograph is said once: the brief warns, and judge against=start answers instead of failing", async () => {
-    // The game folder itself — the run's "before" — draws nothing at all, in whichever window
+    // The project folder itself — the run's "before" — draws nothing at all, in whichever window
     // it is photographed (the harness's own stand-in, not the user's Live); a build of the run
     // in a worktree draws as usual.
     const blindAtStart = (preview: FakePreview): FakePreview => {
@@ -4418,7 +4449,7 @@ describe("a director's night through the real core and harness", () => {
       { previewPoolMax: 2, createHeadlessPreview: async () => blindAtStart(makeFakePreview()) },
     );
     rigs.push(rig);
-    const project = await rig.core.games.scaffold("director-blind", { title: "Director blind" });
+    const project = await rig.core.projects.scaffold("director-blind", { title: "Director blind" });
     const results: Record<string, any> = {};
     const prompts: string[] = [];
     fakeEngine(rig, async (request) => {
@@ -4478,7 +4509,7 @@ describe("a director's night through the real core and harness", () => {
       { previewPoolMax: 3, createHeadlessPreview: async () => makeFakePreview() },
     );
     rigs.push(rig);
-    const project = await rig.core.games.scaffold("director-monitor", { title: "Director monitor" });
+    const project = await rig.core.projects.scaffold("director-monitor", { title: "Director monitor" });
     const results: Record<string, any> = {};
     const monitorCommands: unknown[] = [];
     const sandboxRun = rig.core.sandbox.run.bind(rig.core.sandbox);
@@ -4633,7 +4664,7 @@ describe("a director's night through the real core and harness", () => {
       { previewPoolMax: 2, createHeadlessPreview: async () => makeFakePreview() },
     );
     rigs.push(rig);
-    const project = await rig.core.games.scaffold("director-review", { title: "Director review" });
+    const project = await rig.core.projects.scaffold("director-review", { title: "Director review" });
     const runId = rig.core.newRunId();
     const results: Record<string, any> = {};
     fakeEngine(rig, async (request) => {
@@ -4643,7 +4674,7 @@ describe("a director's night through the real core and harness", () => {
         results.planned = text(await call("plan", planFor("plaza")));
         // The user reads the card in their chat and says the one word. It lands in the run's
         // inbox exactly as the coordinator's steering does.
-        await rig.core.runFeedback({ threadId: await rig.core.threadForGame(project.name), runId, text: "go" });
+        await rig.core.runFeedback({ threadId: await rig.core.threadForProject(project.name), runId, text: "go" });
         results.started = json(
           await call("worker_start", {
             id: "plaza",
@@ -4751,7 +4782,7 @@ describe("a director's night through the real core and harness", () => {
       { previewPoolMax: 2, createHeadlessPreview: async () => makeFakePreview() },
     );
     rigs.push(rig);
-    const project = await rig.core.games.scaffold("director-answered", { title: "Director answered" });
+    const project = await rig.core.projects.scaffold("director-answered", { title: "Director answered" });
     const runId = rig.core.newRunId();
     const results: Record<string, any> = {};
     fakeEngine(rig, async (request) => {
@@ -4766,7 +4797,7 @@ describe("a director's night through the real core and harness", () => {
               payload: { runId, text: "make the benches oak", at: new Date().toISOString() },
             },
           ],
-          await rig.core.threadForGame(project.name),
+          await rig.core.threadForProject(project.name),
         );
         const start = {
           id: "plaza",
@@ -4836,7 +4867,7 @@ describe("a director's night through the real core and harness", () => {
       { previewPoolMax: 2, createHeadlessPreview: async () => makeFakePreview() },
     );
     rigs.push(rig);
-    const project = await rig.core.games.scaffold("director-keep", { title: "Director keep" });
+    const project = await rig.core.projects.scaffold("director-keep", { title: "Director keep" });
     const results: Record<string, any> = {};
     fakeEngine(rig, async (request) => {
       if (request.director) {
@@ -4902,7 +4933,7 @@ describe("a director's night through the real core and harness", () => {
     );
     await assert.rejects(stat(results.started.worktree), "the worktree it was made in is gone");
 
-    // The acceptance: something in the game's repo still contains that commit.
+    // The acceptance: something in the project's repo still contains that commit.
     const api = rig.core.api() as unknown as Record<string, (p: unknown) => Promise<unknown>>;
     const containing = (await api["run.exec"]!({
       command: `git for-each-ref --contains ${commit}`,
@@ -4938,7 +4969,7 @@ describe("a director's night through the real core and harness", () => {
       { previewPoolMax: 2, createHeadlessPreview: async () => makeFakePreview() },
     );
     rigs.push(rig);
-    const project = await rig.core.games.scaffold("director-memory", { title: "Director memory" });
+    const project = await rig.core.projects.scaffold("director-memory", { title: "Director memory" });
     const memory =
       "# what I know\n- the plaza camera is the one the user judges by\n- the haze peak above 0.5 washes the sky out\n";
     const results: Record<string, any> = {};
@@ -5024,7 +5055,7 @@ describe("a director's night through the real core and harness", () => {
    * all, so every pass meets the exhausted pool the first real night met after its fifth worker. A
    * judge and a playtest are choices the director can make a minute later: they are told there is
    * no window. The close cannot be skipped — nobody else will ever look at this build — so it used
-   * to borrow the user's window, say so on the run's thread and put their game back. It looks
+   * to borrow the user's window, say so on the run's thread and put their project back. It looks
    * through the studio's own stand-in now, and the user's window keeps what they opened.
    */
   it("with no window free: judge and playtest are told so, and the close looks without touching the user's window", async () => {
@@ -5050,7 +5081,7 @@ describe("a director's night through the real core and harness", () => {
       },
     );
     rigs.push(rig);
-    const project = await rig.core.games.scaffold("director-borrow", { title: "Director borrow" });
+    const project = await rig.core.projects.scaffold("director-borrow", { title: "Director borrow" });
     // Every load of the user's own window, and what it was pointed at.
     const shown: Array<{ project: string; root: string | null }> = [];
     const load = rig.preview.load.bind(rig.preview);
@@ -5058,7 +5089,7 @@ describe("a director's night through the real core and harness", () => {
       shown.push({ project: name, root: root ?? null });
       return load(name, entry, root, options);
     };
-    // The user opens the game: the one load of their window that is theirs.
+    // The user opens the project: the one load of their window that is theirs.
     await rig.core.loadPreview({ project: project.name });
     const results: Record<string, any> = {};
     let sessions = 0;
@@ -5199,7 +5230,7 @@ describe("a director's night through the real core and harness", () => {
       },
     );
     rigs.push(rig);
-    const project = await rig.core.games.scaffold("director-policy", { title: "Director policy" });
+    const project = await rig.core.projects.scaffold("director-policy", { title: "Director policy" });
     const results: Record<string, any> = {};
     let finishStartedAt = 0;
     fakeEngine(rig, async (request) => {
@@ -5354,16 +5385,16 @@ describe("a director's night through the real core and harness", () => {
   });
 
   /**
-   * A game that already knows what it is (M4.4/M4.6). The kind lives in the user's own
+   * A project that already knows what it is (M4.4/M4.6). The kind lives in the user's own
    * studio.json — the one declaration source that survives a night — and the director wrote it
-   * there without ever reading it back: a second night on a declared board game drove mouse-look
+   * there without ever reading it back: a second night on a declared board project drove mouse-look
    * and WASD before every judgement and put no HUD, look or movement check on any board. Three
    * more things this night proves: the kind the plan declares reaches the card the user reads
    * before the builders start; the write into their folder is COMMITTED where it was made, so
-   * the morning's "Make it my game" is not refused over an edit only the studio made; and a
+   * the morning's "Make it my project" is not refused over an edit only the studio made; and a
    * worker with no seam runs alone whichever end of the night it was started from.
    */
-  it("reads the kind the game already declares, commits the one it writes, and keeps a seamless worker alone", async () => {
+  it("reads the kind the project already declares, commits the one it writes, and keeps a seamless worker alone", async () => {
     const rig = await startRig(
       { replies: [] },
       { previewPoolMax: 2, createHeadlessPreview: async () => makeFakePreview() },
@@ -5385,7 +5416,7 @@ describe("a director's night through the real core and harness", () => {
       path.join(dir, "studio.json"),
       JSON.stringify({
         name: "boardgame",
-        title: "Board game",
+        title: "Board project",
         createdAt: "",
         contractVersion: 1,
         entry: "index.html",
@@ -5394,7 +5425,7 @@ describe("a director's night through the real core and harness", () => {
         serve: ".",
         own: true,
         kind: "three-modules",
-        game: { kind: "top-down", hud: true, mouseLook: false, keyboardMove: true, declaredBy: "an earlier night" },
+        app: { kind: "dashboard", ui: true, navigation: true, typing: false, declaredBy: "an earlier night" },
       }),
     );
     const project = await rig.core.adoptProject(dir);
@@ -5404,8 +5435,8 @@ describe("a director's night through the real core and harness", () => {
       if (request.director) {
         seen.director.push(request);
         const call = (name: string, args: Record<string, unknown>) => request.onLiveTool!(name, args);
-        // The director looked and decided this is not the top-down game the file says.
-        results.planned = text(await call("plan", { ...planFor("core"), kind: "first-person" }));
+        // The director looked and decided this is not the dashboard the file says.
+        results.planned = text(await call("plan", { ...planFor("core"), kind: "form-flow" }));
         // A worker with no seam owns nearly the whole repository, so it starts alone…
         results.startedCore = json(
           await call("worker_start", {
@@ -5438,7 +5469,7 @@ describe("a director's night through the real core and harness", () => {
           turns: 7,
           usage: {},
           sessionId: "director-declared",
-          summary: "read what the game says it is",
+          summary: "read what the project says it is",
         };
       }
       seen.workers.push(request);
@@ -5467,33 +5498,33 @@ describe("a director's night through the real core and harness", () => {
       rig.core,
       (log) => customEvents(log, "run_finished").some((e) => e.runId === runId),
       180_000,
-      "director run_finished on a game that declares its kind",
+      "director run_finished on a project that declares its kind",
     );
 
     // The declaration the studio wrote last time is read back before the session opens, and the
     // brief says so — the director confirms or corrects it instead of guessing again.
     assert.match(
       seen.director[0]!.prompt,
-      /THIS GAME ALREADY SAYS WHAT IT IS: its studio\.json declares a top-down game/,
+      /THIS PROJECT ALREADY SAYS WHAT IT IS: its studio\.json declares a dashboard project/,
       seen.director[0]!.prompt.slice(0, 4_000),
     );
 
     // What the night decided is on the plan card the user reads before any builder starts.
     const card = customEvents(events, "autopilot_plan_review").find((e) => e.runId === runId)!;
-    assert.equal((card.game as { kind?: string })?.kind, "first-person", JSON.stringify(card));
+    assert.equal((card.app as { kind?: string })?.kind, "form-flow", JSON.stringify(card));
 
     // …and it is in their studio.json, committed by the studio that wrote it: the folder ends
     // the night exactly as clean as it began.
     const stored = JSON.parse(await readFile(path.join(project.dir, "studio.json"), "utf8"));
-    assert.equal(stored.game.kind, "first-person", JSON.stringify(stored.game));
-    assert.equal(stored.game.declaredBy, "plan");
+    assert.equal(stored.app.kind, "form-flow", JSON.stringify(stored.app));
+    assert.equal(stored.app.declaredBy, "plan");
     assert.equal(stored.name, "boardgame", "every key the file already had survived");
     assert.equal(
       await git(project.dir, ["status", "--porcelain"]),
       "",
       "no edit of the studio's own is left for the user to explain",
     );
-    assert.match(await git(project.dir, ["log", "-1", "--format=%s"]), /studio: this game is a first-person game/);
+    assert.match(await git(project.dir, ["log", "-1", "--format=%s"]), /studio: this project is a form-flow project/);
 
     // The second worker was refused by name, and never started.
     assert.equal(results.startedCore.started, "core", JSON.stringify(results.startedCore));
@@ -5519,7 +5550,7 @@ describe("the selected direction-build duration", () => {
       { previewPoolMax: 3, createHeadlessPreview: async () => makeFakePreview() },
     );
     rigs.push(rig);
-    const project = await rig.core.games.scaffold("timed-director", { title: "Timed director" });
+    const project = await rig.core.projects.scaffold("timed-director", { title: "Timed director" });
     const runId = rig.core.newRunId();
     let turns = 0,
       workers = 0;
@@ -5560,10 +5591,10 @@ describe("the selected direction-build duration", () => {
         const status = json(await call("wait", { seconds: "1", worker: "sky" }));
         if (status.status.workers[0]?.state !== "running") break;
       }
-      // The user's Finish, where the run's inbox reads it: the game's own thread, not the studio's.
+      // The user's Finish, where the run's inbox reads it: the project's own thread, not the studio's.
       await rig.core.append(
         [{ type: "custom", event_type: "run_control", payload: { runId, action: "finish" } }],
-        await rig.core.threadForGame(project.name),
+        await rig.core.threadForProject(project.name),
       );
       assert.match(
         text(await call("finish", { summary: "Stopped early at the user’s request", land: "no" })),

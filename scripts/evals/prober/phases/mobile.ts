@@ -1,7 +1,7 @@
 /**
  * THE PHONE PASS: the same URL in a separate 390x844 @3x touch context. It asks one question: does a
  * canvas still draw at phone dimensions? Not layout, not touch controls. A screenshot that never came
- * back says nothing about the game, and a page that answered 5xx says the ORIGIN failed (a live
+ * back says nothing about the project, and a page that answered 5xx says the ORIGIN failed (a live
  * serving incident once read as "no canvas at phone size"), so both are `unknown`; only a canvas
  * captured FLAT, or no canvas at all, is a fail. `l3.phone_viewport` is an L3 row: it flags for a
  * human and never gates.
@@ -130,7 +130,7 @@ export function phoneViewportRow(m: MobileObservation): Check {
     return machineRow(
       id,
       CheckResult.Unknown,
-      `The phone pass could not load the page (HTTP ${status}), so nothing about the phone viewport was measured. An origin failure, not a game failure.`,
+      `The phone pass could not load the page (HTTP ${status}), so nothing about the phone viewport was measured. An origin failure, not a project failure.`,
       m,
     );
   }

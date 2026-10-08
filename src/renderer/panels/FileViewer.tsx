@@ -1,11 +1,11 @@
 /**
- * A file the chat named, or an image someone sent, read beside the conversation. The game view
+ * A file the chat named, or an image someone sent, read beside the conversation. The project view
  * gives this rectangle back the way Builds and Assets do. Files the viewer cannot draw say so;
- * Show in Finder reaches everything that is in the game folder.
+ * Show in Finder reaches everything that is in the project folder.
  */
 import type { JSX } from "react";
 import { useEffect, useMemo, useState } from "react";
-import type { GameFile } from "../../shared/game-file.ts";
+import type { ProjectFile } from "../../shared/project-file.ts";
 import { Icon } from "../ui/icons.tsx";
 import { ChatFilesScope } from "../chat-files.ts";
 import { Markdown } from "../ui/Markdown.tsx";
@@ -29,7 +29,7 @@ const LoadState = {
 } as const;
 type Loaded =
   | { state: typeof LoadState.Loading }
-  | { state: typeof LoadState.Ready; file: GameFile }
+  | { state: typeof LoadState.Ready; file: ProjectFile }
   | { state: typeof LoadState.Failed; problem: string };
 
 export function FileViewer({
@@ -53,12 +53,12 @@ export function FileViewer({
       return;
     }
     if (!threadId) {
-      setLoaded({ state: LoadState.Failed, problem: "This chat has no game folder yet." });
+      setLoaded({ state: LoadState.Failed, problem: "This chat has no project folder yet." });
       return;
     }
     let current = true;
     setLoaded({ state: LoadState.Loading });
-    window.studio.readGameFile(threadId, target.path).then(
+    window.studio.readProjectFile(threadId, target.path).then(
       (file) => {
         if (current) setLoaded({ state: LoadState.Ready, file });
       },
@@ -75,7 +75,7 @@ export function FileViewer({
     () => (file?.kind === "text" && file.text !== undefined ? highlightCode(file.text, codeLanguage(file.path)) : ""),
     [file],
   );
-  const inFolder = target.kind === "file" && file?.where === "game";
+  const inFolder = target.kind === "file" && file?.where === "project";
   const folderFile = inFolder ? file : null;
   return (
     <section data-file-viewer aria-label={besideName(target)} className="absolute inset-0 flex flex-col bg-page">
@@ -89,14 +89,16 @@ export function FileViewer({
           </span>
           {target.kind === "file" && file?.where === "build" && (
             <span className="truncate text-[13px] leading-[18px] text-ink-3">
-              In the build · not in your game folder yet
+              In the build · not in your project folder yet
             </span>
           )}
         </div>
         {folderFile && threadId && (
           <ViewerAction
             label={fileManagerWords(hostPlatform()).show}
-            onClick={() => void window.studio.revealGameFile(threadId, folderFile.path).catch(notifyProblem(onNotice))}
+            onClick={() =>
+              void window.studio.revealProjectFile(threadId, folderFile.path).catch(notifyProblem(onNotice))
+            }
           >
             <Icon name="folder" size={16} />
           </ViewerAction>

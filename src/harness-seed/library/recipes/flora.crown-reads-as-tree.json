@@ -5,6 +5,7 @@
   "checkClass": "flora",
   "kind": "craft",
   "pack": "flora",
+  "appKinds": ["graphics"],
   "note": "From the primary camera the crown must have a leaf silhouette with gaps and air in it, not a lump on a post.",
   "intent": "The construction check proves the tree is made of cards; this one proves the result is legible. What makes a crown read from twenty metres is an irregular outline, holes the sky shows through, and a visible trunk or branch structure carrying it. Give the crown a non-circular envelope (three or four card clusters of different sizes rather than one shell), let a few cards sit clear of the mass, and keep the trunk thick enough to be seen — a pale stick under a ball is the failure mode. Pair it with flora.leaf-cards: the scene check answers how it is built, this one answers what the judge sees.",
   "check": {

@@ -22,7 +22,7 @@ export const LEAD_PLACEHOLDER = "Talk to the lead while it builds…";
 /** What the box asks while Add's Plan mode is on: the next message gets a plan to review first. */
 export const PLAN_PLACEHOLDER = "Describe what to plan…";
 
-/** What home asks: its first message starts a game, and a chat with no game yet asks the same. */
+/** What home asks: its first message starts a project, and a chat with no project yet asks the same. */
 export const HOME_PLACEHOLDER = "What do you want to make?";
 
 /** What the chat asks for when nothing is running: the most specific task wins. */

@@ -15,7 +15,7 @@ const MESSAGE = {
   NotRegular: "Asset is not a regular file",
   InvalidNamespace: "Invalid asset namespace",
   InvalidJob: "Invalid delivery job",
-  Escapes: "Asset output escapes the authorized game or crosses a symlink",
+  Escapes: "Asset output escapes the authorized project or crosses a symlink",
   ExistingNotRegular: "Existing asset is not a regular file or crosses a symlink",
   ExistingDiffers: "Existing asset differs from the saved result; retrieval will not overwrite it",
   Symlink: "Asset output contains a symlink",
@@ -36,7 +36,7 @@ async function fileDigest(file: string): Promise<string> {
 }
 
 export interface DeliveryOptions {
-  /** Explicit SDK retrieval: accept identical bytes, never overwrite changed game files. */
+  /** Explicit SDK retrieval: accept identical bytes, never overwrite changed project files. */
   reuseExisting?: boolean;
   /** Quota admission runs before copying and counts only files not already present. */
   beforeCopy?: (newBytes: number) => Promise<void>;

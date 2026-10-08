@@ -1,7 +1,7 @@
 /**
  * The quick probe's rows computed straight from an observation, with no page: each row fails only on
  * positive evidence, says `unknown` when it could not look, and the input row's door demotions only
- * ever turn a fail into unknown. The evidence frames are gameplay frames on the game's origin only.
+ * ever turn a fail into unknown. The evidence frames are interaction frames on the project's origin only.
  */
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
@@ -21,7 +21,7 @@ import {
 } from "../../scripts/evals/prober/quick-rows.ts";
 import { type ProbePhase, EntranceVia } from "../../scripts/evals/vocabulary.ts";
 
-const GAME = "http://127.0.0.1:4173";
+const PROJECT = "http://127.0.0.1:4173";
 
 function raw(value: number): RawFrame {
   const data = new Uint8Array(32 * 18 * 4);
@@ -32,7 +32,7 @@ function raw(value: number): RawFrame {
   return { width: 32, height: 18, data };
 }
 
-function frame(atMs: number, phase: ProbePhase, value: number, origin = GAME): LoggedFrame {
+function frame(atMs: number, phase: ProbePhase, value: number, origin = PROJECT): LoggedFrame {
   return {
     record: { file: `f-${atMs}.png`, atMs, phase, label: "l", source: "page" },
     ref: { path: `/evidence/f-${atMs}.png`, atMs, phase, origin, width: 32, height: 18 },
@@ -44,16 +44,23 @@ const events = (over: Partial<PageEvents> = {}): PageEvents => ({
   console: [],
   pageErrors: [],
   network: [
-    { url: `${GAME}/index.html`, method: "GET", status: 200, resourceType: "document", failure: null, startedAtMs: 0 },
-    { url: `${GAME}/main.js`, method: "GET", status: 200, resourceType: "script", failure: null, startedAtMs: 5 },
+    {
+      url: `${PROJECT}/index.html`,
+      method: "GET",
+      status: 200,
+      resourceType: "document",
+      failure: null,
+      startedAtMs: 0,
+    },
+    { url: `${PROJECT}/main.js`, method: "GET", status: 200, resourceType: "script", failure: null, startedAtMs: 5 },
   ],
-  navigations: [{ atMs: 0, url: `${GAME}/index.html` }],
+  navigations: [{ atMs: 0, url: `${PROJECT}/index.html` }],
   documentStatus: 200,
   ...over,
 });
 
 const ranSnapshot = (over: Partial<InstrumentSnapshot> = {}): InstrumentSnapshot => ({
-  href: `${GAME}/index.html`,
+  href: `${PROJECT}/index.html`,
   raf: { calls: 900, distinctFrames: 900, firstT: 500, lastT: 30_000, intervals: [16] },
   errors: [],
   rejections: [],
@@ -79,7 +86,7 @@ const confirmed = (over: Partial<EntranceObservation> = {}): EntranceObservation
 
 function observation(over: Partial<QuickObservation> = {}): QuickObservation {
   return {
-    gameOrigin: GAME,
+    projectOrigin: PROJECT,
     endAtMs: 30_000,
     noErrorsMs: 20_000,
     firstRenderMs: 1_000,
@@ -103,7 +110,7 @@ describe("quick rows", () => {
       network: [
         ...events().network,
         {
-          url: `${GAME}/assets/house.glb`,
+          url: `${PROJECT}/assets/house.glb`,
           method: "GET",
           status: 404,
           resourceType: "fetch",
@@ -117,7 +124,7 @@ describe("quick rows", () => {
       network: [
         ...events().network,
         {
-          url: `${GAME}/favicon.ico`,
+          url: `${PROJECT}/favicon.ico`,
           method: "GET",
           status: 404,
           resourceType: "other",
@@ -153,7 +160,7 @@ describe("quick rows", () => {
     assert.equal(rendererDrewRow(observation()).result, "pass");
   });
 
-  it("visually_legible: black gameplay frames fail, textured ones pass, too few frames are unknown", () => {
+  it("visually_legible: black interaction frames fail, textured ones pass, too few frames are unknown", () => {
     const black = [2_000, 3_000, 4_000].map((t) => frame(t, "input-burst", 0));
     assert.equal(legibleRow(observation({ frames: black })).result, "fail");
     const lit = [2_000, 3_000, 4_000].map((t) => frame(t, "input-burst", -1));
@@ -175,7 +182,7 @@ describe("quick rows", () => {
     assert.equal(inputRow(observation({ bursts: refused })).result, "unknown");
   });
 
-  it("evidence frames are gameplay frames on the game's origin, and none at all when gameplay was never reached", () => {
+  it("evidence frames are interaction frames on the project's origin, and none at all when interaction was never reached", () => {
     const frames = [
       frame(1_000, "boot", -1),
       frame(2_000, "entrance", -1),

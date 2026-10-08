@@ -5,6 +5,7 @@
   "checkClass": "materials",
   "kind": "craft",
   "pack": "materials",
+  "appKinds": ["graphics"],
   "note": "Some standard material in the scene has a roughness map and one has bump or normal detail, so surfaces read as materials rather than paint.",
   "intent": "Uniform roughness is why a scene looks like a clay render: every surface takes the light the same way. Bake a roughness map wherever the surface has wear — polished paths and worn thresholds lower, dry plaster and cloth higher, wet stone and puddles much lower — and add a normal or bump map with detail at the scale of the material (mortar lines, plank grain, cloth weave) rather than at the scale of the object. One material with each in the scene is the floor, not the target.",
   "check": {

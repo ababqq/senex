@@ -25,7 +25,7 @@ export const SessionActivityRole = {
   Planner: "planner",
   /** A playtester or another read-only checker. */
   Reviewer: "reviewer",
-  /** A builder working on the game. */
+  /** A builder working on the project. */
   Builder: "builder",
 } as const;
 export type SessionActivityRole = (typeof SessionActivityRole)[keyof typeof SessionActivityRole];

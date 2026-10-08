@@ -15,7 +15,7 @@ private Studio source commits for maintainer provenance; installation uses the p
 Genex and Local Blender are official curated entries. The catalog never executes install
 hooks. Studio validates manifests, checks SHA-256, scans packages and asks for native-code
 trust before installation. Official identifies the maintainer; it does not imply a stronger
-sandbox. Generated games, profiles, credentials and acceptance scaffolds are not catalog content.
+sandbox. Generated projects, profiles, credentials and acceptance scaffolds are not catalog content.
 
 ### Source repository moved
 

@@ -10,7 +10,7 @@ import { WorkLogContent, WorkLog } from '../../src/renderer/chat/WorkLog.tsx';
 import { Markdown } from '../../src/renderer/ui/Markdown.tsx';
 import type { ActivityItem } from '../../src/renderer/chat/conversation-entries.ts';
 
-const planText = ['### Changes', '- Widen the wooden bridge.', '- Keep the warm lanterns.', '- Use `<canvas>` inside `src/main.js`.', '### Build steps', ...Array.from({length:12}, (_,i)=>`${i+1}. Check the river bank and the bridge approach. Keep the existing game controls and lighting.`)].join('\n');
+const planText = ['### Changes', '- Widen the wooden bridge.', '- Keep the warm lanterns.', '- Use `<canvas>` inside `src/main.js`.', '### Build steps', ...Array.from({length:12}, (_,i)=>`${i+1}. Check the river bank and the bridge approach. Keep the existing project controls and lighting.`)].join('\n');
 const items:ActivityItem[] = [
   {kind:'tool',id:'read',tool:{key:'read',icon:'read',label:'Read the scene',chip:'src/village.ts',state:'succeeded',detail:[{text:'// Keep the lanterns beside the river\nexport function lanternLight(count: number) {\n  const color = "warm white";\n  return { color, intensity: count * 0.8 };\n}'}]}},
   {kind:'tool',id:'edit',tool:{key:'edit',icon:'write',label:'Widened the bridge',state:'succeeded',detail:[{text:'The bridge now leaves room for two players to cross.'}]}},
@@ -29,7 +29,7 @@ export function ChatSpecimen() {
       <Markdown text="The bridge has room for two players now. I kept the warm lanterns and the original wood material."/></div>
     <WorkLog items={items}/>
     <LoadingState label="Checking the river crossing" details={<WorkLogContent items={items.slice(0,2)}/>}/>
-    <div id="question-specimen"><ChatQuestion title="Use the new moon texture in this game?" description="Image studio" choices={[
+    <div id="question-specimen"><ChatQuestion title="Use the new moon texture in this project?" description="Image studio" choices={[
       {id:'approve',label:'Approve',description:'Allow this action once.'},
       {id:'decline',label:'Decline',description:'Continue without this action.'},
     ]} onConfirm={async id=>{await new Promise(resolve=>setTimeout(resolve,80));setAnswer(id);}}/>

@@ -1,7 +1,7 @@
 import type { HarnessTool } from "../types/harness.d.ts";
 import { HostMethod } from "../loop/host-methods.ts";
 
-/** Artwork stays in the host library, outside game sources and exports. The host draws the look. */
+/** Artwork stays in the host library, outside project sources and exports. The host draws the look. */
 const LOOKS = {
   clouds: ["genex", "day", "night", "dawn", "mint", "storm"],
   aurora: ["aurora", "solar", "ice"],
@@ -10,7 +10,7 @@ const LOOKS = {
   ember: ["lava", "violet", "toxic"],
   ocean: ["earth", "desert", "alien"],
 };
-/** Families whose colour the host picks, so no two games share a look. */
+/** Families whose colour the host picks, so no two projects share a look. */
 const ORBS = [
   "orbital",
   "bricks",
@@ -29,12 +29,12 @@ const HINTS =
   "Clouds suit cozy/casual/adventure; aurora night/sci-fi/magic; bands space/arcade; marble puzzle/strategy; ember action/horror/fantasy; ocean open world/survival; orbital science/physics; bricks building/sandbox/kids; plasma sci-fi/energy; pixel retro/platformer; caustic water/fishing/beach; tempest action/weather/racing; nimbus calm/zen; terminal hacking/text/coding; voxel crafting/survival; meadow exploration/dreamlike; galaxy space/exploration; thermal stealth/horror/detective.";
 export const tools: HarnessTool[] = [
   {
-    name: "set_game_cover",
-    description: `Pick this game's sidebar cover once. Families with named palettes: ${Object.entries(LOOKS)
+    name: "set_project_cover",
+    description: `Pick this project's sidebar cover once. Families with named palettes: ${Object.entries(LOOKS)
       .map(([family, palettes]) => `${family}: ${palettes.join("|")}`)
       .join(
         "; ",
-      )}. Families whose colour the host picks: ${ORBS.join(", ")}. ${HINTS} Genre is only a hint; choose the family that will look best for this game. The host keeps every game's cover different, so it may use another palette or colour than the one named. The host draws it; an unknown look keeps the current cover. Uploaded or already chosen covers are kept.`,
+      )}. Families whose colour the host picks: ${ORBS.join(", ")}. ${HINTS} Genre is only a hint; choose the family that will look best for this project. The host keeps every project's cover different, so it may use another palette or colour than the one named. The host draws it; an unknown look keeps the current cover. Uploaded or already chosen covers are kept.`,
     parameters: {
       type: "object",
       properties: {
@@ -50,11 +50,11 @@ export const tools: HarnessTool[] = [
       required: ["family"],
     },
     async execute(args, ctx) {
-      if (!ctx.project || ctx.candidateId) return { ok: false, content: "Open a writable game first." };
+      if (!ctx.project || ctx.candidateId) return { ok: false, content: "Open a writable project first." };
       const { family, palette, seed, motion } = args;
       return {
         ok: true,
-        content: await ctx.call(HostMethod.GameSetCover, {
+        content: await ctx.call(HostMethod.ProjectSetCover, {
           project: ctx.project,
           threadId: ctx.threadId,
           family,

@@ -51,11 +51,11 @@ export function instructionSuffix(deadlineMin: number, policy: AnswerPolicy = AN
 
 /** The deliverable shape raw lanes are told: the one stated asymmetry (Rule 5). */
 export const RAW_DELIVERABLE =
-  "Build it as a static web game. Serving this folder's `index.html` (or `dist/` after `npm run build`) from a plain static server must run it. Three.js is allowed.";
+  "Build it as a static web project. Serving this folder's `index.html` (or `dist/` after `npm run build`) from a plain static server must run it. Three.js is allowed.";
 
 /** The line naming the pinned browser command (D10), appended when a raw lane's browser pin is `look-at-page`. */
 export const LOOK_AT_PAGE_LINE =
-  "To look at the running game, use the shell command `look-at-page <url> [--out shot.png]`: it opens a loopback URL (http://localhost or http://127.0.0.1) in headless Chromium, prints the page's console errors and saves a screenshot.";
+  "To look at the running project, use the shell command `look-at-page <url> [--out shot.png]`: it opens a loopback URL (http://localhost or http://127.0.0.1) in headless Chromium, prints the page's console errors and saves a screenshot.";
 
 /** The deliverable text a raw lane gets for its browser pin. */
 export function rawDeliverable(browser: BrowserPin): string {
@@ -252,7 +252,7 @@ async function moveEntry(from: string, to: string): Promise<void> {
 
 /**
  * When a run ends, move everything its agent made in the lane root into the run's work root, and
- * remove the lane root, so no finished game is left where a later lane could reach it. Nothing to do
+ * remove the lane root, so no finished project is left where a later lane could reach it. Nothing to do
  * when the lane ran in its work root.
  */
 export async function settleLaneRoot(laneRoot: string, workRoot: string): Promise<void> {

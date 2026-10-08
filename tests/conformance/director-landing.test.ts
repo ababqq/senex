@@ -81,7 +81,7 @@ async function night(
     { previewPoolMax: 2, createHeadlessPreview: async () => makeFakePreview() },
   );
   rigs.push(rig);
-  const project = await rig.core.games.scaffold(name, { title: name });
+  const project = await rig.core.projects.scaffold(name, { title: name });
   const results: Record<string, any> = {};
   let sessions = 0;
   fakeEngine(rig, async (request) => {
@@ -158,7 +158,7 @@ describe("the director's commits on the way to a landing", () => {
   it("lands nothing when the director's own last edits cannot be committed, and says why", async () => {
     let unreadable = "";
     // Flipped (one session): a director with its own hands in its worktree is the long turn's now;
-    // a waking lead sits in the game folder and writes nothing.
+    // a waking lead sits in the project folder and writes nothing.
     const { project, results, finished } = await night("director-final", {
       title: "Sign",
       directorLoop: "turn",

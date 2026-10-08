@@ -17,6 +17,7 @@
   "checkClass": "characters",
   "kind": "craft",
   "pack": "characters",
+  "appKinds": ["graphics"],
   "note": "An enemy is at least five meshes — head, torso, arms, legs — or a modelled asset; one capsule is a placeholder.",
   "intent": "One capsule is what a prototype uses to stand in for a person, and it is what the judge sees. Build the figure from at least a head, a torso, two arms and two legs as separate meshes in one group, proportioned from a real height (a head is about an eighth of it), with the shoulders wider than the hips and the limbs tapering. Parent the parts so a simple walk cycle can rotate them from update(dt). When Blender is available, model the character instead and load it with loadAsset — an asset counts as built from parts.",
   "check": {

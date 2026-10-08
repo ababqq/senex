@@ -1,5 +1,5 @@
 /**
- * Permissions in a game chat, the host's half: which delegation a person is answering, the mode it
+ * Permissions in a project chat, the host's half: which delegation a person is answering, the mode it
  * runs in (the chat's own, as far as its engine honours it: `engineMode`), the Allow / Deny questions it asks (recorded in the chat as
  * `tool_permission` rows and waited on in the ledger), what "always" keeps, and the picker's reach
  * into a running session. Composed by `StudioCore`; reached through `CoreInternals.permissions`.
@@ -73,7 +73,7 @@ const STORE_FILE = "permissions.json";
 export const LEAD_ASK_TIMEOUT_MS = 5 * MINUTE_MS;
 /** How many of a chat's messages the host remembers as the person's. */
 const PERSON_MESSAGES_PER_CHAT = 64;
-/** How deep the walk of the studio's own data folder opens folders that hold the games. */
+/** How deep the walk of the studio's own data folder opens folders that hold the projects. */
 const HOST_FILES_DEPTH = 4;
 /** The queue's records that end a message: it was answered, or taken back. */
 const MESSAGE_ENDS: ReadonlySet<unknown> = new Set([
@@ -106,7 +106,7 @@ const MESSAGE = {
   /** Why a lead started in Auto or Accept edits asks, once its chat has left that mode. */
   leftMode: (from: string, to: string) => `The chat switched from ${from} to ${to}.`,
   unknownMode: "Unknown permission mode.",
-  notGameChat: "Permission modes are set for a game chat.",
+  notProjectChat: "Permission modes are set for a project chat.",
   invalidAnswer: "Invalid permission answer",
   invalidRule: "Invalid permission rule",
   notSwitched: (label: string) => `The running reply could not switch to ${label}. Your next message will use it.`,
@@ -168,14 +168,14 @@ interface PersonNote {
 /** Whom a build's lead or the run's coordinator answers: its run's handed messages, or one message. */
 export type LeadAnswers = { runId: string } | { messageId: string };
 
-/** A build's lead or the run's coordinator the person may talk to in its game's chat. */
+/** A build's lead or the run's coordinator the person may talk to in its project's chat. */
 export interface LeadSessionAsk {
   project: string;
   threadId: string;
   answers: LeadAnswers;
   engine: string;
   model: string;
-  /** The folder it works in: the game's (a lead) or its own home (the coordinator). */
+  /** The folder it works in: the project's (a lead) or its own home (the coordinator). */
   cwd: string;
   /** A lead's: the integration worktree it leads, as its seat checked it (real path). It builds there. */
   leads?: string;
@@ -192,7 +192,7 @@ export interface PersonSessionAsk {
   /** The engine it runs on, whose modes it honours (`permissionModesFor`). */
   engine: string;
   model: string;
-  /** The folder the session works in: the game's own. */
+  /** The folder the session works in: the project's own. */
   cwd: string;
   signal: AbortSignal;
 }
@@ -241,9 +241,9 @@ function withdrawnAnswer(by: string): WithdrawnAnswer {
   return hostDeny(WITHDRAWN_WORDS[by] ?? MESSAGE.withdrawnStop);
 }
 
-/** This game's own chat, open: never a thread the harness made, another game's chat or an archived one. */
-function isOpenGameChat(meta: PermissionMeta, project: string): boolean {
-  return meta?.kind === ThreadKind.Game && meta.project === project && meta.archived !== true;
+/** This project's own chat, open: never a thread the harness made, another project's chat or an archived one. */
+function isOpenProjectChat(meta: PermissionMeta, project: string): boolean {
+  return meta?.kind === ThreadKind.Project && meta.project === project && meta.archived !== true;
 }
 
 /** The modes a build's lead or the run's coordinator starts in as its chat has them. */
@@ -313,7 +313,7 @@ function movedTo(answer: ToolPermissionAnswer | null, always: PermissionGrant[] 
 
 export class ChatPermissionService {
   readonly #core: StudioCore;
-  /** Tool calls a game chat's Claude session is waiting on the person for (`tool_permission` cards). */
+  /** Tool calls a project chat's Claude session is waiting on the person for (`tool_permission` cards). */
   readonly #ledger = new ToolPermissions();
   #store: PermissionStore | null = null;
   readonly #chatGrants = new Map<string, ChatGrants>();
@@ -331,7 +331,7 @@ export class ChatPermissionService {
     this.#core = core;
   }
 
-  /** The mode new chats start in and each game's "always allow" rules; host-only, under engine-homes. */
+  /** The mode new chats start in and each project's "always allow" rules; host-only, under engine-homes. */
   get store(): PermissionStore {
     this.#store ??= new PermissionStore(path.join(this.#core.layout.engineHomes, STORE_FILE));
     return this.#store;
@@ -416,15 +416,15 @@ export class ChatPermissionService {
   /**
    * The permissions of a session the person is answering, or null. The caller has already checked
    * the brief's shape; this checks what the host recorded: the message is one the person sent on
-   * this thread, and the thread is this game's own open chat (a thread the harness made, another
-   * game's chat or an archived one never asks).
+   * this thread, and the thread is this project's own open chat (a thread the harness made, another
+   * project's chat or an archived one never asks).
    */
   async forSession(ask: PersonSessionAsk): Promise<PersonSession | null> {
     const { project, threadId } = ask;
     // A message handed to a build's lead is the lead's to answer (`forLead`), never the chat's own.
     if (this.#personMessages.get(threadId)?.get(ask.messageId)?.lead !== null) return null;
     const meta = await this.#threadMeta(threadId);
-    if (!isOpenGameChat(meta, project)) return null;
+    if (!isOpenProjectChat(meta, project)) return null;
     // The chat's mode as its engine honours it: one it does not runs in Auto, its own contract.
     const mode = engineMode(ask.engine, await this.#modeOf(threadId, meta));
     // Set once the studio itself moves the running mode (the picker, a plan approval, "allow all
@@ -442,8 +442,8 @@ export class ChatPermissionService {
   }
 
   /**
-   * How a build's lead or the run's coordinator asks in its game's own open chat, or null for any
-   * other thread. The caller has already checked the seat (this game's lead of this chat's run, or
+   * How a build's lead or the run's coordinator asks in its project's own open chat, or null for any
+   * other thread. The caller has already checked the seat (this project's lead of this chat's run, or
    * the coordinator of that run). Each call is screened here (`#screenLeadCall`) and each question
    * routed here (`#leadAsk`), never by the harness.
    */
@@ -453,7 +453,7 @@ export class ChatPermissionService {
     // the chat's own session's: a harness cannot start one for a message nobody sent.
     if ("messageId" in answers && !this.awaitsAnswer(threadId, answers.messageId)) return null;
     const meta = await this.#threadMeta(threadId);
-    if (!isOpenGameChat(meta, project)) return null;
+    if (!isOpenProjectChat(meta, project)) return null;
     // Only the picker moves its mode, so what it reports says nothing about Auto for its model.
     const lead: LeadState = {
       engine: ask.engine,
@@ -475,7 +475,7 @@ export class ChatPermissionService {
   }
 
   /**
-   * What a session that asks stands on: the saved "always allow" rules for the game and the chat,
+   * What a session that asks stands on: the saved "always allow" rules for the project and the chat,
    * the chat's granted folders, and the studio's own files it never edits — all but the folders it
    * works in (`open`): its cwd, and for a lead the integration worktree it builds in.
    */
@@ -528,7 +528,7 @@ export class ChatPermissionService {
   ): Promise<PermissionReply> {
     const { project, threadId } = seat;
     const meta = await this.#threadMeta(threadId);
-    if (!isOpenGameChat(meta, project)) return hostDeny(MESSAGE.chatClosed);
+    if (!isOpenProjectChat(meta, project)) return hostDeny(MESSAGE.chatClosed);
     const mode = await this.#modeOf(threadId, meta);
     const hostAsked = lead.askedFirst.delete(ask.toolUseId);
     if (mode === PermissionMode.Bypass && (hostAsked || lead.running !== PermissionMode.Bypass))
@@ -541,7 +541,7 @@ export class ChatPermissionService {
   }
 
   /**
-   * Whether a game chat is in Plan mode. Plan is for planning: nothing outside the chat — no plugin
+   * Whether a project chat is in Plan mode. Plan is for planning: nothing outside the chat — no plugin
    * or connector action, whoever asks for it — runs on the chat's behalf until the plan is approved.
    */
   async planning(threadId: string): Promise<boolean> {
@@ -625,7 +625,7 @@ export class ChatPermissionService {
     holder.live = null;
   }
 
-  /** The folders a person's session reads beyond its game: those the thread records, and the host's own frames. */
+  /** The folders a person's session reads beyond its project: those the thread records, and the host's own frames. */
   async chatReads(threadId: string, extraReads: string[], hostDirs: Array<string | null>): Promise<string[]> {
     const named = (await this.#threadMeta(threadId))?.extraReads;
     const recorded = Array.isArray(named) ? named.filter((dir): dir is string => typeof dir === "string") : [];
@@ -643,21 +643,21 @@ export class ChatPermissionService {
    * Everything the studio keeps in its own data folder, which a chat's file tools may not edit in
    * any mode: its settings, event log, harness, runs, checkpoints and whatever it adds later. Named
    * by walking the folder rather than listed, so a new store is covered the day it appears. The
-   * games kept there (and the folders a session works in, `open`) are the person's, not the
+   * projects kept there (and the folders a session works in, `open`) are the person's, not the
    * studio's; secrets and engine homes are the engine's own unreadable fence already.
    */
   async #hostFiles(open: string[]): Promise<string[]> {
     const { layout } = this.#core;
     const root = path.resolve(this.#core.options.paths.userData);
     const work = await asWalked(root, open);
-    const skip = new Set([layout.secrets, layout.engineHomes, layout.gamesRoot].map((dir) => path.resolve(dir)));
+    const skip = new Set([layout.secrets, layout.engineHomes, layout.projectsRoot].map((dir) => path.resolve(dir)));
     const files: string[] = [];
     const walk = async (dir: string, depth: number): Promise<void> => {
       for (const entry of await readdir(dir, { withFileTypes: true }).catch(() => [])) {
         const full = path.join(dir, entry.name);
         if (skip.has(full) || work.some((folder) => isInside(folder, full))) continue;
-        // A folder that holds the games or a folder the session works in is opened up, never fenced whole.
-        const holdsWork = isInside(full, layout.gamesRoot) || work.some((folder) => isInside(full, folder));
+        // A folder that holds the projects or a folder the session works in is opened up, never fenced whole.
+        const holdsWork = isInside(full, layout.projectsRoot) || work.some((folder) => isInside(full, folder));
         if (!holdsWork) files.push(full);
         else if (entry.isDirectory() && depth < HOST_FILES_DEPTH) await walk(full, depth + 1);
       }
@@ -751,14 +751,14 @@ export class ChatPermissionService {
     }
   }
 
-  /** Keep what an "always" answer granted: game rules on disk, chat rules and folders in memory, a mode on the chat. */
+  /** Keep what an "always" answer granted: project rules on disk, chat rules and folders in memory, a mode on the chat. */
   async #grant(project: string, threadId: string, grants: PermissionGrant[]): Promise<boolean> {
     let changed = false;
-    const gameRules = grants.flatMap((grant) =>
-      grant.kind === GrantKind.Rule && grant.scope === RuleScope.Game ? [grant.rule] : [],
+    const projectRules = grants.flatMap((grant) =>
+      grant.kind === GrantKind.Rule && grant.scope === RuleScope.Project ? [grant.rule] : [],
     );
-    if (gameRules.length) {
-      await this.store.addRules(project, gameRules);
+    if (projectRules.length) {
+      await this.store.addRules(project, projectRules);
       changed = true;
     }
     for (const grant of grants) {
@@ -784,14 +784,14 @@ export class ChatPermissionService {
 
   // ── the Studio UI's calls ────────────────────────────────────────────────────────────────
 
-  /** What the Permissions settings show: the mode new chats start in, saved rules by game, and where Auto is unavailable. */
+  /** What the Permissions settings show: the mode new chats start in, saved rules by project, and where Auto is unavailable. */
   async settings(): Promise<PermissionSettingsView> {
-    const [defaultMode, rules, games] = await Promise.all([
+    const [defaultMode, rules, projects] = await Promise.all([
       this.store.defaultMode(),
       this.store.all(),
-      this.#core.games.list().catch(() => []),
+      this.#core.projects.list().catch(() => []),
     ]);
-    const titles = new Map(games.map((game) => [game.name, game.title]));
+    const titles = new Map(projects.map((project) => [project.name, project.title]));
     return {
       defaultMode,
       rules: Object.entries(rules)
@@ -809,7 +809,7 @@ export class ChatPermissionService {
   async setMode(threadId: string | null, mode: unknown): Promise<PermissionSettingsView> {
     if (!isPermissionMode(mode)) throw new Error(MESSAGE.unknownMode);
     if (threadId !== null) {
-      if ((await this.#threadMeta(threadId))?.kind !== ThreadKind.Game) throw new Error(MESSAGE.notGameChat);
+      if ((await this.#threadMeta(threadId))?.kind !== ThreadKind.Project) throw new Error(MESSAGE.notProjectChat);
       await this.#core.store.updateThread(threadId, { metadata: { permissionMode: mode } });
     }
     if (isSteadyPermissionMode(mode)) await this.store.setDefaultMode(mode);
@@ -876,7 +876,7 @@ export class ChatPermissionService {
     return this.#ledger.resolve(requestId, checked);
   }
 
-  /** Stop allowing a saved "always allow" rule for a game. Running sessions keep it until their next message. */
+  /** Stop allowing a saved "always allow" rule for a project. Running sessions keep it until their next message. */
   async forget(project: unknown, rule: unknown): Promise<PermissionSettingsView> {
     if (typeof project !== "string" || typeof rule !== "string") throw new Error(MESSAGE.invalidRule);
     if (await this.store.forget(project, rule)) this.#core.emit(UiEvent.PermissionsChanged, {});

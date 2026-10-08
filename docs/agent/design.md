@@ -1,6 +1,6 @@
 # Application design workflow
 
-External development of Genex’s interface; generated games and the editable in-app harness have
+External development of Genex’s interface; generated projects and the editable in-app harness have
 their own guidance. Read only the surface specifications relevant to the task.
 
 ## Design foundations
@@ -10,7 +10,7 @@ their own guidance. Read only the surface specifications relevant to the task.
   ask: **“Do I actually need that?”** Keep it only if it helps someone act, understand state,
   find their way or recover. Run this removal pass before calling a design finished.
 - Make the main task and next action obvious. Give secondary actions less emphasis; disclose
-  advanced options in context with a clear way to find them. Keep game content central.
+  advanced options in context with a clear way to find them. Keep project content central.
 - Use spacing, alignment and typography to establish hierarchy before adding containers,
   dividers or decoration. Keep copy brief and concrete; fix confusing interactions before
   adding explanatory text. Show implementation details only when they help a user decide.
@@ -79,7 +79,7 @@ content and resizing checks remain part of every applicable UI change without in
    of shipping code. Retain a requested stress-test page; remove discarded variants after selection.
 4. Review the rendered result under the [verification scope](verification.md#choose-the-verification-scope).
    A copy/spacing edit needs a fit check, not every UI suite. Shared interactions need relevant
-   consumers and tests. Popover geometry/focus needs inspection beside the native game.
+   consumers and tests. Popover geometry/focus needs inspection beside the native project.
    Check relevant loading, empty, error, disabled, hover/focus and long-content states;
    supported pane/window sizes, zoom, keyboard access and reduced motion. Verify computed pointer
    cursors over clickable controls and nested content; preserve disabled, selection and drag cursors.

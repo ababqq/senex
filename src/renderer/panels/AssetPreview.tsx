@@ -7,7 +7,7 @@ import type { JSX, MouseEvent, RefObject } from "react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Pause, Play } from "lucide-react";
 import { assetPreviewMode } from "../../shared/asset-preview.ts";
-import type { ProjectAsset } from "../../shared/game-assets.ts";
+import type { ProjectAsset } from "../../shared/project-assets.ts";
 import type { createAssetViewer } from "../asset-model-viewer.js";
 import { previewBytes } from "../asset-bytes.ts";
 import { clipTitles } from "../asset-names.ts";

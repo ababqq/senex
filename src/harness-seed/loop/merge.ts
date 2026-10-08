@@ -27,7 +27,7 @@ export function verifyWiringMerge(
   // A file with no wiring block is not a file this rule can merge. `git merge-file --union`
   // keeps BOTH sides of every hunk, so on a marker-less entry it silently doubles the whole
   // module — every import twice, every call twice — and the result compiles just often enough
-  // to reach a judge. A game the user brought has no block at all: it belongs to the caller.
+  // to reach a judge. A project the user brought has no block at all: it belongs to the caller.
   if (!lines.some((line) => WIRING_START.test(line)))
     return {
       ok: false,
@@ -73,11 +73,11 @@ export async function unionMergeMain(
     wiring = true,
   }: { message?: string; main?: string; wiring?: boolean } = {},
 ): Promise<{ ok: boolean; reason?: string; duplicates?: number }> {
-  // Only a template entry has a wiring block to union-merge. In a game the user brought the
-  // entry is the game's own code, and a conflict in it is the director's work to resolve —
+  // Only a template entry has a wiring block to union-merge. In a project the user brought the
+  // entry is the project's own code, and a conflict in it is the director's work to resolve —
   // visible, rather than a merge that reads clean and doubles a module.
   if (!wiring)
-    return { ok: false, reason: "this game's entry has no FACET WIRING block — resolve the conflict by hand" };
+    return { ok: false, reason: "this project's entry has no FACET WIRING block — resolve the conflict by hand" };
   const unmerged = await exec(GIT.unmerged);
   const files = String(unmerged.stdout ?? "")
     .split("\n")
@@ -89,7 +89,7 @@ export async function unionMergeMain(
   // Scratch files live under the worktree's own `.studio/` (gitignored by the brief writer):
   // the builder sandbox confines writes to the workspace, so /tmp is not an option here.
   const merged = await exec(
-    // The entry's name is the game's own (studio.json): quoted, so nothing in it runs (M3).
+    // The entry's name is the project's own (studio.json): quoted, so nothing in it runs (M3).
     `T=.studio/merge && mkdir -p "$T" && ${GIT.show(`:1:${main}`)} > "$T/base.js" && ${GIT.show(`:2:${main}`)} > "$T/ours.js" && ${GIT.show(`:3:${main}`)} > "$T/theirs.js" && (${GIT.mergeFileUnion('"$T/ours.js"', '"$T/base.js"', '"$T/theirs.js"')} > "$T/merged.js"; true) && cat "$T/merged.js" && rm -rf "$T"`,
   );
   if (merged.code !== 0 || !String(merged.stdout ?? "").trim())

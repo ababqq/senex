@@ -1,0 +1,41 @@
+{
+  "id": "dataviz.axes-legend-and-honest-scales",
+  "title": "A chart has labelled axes, a legend and an honest scale",
+  "tags": [
+    "chart",
+    "axis",
+    "axes",
+    "legend",
+    "scale",
+    "graph",
+    "plot",
+    "series",
+    "tooltip",
+    "bar",
+    "line",
+    "visualisation"
+  ],
+  "checkClass": "chart-reads",
+  "kind": "craft",
+  "pack": "data",
+  "appKinds": ["data-viz", "dashboard"],
+  "note": "A chart can be read without the code: titled, axes labelled with units, series identified, scales that start where they should.",
+  "intent": "A chart is a claim, and it has to be readable and honest. Give it a title that says what it shows, label both axes with units, identify every series (a legend, or direct labels, which are better), start bar charts at zero, keep the same scale where charts are compared, and use colour with enough contrast and not by colour alone (also shape, dash or label). Show the value on hover or focus, handle an empty or one-point series (a message, not a broken axis), and make long labels wrap or rotate instead of colliding. Keep the data in the DOM or an aria-label summary so it is not locked inside pixels.",
+  "check": {
+    "id": "chart-reads",
+    "kind": "vision",
+    "camera": "default",
+    "ask": "Can you read this chart without help: is it titled, are both axes labelled with units, and is every series identified?",
+    "weight": "normal",
+    "note": "The chart is titled, its axes are labelled with units and every series is identified."
+  },
+  "port": "A single chart component owns title, axes, legend and empty state; pages pass data and labels to it.",
+  "evidence": [],
+  "stats": {
+    "applied": 0,
+    "wins": 0,
+    "losses": 0
+  },
+  "status": "candidate",
+  "origin": "seed"
+}

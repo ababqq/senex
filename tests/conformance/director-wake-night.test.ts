@@ -103,7 +103,7 @@ async function night(name: string, extra: Record<string, unknown> = {}) {
     { previewPoolMax: 3, createHeadlessPreview: async () => makeFakePreview() },
   );
   rigs.push(rig);
-  const project = await rig.core.games.scaffold(name, { title: name });
+  const project = await rig.core.projects.scaffold(name, { title: name });
   const runId = rig.core.newRunId();
   // The dispatch answers when the night is over: a test that acts during it starts it and goes on.
   const dispatch = () =>
@@ -184,7 +184,7 @@ describe("the lead is woken, not kept in one long turn", () => {
     assert.equal(finishedEvent.stoppedBecause, "the director finished the run");
     assert.equal(results.integrated.merged, true, JSON.stringify(results.integrated));
 
-    const threadId = await rig.core.threadForGame(project.name);
+    const threadId = await rig.core.threadForProject(project.name);
     const journal = (await rig.core.store.readArtifact(threadId, `autopilot_${runId}`)) as Record<string, any>;
     assert.equal(journal.director.workers.sky.brief, "Build a dusk sky");
     // The night's own clock is the night's record, not the wake loop's (journal.ts; it moved from `wake.clock`).
@@ -218,7 +218,7 @@ describe("the lead is woken, not kept in one long turn", () => {
     await new Promise((resolve) => setTimeout(resolve, 2_000));
     const sentAt = Date.now();
     await rig.core.runFeedback({
-      threadId: await rig.core.threadForGame(project.name),
+      threadId: await rig.core.threadForProject(project.name),
       runId,
       text: "make the sky red",
     });
@@ -263,7 +263,7 @@ describe("the lead is woken, not kept in one long turn", () => {
     });
     const running = dispatch();
     await until(() => rested, "the lead's first turn to end");
-    await rig.core.runFeedback({ threadId: await rig.core.threadForGame(project.name), runId, text: "go ahead" });
+    await rig.core.runFeedback({ threadId: await rig.core.threadForProject(project.name), runId, text: "go ahead" });
     const events = await finished();
     await running;
 
@@ -325,7 +325,7 @@ describe("the lead is woken, not kept in one long turn", () => {
     );
     rigs.push(rig);
     asEmptyScaffold(rig.preview);
-    const project = await rig.core.games.scaffold("wake-stop-early", { title: "wake-stop-early" });
+    const project = await rig.core.projects.scaffold("wake-stop-early", { title: "wake-stop-early" });
     const runId = rig.core.newRunId();
     const lead: DelegateRequest[] = [];
     let baseStarted = false;
@@ -416,10 +416,10 @@ describe("the long turn, one field away", () => {
         assert.match(text(await call("finish", { summary: "too early", land: "yes" })), /finish refused/);
         return turnResult("timed-session", "First playable");
       }
-      // The user's Finish, where the run's inbox reads it: the game's own thread.
+      // The user's Finish, where the run's inbox reads it: the project's own thread.
       await rig.core.append(
         [{ type: "custom", event_type: "run_control", payload: { runId, action: "finish" } }],
-        await rig.core.threadForGame(project.name),
+        await rig.core.threadForProject(project.name),
       );
       results.finished = text(await call("finish", { summary: "Stopped early at the user’s request", land: "no" }));
       return turnResult("timed-session", "Finished as requested");
@@ -446,7 +446,7 @@ describe("the long turn, one field away", () => {
 });
 
 /**
- * Live chat during a build: a message sent to the game's chat while a night's lead works is
+ * Live chat during a build: a message sent to the project's chat while a night's lead works is
  * handed to that lead at once — delivered, never Queued under the build — and the lead answers in
  * the chat. A lead in the middle of a turn hears it in that turn: read at its next step by an
  * engine that takes input mid-turn, or interrupted and resumed in the same session with the
@@ -457,9 +457,9 @@ describe("live chat during a build", () => {
   /** The session answering the chat once the night is over: a coordinator, or the chat's own with the run's controls. */
   const answersChat = (request: DelegateRequest): boolean =>
     !request.director && Boolean(request.coordinator || request.liveTools?.some((t) => t.name === "run_status"));
-  /** A message to the game's chat, as the composer sends it, with the bubble id it is queued under. */
+  /** A message to the project's chat, as the composer sends it, with the bubble id it is queued under. */
   async function say(rig: Rig, project: string, text: string, over: Record<string, unknown> = {}) {
-    const thread = await rig.core.threadForGame(project);
+    const thread = await rig.core.threadForProject(project);
     const messageId = `msg_live_${Math.random().toString(36).slice(2, 10)}`;
     await rig.core.sendUserMessage(text, { thread, engine: "codex", clientId: messageId, ...over } as never);
     return { thread, messageId };
@@ -507,7 +507,7 @@ describe("live chat during a build", () => {
         rested = true;
         return turnResult("lead-1", "the sky is building");
       }
-      const log = await rig.core.store.listEvents(await rig.core.threadForGame(project.name));
+      const log = await rig.core.store.listEvents(await rig.core.threadForProject(project.name));
       seen.runOpen = !customEvents(log, "run_finished").some((e) => e.runId === runId);
       seen.workersAborted = workersAborted;
       speak(request, "Not yet: the sky worker is on its first round.");
@@ -825,7 +825,7 @@ describe("live chat during a build", () => {
     );
     rigs.push(rig);
     asEmptyScaffold(rig.preview);
-    const project = await rig.core.games.scaffold("live-stop-early", { title: "live-stop-early" });
+    const project = await rig.core.projects.scaffold("live-stop-early", { title: "live-stop-early" });
     const runId = rig.core.newRunId();
     const chats: DelegateRequest[] = [];
     let baseStarted = false;
@@ -905,12 +905,12 @@ describe("live chat during a build", () => {
       return turnResult("lead-1", "done");
     });
     const running = dispatch();
-    const thread = await rig.core.threadForGame(project.name);
+    const thread = await rig.core.threadForProject(project.name);
     const second = rig.core.newRunId();
     try {
       await finished();
       await until(() => learningAsked, "the run's self-improvement pass to begin");
-      // A second build for the same game: it waits for the pass to end.
+      // A second build for the same project: it waits for the pass to end.
       void rig.core.host
         .dispatch(
           {
@@ -1027,7 +1027,7 @@ it("G2. an until-satisfied build pauses on a required prerequisite instead of st
   const report = customEvents(events, "run_finished").find((event) => event.runId === runId);
   assert.equal(report?.executionStatus, "paused");
   assert.equal(report?.victory, false);
-  const threadId = await rig.core.threadForGame(project.name);
+  const threadId = await rig.core.threadForProject(project.name);
   const journal = await rig.core.store.readArtifact(threadId, `autopilot_${runId}`);
   assert.ok(journal && typeof journal === "object" && "director" in journal);
   assert.equal(JSON.stringify(journal).includes("hosted_verification_unavailable"), true);
@@ -1075,7 +1075,7 @@ it("G3. current integrated acceptance permits early completion and keeps a recov
   assert.equal(verified, true);
   const report = customEvents(events, "run_finished").find((event) => event.runId === runId);
   assert.equal(report?.executionStatus, "completed");
-  const threadId = await rig.core.threadForGame(project.name);
+  const threadId = await rig.core.threadForProject(project.name);
   const journal = await rig.core.store.readArtifact(threadId, `autopilot_${runId}`);
   assert.ok(journal && typeof journal === "object" && "director" in journal);
   assert.match(JSON.stringify(journal), /firstVerifiedCheckpoint/);

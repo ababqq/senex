@@ -66,7 +66,7 @@ function serverLaunch(server: PluginMcpServer): string[] {
 const HOST_TOOL_WORDS = {
   [PluginHostTool.GenexCli]: "runs Studio's Genex CLI",
   [PluginHostTool.GenexCliPaid]: "runs Studio's Genex CLI",
-  [PluginHostTool.GenexPackage]: "installs Genex packages in the game",
+  [PluginHostTool.GenexPackage]: "installs Genex packages in the project",
 } as const satisfies Record<PluginHostTool, string>;
 const READ_ON_DEMAND = "read on demand";
 const WITH_CONSENT = "with your consent each time";

@@ -5,7 +5,7 @@ import type { ComposerHandoff } from "./use-composer-handoff.ts";
 
 /**
  * The welcome ends at home, with the idea typed there waiting in home's composer: its first
- * message makes the game. Finishing the welcome queues the Genex promo.
+ * message makes the project. Finishing the welcome queues the Genex promo.
  */
 export function useWelcomeExit(app: Studio, handoff: ComposerHandoff) {
   const { holdIdea } = handoff;

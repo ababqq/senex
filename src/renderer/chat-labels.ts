@@ -11,7 +11,7 @@ import { EventKind } from "../shared/event-log.ts";
 import { providerInfo } from "../shared/providers.ts";
 import type { EventEnvelope } from "./types.ts";
 
-const PLACEHOLDERS = new Set(["", "New chat", "New game"]);
+const PLACEHOLDERS = new Set(["", "New chat", "New project"]);
 
 /** Provider-reported identity takes precedence; a requested model is explicitly labelled. */
 export function contractorIdentity(

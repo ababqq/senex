@@ -141,8 +141,8 @@ describe("statusWords", () => {
       short: "Reviewing Crash damage",
     });
     assert.deepEqual(statusWords(`${run} · director playtesting Crash damage`), {
-      line: "The lead is playing Crash damage",
-      short: "Playing Crash damage",
+      line: "The lead is trying Crash damage",
+      short: "Trying Crash damage",
     });
     // Flipped (owner, 2026-10-02): no time-of-day words in the app's copy.
     assert.deepEqual(statusWords(`${run} · director finishing`), {
@@ -219,8 +219,8 @@ describe("statusWords", () => {
     assert.doesNotMatch(words.line, /iteration/i);
     // The night's two first steps, said as what they are for (M1.3, M2.6) — never as a stage name.
     assert.equal(statusWords("run run_x · building the starting point").short, "Starting point");
-    assert.deepEqual(statusWords("run run_x · making the game judgeable"), {
-      line: "Connecting your game to the studio",
+    assert.deepEqual(statusWords("run run_x · making the project judgeable"), {
+      line: "Connecting your project to the studio",
       short: "Connecting",
     });
     const verifying = statusWords("run run_x · Dirt: mud — tyre dust — verifying");
@@ -249,7 +249,7 @@ describe("how a night reads when it is over", () => {
   it("says what became of the build, not whether a flag was set", () => {
     // The first real night landed nothing and read "Stopped after 21 rounds"; a night that
     // lands its build read the same, because `victory` is a claim the lead rarely makes.
-    assert.equal(nightWords({ rounds: 21, landed: true }).headline, "Finished after 21 rounds · live in your game");
+    assert.equal(nightWords({ rounds: 21, landed: true }).headline, "Finished after 21 rounds · live in your project");
     assert.equal(
       nightWords({
         rounds: 21,
@@ -258,7 +258,7 @@ describe("how a night reads when it is over", () => {
       }).headline,
       "Finished after 21 rounds · not made live yet",
     );
-    assert.match(nightWords({ rounds: 21, landed: false, stoppedBecause: "land=no" }).because, /kept and playable/);
+    assert.match(nightWords({ rounds: 21, landed: false, stoppedBecause: "land=no" }).because, /kept and usable/);
     assert.match(nightWords({ rounds: 1, landed: true }).headline, /after 1 round ·/);
     // An older log says nothing about landing: the headline claims nothing either.
     assert.equal(
@@ -277,9 +277,9 @@ describe("how a night reads when it is over", () => {
     );
   });
 
-  it("promises a playable build only when there is one", () => {
+  it("promises a usable build only when there is one", () => {
     // A night that merged nothing (an early stop, an unhealthy integration) used to read
-    // "The build is kept and playable" over a card with no button on it at all.
+    // "The build is kept and usable" over a card with no button on it at all.
     const nothing = nightWords({
       rounds: 4,
       landed: false,
@@ -292,7 +292,7 @@ describe("how a night reads when it is over", () => {
     assert.match(nothing.because, /as you left it/);
     assert.match(
       nightWords({ rounds: 4, landed: false, hasBuild: true, stoppedBecause: "land=no" }).because,
-      /kept and playable/,
+      /kept and usable/,
     );
   });
 
@@ -347,7 +347,7 @@ describe("the morning card", () => {
       ...over,
     });
 
-  it("offers Play it, and says the night's own report, when the build is live", () => {
+  it("offers Open, and says the night's own report, when the build is live", () => {
     const words = night({
       landed: true,
       hasBuild: false,
@@ -355,7 +355,7 @@ describe("the morning card", () => {
       landingLine: "made live, not judged better",
       stoppedBecause: "the director finished the run",
     });
-    assert.match(words.headline, /live in your game/);
+    assert.match(words.headline, /live in your project/);
     assert.deepEqual(words.actions, ["play"]);
     assert.equal(words.summary, "The river catches the light and moves.");
     assert.equal(words.noReport, null);
@@ -373,13 +373,13 @@ describe("the morning card", () => {
     // An older night wrote no landing sentence: the card keeps the plain one.
     const older = night({ landed: true, hasBuild: false, stoppedBecause: "the director finished the run" });
     // Flipped (owner, 2026-10-02): no time-of-day words in the app's copy.
-    assert.equal(older.because, "This build is your game now — open Live to play it.");
+    assert.equal(older.because, "This build is your project now — open Live to use it.");
   });
 
   it("offers the build itself when the night merged one but did not make it live", () => {
     const words = night();
     assert.deepEqual(words.actions, ["play-build"]);
-    assert.match(words.because, /kept and playable/);
+    assert.match(words.because, /kept and usable/);
   });
 
   it("offers nothing, and promises nothing, when the night merged nothing", () => {
@@ -716,17 +716,17 @@ describe("what the night says as it goes", () => {
     );
   });
 
-  it("names the kind the night decided this game is — the plan's other decision", () => {
+  it("names the kind the night decided this project is — the plan's other decision", () => {
     // The kind is written back into the user's studio.json, decides the controls the studio
     // drives before every judgement and which critic reads the build. The window meant for
     // objecting to the plan showed every part of it except that one.
     const named = planReviewWords({
       summary: "Tonight: crash damage you can feel.",
       facets: [{ title: "Crash damage" }],
-      game: { kind: "third-person" },
+      app: { kind: "form-flow" },
       waitMinutes: 12,
     });
-    assert.match(named, /third person game/);
+    assert.match(named, /form flow project/);
     assert.match(named, /Say "go" to start it/, "the kind sentence goes before the ask, not after it");
     // A plan that declared no kind says nothing rather than guessing one.
     const unnamed = planReviewWords({
@@ -734,20 +734,23 @@ describe("what the night says as it goes", () => {
       facets: [{ title: "Crash damage" }],
     });
     assert.doesNotMatch(unnamed, /treats this as/);
-    assert.doesNotMatch(planReviewWords({ summary: "Tonight.", game: { kind: null } }), /treats this as/);
+    assert.doesNotMatch(planReviewWords({ summary: "Tonight.", app: { kind: null } }), /treats this as/);
   });
 
   it("says on Reload what would change Live, in the user's own terms", () => {
-    assert.equal(liveBehindWords("changed"), "The game changed — reload to see it");
-    assert.equal(liveBehindWords("build"), "A new build is ready — reload to play it");
+    assert.equal(liveBehindWords("changed"), "The project changed — reload to see it");
+    assert.equal(liveBehindWords("build"), "A new build is ready — reload to use it");
     for (const reason of ["changed", "build", "broken"] as const) {
       const line = liveBehindWords(reason);
       assert.doesNotMatch(line, /handle|lease|pool|worktree|integration|commit|preview/i, line);
       assert.match(line, /reload/i, line);
     }
     // The accessible name is the tooltip, with the builder's own note when it left one.
-    assert.equal(liveBehindLabel("changed", null), "The game changed — reload to see it");
-    assert.equal(liveBehindLabel("changed", "added the jump"), "The game changed — reload to see it: added the jump");
+    assert.equal(liveBehindLabel("changed", null), "The project changed — reload to see it");
+    assert.equal(
+      liveBehindLabel("changed", "added the jump"),
+      "The project changed — reload to see it: added the jump",
+    );
   });
 
   it("says a night was paused and resumed without printing its id", () => {
@@ -791,7 +794,7 @@ describe("what the night says as it goes", () => {
       'the lead put a worker on "Crash damage" for 47 min: rebuild the crumple so lids buckle',
     );
     const health = decisionWords(
-      "the integrated build a82ee734ce did not pass its health pass: the game did not draw anything — the director must fix it or judge it before it can land",
+      "the integrated build a82ee734ce did not pass its health pass: the project did not draw anything — the director must fix it or judge it before it can land",
     );
     // Flipped (owner, 2026-10-02): no time-of-day words in the app's copy.
     assert.match(health, /this build/);
@@ -816,7 +819,7 @@ describe("what the night says as it goes", () => {
 
 describe("tools", () => {
   it("names what a builder did, not which tool it called", () => {
-    assert.deepEqual(toolWords("mcp__studio__computer"), { icon: "see", label: "looked at the game" });
+    assert.deepEqual(toolWords("mcp__studio__computer"), { icon: "see", label: "looked at the project" });
     assert.equal(toolWords("Bash").label, "ran a command");
     assert.equal(toolWords("Read").label, "read the code");
     assert.equal(toolWords("Edit").label, "edited the code");
@@ -828,7 +831,7 @@ describe("tools", () => {
 
   it("names the studio's own tools the same way", () => {
     assert.deepEqual(toolWords("run_command"), { icon: "run", label: "ran a command" });
-    assert.equal(toolWords("load_preview").label, "loaded the game");
+    assert.equal(toolWords("load_preview").label, "loaded the project");
     assert.equal(toolWords("start_autopilot").label, "requested an iterative build");
     // The MCP wrapper around a studio tool is the same tool.
     assert.equal(toolWords("mcp__studio__screenshot").label, "took a screenshot");
@@ -847,7 +850,7 @@ describe("tools", () => {
       "show_build",
       "land_build",
       "ask_user",
-      "set_game_cover",
+      "set_project_cover",
     ];
     const unnamed = names
       .flatMap((name) => [name, `mcp__studio__${name}`])
@@ -857,8 +860,8 @@ describe("tools", () => {
     assert.deepEqual(toolWords("wait"), { icon: "think", label: "waited", active: "Waiting" });
     assert.deepEqual(toolWords("mcp__studio__capture"), {
       icon: "see",
-      label: "captured the game",
-      active: "Capturing the game",
+      label: "captured the project",
+      active: "Capturing the project",
     });
   });
 
@@ -962,24 +965,26 @@ describe("what the user is told when something refuses", () => {
       problemWords(
         new Error('a contractor is building in "skate" right now — wait for it to finish before landing a build'),
       ),
-      "A worker is busy in your game folder right now — try again once it has finished.",
+      "A worker is busy in your project folder right now — try again once it has finished.",
     );
     assert.match(
       problemWords(
-        new Error("the game folder has uncommitted edits (3 file(s)) — commit or discard them before landing a build"),
+        new Error(
+          "the project folder has uncommitted edits (3 file(s)) — commit or discard them before landing a build",
+        ),
       ),
       /edits of its own/,
     );
     assert.match(
       problemWords(new Error('commit 69f573d411 is not in "skate"\'s history')),
-      /not in this game\'s history/,
+      /not in this project\'s history/,
     );
   });
 
   it("never carries a sha, a ref or a git command's own output into a toast", () => {
     const conflict = problemWords(
       new Error(
-        "landing 69f573d411 conflicted with the game folder; nothing was changed (CONFLICT (content): Merge conflict in src/main.js)",
+        "landing 69f573d411 conflicted with the project folder; nothing was changed (CONFLICT (content): Merge conflict in src/main.js)",
       ),
     );
     assert.match(conflict, /nothing was changed/);
@@ -1069,7 +1074,7 @@ describe("the vocabulary lives in one file", () => {
     assert.equal(new Set(reasons).size, 4, "each harness reason has a sentence of its own");
     for (const reason of reasons)
       assert.doesNotMatch(reason, /taste-veto|no-move|unfixed|invisible|not clearly better/, reason);
-    assert.equal(toolWords("mcp__studio__computer").label, "looked at the game");
+    assert.equal(toolWords("mcp__studio__computer").label, "looked at the project");
   });
 
   it("writes a plugin tool call's sentence in words.ts and nowhere else", () => {

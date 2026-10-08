@@ -6,7 +6,7 @@
  * page-UI probe that widened, a boot that slowed — left the sheet green and the manifest's own
  * `[]` false. The upper bound lives here. Every warning a run collects has to be named by the
  * fixture, in `expectWarnings` or in `allowWarnings`, or be one of the warnings about the machine
- * rather than the game.
+ * rather than the project.
  *
  * Both lists are substrings, matched the way the harness's own sentences read: a warning carries
  * measured numbers, so the fixture names the part that does not change.
@@ -19,7 +19,7 @@ export interface WarningPolicy {
 }
 
 /**
- * The warnings a slow machine earns, not the game: a boot that crosses five seconds says
+ * The warnings a slow machine earns, not the project: a boot that crosses five seconds says
  * something about the laptop the suite runs on. These are the only sentences a fixture does not
  * have to name. `tests/conformance/shapes-fixtures.test.ts` asserts each is still a literal in
  * the harness seed, so a reworded warning cannot silently widen the tolerance.

@@ -80,7 +80,7 @@ import { collectRun, keptEvidenceDigest, snapshotValidation } from "./collect.ts
 import { plannedRunId } from "./plan.ts";
 import { assembleRunRow, harnessFailureOf, type MachineFacts, voidedRow, withCampaignVoid } from "./row.ts";
 import { type CampaignPlan, CanaryBracket, type PlannedApp, type PlannedRun, type ProviderStream } from "./types.ts";
-import { type GameLocation, SNAPSHOTS_DIR, watchGame } from "./watch.ts";
+import { type ProjectLocation, SNAPSHOTS_DIR, watchProject } from "./watch.ts";
 import { snapshotFacts } from "../watch/snapshots.ts";
 import type { CloneTree, Every } from "../watch/snapshots.ts";
 
@@ -386,10 +386,10 @@ function laneRequest(
   };
 }
 
-/** Where a run's game is while it runs: the raw project folder, or the Genex games folder to find it in. */
-function gameLocation(lane: LaneRegistryRow, laneRoot: string): GameLocation {
-  if (lane.agent === EvalAgent.GenexApp) return { gamesRoot: genexPaths(laneRoot).gamesRoot };
-  return { gameRoot: path.join(laneRoot, PROJECT_DIR) };
+/** Where a run's project is while it runs: the raw project folder, or the Genex projects folder to find it in. */
+function projectLocation(lane: LaneRegistryRow, laneRoot: string): ProjectLocation {
+  if (lane.agent === EvalAgent.GenexApp) return { projectsRoot: genexPaths(laneRoot).projectsRoot };
+  return { projectRoot: path.join(laneRoot, PROJECT_DIR) };
 }
 
 /** Move what the agent made into the run's work root, and read the result's paths from there. */
@@ -424,7 +424,7 @@ function enterActive(session: Session, engine: EngineId, laneId: string): { coRu
 
 /**
  * The seeded template's digest a Genex run's lane report carries (the app took it when the chat was
- * bound to its game, before any edit); null for a raw lane, whose folder is not seeded.
+ * bound to its project, before any edit); null for a raw lane, whose folder is not seeded.
  */
 async function seededTemplateDigest(lane: LaneRegistryRow, result: LaneRunResult): Promise<string | null> {
   const reportPath = result.artifacts.reportPath;
@@ -438,8 +438,8 @@ async function launch(
   request: LaneRunRequest,
 ): Promise<{ result: LaneRunResult; snapshot: SnapshotFacts | null; finalDir: string | null }> {
   const { deps } = session;
-  const watch = watchGame({
-    location: gameLocation(request.lane, request.laneRoot),
+  const watch = watchProject({
+    location: projectLocation(request.lane, request.laneRoot),
     snapshotDir: path.join(request.workRoot, SNAPSHOTS_DIR),
     startedAtMs: deps.clock.now(),
     now: () => deps.clock.now(),

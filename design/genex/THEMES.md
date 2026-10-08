@@ -7,7 +7,7 @@ profile. New profiles start in Genex Dark; saved mode/preset choices remain auth
 System mode responds to macOS color-scheme changes; explicit Light/Dark ignores them.
 The selected light and dark presets, overrides and contrast are independent. Typography is
 shared across modes. Defaults and Reset never erase saved custom presets; Remove preset retains
-its current colors as overrides. No appearance value changes a game, account or harness.
+its current colors as overrides. No appearance value changes a project, account or harness.
 
 The five families have ten palettes: Genex, Tokyo Night (Night/Light), Catppuccin (Mocha/Latte),
 Rosé Pine (Pine/Dawn), and GitHub (Dark/Light inspired). These are adapted UI palettes, not exact
@@ -42,7 +42,7 @@ tweaker beyond body text (Genex Light's muted `#a0a1a3` reads 2.0:1). Contrast a
 control-edge strength; above 50 it also lifts secondary text past its own contrast, up to 2.5 more
 at 100. Destructive fills choose black or white labels, and hover shifts the fill away from its
 label luminance. Image outlines and the monochrome
-wordmark adapt to the active scheme. Game imagery/media backdrops retain their intended colors.
+wordmark adapt to the active scheme. Project imagery/media backdrops retain their intended colors.
 
 ## Genex Dark direction
 
@@ -114,4 +114,4 @@ neighboring controls, sidebar/composer surfaces and native preview occlusion sep
 Keyboard focus uses filled control states rather than an external ring. Text-field carets remain
 visible, with a quiet edge change. Active navigation uses the selected accent; composer Send/Stop use the ink fill.
 This restrained treatment follows the September 22 user review; it is not a claim of full WCAG
-certification. Native game, screen-reader semantics and keyboard navigation are unchanged.
+certification. Native project, screen-reader semantics and keyboard navigation are unchanged.

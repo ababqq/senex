@@ -45,7 +45,7 @@ const MESSAGE = {
   JobFailed: (id: string, reason: string) => `Blender job ${id}: ${reason}`,
   NoExport: "no completed export",
   Guidance:
-    "Files are relative to the game workspace. Load model.glb with GLTFLoader at its returned asset path (omit public/ in a built app URL). Inspect these renders, integrate the mesh into the scene, then use the preview to verify visible use. A delivered file alone is not integration proof.",
+    "Files are relative to the project workspace. Load model.glb with GLTFLoader at its returned asset path (omit public/ in a built app URL). Inspect these renders, integrate the mesh into the scene, then use the preview to verify visible use. A delivered file alone is not integration proof.",
 } as const;
 
 type ToolArgs = Record<string, PluginScalar>;
@@ -86,7 +86,7 @@ async function renderImages(job: PluginNativeResult) {
   return images;
 }
 
-/** Run a model or transform job, deliver its files into the game and record the delivery. */
+/** Run a model or transform job, deliver its files into the project and record the delivery. */
 async function model(args: ToolArgs, ctx: PluginContext) {
   const slug = String(args.name ?? "");
   if (!ASSET_SLUG.test(slug)) throw new Error(MESSAGE.BadSlug);

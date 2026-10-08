@@ -18,7 +18,7 @@ import type { PluginInfo } from "../../src/shared/plugins.ts";
 
 const state = (over: Partial<GenexPublishState> = {}): GenexPublishState => ({
   version: 1,
-  project: "game",
+  project: "project",
   connected: true,
   ...over,
 });
@@ -31,19 +31,19 @@ const job = (over: Partial<GenexPublishJob> = {}): GenexPublishJob => ({
   ...over,
 });
 
-test("the dialog names where the game is and offers one press from there", () => {
+test("the dialog names where the project is and offers one press from there", () => {
   const none = publishView(state());
   assert.equal(none.stage, "none");
   assert.equal(none.primary.label, "Publish");
-  assert.equal(none.primary.ariaLabel, "Publish this game on Genex", "the smoke selector stays");
+  assert.equal(none.primary.ariaLabel, "Publish this project on Genex", "the smoke selector stays");
   assert.equal(none.canPublish, true);
   assert.ok(!("secondary" in none), "a draft is no second button beside Publish");
 
-  const draft = publishView(state({ slug: "my-game", status: "draft", draftUrl: "https://x/draft" }));
+  const draft = publishView(state({ slug: "my-project", status: "draft", draftUrl: "https://x/draft" }));
   assert.equal(draft.stage, "draft");
   assert.equal(draft.primary.label, "Publish");
 
-  const live = publishView(state({ slug: "my-game", status: "published", galleryUrl: "https://x/g" }));
+  const live = publishView(state({ slug: "my-project", status: "published", galleryUrl: "https://x/g" }));
   assert.equal(live.stage, "public");
   assert.equal(live.primary.label, "Publish update");
 
@@ -84,7 +84,7 @@ const genex = (over: Partial<PluginInfo> = {}): PluginInfo => ({
       {
         id: "publish",
         label: "Publish",
-        ariaLabel: "Publish game",
+        ariaLabel: "Publish project",
         target: { kind: "panel", id: GENEX_PUBLISH_PANEL },
       },
     ],
@@ -97,12 +97,12 @@ const genex = (over: Partial<PluginInfo> = {}): PluginInfo => ({
   ...over,
 });
 
-test("every open game has Publish on its stage strip, whether Genex is on, off, removed or missing", () => {
-  assert.equal(studioPublishButton([genex()], "game"), false, "Genex's own button is the one shown");
-  assert.equal(studioPublishButton([genex({ enabled: false, state: "disabled" })], "game"), true);
-  assert.equal(studioPublishButton([genex({ enabled: false, removed: true, state: "disabled" })], "game"), true);
-  assert.equal(studioPublishButton([], "game"), true);
-  assert.equal(studioPublishButton([], null), false, "with no game open there is nothing to publish");
+test("every open project has Publish on its stage strip, whether Genex is on, off, removed or missing", () => {
+  assert.equal(studioPublishButton([genex()], "project"), false, "Genex's own button is the one shown");
+  assert.equal(studioPublishButton([genex({ enabled: false, state: "disabled" })], "project"), true);
+  assert.equal(studioPublishButton([genex({ enabled: false, removed: true, state: "disabled" })], "project"), true);
+  assert.equal(studioPublishButton([], "project"), true);
+  assert.equal(studioPublishButton([], null), false, "with no project open there is nothing to publish");
 });
 
 test("a running attempt shows its steps: every publish tests the draft before it goes live", () => {
@@ -128,7 +128,7 @@ test("a running attempt shows its steps: every publish tests the draft before it
   assert.equal(promoting.steps.at(-1)?.state, "current");
 });
 
-test("a live game shows its link and when it was updated", () => {
+test("a live project shows its link and when it was updated", () => {
   const now = Date.parse("2026-10-06T12:00:00Z");
   const live = publishView(
     state({
@@ -157,7 +157,7 @@ test("a failed attempt is said calmly, its raw error kept only as details for su
   assert.equal(failed.outcome, "failed");
   assert.deepEqual(failed.problems, [], "the raw error is no problem line");
   assert.equal(failed.failure?.title, "It didn't go online this time");
-  assert.match(failed.failure?.text ?? "", /Your game is safe and nothing changed/);
+  assert.match(failed.failure?.text ?? "", /Your project is safe and nothing changed/);
   assert.equal(failed.failure?.details, "fixture: HTTP 502 at /api");
   assert.equal(failed.primary.label, "Try again");
   assert.equal(failed.canPublish, true, "a failed attempt can be tried again");
@@ -191,7 +191,7 @@ test("an upload whose outcome is unknown offers Check again and the person's own
   assert.equal(publishView(state()).terms, null);
 });
 
-test("the name offered is the listed one, else Studio's title for the game, else its folder name as words", () => {
+test("the name offered is the listed one, else Studio's title for the project, else its folder name as words", () => {
   assert.equal(offeredTitle(state({ title: "Rain Circuit" }), "Racing", "racing-demo"), "Rain Circuit");
   assert.equal(
     offeredTitle(state(), "Hyper-Realistic Racing", "hyper-realistic-racing-demo"),

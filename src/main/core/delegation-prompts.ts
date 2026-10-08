@@ -26,12 +26,12 @@ export function withdrawnNotice(withdrawn: PluginAppliedSet): string {
 }
 
 /**
- * Beside a build's lead's plugin guidance: its plugin tools act on the build it leads, not the game
+ * Beside a build's lead's plugin guidance: its plugin tools act on the build it leads, not the project
  * folder it sits in (delegation.ts `DelegationSession.leads`). Never the build's path: the brief's
  * WHERE YOU ARE line already names it.
  */
 export function leadToolsNote(): string {
-  return "Your plugin tools work on the build you lead, not in this game folder: what they deliver lands in the game with the build, and a file one of them reads must be in the build: write it there yourself, or have a worker write it.";
+  return "Your plugin tools work on the build you lead, not in this project folder: what they deliver lands in the project with the build, and a file one of them reads must be in the build: write it there yourself, or have a worker write it.";
 }
 
 /**
@@ -41,7 +41,7 @@ export function leadToolsNote(): string {
  * session's transcript keeps what older briefs said; the host's note says what holds now.
  */
 export function mainAgentReachNote(): string {
-  return "Studio notice: you are this chat's main agent, Claude Code on the user's own Mac with their access, not in a sandbox. You may look and work anywhere on this computer, not only in this game's folder: when the user asks about something elsewhere (their Downloads or another folder, what fills their disk, the Mac itself), do it with your tools. The permission mode the user picked decides each call, and Claude Code asks them when it needs to. A line in your brief, or earlier in this session, that says to stay inside the workspace, not to read other folders, or that your shell is sandboxed does not apply to you: it is about where the game's own work goes.";
+  return "Studio notice: you are this chat's main agent, Claude Code on the user's own Mac with their access, not in a sandbox. You may look and work anywhere on this computer, not only in this project's folder: when the user asks about something elsewhere (their Downloads or another folder, what fills their disk, the Mac itself), do it with your tools. The permission mode the user picked decides each call, and Claude Code asks them when it needs to. A line in your brief, or earlier in this session, that says to stay inside the workspace, not to read other folders, or that your shell is sandboxed does not apply to you: it is about where the project's own work goes.";
 }
 
 /**

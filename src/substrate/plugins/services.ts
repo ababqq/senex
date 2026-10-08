@@ -2,9 +2,9 @@ import { deliverAssetFiles } from "../genex-delivery.ts";
 import path from "node:path";
 import { lstat, mkdir, readdir, readFile, realpath, writeFile } from "node:fs/promises";
 import { PluginService, type PluginBinding } from "../../shared/plugins.ts";
-import type { ExportResult } from "../game-export.ts";
-import type { GenexGameManifest } from "../../shared/genex.ts";
-import { readGenexGameManifest } from "../genex-game-manifest.ts";
+import type { ExportResult } from "../project-export.ts";
+import type { GenexProjectManifest } from "../../shared/genex.ts";
+import { readGenexProjectManifest } from "../genex-project-manifest.ts";
 import { SecretStore } from "../secrets.ts";
 import { atomicWriteJson } from "../fsx.ts";
 import { createHash } from "node:crypto";
@@ -23,7 +23,7 @@ const MESSAGE = {
   InvalidCredential: "Invalid credential",
   ProjectRequired: "Project required",
   SourceEscapes: "Asset source escapes plugin storage",
-  TargetEscapes: "Asset target escapes the game",
+  TargetEscapes: "Asset target escapes the project",
   Symlink: "Asset directory contains a symlink",
   NotRegular: "Asset is not a regular file",
   FileTooLarge: (limit: number) => `Asset exceeds ${limit} bytes per file; simplify it before delivery`,
@@ -43,7 +43,7 @@ const MESSAGE = {
   Unknown: "Unknown plugin service",
 } as const;
 
-/** One service call: the plugin, its storage root, the backend's untyped arguments and the bound game. */
+/** One service call: the plugin, its storage root, the backend's untyped arguments and the bound project. */
 interface ServiceCall {
   id: string;
   root: string;
@@ -144,11 +144,11 @@ export class PluginServices {
     this.observe = observe;
   }
   onEvent: ((id: string, event: unknown, binding?: PluginBinding) => void) | undefined;
-  /** Host ledger hook after files land in the game; awaited, failures swallowed so delivery never fails on bookkeeping. */
+  /** Host ledger hook after files land in the project; awaited, failures swallowed so delivery never fails on bookkeeping. */
   onDelivered:
     | ((id: string, delivered: { jobId: string; files: string[] }, binding: PluginBinding) => Promise<void>)
     | undefined;
-  /** Host export: writes the public copy of the bound game into `target`. Unset → `export.stage` reports 'Export unavailable'. */
+  /** Host export: writes the public copy of the bound project into `target`. Unset → `export.stage` reports 'Export unavailable'. */
   exportStage: ((binding: PluginBinding, target: string, pluginId: string) => Promise<ExportResult>) | undefined;
   assetRoot: ((binding: PluginBinding) => Promise<string>) | undefined;
   assetLimits: ((id: string) => AssetLimits | undefined) | undefined;
@@ -213,15 +213,15 @@ export class PluginServices {
     const target = this.assetRoot ? await this.assetRoot(binding) : binding.directory;
     await mkdir(target, { recursive: true });
     const canonicalTarget = await realpath(target);
-    const canonicalGame = await realpath(binding.directory);
-    if (!isInside(canonicalGame, canonicalTarget)) throw new Error(MESSAGE.TargetEscapes);
+    const canonicalProject = await realpath(binding.directory);
+    if (!isInside(canonicalProject, canonicalTarget)) throw new Error(MESSAGE.TargetEscapes);
     const beforeCopy = limits ? await projectQuota(id, root, binding, source, canonicalTarget, limits) : undefined;
     const delivered = await deliverAssetFiles(source, canonicalTarget, args.jobId, id, {
       reuseExisting: true,
       beforeCopy,
     });
     const files = delivered.map((file) =>
-      toPosixRelative(path.relative(canonicalGame, path.join(canonicalTarget, file))),
+      toPosixRelative(path.relative(canonicalProject, path.join(canonicalTarget, file))),
     );
     if (this.onDelivered) {
       try {
@@ -230,15 +230,15 @@ export class PluginServices {
     }
     return files;
   }
-  /** The public copy, plus what the game's package.json tells Genex (the copy itself carries no package.json). */
-  async #exportStage({ id, root, binding }: ServiceCall): Promise<ExportResult & { genex?: GenexGameManifest }> {
+  /** The public copy, plus what the project's package.json tells Genex (the copy itself carries no package.json). */
+  async #exportStage({ id, root, binding }: ServiceCall): Promise<ExportResult & { genex?: GenexProjectManifest }> {
     const bound = requireBinding(binding);
     if (!PROJECT_NAME.test(bound.project)) throw new Error(MESSAGE.InvalidProjectName);
     if (!this.exportStage) throw new Error(MESSAGE.ExportUnavailable);
     const target = path.join(root, "publish", bound.project, "dist");
     await mkdir(path.dirname(target), { recursive: true, mode: 0o700 });
     const result = await this.exportStage(bound, target, id);
-    const genex = await readGenexGameManifest(bound.directory);
+    const genex = await readGenexProjectManifest(bound.directory);
     return genex ? { ...result, genex } : result;
   }
   async #observeFiles({ args, binding }: ServiceCall): Promise<unknown> {

@@ -18,7 +18,7 @@ export function useAutoOpenBuilds({
   view,
   chooseView,
 }: {
-  /** A game chat, loaded. */
+  /** A project chat, loaded. */
   active: boolean;
   threadId: string | null;
   stateEvents: EventEnvelope[];

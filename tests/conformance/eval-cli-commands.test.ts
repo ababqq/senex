@@ -453,7 +453,9 @@ describe("cases", () => {
     assert.match(listed.text, /^C91 grading-case mode=build exposure=none visibility=public deadline=30min items=4/);
     const checked = await call(casesCommand, ["--check"], world);
     assert.match(checked.text, /cases ok: 1 public, 0 holdout$/);
-    const broken = await cliWorld({ cases: () => [{ ...gradingCase, startFrom: "tests/fixtures/evals/games/nope" }] });
+    const broken = await cliWorld({
+      cases: () => [{ ...gradingCase, startFrom: "tests/fixtures/evals/projects/nope" }],
+    });
     const refused = await call(casesCommand, ["--check"], broken);
     assert.equal(refused.code, CliExit.Refused);
     assert.match(refused.text, /^invalid case file \(grading-case, start-from\)/);

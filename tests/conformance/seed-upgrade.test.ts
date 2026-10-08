@@ -577,6 +577,9 @@ describe("the craft migration on an installed catalogue", () => {
       "camera-player-eye",
       "demo-walk",
       "drawcalls-ceiling",
+      "main-flow-demo",
+      "one-main-landmark",
+      "page-has-heading",
       "player-moved",
       "primary-action-registers",
     ]);
@@ -651,14 +654,18 @@ describe("the craft migration on an installed catalogue", () => {
 
   it("derives what it may retire from the shipped recipes alone", async () => {
     const owners = await craftCheckOwners(path.join(repoRoot, "src", "harness-seed"));
-    assert.equal(owners.size, 41, "one owner per retired opinion");
+    assert.equal(owners.size, 57, "one owner per retired opinion, and one per recipe written for software");
     assert.equal(owners.get("organic-not-solid"), "flora.organic-not-solid");
+    assert.equal(owners.get("controls-named"), "a11y.every-control-named");
     for (const keeper of [
       "camera-player-eye",
       "player-moved",
       "drawcalls-ceiling",
       "demo-walk",
       "primary-action-registers",
+      "main-flow-demo",
+      "page-has-heading",
+      "one-main-landmark",
     ]) {
       assert.equal(owners.has(keeper), false, `${keeper} is a keeper: no craft recipe claims it`);
     }
@@ -1444,7 +1451,7 @@ describe("seed upgrade across one session", () => {
     assert.deepEqual(
       seen,
       LEAD_PARTS.map((kept) => ({ kept, seats: { wake: false, turn: false } })),
-      "an older copy of any part the lead depends on would tell a lead in the game folder to edit and commit in its worktree",
+      "an older copy of any part the lead depends on would tell a lead in the project folder to edit and commit in its worktree",
     );
   });
 

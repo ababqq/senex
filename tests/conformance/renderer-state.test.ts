@@ -10,7 +10,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, it } from "node:test";
 import type { EventEnvelope } from "../../src/shared/event-log.ts";
-import type { ConversationRecord, GameProject, ProjectAssets } from "../../src/shared/studio-api.ts";
+import type { ConversationRecord, Project, ProjectAssets } from "../../src/shared/studio-api.ts";
 import type { UiEvent } from "../../src/shared/ui-events.ts";
 import { createRefresher } from "../../src/renderer/state/refresher.ts";
 import { UpdateAction } from "../../src/shared/app-update.ts";
@@ -24,7 +24,7 @@ import {
 } from "../../src/renderer/state/event-log.ts";
 import {
   busyThreadIds,
-  gameRemovedFromThreads,
+  projectRemovedFromThreads,
   harnessDown,
   initialThreads,
   projectOf,
@@ -32,7 +32,7 @@ import {
   returnTarget,
   Room,
   roomOf,
-  sidebarGames,
+  sidebarProjects,
   statusBootstrapped,
   statusReported,
   threadMeta,
@@ -139,12 +139,12 @@ const thread = (
   latest_event_id: null,
   metadata,
 });
-const gameProject = (name: string, extra: Partial<GameProject> = {}): GameProject => ({
+const projectEntry = (name: string, extra: Partial<Project> = {}): Project => ({
   name,
-  dir: `/games/${name}`,
+  dir: `/projects/${name}`,
   title: name,
   createdAt: "2026-09-01T00:00:00Z",
-  pathLabel: `~/AI Games/${name}`,
+  pathLabel: `~/AI Projects/${name}`,
   library: true,
   shape: {
     entry: "index.html",
@@ -295,24 +295,24 @@ describe("the event log store", () => {
   });
 });
 
-describe("the threads store: the open game is derived from the open chat", () => {
+describe("the threads store: the open project is derived from the open chat", () => {
   const loaded = threadsLoaded(initialThreads(), [studioThread, pond, rift]);
 
-  it("a game chat shows its own game; Studio keeps the game the stage held", () => {
+  it("a project chat shows its own project; Studio keeps the project the stage held", () => {
     const inPond = threadSelected(loaded, "pond-chat");
     assert.equal(projectOf(inPond), "pond");
     assert.equal(roomOf(inPond), "build");
     assert.equal(inPond.stageThreadId, "pond-chat");
-    assert.equal(inPond.lastGameThreadId, "pond-chat");
+    assert.equal(inPond.lastProjectThreadId, "pond-chat");
     const inStudio = threadSelected(inPond, "studio");
     assert.equal(roomOf(inStudio), "studio");
-    assert.equal(projectOf(inStudio), "pond", "Studio's stage is the game it was entered from");
+    assert.equal(projectOf(inStudio), "pond", "Studio's stage is the project it was entered from");
     assert.equal(inStudio.stageThreadId, "pond-chat");
     const draft = threadSelected(
       threadsLoaded(inStudio, [...inStudio.records, thread("draft", { kind: "game", project: null })]),
       "draft",
     );
-    assert.equal(projectOf(draft), null, "a draft has no game until its first brief binds one");
+    assert.equal(projectOf(draft), null, "a draft has no project until its first brief binds one");
     const bound = threadsLoaded(
       draft,
       draft.records.map((t) => (t.id === "draft" ? thread("draft", { kind: "game", project: "moss" }) : t)),
@@ -338,40 +338,44 @@ describe("the threads store: the open game is derived from the open chat", () =>
     );
   });
 
-  it("removing the stage's game opens home and forgets the return to it", () => {
-    // Intentionally flipped (2026-10-01): removing the game on the stage used to open Studio.
+  it("removing the stage's project opens home and forgets the return to it", () => {
+    // Intentionally flipped (2026-10-01): removing the project on the stage used to open Studio.
     const inPond = threadSelected(loaded, "pond-chat");
-    const removed = gameRemovedFromThreads(inPond, "pond");
+    const removed = projectRemovedFromThreads(inPond, "pond");
     assert.equal(removed.activeThreadId, null);
     assert.equal(roomOf(removed), Room.Home);
     assert.equal(projectOf(removed), null);
-    assert.equal(removed.lastGameThreadId, null);
-    assert.equal(gameRemovedFromThreads(inPond, "rift"), inPond, "another game's removal changes nothing here");
+    assert.equal(removed.lastProjectThreadId, null);
+    assert.equal(projectRemovedFromThreads(inPond, "rift"), inPond, "another project's removal changes nothing here");
   });
 
-  it("orders the sidebar's games by work in their chats, never by which one was opened last", () => {
-    const names = (games: GameProject[]) => games.map((game) => game.name);
-    const games = [
-      gameProject("rift", { lastOpenedAt: "2026-09-05T00:00:00Z" }),
-      gameProject("pond"),
-      gameProject("moss", { pinned: true }),
-      gameProject("fern", { createdAt: "2026-09-02T12:00:00Z" }),
+  it("orders the sidebar's projects by work in their chats, never by which one was opened last", () => {
+    const names = (projects: Project[]) => projects.map((project) => project.name);
+    const projects = [
+      projectEntry("rift", { lastOpenedAt: "2026-09-05T00:00:00Z" }),
+      projectEntry("pond"),
+      projectEntry("moss", { pinned: true }),
+      projectEntry("fern", { createdAt: "2026-09-02T12:00:00Z" }),
     ];
-    assert.deepEqual(names(sidebarGames(games, [studioThread, pond, rift])), ["moss", "pond", "fern", "rift"]);
+    assert.deepEqual(names(sidebarProjects(projects, [studioThread, pond, rift])), ["moss", "pond", "fern", "rift"]);
     const replied = thread("rift-chat", { kind: "game", project: "rift" }, "2026-09-04T00:00:00Z");
     assert.deepEqual(
-      names(sidebarGames(games, [studioThread, pond, replied])),
+      names(sidebarProjects(projects, [studioThread, pond, replied])),
       ["moss", "rift", "pond", "fern"],
-      "a message or reply in its chat moves a game up",
+      "a message or reply in its chat moves a project up",
     );
   });
 
-  it("orders the rail and finds Cmd-1's target among live games", () => {
-    const games = [gameProject("rift", { primaryThreadId: "rift-chat" }), gameProject("pond")];
-    assert.deepEqual(railThreadIds(loaded.records, games), ["studio", "rift-chat", "pond-chat"]);
-    const state = { ...loaded, lastGameThreadId: "rift-chat" };
-    assert.equal(returnTarget(state, games), "rift-chat");
-    assert.equal(returnTarget(state, [gameProject("pond")]), "pond-chat", "a removed game's chat is not returned to");
+  it("orders the rail and finds Cmd-1's target among live projects", () => {
+    const projects = [projectEntry("rift", { primaryThreadId: "rift-chat" }), projectEntry("pond")];
+    assert.deepEqual(railThreadIds(loaded.records, projects), ["studio", "rift-chat", "pond-chat"]);
+    const state = { ...loaded, lastProjectThreadId: "rift-chat" };
+    assert.equal(returnTarget(state, projects), "rift-chat");
+    assert.equal(
+      returnTarget(state, [projectEntry("pond")]),
+      "pond-chat",
+      "a removed project's chat is not returned to",
+    );
   });
 
   it("reads thread metadata field by field", () => {
@@ -390,14 +394,14 @@ describe("the threads store: the open game is derived from the open chat", () =>
     assert.deepEqual(
       threadMeta(thread("y", { kind: "other", project: 3 })),
       {},
-      "an unknown kind or a wrong type is absent, as before (not a game)",
+      "an unknown kind or a wrong type is absent, as before (not a project)",
     );
     assert.deepEqual(threadMeta(null), {});
   });
 });
 
 describe("the library store", () => {
-  it("counts builders per game from the event's own active count", () => {
+  it("counts builders per project from the event's own active count", () => {
     const one = delegationChanged(initialLibrary(), { started: true, project: "pond", active: 1 });
     assert.deepEqual([...one.building], ["pond"]);
     assert.equal(
@@ -418,10 +422,10 @@ describe("the library store", () => {
     assert.equal(delegationChanged(one, { started: true }), one);
   });
 
-  it("reads which games are building from the bootstrap, so a reload mid-build keeps the badge (F8)", () => {
+  it("reads which projects are building from the bootstrap, so a reload mid-build keeps the badge (F8)", () => {
     const boot = {
-      games: [gameProject("pond"), gameProject("rift")],
-      gamesRootLabel: "~/AI Games",
+      projects: [projectEntry("pond"), projectEntry("rift")],
+      projectsRootLabel: "~/AI Projects",
       layout: { runs: "/runs" },
     };
     const loaded = libraryBootstrapped(initialLibrary(), { ...boot, activeDelegations: { pond: 2, rift: 0 } });
@@ -438,7 +442,7 @@ describe("the library store", () => {
     );
   });
 
-  it("serves every watcher of a game from one read and one poll, and stops when the last lets go", async () => {
+  it("serves every watcher of a project from one read and one poll, and stops when the last lets go", async () => {
     const timers = manualTimers();
     const inventory: ProjectAssets = { project: "pond", assets: [], truncated: false, skipped: [] };
     const fake = fakeStudioApi({ projectAssets: async (project) => ({ ...inventory, project }) });
@@ -454,7 +458,7 @@ describe("the library store", () => {
     library.refreshAssets("rift");
     library.refreshAssets(null);
     await tick();
-    assert.equal(fake.callsOf("projectAssets").length, 3, "only a watched game is read");
+    assert.equal(fake.callsOf("projectAssets").length, 3, "only a watched project is read");
     graph();
     graph();
     assert.equal(timers.intervals.size, 1, "a second release of the same watch counts once");
@@ -463,7 +467,7 @@ describe("the library store", () => {
     assert.deepEqual(library.getState().assets.pond?.value?.project, "pond");
   });
 
-  it("keeps the last inventory when a read fails, and ignores an answer for another game", async () => {
+  it("keeps the last inventory when a read fails, and ignores an answer for another project", async () => {
     let answer: () => Promise<ProjectAssets> = async () => ({
       project: "pond",
       assets: [],
@@ -622,7 +626,7 @@ describe("what each UI event makes the renderer read again", () => {
       assert.deepEqual(reads(ev(type)), ["events"], type);
     }
     assert.deepEqual(reads(ev("thread.bound")), ["events", "threads"]);
-    assert.deepEqual(reads(ev("game.changed")), ["events", "games", "threads"]);
+    assert.deepEqual(reads(ev("project.changed")), ["events", "projects", "threads"]);
     assert.deepEqual(reads(ev("skillopt.staged")), ["staged"]);
     assert.deepEqual(reads(ev("engines.changed")), ["engines"]);
     assert.deepEqual(reads(ev("model.pull", { model: "m", progress: { status: "pulling" } })), []);
@@ -631,7 +635,7 @@ describe("what each UI event makes the renderer read again", () => {
     assert.deepEqual(reads(ev("harness.log")), []);
   });
 
-  it("re-reads one game's assets on its plugin's word, and every watched game on an unnamed delivery", () => {
+  it("re-reads one project's assets on its plugin's word, and every watched project on an unnamed delivery", () => {
     assert.deepEqual(uiEventReads(ev("plugin.event", { id: "genex", event: {}, project: "pond" })).assets, {
       project: "pond",
     });
@@ -645,12 +649,12 @@ describe("the studio: one subscription, the bootstrap and the commands that span
   const boot = (overrides: Record<string, unknown> = {}) => ({
     threadId: "studio",
     layout: { runs: "/runs" },
-    gamesRootLabel: "~/AI Games",
+    projectsRootLabel: "~/AI Projects",
     harness: { state: "ready", version: null, capabilities: [] },
     threads: [studioThread, pond, rift],
     events: [envelope("e1", "pond-chat")],
     eventsCursor: "c1",
-    games: [gameProject("pond"), gameProject("rift")],
+    projects: [projectEntry("pond"), projectEntry("rift")],
     engines: [],
     threadStatus: { "pond-chat": { status: "building", since: 5 } },
     ...overrides,
@@ -665,8 +669,8 @@ describe("the studio: one subscription, the bootstrap and the commands that span
   }
 
   it("opens home, loads no preview, keeps the way back to the last chat, and asks nothing before the cursor", async () => {
-    // Intentionally flipped (2026-10-01): a launch used to reopen the remembered chat and load its game.
-    const storage = memoryStorage({ "studio.activeThread": "rift-chat", "studio.lastGameThread": "rift-chat" });
+    // Intentionally flipped (2026-10-01): a launch used to reopen the remembered chat and load its project.
+    const storage = memoryStorage({ "studio.activeThread": "rift-chat", "studio.lastProjectThread": "rift-chat" });
     const { fake, app } = started({}, storage);
     assert.equal(app.session.getState().status, "loading");
     await tick();
@@ -675,9 +679,9 @@ describe("the studio: one subscription, the bootstrap and the commands that span
     assert.equal(projectOf(app.threads.getState()), null);
     assert.deepEqual(fake.callsOf("loadPreview"), [], "nothing is loaded behind home");
     assert.equal(app.session.getState().status, "ready");
-    assert.equal(app.threads.getState().lastGameThreadId, "rift-chat", "⌘1 returns to the last game chat");
+    assert.equal(app.threads.getState().lastProjectThreadId, "rift-chat", "⌘1 returns to the last project chat");
     assert.equal(storage.data.has("studio.reviewProject"), false);
-    assert.equal(storage.data.get("studio.lastGameThread"), "rift-chat");
+    assert.equal(storage.data.get("studio.lastProjectThread"), "rift-chat");
     assert.equal(storage.data.has("studio.activeThread"), true, "the opening does not rewrite the remembered chat");
     assert.deepEqual(app.threads.getState().status, { "pond-chat": { status: "building", since: 5 } });
     assert.equal(app.library.getState().runsRoot, "/runs");
@@ -685,19 +689,19 @@ describe("the studio: one subscription, the bootstrap and the commands that span
   });
 
   it("an empty library opens home and loads no preview", async () => {
-    // Intentionally flipped (2026-10-01): an empty library used to open Create game over Studio.
+    // Intentionally flipped (2026-10-01): an empty library used to open Create project over Studio.
     const { fake, app } = started({
-      bootstrap: async () => boot({ threads: [studioThread], games: [], events: [] }) as never,
+      bootstrap: async () => boot({ threads: [studioThread], projects: [], events: [] }) as never,
     });
     await tick();
     assert.equal(app.threads.getState().activeThreadId, null);
     assert.equal(roomOf(app.threads.getState()), Room.Home);
     assert.deepEqual(fake.callsOf("loadPreview"), []);
-    assert.deepEqual(fake.callsOf("newGameThread"), [], "creation waits for an explicit name or folder");
+    assert.deepEqual(fake.callsOf("newProjectThread"), [], "creation waits for an explicit name or folder");
   });
 
   it("offers the developer tools only when main says the run is unpackaged", async () => {
-    const empty = { threads: [studioThread], games: [], events: [] };
+    const empty = { threads: [studioThread], projects: [], events: [] };
     const developer = started({ bootstrap: async () => boot({ ...empty, developer: true }) as never });
     const packaged = started({ bootstrap: async () => boot(empty) as never });
     await tick();
@@ -706,15 +710,15 @@ describe("the studio: one subscription, the bootstrap and the commands that span
   });
 
   it("a first launch is welcomed once, and home follows the welcome", async () => {
-    // Intentionally flipped (2026-10-01): Create game used to follow the welcome.
-    const empty = { threads: [studioThread], games: [], events: [] };
+    // Intentionally flipped (2026-10-01): Create project used to follow the welcome.
+    const empty = { threads: [studioThread], projects: [], events: [] };
     const { app, storage, fake } = started({ bootstrap: async () => boot({ ...empty, welcome: true }) as never });
     await tick();
     assert.equal(app.session.getState().welcoming, true);
     app.finishWelcome();
     assert.equal(app.session.getState().welcoming, false);
     assert.equal(roomOf(app.threads.getState()), Room.Home);
-    assert.deepEqual(fake.callsOf("createGame"), [], "no game is made for the welcome");
+    assert.deepEqual(fake.callsOf("createProject"), [], "no project is made for the welcome");
     assert.equal(storage.data.get("studio.welcomed"), "1");
     const again = started(
       { bootstrap: async () => boot({ ...empty, welcome: true }) as never },
@@ -731,14 +735,14 @@ describe("the studio: one subscription, the bootstrap and the commands that span
     );
   });
 
-  it("a build the chat put on screen for the game on the stage shows Live", async () => {
+  it("a build the chat put on screen for the project on the stage shows Live", async () => {
     const storage = memoryStorage({ "studio.previewView": "builds" });
     const { fake, app } = started({}, storage);
     await tick();
     app.selectThread("rift-chat");
     assert.equal(app.layout.getState().stageView, "builds");
     fake.emit({ type: "stage.show", payload: { project: "pond", view: "live" } });
-    assert.equal(app.layout.getState().stageView, "builds", "another game's build leaves this stage alone");
+    assert.equal(app.layout.getState().stageView, "builds", "another project's build leaves this stage alone");
     fake.emit({ type: "stage.show", payload: { project: "rift", view: "live" } });
     assert.equal(app.layout.getState().stageView, "live");
   });
@@ -801,9 +805,9 @@ describe("the studio: one subscription, the bootstrap and the commands that span
     assert.equal(fake.listeners("onEvent"), 0, "stopping unsubscribes");
   });
 
-  it("opening a game loads its preview once and then re-reads the library", async () => {
+  it("opening a project loads its preview once and then re-reads the library", async () => {
     const moss = thread("moss-chat", { kind: "game", project: "moss" });
-    const { fake, app, storage } = started({ threadForGame: async () => moss });
+    const { fake, app, storage } = started({ threadForProject: async () => moss });
     await tick();
     const loads = fake.callsOf("loadPreview").length;
     const record = await app.enterProject("moss");
@@ -816,19 +820,19 @@ describe("the studio: one subscription, the bootstrap and the commands that span
       "one load, not one from the command and one from the follower",
     );
     assert.equal(storage.data.get("studio.activeThread"), "moss-chat");
-    assert.ok(fake.callsOf("games").length >= 1);
+    assert.ok(fake.callsOf("projects").length >= 1);
     await app.enterProject("moss");
     await tick();
     assert.deepEqual(
       fake.callsOf("loadPreview").slice(loads),
       [["moss"], ["moss"]],
-      "opening the same game again reloads it, as the sidebar always did",
+      "opening the same project again reloads it, as the sidebar always did",
     );
   });
 
   it("a refused open is toasted in plain words", async () => {
     const { app } = started({
-      threadForGame: async () => {
+      threadForProject: async () => {
         throw new Error('a contractor is building in "skate" right now — wait for it to finish before landing a build');
       },
     });
@@ -837,21 +841,21 @@ describe("the studio: one subscription, the bootstrap and the commands that span
     assert.equal(app.toasts.getState().items[0]?.tone, "err");
   });
 
-  it("removing the stage's game opens home; removing another game leaves the stage", async () => {
-    // Intentionally flipped (2026-10-01): removing the game on the stage used to open Studio.
+  it("removing the stage's project opens home; removing another project leaves the stage", async () => {
+    // Intentionally flipped (2026-10-01): removing the project on the stage used to open Studio.
     const storage = memoryStorage({ "studio.reviewProject": "pond" });
     const { app } = started({}, storage);
     await tick();
     app.selectThread("pond-chat");
-    assert.equal(await app.removeGame("rift"), false);
+    assert.equal(await app.removeProject("rift"), false);
     assert.equal(app.threads.getState().activeThreadId, "pond-chat");
-    assert.equal(await app.removeGame("pond"), true);
+    assert.equal(await app.removeProject("pond"), true);
     assert.equal(app.threads.getState().activeThreadId, null);
     assert.equal(roomOf(app.threads.getState()), Room.Home);
     assert.equal(storage.data.has("studio.reviewProject"), false);
-    assert.equal(storage.data.has("studio.lastGameThread"), false);
+    assert.equal(storage.data.has("studio.lastProjectThread"), false);
     assert.deepEqual(
-      app.library.getState().games.map((g) => g.name),
+      app.library.getState().projects.map((g) => g.name),
       [],
     );
   });
@@ -897,20 +901,20 @@ describe("the studio: one subscription, the bootstrap and the commands that span
     assert.equal(await openSettings(() => () => void app.engines.refresh()), 3, "a closure per render keeps reading");
   });
 
-  it("sends from the open chat, then reads the log, the games and the threads", async () => {
+  it("sends from the open chat, then reads the log, the projects and the threads", async () => {
     const { fake, app } = started();
     await tick();
     app.selectThread("pond-chat");
     const reads = {
       events: fake.callsOf("events").length,
-      games: fake.callsOf("games").length,
+      projects: fake.callsOf("projects").length,
       threads: fake.callsOf("threads").length,
     };
     await app.send("make it rain", { engine: "claude-code" });
     await tick();
     assert.deepEqual(fake.callsOf("send").at(-1), ["make it rain", { thread: "pond-chat", engine: "claude-code" }]);
     assert.equal(fake.callsOf("events").length, reads.events + 1);
-    assert.equal(fake.callsOf("games").length, reads.games + 1);
+    assert.equal(fake.callsOf("projects").length, reads.projects + 1);
     assert.equal(fake.callsOf("threads").length, reads.threads + 1);
   });
 });

@@ -1,6 +1,6 @@
 /**
  * The page Live is waiting for. Until it has loaded and settled the native view stays out of
- * sight and the stage shows a quiet loader — never the previous game, a blank navigation or a
+ * sight and the stage shows a quiet loader — never the previous project, a blank navigation or a
  * first black frame. `pending` covers a load the stage started itself and is still awaiting.
  */
 import type { RefObject } from "react";
@@ -15,18 +15,18 @@ const LIVE_TICK_MS = SECOND_MS;
 const LIVE_QUIET_MS = 300;
 /** A loaded page that keeps requesting is shown anyway after this long. */
 const LIVE_SETTLE_MAX_MS = 3 * SECOND_MS;
-/** Never keep the game hidden longer than this, whatever the page is doing. */
+/** Never keep the project hidden longer than this, whatever the page is doing. */
 const LIVE_LOAD_MAX_MS = 45 * SECOND_MS;
 
-/** A load Live is waiting on: for which game, whether the stage is still starting it, and since when. */
+/** A load Live is waiting on: for which project, whether the stage is still starting it, and since when. */
 export type LiveLoad = { project: string; pending: boolean; since: number };
 
 type LivePage = Awaited<ReturnType<typeof window.studio.previewLive>>;
 
-/** What the game reports about itself, whether it is stopped, the load Live waits on, and a way to start one. */
+/** What the project reports about itself, whether it is stopped, the load Live waits on, and a way to start one. */
 export function useLiveLoad(project: string | null) {
   const [state, setState] = useState<Record<string, unknown> | null>(null);
-  /** The person stopped the game (Stop on the strip): main says so on every probe. */
+  /** The person stopped the project (Stop on the strip): main says so on every probe. */
   const [stopped, setStopped] = useState(false);
   const [liveLoad, setLiveLoad] = useState<LiveLoad | null>(() =>
     project ? { project, pending: false, since: Date.now() } : null,
@@ -40,7 +40,7 @@ export function useLiveLoad(project: string | null) {
   }
   const liveLoadRef = useRef(liveLoad);
   liveLoadRef.current = liveLoad;
-  /** Hide the game while `load` runs, then wait for the page it produced to settle. */
+  /** Hide the project while `load` runs, then wait for the page it produced to settle. */
   const loadLive = useCallback((target: string, load: () => Promise<unknown>) => {
     setLiveLoad({ project: target, pending: true, since: Date.now() });
     return load().then(
@@ -90,8 +90,8 @@ function settled(
   return ready;
 }
 
-/** What this game's own page says on a probe: whether it is stopped, and the state it reports. */
-function noteGame(live: LivePage, set: Pick<ReturnType<typeof useLiveLoad>, "setState" | "setStopped">): void {
+/** What this project's own page says on a probe: whether it is stopped, and the state it reports. */
+function noteProject(live: LivePage, set: Pick<ReturnType<typeof useLiveLoad>, "setState" | "setStopped">): void {
   set.setStopped(live.stopped);
   if (!live.page) return;
   const next = live.page.state;
@@ -100,9 +100,9 @@ function noteGame(live: LivePage, set: Pick<ReturnType<typeof useLiveLoad>, "set
   );
 }
 
-// One probe answers both questions the stage asks of the page: what state the game reports,
+// One probe answers both questions the stage asks of the page: what state the project reports,
 // and — while a load is under way — whether the page it asked for has loaded and gone quiet.
-/** Probe the live page while Live shows or a load is waiting; reveal the game once its page has settled. */
+/** Probe the live page while Live shows or a load is waiting; reveal the project once its page has settled. */
 export function useLiveProbe({
   project,
   stageView,
@@ -115,7 +115,7 @@ export function useLiveProbe({
   buildProblemRef: RefObject<boolean>;
 }): void {
   const waiting = liveLoad !== null;
-  // biome-ignore lint/correctness/useExhaustiveDependencies: the probe restarts only for a new game, view or wait; the rest is read through refs
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the probe restarts only for a new project, view or wait; the rest is read through refs
   useEffect(() => {
     const probing = stageView === StageView.Live || waiting;
     if (!project || !probing) return;
@@ -123,9 +123,9 @@ export function useLiveProbe({
     let timer: ReturnType<typeof setTimeout> | undefined;
     const settle = freshSettle();
     const observe = (live: LivePage | null): void => {
-      // The previous game's page, or this one mid-navigation, says nothing about the page asked for.
+      // The previous project's page, or this one mid-navigation, says nothing about the page asked for.
       const current = Boolean(live && live.project === project && !live.navigating);
-      if (current && live) noteGame(live, { setState, setStopped });
+      if (current && live) noteProject(live, { setState, setStopped });
       const load = liveLoadRef.current;
       if (!load || load.pending) return;
       if (load.project !== project) return;

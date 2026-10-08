@@ -23,7 +23,7 @@ import { applyEdits } from "../../src/harness-seed/loop/skills.ts";
 import { DIRECTOR_TOOLS } from "../../src/harness-seed/loop/director.ts";
 
 const seedDir = pathMod.resolve(fileURLToPath(new URL("../../src/harness-seed", import.meta.url)));
-const templateDir = pathMod.resolve(fileURLToPath(new URL("../../src/game-template", import.meta.url)));
+const templateDir = pathMod.resolve(fileURLToPath(new URL("../../src/project-template", import.meta.url)));
 
 function skill(): string {
   return readFileSync(pathMod.join(seedDir, "skills", "facet-decomposition.md"), "utf8");
@@ -66,7 +66,7 @@ describe("the check grammar has one source", () => {
 
     const full = renderCheckGrammar();
     assert.ok(full.length > compact.length, "the full grammar says more, not less");
-    assert.match(full, /Helpers in scope: scene, renderer, camera, state, player, objects\(tag\)/);
+    assert.match(full, /Helpers in scope: dom \(count\(selector\), visible\(selector\)/);
     assert.match(full, /`needs` names up to four dotted paths/);
   });
 
@@ -149,12 +149,12 @@ describe("the pages a builder is handed", () => {
     assert.deepEqual(rules, ["1. ", "2. ", "3. ", "4. ", "5. "]);
   });
 
-  it("keeps CONTRACT.md to the tables, including the one written for a game the studio did not write", () => {
+  it("keeps CONTRACT.md to the tables, including the one written for a project the studio did not write", () => {
     const text = page("docs/CONTRACT.md");
     // 121 after M4.8a's diet; 127 once the three harness-owned modules became real `###`
     // sections rather than bold run-ins (`projects.test.ts` looks for the Assets heading, and
     // CLAUDE.md rule 5 sends a builder to it by name); 150 with M4's attachment paragraph, the
-    // two-line install and the `bootMs`/`game` rows — the words three lanes asked this page for.
+    // two-line install and the `bootMs`/`project` rows — the words three lanes asked this page for.
     assert.ok(text.split("\n").length <= 150, `CONTRACT.md is ${text.split("\n").length} lines`);
     // prompts/optimization.md and judge/optimization-preserve.md grade against this paragraph:
     // it is the only written contract for a custom runtime, and cutting it cut the definition.
@@ -163,7 +163,7 @@ describe("the pages a builder is handed", () => {
     assert.match(text, /## Renderers/, "the WebGPU sentences have a home");
   });
 
-  it("keeps CLAUDE.own.md's four substitution tokens where game-workspace fills them in", () => {
+  it("keeps CLAUDE.own.md's four substitution tokens where project-workspace fills them in", () => {
     const text = page("CLAUDE.own.md");
     for (const token of ["__ENTRY_MAIN__", "__SERVED_ENTRY__", "__BUILD_LINE__", "__BUILD_RULE__"]) {
       assert.ok(text.includes(token), `${token} is still substituted`);
@@ -171,7 +171,7 @@ describe("the pages a builder is handed", () => {
   });
 
   it("numbers CLAUDE.own.md's rules 1..6 with no gap or repeat, with a build and without", () => {
-    // Rule 6 is hard-coded in game-workspace.ts's ownRules: renumbering here silently produces a
+    // Rule 6 is hard-coded in project-workspace.ts's ownRules: renumbering here silently produces a
     // page with two rule 5s or no rule 6.
     const text = page("CLAUDE.own.md");
     const numbers = (body: string) => (body.match(/^(\d+)\. /gm) ?? []).map((line) => Number(line.trim().slice(0, -1)));

@@ -9,7 +9,7 @@ import {
   isOrbFamily,
 } from "../../shared/cover-recipe.ts";
 import { SECOND_MS } from "../../shared/duration.ts";
-import { coverSignature, type DisplayCover } from "../../shared/game-library.ts";
+import { coverSignature, type DisplayCover } from "../../shared/project-library.ts";
 import { loadCoverStills, saveCoverStill } from "./cover-stills.ts";
 import { REDUCED_MOTION_QUERY } from "./media-queries.ts";
 
@@ -60,7 +60,7 @@ const startTime = (cover: DisplayCover): number => (cover.kind === "recipe" ? co
 
 /**
  * One WebGL context paints every cover into its own small 2D canvas. A row at rest shows the still
- * saved the first time its sphere drew, so a restart compiles nothing; the hovered or focused game
+ * saved the first time its sphere drew, so a restart compiles nothing; the hovered or focused project
  * eases in from its held frame. Programs compile in the background where the GPU allows, and the
  * orb families' shaders load only when one first has to draw. Nothing moves off-screen, inside
  * [inert], in a hidden window or under Reduce Motion. Without a GPU the rows keep their stills.
@@ -355,7 +355,7 @@ class CoverRenderer {
     if (canvas.width !== scale) {
       canvas.width = canvas.height = scale;
     }
-    const control = canvas.closest("[data-game]") ?? canvas.closest('button, [role="option"]') ?? canvas;
+    const control = canvas.closest("[data-project-row]") ?? canvas.closest('button, [role="option"]') ?? canvas;
     const entry: Entry = {
       canvas,
       context: canvas.getContext("2d"),
@@ -414,7 +414,7 @@ class CoverRenderer {
 }
 let singleton: CoverRenderer | null = null;
 export type CoverHandle = ReturnType<CoverRenderer["register"]>;
-/** Paint `cover` into `canvas`; `key` (a game's name) keeps its clock across remounts. */
+/** Paint `cover` into `canvas`; `key` (a project's name) keeps its clock across remounts. */
 export function animateCover(
   canvas: HTMLCanvasElement,
   cover: DisplayCover,

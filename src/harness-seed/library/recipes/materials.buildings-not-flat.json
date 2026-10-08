@@ -5,6 +5,7 @@
   "checkClass": "materials",
   "kind": "craft",
   "pack": "materials",
+  "appKinds": ["graphics"],
   "note": "Buildings carry baked masonry, plaster or wood maps from materials.js, never flat colour.",
   "intent": "Buildings are the largest surfaces in the frame, so a flat colour on them is the first thing the taste judge names. Bake three or four wall kinds in materials.js (stone, render, timber, brick) with tiling chosen so the pattern does not repeat visibly across one facade, and pick per building from a seeded rng. Vary the base colour slightly between buildings so a row does not read as one extruded block, and keep the map on every mesh tagged building, gable ends and side walls included.",
   "check": {

@@ -205,7 +205,7 @@ function hasOnlyDeclaredArguments(recipe: PluginNativeJob, args: any): boolean {
   return !undeclaredInput && !undeclaredValue;
 }
 
-/** Each declared input, resolved inside the game and refused when protected, linked or not a file. */
+/** Each declared input, resolved inside the project and refused when protected, linked or not a file. */
 async function resolveInputs(
   recipe: PluginNativeJob,
   requested: Record<string, string>,

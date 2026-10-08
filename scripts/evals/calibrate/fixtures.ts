@@ -1,6 +1,6 @@
 /**
  * Where each calibration fixture comes from (§6.2): four hand-made folders under
- * `tests/fixtures/evals/calibration/`, and `template-untouched`, which is the app's own game template
+ * `tests/fixtures/evals/calibration/`, and `template-untouched`, which is the app's own project template
  * copied at run time so it can never drift from the starter a Genex lane really begins with. Every
  * fixture is copied into a fresh work folder first, so probing and building never write into the
  * committed tree.
@@ -11,8 +11,8 @@ import { CalibrationFixture } from "../vocabulary.ts";
 
 /** The committed fixtures folder, relative to the repository root. */
 export const CALIBRATION_FIXTURES_DIR = "tests/fixtures/evals/calibration";
-/** The game template `template-untouched` is copied from, relative to the repository root. */
-export const GAME_TEMPLATE_DIR = "src/game-template";
+/** The project template `template-untouched` is copied from, relative to the repository root. */
+export const PROJECT_TEMPLATE_DIR = "src/project-template";
 
 /** Folders never copied into a work folder. */
 const SKIPPED_DIRS: ReadonlySet<string> = new Set(["node_modules", ".git"]);

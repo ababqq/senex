@@ -459,7 +459,7 @@ export const WAKE_BRIEF = {
   planReview:
     ' THE USER ASKED TO READ IT FIRST: your first worker waits for their word (they may simply say "go") and builds the plan as it stands if they say nothing — end your turn after plan; you are woken when they answer or the window closes.',
   userSays:
-    "- The user speaks in this game's chat: their words open your next wake (THE USER SAYS) or reach you mid-turn. They outrank your plan; answer them there, briefly, and act on them.",
+    "- The user speaks in this project's chat: their words open your next wake (THE USER SAYS) or reach you mid-turn. They outrank your plan; answer them there, briefly, and act on them.",
 } as const;
 
 /** What `worker_start` answers a waking lead while the builders wait for the user's word. */

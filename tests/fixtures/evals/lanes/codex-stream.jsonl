@@ -1,6 +1,6 @@
 {"type":"thread.started","thread_id":"0000aaaa-0000-7000-8000-000000000001"}
 {"type":"turn.started"}
-{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"Building a small canvas game."}}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"Building a small canvas project."}}
 {"type":"item.started","item":{"id":"item_1","type":"file_change","changes":[{"path":"index.html","kind":"add"}],"status":"in_progress"}}
 {"type":"item.completed","item":{"id":"item_1","type":"file_change","changes":[{"path":"index.html","kind":"add"}],"status":"completed"}}
 {"type":"turn.completed","usage":{"input_tokens":120,"cached_input_tokens":80,"cache_write_input_tokens":0,"output_tokens":24,"reasoning_output_tokens":6}}

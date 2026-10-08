@@ -7,7 +7,7 @@
  * whole app black. So the window never navigates: a link opens outside it (the browser, the
  * file's own app, Finder) or is refused in words, and the studio stays on screen.
  *
- * File links are allowed only inside the user's game folders — a report may point at its own
+ * File links are allowed only inside the user's project folders — a report may point at its own
  * notes, never at the studio's credentials or anything else on the disk. Containment is checked
  * on real paths, because a contractor can plant a link. And a click only ever *opens* a document
  * or media file: the text of a link hides its extension, so a contractor that wrote
@@ -70,7 +70,7 @@ export async function routeStudioLink(raw: string, options: { projectDirs: strin
   } catch {
     return { action: "refuse", reason: "that file link is malformed" };
   }
-  const outside = { action: "refuse", reason: `${target} is outside your game folders` } as const;
+  const outside = { action: "refuse", reason: `${target} is outside your project folders` } as const;
   // Lexically first, so a link to anywhere else on the disk is refused without touching it.
   if (!options.projectDirs.some((dir) => isInside(dir, target))) return outside;
 
@@ -80,7 +80,7 @@ export async function routeStudioLink(raw: string, options: { projectDirs: strin
   } catch {
     return { action: "refuse", reason: `${target} does not exist` };
   }
-  // Then on real paths: a link inside a game folder that leads out of it is outside. A game
+  // Then on real paths: a link inside a project folder that leads out of it is outside. A project
   // folder that is gone contains nothing.
   const roots = await Promise.all(options.projectDirs.map((dir) => realpath(path.resolve(dir)).catch(() => null)));
   if (!roots.some((root) => root !== null && isInside(root, real))) return outside;

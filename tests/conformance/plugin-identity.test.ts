@@ -191,7 +191,7 @@ test("a bundled id is refused from GitHub, the index or a local folder, and no a
     // The seed is still Studio's, and still answers.
     assert.deepEqual(await f.registry.tool("example__greet", { name: "Ada" }, f.binding), {
       text: "Hello Ada",
-      project: "game",
+      project: "project",
     });
     // Removing the bundled plugin does not free its id for anyone else; restoring it brings Studio's back.
     await f.registry.remove("example");

@@ -4,7 +4,7 @@
  *  1. A capture that raced the compositor (stale frame wearing another camera's label) gets ONE
  *     retake before the duplicate guard may call debugCamera dead — 10 of 36 iterations died to
  *     that race, plus the run's final verdict.
- *  2. Cameras and demos the game declares are photographed too, so behaviour off the fixed trio
+ *  2. Cameras and demos the project declares are photographed too, so behaviour off the fixed trio
  *     (a bench sit, a hero prop) can become the biggest gap instead of never being seen.
  *  3. "Not judgeable" must distinguish a broken build from a broken camera: only observation-layer
  *     failures may be forgiven at run scope.
@@ -28,16 +28,16 @@ import type { Check } from "../../src/harness-seed/loop/spec.ts";
 import { evaluateProbeCheck, evaluateSceneCheck, sceneCheckExpression } from "../../src/harness-seed/loop/checks.ts";
 import {
   criticFor,
-  gameLine,
+  appLine,
   inputProbesFor,
   KIND_NAMES,
-  normalizeGameTraits,
+  normalizeAppTraits,
   playScriptFor,
-  readDeclaredGame,
+  readDeclaredApp,
   wantsEyeCameras,
-  writeDeclaredGame,
+  writeDeclaredApp,
 } from "../../src/harness-seed/loop/kinds.ts";
-import { applyPlayScript, CONTROL_EXERCISE } from "../../src/harness-seed/loop/play-script.ts";
+import { applyPlayScript, CONTROL_EXERCISE, WALK_EXERCISE } from "../../src/harness-seed/loop/play-script.ts";
 
 interface StubOptions {
   /** Base64 payload per screenshot call, in order; repeats simulate a stale compositor frame. */
@@ -193,8 +193,8 @@ describe("gatherEvidence after the stale-frame night", () => {
   });
 
   it("every camera identical is a dead cameras contract — a build failure, never an outage", async () => {
-    // Two DECLARED viewpoints: the floor's own guesses cannot indict a game that never claimed
-    // to have more than one camera, so the verdict is read off what the game declares.
+    // Two DECLARED viewpoints: the floor's own guesses cannot indict a project that never claimed
+    // to have more than one camera, so the verdict is read off what the project declares.
     const { ctx } = stubCtx({ frames: ["AAAA", "AAAA", "AAAA", "AAAA"], cameras: ["default", "close", "wide"] });
     const evidence = await gather(ctx);
     assert.equal(evidence.ok, false);
@@ -230,7 +230,7 @@ describe("gatherEvidence after the stale-frame night", () => {
     const demoStates = (evidence.demoStates ?? {}) as Record<string, unknown>;
     assert.deepEqual(Object.keys(demoStates), ["sit-on-bench"]);
     assert.notDeepEqual(demoStates["sit-on-bench"], evidence.state);
-    // The demo mutates game state toward its end frame, so it must run after every camera shot.
+    // The demo mutates project state toward its end frame, so it must run after every camera shot.
     const sequence = calls
       .filter((c) => c.method === "preview.call" && ["debugCamera", "demo"].includes(String(c.payload.method)))
       .map((c) => `${c.payload.method}:${c.payload.arg}`);
@@ -344,7 +344,7 @@ describe("gatherEvidence after the stale-frame night", () => {
     assert.deepEqual(truncated.problems, ["3 console error(s)"]);
   });
 
-  it("a game predating cameras()/demos() yields the classic trio untouched", async () => {
+  it("a project predating cameras()/demos() yields the classic trio untouched", async () => {
     const { ctx } = stubCtx({ frames: ["AAAA", "BBBB", "CCCC"] });
     const evidence = await gather(ctx);
     assert.equal(evidence.ok, true);
@@ -363,7 +363,7 @@ describe("observationOnlyFailure — a broken camera is not a broken build", () 
 
   it("forgives the occluded window — every capture failing on a missing display surface", () => {
     // The failure mode that cost a run all three first-iteration builds: window covered,
-    // compositor parked, every camera blind while the game itself ran fine.
+    // compositor parked, every camera blind while the project itself ran fine.
     assert.equal(
       observationOnlyFailure([
         "screenshot(default) failed: Current display surface not available for capture",
@@ -441,113 +441,115 @@ describe("withObservationPatience — a blind camera retries, a broken build doe
   });
 });
 
-// ── the kind of game, and the controls the harness drives on it ────────────────────────────
+// ── the kind of project, and the controls the harness drives on it ────────────────────────────
 
-describe("the kind a game declares, and what the harness assumes without one", () => {
+describe("the kind a project declares, and what the harness assumes without one", () => {
   it("assumes nothing until something declares it", () => {
-    assert.deepEqual(normalizeGameTraits(undefined), {
+    assert.deepEqual(normalizeAppTraits(undefined), {
       kind: null,
-      hud: false,
+      ui: false,
+      navigation: false,
+      typing: false,
       mouseLook: false,
       keyboardMove: false,
       playScript: null,
     });
     assert.equal(KIND_NAMES.length, 8, "eight kinds, and a ninth is a change to the table");
-    const topDown = normalizeGameTraits({ kind: "top-down" });
-    assert.equal(topDown.hud, true, "a declared kind IS a declaration");
-    assert.equal(topDown.keyboardMove, true);
-    assert.equal(topDown.mouseLook, false, "a top-down game is not mouse-looked");
+    const form = normalizeAppTraits({ kind: "form-flow" });
+    assert.equal(form.ui, true, "a declared kind IS a declaration");
+    assert.equal(form.typing, true);
+    assert.equal(form.navigation, false, "a form is not a place to navigate");
     // An explicit boolean beside the kind still wins, in both directions.
-    assert.equal(normalizeGameTraits({ kind: "first-person", hud: false }).hud, false);
-    assert.equal(normalizeGameTraits({ kind: "first-person", hud: false }).mouseLook, true);
-    assert.equal(normalizeGameTraits({ kind: "static-board", hud: true }).hud, true);
-    // The genres most likely to be real DOM or React UI keep it: no canvas-only screen rule.
-    assert.equal(normalizeGameTraits({ kind: "static-board" }).hud, false);
-    assert.equal(normalizeGameTraits({ kind: "free-camera" }).hud, false);
-    assert.equal(normalizeGameTraits({ kind: "side-2d" }).hud, false);
-    assert.equal(normalizeGameTraits({ kind: "nonsense" }).kind, null, "an unknown kind is no kind");
-    // Null-safe: evidence is gathered from many places that have no declared game at all.
+    assert.equal(normalizeAppTraits({ kind: "form-flow", ui: false }).ui, false);
+    assert.equal(normalizeAppTraits({ kind: "form-flow", ui: false }).typing, true);
+    assert.equal(normalizeAppTraits({ kind: "content-site", typing: true }).typing, true);
+    // A canvas has no DOM to name and no field to type into: no screen rule, no input check.
+    assert.equal(normalizeAppTraits({ kind: "graphics" }).ui, false);
+    assert.equal(normalizeAppTraits({ kind: "graphics" }).keyboardMove, false, "a scene opts in to its movement check");
+    assert.equal(normalizeAppTraits({ kind: "graphics", keyboardMove: true }).keyboardMove, true);
+    assert.equal(normalizeAppTraits({ kind: "dashboard" }).navigation, true);
+    assert.equal(normalizeAppTraits({ kind: "nonsense" }).kind, null, "an unknown kind is no kind");
+    // Null-safe: evidence is gathered from many places that have no declared project at all.
     assert.equal(playScriptFor(undefined), CONTROL_EXERCISE);
     assert.equal(playScriptFor(null), CONTROL_EXERCISE);
-    assert.equal(playScriptFor({ kind: "static-board" })[0]!.type, "click");
+    assert.equal(playScriptFor({ kind: "form-flow" })[0]!.type, "click");
     assert.deepEqual(playScriptFor({ playScript: [{ type: "tap", keys: ["x"] }] }), [{ type: "tap", keys: ["x"] }]);
   });
 
-  it("gives every judge one sentence, and retracts [dead-input] for a game that cannot have it", () => {
-    const topDown = gameLine({ kind: "top-down" });
-    assert.ok(topDown.startsWith("GAME: a top-down game"), topDown);
-    for (const path of ["player.x", "player.y", "player.z"])
-      assert.match(topDown, new RegExp(path.replace(".", "\\.")));
-    assert.match(topDown, /report \[dead-input\] only if those are unchanged/);
-    // A board and a builder have no player the studio can measure. The retraction is the whole
-    // point of the branch: an empty evidence list would invite the report it exists to prevent.
-    for (const kind of ["static-board", "free-camera"]) {
-      const line = gameLine({ kind });
-      assert.match(line, /the artefact class \[dead-input\] does not apply — do not report it/, kind);
-      assert.doesNotMatch(line, /player\./, kind);
-    }
-    assert.equal(gameLine(undefined), "", "an undeclared game tells the judge nothing about a kind");
+  it("gives every judge one sentence, and retracts [dead-input] for a project that cannot have it", () => {
+    const form = appLine({ kind: "form-flow" });
+    assert.ok(form.startsWith("PROJECT: a form flow"), form);
+    for (const path of ["ui.navigations", "ui.reactions", "ui.edits"])
+      assert.match(form, new RegExp(path.replace(".", "\\.")));
+    assert.match(form, /report \[dead-input\] only if those are unchanged/);
+    // A canvas has no input the studio can measure. The retraction is the whole point of the
+    // branch: an empty evidence list would invite the report it exists to prevent.
+    const canvas = appLine({ kind: "graphics" });
+    assert.match(canvas, /the artefact class \[dead-input\] does not apply — do not report it/);
+    assert.doesNotMatch(canvas, /ui\./);
+    assert.equal(appLine(undefined), "", "an undeclared project tells the judge nothing about a kind");
     assert.match(
-      gameLine({ kind: "first-person" }),
-      /Before every judgement the harness drives the same controls: hold W for 1\.6s/,
+      appLine({ kind: "form-flow" }),
+      /Before every judgement the harness drives the same controls: click \(0\.5, 0\.35\), type "Ada Lovelace", press Tab/,
     );
   });
 
-  it("measures the input checks on the axes this kind actually moves on", () => {
-    const evidence = { state: { player: { x: 0, y: 4 } }, stateEarly: { player: { x: 0, y: 0 } } };
+  it("measures the input checks on the counters this kind actually answers on", () => {
+    const evidence = {
+      state: { ui: { navigations: 0, reactions: 3, edits: 0 } },
+      stateEarly: { ui: { navigations: 0, reactions: 0, edits: 0 } },
+    };
     const probe = (expr: string) => evaluateProbeCheck({ id: "moved", kind: "probe", expr }, evidence);
     assert.equal(
-      probe(inputProbesFor({ kind: "top-down" }).move.expr).pass,
+      probe(inputProbesFor({ kind: "dashboard" }).navigate.expr).pass,
       true,
-      "the top-down axes see the move on y",
+      "the page answered the clicks, though its address did not change",
     );
+    assert.equal(probe(inputProbesFor({ kind: "form-flow" }).edit.expr).pass, false, "nothing was typed into a field");
+    // An undeclared project is still measured on the page-level counters.
     assert.equal(
-      probe(inputProbesFor({ kind: "first-person" }).move.expr).pass,
-      false,
-      "the template's x/z see nothing here",
+      inputProbesFor(undefined).navigate.expr,
+      "abs(delta('ui.navigations')) > 0 || abs(delta('ui.reactions')) > 0",
     );
-    assert.equal(probe(inputProbesFor({ kind: "side-2d" }).move.expr).pass, true);
-    // An undeclared game is still measured on the template's own axes, exactly as before.
-    assert.equal(inputProbesFor(undefined).move.expr, "abs(delta('player.x')) > 0 || abs(delta('player.z')) > 0");
-    assert.equal(inputProbesFor(undefined).look.expr, "abs(delta('player.yaw')) > 0.01");
-    // "declare mouseLook: true" is the documented remedy for a mouse-steered racer, and a
-    // remedy that silently drops the check is worse than no remedy.
-    assert.match(inputProbesFor({ kind: "top-down", mouseLook: true }).look.expr, /player\.yaw/);
-    assert.match(inputProbesFor({ kind: "flight" }).look.expr, /player\.pitch/);
-    assert.match(inputProbesFor({ kind: "flight" }).look.expr, /player\.yaw/);
+    assert.equal(inputProbesFor(undefined).edit.expr, "abs(delta('ui.edits')) > 0");
+    // "declare typing: true" is the documented remedy for a graphics project that has a text box,
+    // and a remedy that silently drops the check is worse than no remedy.
+    assert.match(inputProbesFor({ kind: "graphics", typing: true }).edit.expr, /ui\.edits/);
+    // A walkable scene is measured on its player, once it declares one.
+    assert.match(inputProbesFor({ kind: "graphics" }).move.expr, /player\.x/);
+    assert.match(inputProbesFor({ kind: "graphics" }).look.expr, /player\.yaw/);
   });
 
-  it("never passes an input check on a game that reports no player at all", () => {
-    // `delta('player.x') != 0` reads undefined on a game with no player, and `undefined != 0`
-    // is true: the identity check that proves ctx.keys reaches the game passed on a chess board
-    // where no key reached anything. Every route to the fallback is covered here, because the
-    // fallback is what an undeclared game and an axis-less kind both get.
-    const board = { state: { board: { cells: 9 }, turn: 3 }, stateEarly: { board: { cells: 9 }, turn: 1 } };
-    const games: Array<Record<string, unknown> | undefined> = [
+  it("never passes an input check on a page that reports no counters at all", () => {
+    // `delta('ui.edits') != 0` reads undefined on a page that reports nothing, and
+    // `undefined != 0` is true: the identity check that proves a keystroke reached a field passed
+    // on a page where no key reached anything. Every route to the fallback is covered here,
+    // because the fallback is what an undeclared project and a counter-less kind both get.
+    const blind = { state: { route: "/b" }, stateEarly: { route: "/a" } };
+    const projects: Array<Record<string, unknown> | undefined> = [
       undefined,
-      { hud: true, mouseLook: true, keyboardMove: true },
-      { kind: "static-board", keyboardMove: true },
-      { kind: "free-camera", keyboardMove: true },
+      { ui: true, navigation: true, typing: true },
+      { kind: "graphics", typing: true },
+      { kind: "data-viz", navigation: true },
     ];
-    for (const game of games) {
-      const probes = inputProbesFor(game);
-      for (const which of ["move", "look"] as const) {
-        const outcome = evaluateProbeCheck({ id: which, kind: "probe", expr: probes[which].expr }, board);
-        assert.equal(outcome.pass, false, `${which} on ${JSON.stringify(game)}: ${probes[which].expr}`);
+    for (const project of projects) {
+      const probes = inputProbesFor(project);
+      for (const which of ["navigate", "edit"] as const) {
+        const outcome = evaluateProbeCheck({ id: which, kind: "probe", expr: probes[which].expr }, blind);
+        assert.equal(outcome.pass, false, `${which} on ${JSON.stringify(project)}: ${probes[which].expr}`);
       }
     }
     // And the check the harness actually installs carries the fixed expression, at identity
     // weight, on the facet that owns main.js.
     const spec = withHarnessChecks({ id: "f", checks: [] as Check[], cameras: [] }, {
       ownsMain: true,
-      game: { keyboardMove: true },
+      app: { typing: true },
     } as never);
-    const installed = spec.checks.find((check: { id: string }) => check.id === "keys-move-player");
+    const installed = spec.checks.find((check: { id: string }) => check.id === "fields-take-input");
     assert.ok(installed, JSON.stringify(spec.checks));
     assert.equal(installed.weight, "identity");
-    // Never green: false when the expression is all there is to go on, unmeasured when the
-    // check names the paths it needs and the build reports none of them.
-    assert.notEqual(evaluateProbeCheck(installed, board).pass, true, installed.expr);
+    // Never green: unmeasured when the check names the paths it needs and the page reports none.
+    assert.notEqual(evaluateProbeCheck(installed, blind).pass, true, installed.expr);
   });
 });
 
@@ -586,7 +588,7 @@ describe("a check that says what it needs, and a page that cannot answer yet", (
   it("maps a page that reports inspect() unavailable to unmeasured, and a real error to a fail", async () => {
     // The page-side wrapper itself, run the way the page runs it.
     const inPage = (studio: unknown) =>
-      new Function("window", `return ${sceneCheckExpression("count('hud') === 1")}`)({ __studio: studio });
+      new Function("window", `return ${sceneCheckExpression("count('nav') === 1")}`)({ __studio: studio });
     const unavailable = inPage({ inspect: () => ({ available: false, reason: "no renderer has drawn a frame yet" }) });
     assert.match(String(unavailable.__unavailable), /inspect\(\) is unavailable/);
     assert.match(String(unavailable.__unavailable), /no renderer has drawn a frame yet/);
@@ -595,7 +597,7 @@ describe("a check that says what it needs, and a page that cannot answer yet", (
       "the build exposes no __studio.inspect() — install the v2 contract (scene/renderer helpers)",
     );
 
-    const check = { id: "single-hud", kind: "scene", js: "count('hud') === 1", detail: "'hud objects'" };
+    const check = { id: "single-nav", kind: "scene", js: "count('nav') === 1", detail: "'nav elements'" };
     let details = 0;
     const answer = (payload: Record<string, unknown>) => ({
       cancelled: false,
@@ -638,8 +640,8 @@ describe("the play script under the stepped clock", () => {
       ],
       { clock: "step" },
     );
-    // The game is paused: a wall-clock wait would advance nothing while the GAME line tells
-    // the judge the game waited.
+    // The project is paused: a wall-clock wait would advance nothing while the PROJECT line tells
+    // the judge the project waited.
     assert.deepEqual(calls[0], { method: "preview.call", payload: { method: "step", arg: 500 } });
     assert.ok(
       !calls.some((c) => c.method === "preview.input" && c.payload.actions?.[0]?.type === "wait"),
@@ -731,10 +733,10 @@ describe("the play script under the stepped clock", () => {
 });
 
 describe("where a kind is read from and written back to", () => {
-  it("reads the nested game block of studio.json, never the top-level shape kind", async () => {
+  it("reads the nested app block of studio.json, never the top-level shape kind", async () => {
     const files: Record<string, string> = {
       "studio.json": JSON.stringify(
-        { name: "board", title: "Board", kind: "three-modules", contractVersion: 1, game: { kind: "static-board" } },
+        { name: "board", title: "Board", kind: "three-modules", contractVersion: 1, app: { kind: "data-viz" } },
         null,
         2,
       ),
@@ -742,11 +744,11 @@ describe("where a kind is read from and written back to", () => {
     const writes: Array<{ file: string; contents: string }> = [];
     const ctx = {
       call: async (method: string, payload: any) => {
-        if (method === "game.read") {
+        if (method === "project.read") {
           if (!(payload.file in files)) throw new Error("no such file");
           return files[payload.file];
         }
-        if (method === "game.write") {
+        if (method === "project.write") {
           writes.push({ file: payload.file, contents: payload.contents });
           files[payload.file] = payload.contents;
           return { bytes: payload.contents.length };
@@ -754,27 +756,29 @@ describe("where a kind is read from and written back to", () => {
         throw new Error(method);
       },
     };
-    const declared = (await readDeclaredGame(ctx as never, "board"))!;
-    assert.equal(declared.kind, "static-board");
-    assert.equal(declared.hud, false);
+    const declared = (await readDeclaredApp(ctx as never, "board"))!;
+    assert.equal(declared.kind, "data-viz");
+    assert.equal(declared.ui, true);
     assert.equal(criticFor(declared), "screen");
     assert.equal(wantsEyeCameras(declared), false);
-    assert.equal(wantsEyeCameras(undefined), true, "an undeclared game is looked at exactly as before");
+    assert.equal(wantsEyeCameras(undefined), false, "software has no first-person eyes to look through");
+    assert.equal(criticFor(undefined), "screen", "an undeclared project is read as a screen");
+    assert.equal(criticFor({ kind: "graphics" }), "place");
 
-    const written = await writeDeclaredGame(ctx as never, "board", { kind: "top-down" }, { from: "the plan" });
+    const written = await writeDeclaredApp(ctx as never, "board", { kind: "dashboard" }, { from: "the plan" });
     assert.equal(written.written, true);
     const saved = JSON.parse(writes[0]!.contents);
-    assert.equal(saved.game.kind, "top-down");
-    assert.equal(saved.game.declaredBy, "the plan");
+    assert.equal(saved.app.kind, "dashboard");
+    assert.equal(saved.app.declaredBy, "the plan");
     assert.equal(saved.kind, "three-modules", "the project's own shape is untouched");
     assert.equal(saved.title, "Board", "and so is everything else the user's file holds");
     // Once a night: the same declaration written twice writes nothing the second time.
     assert.equal(
-      (await writeDeclaredGame(ctx as never, "board", { kind: "top-down" }, { from: "the plan" })).written,
+      (await writeDeclaredApp(ctx as never, "board", { kind: "dashboard" }, { from: "the plan" })).written,
       false,
     );
     assert.equal(
-      (await writeDeclaredGame(ctx as never, "board", {}, { from: "the plan" })).written,
+      (await writeDeclaredApp(ctx as never, "board", {}, { from: "the plan" })).written,
       false,
       "nothing declared, nothing written",
     );
@@ -784,8 +788,8 @@ describe("where a kind is read from and written back to", () => {
         throw new Error("gone");
       },
     };
-    assert.equal(await readDeclaredGame(blind as never, "board"), null);
-    assert.equal((await writeDeclaredGame(blind as never, "board", { kind: "racing" })).written, false);
+    assert.equal(await readDeclaredApp(blind as never, "board"), null);
+    assert.equal((await writeDeclaredApp(blind as never, "board", { kind: "utility" })).written, false);
   });
 });
 
@@ -798,7 +802,7 @@ describe("readiness: the pass waits for the page instead of photographing its bo
     assert.equal(evidence.ok, true, `problems: ${evidence.problems.join("; ")}`);
     assert.equal(evidence.readyAfterMs, 6_000);
     assert.match(evidence.warnings.join(" | "), /the page took 6\.0 s to report itself ready/);
-    // The poll sits between the load and the first thing that assumes a running game.
+    // The poll sits between the load and the first thing that assumes a running project.
     const order = calls.map((c) => (c.method === "preview.call" ? `${c.method}:${c.payload.method}` : c.method));
     const readyAt = order.indexOf("preview.ready");
     assert.ok(readyAt > order.indexOf("preview.load") || order.includes("preview.reload"));
@@ -825,13 +829,18 @@ describe("readiness: the pass waits for the page instead of photographing its bo
   it("a page that says it failed pushes its own sentence rather than coming back ok", async () => {
     const { ctx } = stubCtx({
       frames: ["a", "b", "c"],
-      ready: { ready: false, timedOut: false, phase: "failed", reason: "the game's boot threw: THREE is not defined" },
+      ready: {
+        ready: false,
+        timedOut: false,
+        phase: "failed",
+        reason: "the project's boot threw: THREE is not defined",
+      },
     });
     const evidence = await gather(ctx);
     assert.equal(evidence.ok, false);
     assert.match(
       evidence.problems.join(" | "),
-      /the page reported itself failed: the game's boot threw: THREE is not defined/,
+      /the page reported itself failed: the project's boot threw: THREE is not defined/,
     );
   });
 
@@ -915,8 +924,8 @@ describe("proveStep: the studio owns the clock, or nothing it measures means any
   });
 
   it("reads the shim's own count of frames that found no animation callback", async () => {
-    // Every counter can move on a game that never registers a callback — a timer loop, a render
-    // on input — and the old answer charged those frames to the game's loop. A page that says
+    // Every counter can move on a project that never registers a callback — a timer loop, a render
+    // on input — and the old answer charged those frames to the project's loop. A page that says
     // every stepped frame was idle gets a note beside a pass, not sixty frames it never ran.
     const idle = await proveStep(record(moving, { ok: true, frames: 8, idle: 8 }).ctx as never);
     assert.equal(idle.ok, true, idle.reason);
@@ -927,7 +936,7 @@ describe("proveStep: the studio owns the clock, or nothing it measures means any
     const riding = await proveStep(record(moving, { ok: true, frames: 8, idle: 0 }).ctx as never);
     assert.equal(riding.idleLoop, false);
     assert.equal(riding.note, "");
-    // A studio too old to answer with counts says nothing rather than accusing the game.
+    // A studio too old to answer with counts says nothing rather than accusing the project.
     const silent = await proveStep(record(moving).ctx as never);
     assert.equal(silent.askedFrames, 0);
     assert.equal(silent.idleLoop, false);
@@ -947,8 +956,8 @@ describe("proveStep: the studio owns the clock, or nothing it measures means any
   });
 
   it("is a verdict on every stage when the shim itself did not load", async () => {
-    // A regression in the game is a warning on a challenger. The page layer not loading is not a
-    // fact about the game at all: nothing measured below it can be believed on any stage.
+    // A regression in the project is a warning on a challenger. The page layer not loading is not a
+    // fact about the project at all: nothing measured below it can be believed on any stage.
     const gone = await gather(stubCtx({ frames: ["a", "b", "c"], witness: null }).ctx);
     assert.match(gone.problems.join(" | "), /the page has no studio clock \(the shim did not load\)/);
     assert.equal(gone.ok, false);
@@ -961,7 +970,7 @@ describe("proveStep: the studio owns the clock, or nothing it measures means any
 
   it("is a verdict on a scaffold base and a warning on an iteration — one regression never voids a night", async () => {
     const stuck = (tick: number) => ({ steppedFrames: 8, drawCalls: tick * 40, now: tick * 320, canvas: true });
-    const sentence = /the game does not ride the studio's clock/;
+    const sentence = /the project does not ride the studio's clock/;
     const base = await gather(stubCtx({ frames: ["a", "b", "c"], witness: stuck }).ctx, {
       iterationId: "base",
       scaffold: true,
@@ -998,39 +1007,44 @@ describe("proveStep: the studio owns the clock, or nothing it measures means any
   });
 });
 
-describe("the game's own controls, driven before every judgement", () => {
+describe("the project's own controls, driven before every judgement", () => {
   const driven = (calls: Array<{ method: string; payload: Record<string, any> }>) =>
     calls
       .filter((c) => c.method === "preview.input")
-      .flatMap((c) => (c.payload.actions ?? []) as Array<{ type: string; keys?: string[] }>);
+      .flatMap(
+        (c) => (c.payload.actions ?? []) as Array<{ type: string; keys?: string[]; text?: string; combo?: string }>,
+      );
 
-  it("drives a top-down game on its keys and never looks around with a mouse it has no use for", async () => {
+  it("drives a form by typing into it and moving on with Tab, and never walks with keys it has no use for", async () => {
     const { ctx, calls } = stubCtx({ frames: ["a", "b", "c"] });
     await gatherEvidence(
       ctx as never,
-      { run: { ...run, game: { kind: "top-down" } }, iterationId: "001", seed: 1 } as never,
+      { run: { ...run, app: { kind: "form-flow" } }, iterationId: "001", seed: 1 } as never,
     );
     const actions = driven(calls);
-    const held = actions.filter((a) => a.type === "down").flatMap((a) => a.keys ?? []);
-    assert.ok(held.includes("w"), held.join(", "));
-    assert.ok(held.includes("a"), held.join(", "));
-    assert.ok(!actions.some((a) => a.type === "look"), "a top-down camera is not mouse-looked");
+    assert.ok(
+      actions.some((a) => a.type === "type" && a.text === "Ada Lovelace"),
+      JSON.stringify(actions),
+    );
+    assert.ok(actions.some((a) => a.type === "press" && a.combo === "Tab"));
+    assert.ok(!actions.some((a) => a.type === "look"), "a form is not mouse-looked");
+    assert.ok(!actions.some((a) => a.type === "down"), "and not walked");
   });
 
-  it("drives a first-person game with the look the template always had", async () => {
+  it("drives a graphics project with the walk and look a canvas is steered with", async () => {
     const { ctx, calls } = stubCtx({ frames: ["a", "b", "c"] });
     await gatherEvidence(
       ctx as never,
-      { run: { ...run, game: { kind: "first-person" } }, iterationId: "001", seed: 1 } as never,
+      { run: { ...run, app: { kind: "graphics" } }, iterationId: "001", seed: 1 } as never,
     );
     assert.ok(driven(calls).some((a) => a.type === "look"));
-    assert.deepEqual(playScriptFor({ kind: "first-person" }), CONTROL_EXERCISE);
+    assert.deepEqual(playScriptFor({ kind: "graphics" }), WALK_EXERCISE);
   });
 
   it("a declared play script replaces the kind's", async () => {
     const { ctx, calls } = stubCtx({ frames: ["a", "b", "c"] });
-    const game = { kind: "first-person", playScript: [{ type: "tap", keys: ["e"] }] };
-    await gatherEvidence(ctx as never, { run: { ...run, game }, iterationId: "001", seed: 1 } as never);
+    const app = { kind: "form-flow", playScript: [{ type: "tap", keys: ["e"] }] };
+    await gatherEvidence(ctx as never, { run: { ...run, app }, iterationId: "001", seed: 1 } as never);
     const actions = driven(calls);
     assert.deepEqual(
       actions.map((a) => a.type),
@@ -1039,23 +1053,18 @@ describe("the game's own controls, driven before every judgement", () => {
     assert.deepEqual(actions[0]!.keys, ["e"]);
   });
 
-  it("asks a board game for no player eyes, and an undeclared game for them exactly as before", async () => {
-    const eyesAsked = async (game: unknown) => {
+  it("asks software for no first-person eyes", async () => {
+    const eyesAsked = async (app: unknown) => {
       const { ctx, calls } = stubCtx({ frames: ["a", "b", "c"] });
       await gatherEvidence(
         ctx as never,
-        { run: { ...run, ...(game ? { game } : {}) }, iterationId: "001", seed: 1 } as never,
+        { run: { ...run, ...(app ? { app } : {}) }, iterationId: "001", seed: 1 } as never,
       );
       return calls.some((c) => c.method === "preview.call" && c.payload.method === "eyes");
     };
-    assert.equal(
-      await eyesAsked({ kind: "static-board" }),
-      false,
-      "a board game stops shipping three frames of nothing",
-    );
-    assert.equal(await eyesAsked({ kind: "free-camera" }), false);
-    assert.equal(await eyesAsked(null), true, "an undeclared game is looked at exactly as before");
-    assert.equal(await eyesAsked({ kind: "first-person" }), true);
+    assert.equal(await eyesAsked({ kind: "dashboard" }), false, "a dashboard stops shipping three frames of nothing");
+    assert.equal(await eyesAsked({ kind: "graphics" }), false);
+    assert.equal(await eyesAsked(null), false, "and so does a project nobody described");
   });
 });
 
@@ -1077,10 +1086,10 @@ describe("surfaces: the canvas is judged, the page is shown", () => {
     assert.equal(evidence.surface, "canvas");
     assert.ok(cameraList(evidence).includes("user:view"));
     assert.deepEqual(evidence.pageUi, { entries: ["nav.main-menu"], coverage: 0.42, primary: true });
-    // The wording is the game's shape, not a defect: a DOM menu is the norm for these genres.
+    // The wording is the project's shape, not a defect: a DOM menu is the norm for these genres.
     assert.match(
       evidence.warnings.join(" | "),
-      /this game paints UI outside the canvas \(nav\.main-menu\) — user:view shows it, the canvas frames do not/,
+      /this project paints UI outside the canvas \(nav\.main-menu\) — user:view shows it, the canvas frames do not/,
     );
     assert.ok(!evidence.warnings.some((w: string) => /differs from the canvas capture/.test(w)));
   });
@@ -1139,14 +1148,14 @@ describe("surfaces: the canvas is judged, the page is shown", () => {
 });
 
 describe("cameras: a floor under the classic trio, and an honest 'registered' half", () => {
-  it("photographs the view a contract-less game renders and names what it does register", async () => {
+  it("photographs the view a contract-less project renders and names what it does register", async () => {
     const { ctx } = stubCtx({ frames: ["a", "b", "c"], debugCamera: () => ({ ok: false, available: [] }) });
     const evidence = await gather(ctx);
     assert.deepEqual(cameraList(evidence), ["default"]);
     assert.equal(evidence.ok, true, `problems: ${evidence.problems.join("; ")}`);
-    assert.match(evidence.warnings.join(" | "), /this game registers no "default" camera \(registered: none\)/);
+    assert.match(evidence.warnings.join(" | "), /this project registers no "default" camera \(registered: none\)/);
     // The floor asked for close and wide; an unregistered one of those is skipped in silence,
-    // never reported as a defect of a game that never claimed to have it.
+    // never reported as a defect of a project that never claimed to have it.
     assert.deepEqual(evidence.missingCameras, []);
   });
 
@@ -1196,7 +1205,7 @@ describe("cameras: a floor under the classic trio, and an honest 'registered' ha
     });
     const evidence = await gather(ctx);
     assert.equal(evidence.ok, true, `problems: ${evidence.problems.join("; ")}`);
-    assert.match(evidence.warnings.join(" | "), /a full-screen overlay covers the game \(div\.pause-screen\)/);
+    assert.match(evidence.warnings.join(" | "), /a full-screen overlay covers the project \(div\.pause-screen\)/);
   });
 
   it("a frame that drew nothing leaves the blankness census; every frame drawing nothing is the verdict", async () => {
@@ -1222,11 +1231,11 @@ describe("cameras: a floor under the classic trio, and an honest 'registered' ha
       }).ctx,
     );
     assert.equal(none.ok, false);
-    assert.ok(none.problems.includes("the game drew nothing for any camera"), none.problems.join(" | "));
+    assert.ok(none.problems.includes("the project drew nothing for any camera"), none.problems.join(" | "));
   });
 
-  it('does not count the harness\'s own "default" as a viewpoint the game declares', async () => {
-    // "default" is the harness asking for the view the page renders. A game that names its own
+  it('does not count the harness\'s own "default" as a viewpoint the project declares', async () => {
+    // "default" is the harness asking for the view the page renders. A project that names its own
     // cameras and none of them "default" declares ONE viewpoint, so its two identical frames are
     // one view photographed twice — not a dead debugCamera, and not a build to void.
     const unregistered = await gather(
@@ -1238,13 +1247,13 @@ describe("cameras: a floor under the classic trio, and an honest 'registered' ha
     );
     assert.equal(unregistered.ok, true, `problems: ${unregistered.problems.join("; ")}`);
     assert.deepEqual(cameraList(unregistered), ["default", "hero"]);
-    assert.match(unregistered.warnings.join(" | "), /this game registers no "default" camera \(registered: hero\)/);
+    assert.match(unregistered.warnings.join(" | "), /this project registers no "default" camera \(registered: hero\)/);
     assert.match(unregistered.warnings.join(" | "), /this build declares one viewpoint/);
-    // The same when the game DOES register a default it never declared: what the game claims to
+    // The same when the project DOES register a default it never declared: what the project claims to
     // have is what the census counts.
     const registered = await gather(stubCtx({ frames: ["A", "A", "A", "A"], cameras: ["hero"] }).ctx);
     assert.equal(registered.ok, true, `problems: ${registered.problems.join("; ")}`);
-    // Two viewpoints the game itself declares, one frame between them: still the verdict.
+    // Two viewpoints the project itself declares, one frame between them: still the verdict.
     const two = await gather(stubCtx({ frames: ["A", "A", "A", "A"], cameras: ["hero", "top"] }).ctx);
     assert.equal(two.ok, false);
     assert.match(two.problems.join(" | "), /every camera returned the same frame/);
@@ -1310,7 +1319,7 @@ describe("cameras: a floor under the classic trio, and an honest 'registered' ha
   });
 
   it("says whose picture the judged frame was, and by which rungs", async () => {
-    // `capture()` is a member the facade delegates to the game, so a build can answer with a
+    // `capture()` is a member the facade delegates to the project, so a build can answer with a
     // picture and a draw count of its own. The block must say so, or a night reads the build's
     // claim about itself as the canvas's own answer.
     const claimed = {
@@ -1325,15 +1334,15 @@ describe("cameras: a floor under the classic trio, and an honest 'registered' ha
       composited: false,
       kind: "webgl2",
       captureReason: null,
-      provenance: "game",
-      ladder: ["frame", "game"],
+      provenance: "project",
+      ladder: ["frame", "project"],
     };
     const { ctx } = stubCtx({ frames: ["a", "b", "c"], cameras: ["default"], stats: [claimed] });
     const evidence = await gather(ctx);
-    assert.equal(evidence.canvas!.provenance, "game");
-    assert.deepEqual(evidence.canvas!.ladder, ["frame", "game"]);
+    assert.equal(evidence.canvas!.provenance, "project");
+    assert.deepEqual(evidence.canvas!.ladder, ["frame", "project"]);
     // …and a zero-draw census made entirely of the build's own pictures is a warning, never
-    // the verdict "the game drew nothing for any camera".
+    // the verdict "the project drew nothing for any camera".
     assert.ok(
       !evidence.problems.some((problem: string) => /drew nothing for any camera/.test(problem)),
       evidence.problems.join(" | "),
@@ -1381,6 +1390,16 @@ describe("the empty-scene exemption, read the way the page reads it", () => {
       inPage(world({ renderer: { isSomethingElse: true }, scenes: [{ isScene: true, children: [] }] })),
       false,
     );
+  });
+
+  it("exempts a page of DOM that shows nothing and refuses one that shows something", () => {
+    const page = (empty: boolean) => ({
+      inspect: () => ({ available: true, scene: null, dom: { empty: () => empty } }),
+    });
+    assert.equal(inPage(page(true)), true);
+    assert.equal(inPage(page(false)), false);
+    // An older contract has no `dom`: the probe never guesses that such a page is empty.
+    assert.equal(inPage({ inspect: () => ({ available: false, reason: "this page draws no 3D scene" }) }), false);
   });
 
   it("censuses every scene the hook says was rendered, not just the first", () => {
@@ -1447,7 +1466,7 @@ describe("the empty-scene exemption, read the way the page reads it", () => {
     assert.equal(evidence.emptyScene, true);
     assert.equal(evidence.ok, true, `problems: ${evidence.problems.join("; ")}`);
     assert.ok(!evidence.problems.some((p: string) => /black/.test(p)));
-    assert.match(evidence.warnings.join(" | "), /no visual content or gameplay has been validated/);
+    assert.match(evidence.warnings.join(" | "), /no visual content or interaction has been validated/);
   });
 });
 
@@ -1522,7 +1541,7 @@ describe("the order a pass touches the page in, and the state it leaves it in", 
     assert.deepEqual(order.slice(0, 4), ["preview.ready", "preview.gesture", "call:start", "preview.input"]);
   });
 
-  it("hands the game back running however the pass ends", async () => {
+  it("hands the project back running however the pass ends", async () => {
     const { ctx, calls } = stubCtx({ frames: ["a", "b", "c"], failConsole: "the preview is gone" });
     await assert.rejects(() => gather(ctx), /the preview is gone/);
     const last = calls.at(-1)!;

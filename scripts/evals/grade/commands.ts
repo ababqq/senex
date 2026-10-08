@@ -13,7 +13,7 @@ import { fileURLToPath } from "node:url";
 import type { CodingProvider } from "../../../src/shared/coding-cli.ts";
 import { EngineId } from "../../../src/shared/providers.ts";
 import { budgetCaps, engineQuotaReader, guardQuota, startBudget } from "../budget.ts";
-import { CALIBRATION_FIXTURES_DIR, GAME_TEMPLATE_DIR } from "../calibrate/fixtures.ts";
+import { CALIBRATION_FIXTURES_DIR, PROJECT_TEMPLATE_DIR } from "../calibrate/fixtures.ts";
 import { createRunCalibration } from "../calibrate/run.ts";
 import { caseById, readCases, readHoldoutCases } from "../cases.ts";
 import { CliExit } from "../cli/exit.ts";
@@ -301,7 +301,7 @@ function stampOf(date: Date): string {
 }
 
 /**
- * `calibrate [--quick]` (§8.8): the committed fixtures and the game template through the grading
+ * `calibrate [--quick]` (§8.8): the committed fixtures and the project template through the grading
  * server, the full prober (the quick probe on `--quick`) and the checklist grader, checked against
  * their expectations and recorded with the probe kind. A red calibration exits non-zero, and grading
  * refuses until a green one covers its pins: a full calibration covers every grade, a quick one only
@@ -334,7 +334,7 @@ export async function calibrateCommand(
     return GradingExit.Refused;
   }
   const stamp = stampOf(deps.now());
-  const templateDir = path.join(root, GAME_TEMPLATE_DIR);
+  const templateDir = path.join(root, PROJECT_TEMPLATE_DIR);
   const workDir = path.join(deps.paths.work, `calibration-${stamp}`);
   await mkdir(workDir, { recursive: true });
   const prober = createCalibrationProber({

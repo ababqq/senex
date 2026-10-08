@@ -133,7 +133,7 @@ const openDoors: SoftLockDoors = {
   lookInput: lookInputVerdict(null),
   fullscreen: null,
   entranceConfirmed: true,
-  gameplay: { reached: true, why: "the entrance was confirmed" },
+  interaction: { reached: true, why: "the entrance was confirmed" },
 };
 
 describe("l2.no_soft_lock_5min", () => {
@@ -154,21 +154,21 @@ describe("l2.no_soft_lock_5min", () => {
     assert.equal(softLockRow(run({ ranMs: 60 * SECOND_MS }), w, baseline, openDoors).result, CheckResult.Unknown);
   });
 
-  it("a game that freezes partway fails on stillness; the same fail on a game never entered is demoted", () => {
+  it("a project that freezes partway fails on stillness; the same fail on a project never entered is demoted", () => {
     const w = soakWindows(frozen, 0, SPEC_SOAK_MS, stillnessThreshold(baseline));
     assert.equal(softLockRow(run(), w, baseline, openDoors).result, CheckResult.Fail);
-    const stuck = { ...openDoors, gameplay: { reached: false, why: "a door was never seen to open" } };
+    const stuck = { ...openDoors, interaction: { reached: false, why: "a door was never seen to open" } };
     const demoted = softLockRow(run(), w, baseline, stuck);
     assert.equal(demoted.result, CheckResult.Unknown);
-    assert.match(demoted.detail, /Gameplay was never reached/);
+    assert.match(demoted.detail, /Interaction was never reached/);
   });
 
   it("A CRASH IS NEVER DEMOTED: it happened whichever side of a door the page sat on", () => {
     const w = soakWindows(frozen, 0, SPEC_SOAK_MS, stillnessThreshold(baseline));
-    const stuck = { ...openDoors, gameplay: { reached: false, why: "a door was never seen to open" } };
+    const stuck = { ...openDoors, interaction: { reached: false, why: "a door was never seen to open" } };
     const crashed = softLockRow(run({ crashed: true, crashReason: "stopped answering" }), w, baseline, stuck);
     assert.equal(crashed.result, CheckResult.Fail);
-    assert.doesNotMatch(crashed.detail, /Gameplay was never reached/);
+    assert.doesNotMatch(crashed.detail, /Interaction was never reached/);
   });
 
   it("a sampler too coarse for its windows cannot tell stopped from slow", () => {

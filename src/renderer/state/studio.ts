@@ -3,8 +3,8 @@ import { createPublicationBatch } from "./refresher.ts";
 import { browserVisibility, type VisibilitySource } from "./visibility.ts";
 /**
  * The renderer's state, wired once: every domain store, the one `onEvent` subscription that feeds
- * them, the log poll, the bootstrap, and the commands that span stores (opening a game, sending,
- * removing a game).
+ * them, the log poll, the bootstrap, and the commands that span stores (opening a project, sending,
+ * removing a project).
  *
  * `createStudio(api)` takes any `StudioApi` — the preload's `window.studio` in the app, the fake
  * in `tests/helpers/fake-studio-api.ts` in tests — and `start()` subscribes. The app has one
@@ -14,10 +14,10 @@ import { browserVisibility, type VisibilitySource } from "./visibility.ts";
 import type { AgentScreenEvent } from "../../shared/agent-screen.ts";
 import { SECOND_MS } from "../../shared/duration.ts";
 import type { ComposerSendOptions } from "../../shared/composer.ts";
-import type { GameUpdate } from "../../shared/game-library.ts";
+import type { ProjectUpdate } from "../../shared/project-library.ts";
 import { HarnessState } from "../../shared/protocol.ts";
-import type { GameName } from "../../shared/game-project.ts";
-import type { Bootstrap, ConversationRecord, GameProject, StudioApi } from "../../shared/studio-api.ts";
+import type { ProjectName } from "../../shared/project-folder.ts";
+import type { Bootstrap, ConversationRecord, Project, StudioApi } from "../../shared/studio-api.ts";
 import { UiEvent } from "../../shared/ui-events.ts";
 import { shouldWelcome } from "../onboarding/state.ts";
 import {
@@ -61,7 +61,7 @@ import { createModelPickerStore, type ModelPickerStore } from "./model-picker.ts
 import {
   createLibraryStore,
   delegationChanged,
-  gameAdded,
+  projectAdded,
   libraryBootstrapped,
   stagedCounted,
   type LibraryStore,
@@ -77,9 +77,9 @@ import {
 } from "./session.ts";
 import {
   createThreadsStore,
-  gameRemovedFromThreads,
+  projectRemovedFromThreads,
   harnessDown,
-  isGameThread,
+  isProjectThread,
   projectOf,
   stageProjectSet,
   statusBootstrapped,
@@ -127,7 +127,7 @@ export interface Studio {
   readonly commandOutput: CommandOutput;
   readonly toasts: ToastsStore;
   readonly layout: LayoutStore;
-  /** A game being started from home (`launch.ts`). */
+  /** A project being started from home (`launch.ts`). */
   readonly launch: LaunchStore;
   /** Which subscription models the model picker lists, as set in Settings. */
   readonly modelPicker: ModelPickerStore;
@@ -142,29 +142,29 @@ export interface Studio {
   notify(text: string, tone?: ToastTone): void;
   /** Open a conversation the user picked. */
   selectThread(threadId: string): void;
-  /** Go home: no conversation open, the composer that starts a new game. */
+  /** Go home: no conversation open, the composer that starts a new project. */
   goHome(): void;
   /** The first-launch welcome is done on this profile; home follows it. */
   finishWelcome(): void;
   /**
-   * Open a game's chat (made on demand by main) and put the game on the stage. Resolves with the
+   * Open a project's chat (made on demand by main) and put the project on the stage. Resolves with the
    * chat, or null when main refused (the refusal is toasted). `open` carries out the selection
    * itself (a view transition wraps it when leaving home).
    */
   enterProject(name: string, hooks?: OpenHooks): Promise<ConversationRecord | null>;
   renameThread(threadId: string, title: string): void;
-  addGame(game: GameProject): void;
-  saveGame(name: string, patch: GameUpdate): Promise<void>;
-  /** Remove a game. True when the stage held it and home opened in its place. */
-  removeGame(name: string): Promise<boolean>;
+  addProject(project: Project): void;
+  saveProject(name: string, patch: ProjectUpdate): Promise<void>;
+  /** Remove a project. True when the stage held it and home opened in its place. */
+  removeProject(name: string): Promise<boolean>;
   /** Send from the open conversation, then read what the send wrote. */
   send(text: string, options: ComposerSendOptions): Promise<void>;
   /**
-   * Home's first message starts a game: named by the model picked, made where chosen, opened. The
-   * game's chat then sends the message itself (`launchHanded`). A refusal is toasted, and the words
+   * Home's first message starts a project: named by the model picked, made where chosen, opened. The
+   * project's chat then sends the message itself (`launchHanded`). A refusal is toasted, and the words
    * wait for home again. One launch at a time.
    */
-  launchGame(input: LaunchInput): Promise<void>;
+  launchProject(input: LaunchInput): Promise<void>;
   /** The opened chat took the launch's message. */
   launchHanded(id: string): void;
   /** The launch's message is the chat's: the launch is over. */
@@ -173,20 +173,20 @@ export interface Studio {
   returnTaken(): void;
 }
 
-/** How a game's chat is opened: something to do with the chat first, and the way the selection is made. */
+/** How a project's chat is opened: something to do with the chat first, and the way the selection is made. */
 export interface OpenHooks {
   beforeOpen?: (record: ConversationRecord) => void;
   open?: (select: () => void) => void;
 }
 
-/** What home sends a new game: the message, what it carries, the model it was written for, and where it goes. */
+/** What home sends a new project: the message, what it carries, the model it was written for, and where it goes. */
 export interface LaunchInput {
   text: string;
   extras?: ComposerExtras;
   /** The model key home's composer had (`engine::model`), and its effort. */
   modelKey: string | null;
   effort: string | null;
-  /** A folder chosen at home; the games folder when absent. */
+  /** A folder chosen at home; the projects folder when absent. */
   parent?: string;
 }
 
@@ -221,7 +221,7 @@ function createStores(
     session: createSessionStore(),
     eventLog: createEventLogStore(api, publication.publish),
     threads: createThreadsStore(api, {
-      lastGameThreadId: readText(STORAGE_KEYS.lastGameThread, storage),
+      lastProjectThreadId: readText(STORAGE_KEYS.lastProjectThread, storage),
       publish: publication.publish,
     }),
     library: createLibraryStore(api, timers, visibility, publication.publish),
@@ -252,21 +252,21 @@ interface StudioContext {
 }
 
 interface StageFollower {
-  /** The threads changed: load the stage's game if it moved, and remember the last game chat. */
+  /** The threads changed: load the stage's project if it moved, and remember the last project chat. */
   threadsChanged(): void;
   /** Run a change that loads the preview itself, so the follower leaves that one change alone. */
   whileLoading(project: string, change: () => void): void;
 }
 
 /**
- * The preview follows the game on the stage: whenever it changes to a game, main is asked to
- * load it. A command that loads the preview itself (opening a game) says so, and the follower
+ * The preview follows the project on the stage: whenever it changes to a project, main is asked to
+ * load it. A command that loads the preview itself (opening a project) says so, and the follower
  * leaves that one change alone.
  */
 function stageFollower(api: StudioApi, threads: ThreadsStore, storage: KeyValueStorage | null): StageFollower {
   let followed: string | null = projectOf(threads.getState());
   let loading: string | null = null;
-  let lastGame = threads.getState().lastGameThreadId;
+  let lastProject = threads.getState().lastProjectThreadId;
   const follow = (): void => {
     const project = projectOf(threads.getState());
     if (project === followed) return;
@@ -275,17 +275,17 @@ function stageFollower(api: StudioApi, threads: ThreadsStore, storage: KeyValueS
     writeText(STORAGE_KEYS.reviewProject, project, storage);
     if (project !== loading) void api.loadPreview(project);
   };
-  const rememberLastGame = (): void => {
-    const next = threads.getState().lastGameThreadId;
-    if (next === lastGame) return;
-    lastGame = next;
-    if (next) writeText(STORAGE_KEYS.lastGameThread, next, storage);
-    else removeKey(STORAGE_KEYS.lastGameThread, storage);
+  const rememberLastProject = (): void => {
+    const next = threads.getState().lastProjectThreadId;
+    if (next === lastProject) return;
+    lastProject = next;
+    if (next) writeText(STORAGE_KEYS.lastProjectThread, next, storage);
+    else removeKey(STORAGE_KEYS.lastProjectThread, storage);
   };
   return {
     threadsChanged() {
       follow();
-      rememberLastGame();
+      rememberLastProject();
     },
     whileLoading(project, change) {
       loading = project;
@@ -319,7 +319,7 @@ function bootstrapper(api: StudioApi, stores: Stores, storage: KeyValueStorage |
       library.setState((state) => libraryBootstrapped(state, boot), true);
       engines.setState((state) => enginesLoaded(state, boot.engines), true);
       threads.setState((state) => openedThreads(state, boot), true);
-      const welcome = shouldWelcome(boot.welcome, boot.games.length, safeStorage(storage));
+      const welcome = shouldWelcome(boot.welcome, boot.projects.length, safeStorage(storage));
       const developer = boot.developer;
       session.setState((state) => bootstrapReady(state, { welcome, developer }), true);
       void plugins.refresh();
@@ -360,7 +360,7 @@ function applyUiEvent({ agentScreens, threads, layout, library, update }: Stores
       break;
     }
     case UiEvent.StageShow:
-      // The chat put a build on screen for the game on the stage: that is Live, so Live shows.
+      // The chat put a build on screen for the project on the stage: that is Live, so Live shows.
       if (event.payload.project === projectOf(threads.getState()))
         layout.setState((state) => stageViewChosen(state, event.payload.view), true);
       break;
@@ -384,16 +384,16 @@ function applyUiEvent({ agentScreens, threads, layout, library, update }: Stores
 
 /** Read again what an event says changed. */
 function refreshAfter(stores: Stores, event: UiEvent): void {
-  if (event.type === UiEvent.GameChanged) {
+  if (event.type === UiEvent.ProjectChanged) {
     void stores.publication.run(() =>
-      Promise.all([stores.threads.refresh(), stores.eventLog.refresh(), stores.library.refreshGames()]),
+      Promise.all([stores.threads.refresh(), stores.eventLog.refresh(), stores.library.refreshProjects()]),
     );
     return;
   }
   const reads = uiEventReads(event);
   if (reads.threads) void stores.threads.refresh();
   if (reads.events) void stores.eventLog.refresh();
-  if (reads.games) void stores.library.refreshGames();
+  if (reads.projects) void stores.library.refreshProjects();
   if (reads.staged) void stores.library.refreshStaged();
   if (reads.engines) void stores.engines.refresh();
   if (reads.plugins) void stores.plugins.refresh();
@@ -401,7 +401,7 @@ function refreshAfter(stores: Stores, event: UiEvent): void {
 }
 
 /**
- * Open a game's chat (made on demand by main) and put the game on the stage. `beforeOpen` runs
+ * Open a project's chat (made on demand by main) and put the project on the stage. `beforeOpen` runs
  * with the chat before it is selected; `open` makes the selection (at once, by default).
  */
 async function enterProject(
@@ -412,7 +412,7 @@ async function enterProject(
   const { api, stores, storage, notify } = ctx;
   let record: ConversationRecord;
   try {
-    record = await api.threadForGame(name);
+    record = await api.threadForProject(name);
   } catch (error) {
     notify(problemWords(error), ToastTone.Error);
     return null;
@@ -424,28 +424,28 @@ async function enterProject(
   open(() =>
     ctx.follower.whileLoading(name, () => {
       ctx.selectThread(record.id);
-      if (!isGameThread(record)) stores.threads.setState((state) => stageProjectSet(state, name), true);
+      if (!isProjectThread(record)) stores.threads.setState((state) => stageProjectSet(state, name), true);
     }),
   );
   writeText(STORAGE_KEYS.reviewProject, name, storage);
   void api
     .loadPreview(name)
-    .then(() => stores.library.refreshGames())
+    .then(() => stores.library.refreshProjects())
     .catch(notifyProblem(notify));
   return record;
 }
 
-/** Untitled game: what a game is called when even naming it failed. */
-const UNTITLED_GAME = "Untitled game";
+/** Untitled project: what a project is called when even naming it failed. */
+const UNTITLED_PROJECT = "Untitled project";
 let launches = 0;
 
-/** The name for a launch's game: the model's, else Untitled game, waiting for an idea. Never fails. */
-async function launchName(api: StudioApi, input: LaunchInput): Promise<GameName> {
+/** The name for a launch's project: the model's, else Untitled project, waiting for an idea. Never fails. */
+async function launchName(api: StudioApi, input: LaunchInput): Promise<ProjectName> {
   const { engine, model } = parseModelKey(input.modelKey);
   const request = { prompt: input.text, ...(engine ? { engine } : {}), ...(model ? { model } : {}) };
-  const named = await api.nameGame(request).catch(() => null);
+  const named = await api.nameProject(request).catch(() => null);
   const title = named?.title.trim();
-  if (!title) return { title: UNTITLED_GAME, provisional: true };
+  if (!title) return { title: UNTITLED_PROJECT, provisional: true };
   return named?.provisional ? { title, provisional: true } : { title };
 }
 
@@ -456,7 +456,7 @@ function keepComposerChoice(storage: KeyValueStorage | null, threadId: string, i
   if (input.effort) rememberChatEffort(kept, threadId, input.effort);
 }
 
-async function launchGame(ctx: StudioContext, input: LaunchInput): Promise<void> {
+async function launchProject(ctx: StudioContext, input: LaunchInput): Promise<void> {
   const { api, stores, storage, notify } = ctx;
   const { launch } = stores;
   if (launch.getState().launch) return;
@@ -466,33 +466,33 @@ async function launchGame(ctx: StudioContext, input: LaunchInput): Promise<void>
   launch.setState((state) => launchNamed(state, id, title), true);
   try {
     const options = { ...(input.parent ? { parent: input.parent } : {}), ...(provisional ? { provisional } : {}) };
-    const game = await api.createGame(title, ...(Object.keys(options).length ? [options] : []));
-    // The launch learns its game as the library lists it, so its placeholder row never sits
-    // beside the game's own while the chat opens (a library refresh can land first).
-    launch.setState((state) => launchMade(state, id, game.name), true);
-    stores.library.setState((state) => gameAdded(state, game), true);
-    const record = await enterProject(ctx, game.name, {
+    const project = await api.createProject(title, ...(Object.keys(options).length ? [options] : []));
+    // The launch learns its project as the library lists it, so its placeholder row never sits
+    // beside the project's own while the chat opens (a library refresh can land first).
+    launch.setState((state) => launchMade(state, id, project.name), true);
+    stores.library.setState((state) => projectAdded(state, project), true);
+    const record = await enterProject(ctx, project.name, {
       beforeOpen: (opened) => keepComposerChoice(storage, opened.id, input),
     });
     if (!record) {
       launch.setState((state) => launchFailed(state, id), true);
       return;
     }
-    launch.setState((state) => launchOpened(state, id, { project: game.name, threadId: record.id }), true);
+    launch.setState((state) => launchOpened(state, id, { project: project.name, threadId: record.id }), true);
   } catch (error) {
     notify(problemWords(error), ToastTone.Error);
     launch.setState((state) => launchFailed(state, id), true);
   }
 }
 
-/** Remove a game. True when the stage held it and home opened in its place. */
-async function removeGame({ stores, storage }: StudioContext, name: string): Promise<boolean> {
+/** Remove a project. True when the stage held it and home opened in its place. */
+async function removeProject({ stores, storage }: StudioContext, name: string): Promise<boolean> {
   const { library, threads } = stores;
-  await library.removeGame(name);
+  await library.removeProject(name);
   if (readText(STORAGE_KEYS.reviewProject, storage) === name) removeKey(STORAGE_KEYS.reviewProject, storage);
   const before = threads.getState();
   if (projectOf(before) !== name) return false;
-  threads.setState((state) => gameRemovedFromThreads(state, name), true);
+  threads.setState((state) => projectRemovedFromThreads(state, name), true);
   const after = threads.getState();
   if (after.activeThreadId && after.activeThreadId !== before.activeThreadId)
     writeText(STORAGE_KEYS.activeThread, after.activeThreadId, storage);
@@ -588,12 +588,12 @@ export function createStudio(
         .renameThread(threadId, title)
         .then((record) => threads.setState((state) => threadReplaced(state, record), true), notifyProblem(notify));
     },
-    addGame(game) {
-      library.setState((state) => gameAdded(state, game), true);
+    addProject(project) {
+      library.setState((state) => projectAdded(state, project), true);
     },
-    saveGame: (name, patch) => library.saveGame(name, patch),
-    removeGame: (name) => removeGame(ctx, name),
-    launchGame: (input) => launchGame(ctx, input),
+    saveProject: (name, patch) => library.saveProject(name, patch),
+    removeProject: (name) => removeProject(ctx, name),
+    launchProject: (input) => launchProject(ctx, input),
     launchHanded(id) {
       stores.launch.setState((state) => launchHanded(state, id), true);
     },
@@ -607,7 +607,7 @@ export function createStudio(
       const thread = threads.getState().activeThreadId;
       await api.send(text, { ...(thread ? { thread } : {}), ...sendOptions });
       await stores.eventLog.refresh();
-      void library.refreshGames();
+      void library.refreshProjects();
       void threads.refresh();
     },
   };

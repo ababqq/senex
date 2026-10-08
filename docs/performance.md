@@ -18,10 +18,10 @@ headline metric; everything else about it is a diagnostic.
 | Send | Enter | first visible progress, minus the provider's first-token time | ms of app overhead | `delta` → `text-paint` (paint side only) |
 | Type | keydown | composer committed | ms per key; commits per key | `keydown` → `composer-commit`, Profiler counts |
 | Stream | first delta | reply finished | renderer long tasks (> 50 ms) per minute | trace `toplevel` on demand |
-| Live reload | Reload | first game frame | ms | not yet |
-| Live resize | window or chat-handle drag | game view matches its slot | px behind per frame | dev control `window.resize` |
+| Live reload | Reload | first project frame | ms | not yet |
+| Live resize | window or chat-handle drag | project view matches its slot | px behind per frame | dev control `window.resize` |
 | Build turn | turn starts | turn's result recorded | ms outside model time | director `hostTimings` spans, `build_observation` (not yet aggregated) |
-| Scroll | a fling in a long chat | rows drawn where it lands | frames painted with a blank block, beside a GPU-heavy game | `npm run test:ui -- chat-scroll-ui` (screencast frames, CPU profile, trace) |
+| Scroll | a fling in a long chat | rows drawn where it lands | frames painted with a blank block, beside a GPU-heavy project | `npm run test:ui -- chat-scroll-ui` (screencast frames, CPU profile, trace) |
 | Run graph | run event | graph committed | ms; commits per event | `graph-commit`, Profiler counts (`event-batch` is never emitted) |
 | Idle | nothing happening | — | CPU %, rAF/s, memory after an hour of Autopilot | trace and heap on demand |
 
@@ -73,10 +73,10 @@ counters carry the regression gates.
   ([field guide](STUDIO-DEVELOPER-FIELD-GUIDE.md#owned-development-sessions)). Each operation checks
   the build is current from cached file fingerprints, so it does not stall the main process it measures.
 - `npm run test:ui -- chat-scroll-ui [--build owned]`: flings a long chat with real input, alone
-  and beside a stand-in game that keeps the GPU busy, and counts painted frames with a blank
+  and beside a stand-in project that keeps the GPU busy, and counts painted frames with a blank
   block; it also keeps a CPU profile and a trace of one fling.
 - Fixture messages for journeys: `fixture:stream` (a short streamed reply) and `fixture:stream-long`
-  (about ten thousand characters of Markdown and code, streamed at a fast model's pace, in a game chat).
+  (about ten thousand characters of Markdown and code, streamed at a fast model's pace, in a project chat).
 - `dist/renderer/bundle-report.json`: eager renderer bytes against the budget in
   `scripts/renderer-build.mjs`; three.js must stay out of the eager graph.
 - The eval ledger's `time.*` fields and `npm run eval -- compare|check` for whole-build timing
@@ -97,7 +97,7 @@ counters carry the regression gates.
 ## Rules that keep work off the critical path
 
 - The chat transcript mounts rows three screens ahead both ways and keeps them four screens
-  back (`chat/transcript-window.ts`): a GPU busy with Live's game draws newly mounted rows late,
+  back (`chat/transcript-window.ts`): a GPU busy with Live's project draws newly mounted rows late,
   so rows mounted just in time showed as a blank block under a fast fling.
 - Endless "working" animations (status shimmer, busy dots and spinners, the working node's pulse)
   run only while the window is in front and was touched in the last two minutes

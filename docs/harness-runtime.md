@@ -1,25 +1,28 @@
 # Harness runtime guide
 
-Read this when changing the in-app game-building harness. External developer memory is
+Read this when changing the in-app project-building harness. External developer memory is
 owned by [AGENTS.md](../AGENTS.md); this page describes product behavior.
 
 What the harness may assume of any served page (studio-ultra M4). Every page the studio serves
-carries the studio's own shim before the game's first line, so `window.__studio` answers on a game
+carries the studio's own shim before the project's first line, so `window.__studio` answers on a project
 that never heard of the contract, the studio owns the clock, `seed(n)` is reproducible, draw calls
 are counted at the graphics API, and readiness is a fact the page reports rather than a wait. That
-holds for any Three.js game of any shape — inline, ES modules with an import map, a Vite bundle
-(which adds the two-line `installStudio({ renderer, player })` and nothing else), WebGL or WebGPU.
-It does not hold for Phaser, plain canvas 2D or an engine export: those are out of scope, and a
-folder whose kind is `engine-export` can be played and photographed but can never start a night.
+holds for any web page of any shape — inline, ES modules with an import map, a Vite bundle (which adds
+the two-line `installStudio({ probes })` and nothing else), a canvas, WebGL or WebGPU. What people did
+to the page (clicks, typing, navigation, errors, unnamed controls, sideways overflow) is counted by the
+shim itself and rides on `state().ui`. It does not hold for an engine export: a folder whose kind is
+`engine-export` can be opened and photographed but can never start a night.
 
-The kind of game (`loop/kinds.ts`). Eight kinds — first-person, third-person, top-down, side-2d,
-racing, flight, static-board, free-camera. Each names the traits it implies, the state axes its
-look and move probes read, the eye cameras it wants, its critic and its play script. Every trait is
-OFF until the planner, the director or `studio.json`'s nested `game` block declares it, so a game
+The kind of project (`loop/kinds.ts`). Eight kinds — dashboard, form-flow, list-manager, content-site,
+editor, data-viz, utility, graphics. Each names the traits it implies, the state axes its navigation,
+edit, look and move probes read, whether it wants eye cameras, its critic and its exercise script
+(clicks, typing, Tab, scrolling; `graphics` walks and looks). Every trait is
+OFF until the planner, the director or `studio.json`'s nested `project` block declares it, so a project
 nobody described carries no harness input check at all; a declared kind supplies its traits and an
 explicit boolean beside it wins. The harness drives that kind's play script before every
-judgement, and `gameLine(run.game)` is the first line of every judge call. Two critics, not one:
-`place` for a world a player walks through and `screen` for a board, a puzzle or a builder.
+judgement, and `appLine(run.app)` is the first line of every judge call. Two critics, not one:
+`screen` for software a person reads and operates (the default) and `place` for a world a person moves
+through (`graphics`).
 
 Malformed facet ballots hold the current build and report an unmeasured comparison. A
 faceted vote needs all four explicit A/B/tie answers; an invalid legacy facet pick cannot
@@ -46,8 +49,8 @@ Where learning goes. Four places, and they are not interchangeable: a check earn
 `library/checks.json` (five technical checks ship; a planner's check earns its place by being
 used), a craft recipe in `library/recipes` (opinions about how a thing should look — retrieved
 when a check fails or a judge names the defect, never imposed), a skill file (how an agent works),
-and a prompt (what a role is). `library/games/<game>.jsonl` and `.md` hold what a night learned
-about one game and belong to the harness workspace, never the user's repository.
+and a prompt (what a role is). `library/games/<project>.jsonl` and `.md` hold what a night learned
+about one project and belong to the harness workspace, never the user's repository.
 
 What the loop's code is. The seed is TypeScript that Node runs by stripping its types — under
 Electron's own Node (`ELECTRON_RUN_AS_NODE`) in the app, with no build step — so it uses
@@ -58,8 +61,8 @@ are typed in `types/host-api.d.ts` and named in `loop/host-methods.ts` (`HostMet
 generated from `src/shared/harness-api.ts` by `scripts/gen-harness-types.ts` (the build writes
 fresh copies into the seed it ships, and `harness-types.test.ts` holds the committed copies to
 the contract); the ctx a loop function is
-handed is `types/harness.d.ts`. The game page's own verbs that `preview.call` names, and the
-words `game.validate` and `game.attached` use for a game's studio contract, are spelled once in
+handed is `types/harness.d.ts`. The project page's own verbs that `preview.call` names, and the
+words `project.validate` and `project.attached` use for a project's studio contract, are spelled once in
 `loop/page-contract.ts` (`PageMethod`, `StudioContract`, `AttachedContract`). The bootstrap imports `loop/main.ts`, and a workspace from
 before the conversion that has only `loop/main.mjs` still boots from that. The tool registry
 loads `tools/*.ts` and a legacy `tools/*.mjs`, and when both `x.ts` and `x.mjs` are there `x.ts`
@@ -141,7 +144,7 @@ rung already built or set aside, a regression a second look reproduces, a gap a 
 `gauntlet.ts` (`ITERATION_PHASES`) and `spike.ts` — and share
 primitives instead of copies of them: `git.ts` builds and runs every git command line (a
 conformance test finds no other), `evidence.ts` is the evidence pass (named phases too, inside
-the `finally` that hands the game back running) with its one failure classifier and the window
+the `finally` that hands the project back running) with its one failure classifier and the window
 leases, `build-turn.ts` is one
 build turn on either kind of engine, `config.ts` holds the shared waits and the light effort a
 bounded ask runs at (always "low", whatever role effort the user set), `outcomes.ts` gives every stop a
@@ -210,14 +213,14 @@ pipeline or a gauntlet (as on a local model without sessions) has no way to star
 build in it since "Start a new build" was removed. Nothing replaces the coordinator for the cases it
 answers yet; it goes only once something does, in work of its own.
 
-`src/harness-seed/prompts/` is the LOCAL-ENGINE game chat path only (`loop/prompt.ts`): the delegated
+`src/harness-seed/prompts/` is the LOCAL-ENGINE project chat path only (`loop/prompt.ts`): the delegated
 engines get their instructions from the briefs the loop renders, not from those files. Trimming
-them changes the local game chat and the readiness fixture, and nothing a night does.
+them changes the local project chat and the readiness fixture, and nothing a night does.
 Studio's tool-free instructions live in `loop/studio-chat.ts` for every provider.
 
 Session permissions, web research and thinking summaries (`substrate/engines/claude-code.ts`,
 `claude-permissions.ts`). Only the Claude Code session answering a message the person sent in a
-game's own chat is interactive: the host, never the loop, hands it `DelegateRequest.permissions`,
+project's own chat is interactive: the host, never the loop, hands it `DelegateRequest.permissions`,
 so it runs in the mode the person picked, without the studio's sandbox or a blanket Bash allow,
 and asks them (`canUseTool`) whatever Claude Code would ask. The host decides from its own records:
 the brief's shape, the message id it dispatched on that thread (`chatTurn`) and the thread's
@@ -233,11 +236,11 @@ build it leads. Builders, workers, the playtester, scouts and judges are unatten
 sandboxed shell auto-allowed inside the workspace, and no questions. A harness edit can make a
 session ask only about a message the person sent that is still unanswered, and never chooses its
 mode or answers a card: `thread.create` takes only a title and `events.append`/`turn.append`
-refuse `tool_permission` and `plugin_consent` rows. Nor does it write a game's `.claude` folder,
+refuse `tool_permission` and `plugin_consent` rows. Nor does it write a project's `.claude` folder,
 whose settings and hooks the person's session loads. Deny rules name
 absolute paths (`absoluteRule`: `//abs/path`, on Windows `//c/...`), because Claude Code reads a
-rule's `/x` relative to the settings root. A worktree's session still reads its own game, and a
-folder's neighbours are denied only inside the games root or scratch
+rule's `/x` relative to the settings root. A worktree's session still reads its own project, and a
+folder's neighbours are denied only inside the projects root or scratch
 ([tool permissions](tool-permissions.md)). A Claude Code chat,
 long-turn director and builder may use WebSearch and WebFetch; judges (`complete()`), read-only
 sessions (the coordinator, playtester, scout and a waking night's lead; the lead and coordinator
@@ -259,30 +262,30 @@ tool throws rather than resolving. Nothing on the agent side can add, change or 
 What the evidence pass proves before it gathers. It waits for the page and records
 `readyAfterMs`; it proves the studio owns the clock (two steps, `steppedFrames` — a base fails
 where an iteration warns); it drives the kind's play script and the run's `setup`; it photographs
-the game's own cameras, falling back to the view the game renders when it registered none (with a
+the project's own cameras, falling back to the view the project renders when it registered none (with a
 warning, never a void), and the page as well when the page has UI; and when `ok` is false it always
 says why. Frames that ran and drew nothing are a verdict on a base with content in it and a warning
 on an empty scaffold — the same exemption the blank-pixel rule already had, settled by inspection
-(`EMPTY_SCENE_PROBE`) rather than by the game's own word. One classifier answers for every caller: `none`, `observation`, `race` or `build` — an
+(`EMPTY_SCENE_PROBE`) rather than by the project's own word. One classifier answers for every caller: `none`, `observation`, `race` or `build` — an
 observation failure is not a build defect, and "evidence pass failed" is not a race.
 
-What a rollback may assume of a game folder. `snapshot.restore` on a game commits a rescue
+What a rollback may assume of a project folder. `snapshot.restore` on a project commits a rescue
 snapshot first and may refuse with a typed `code` (`branch-changed`, `history-changed`,
 `operation-in-progress`, `rescue-failed`), leaving the folder as it is; a loop must treat that as
 "stop or pause", never retry around it with raw git, and never report a rollback that was refused
-(autopilot's `rollBackGame` sets `report.rolledBack`). A loop snapshots its attempt before rolling
+(autopilot's `rollBackProject` sets `report.rolledBack`). A loop snapshots its attempt before rolling
 back and skips the rollback when that snapshot fails (the live spike does). Model or judge text
 that reaches `/bin/sh` — a commit message, a worker title — goes through `loop/shell.ts`
 `shellQuote`, never a `"` replacement, and the command line is built by `loop/git.ts`. A director land whose final-edits commit fails is refused
-as `final-commit-failed`. A landing that git refuses over uncommitted changes in the game folder,
+as `final-commit-failed`. A landing that git refuses over uncommitted changes in the project folder,
 or one into a folder with something staged or a merge of its own under way (which the failed
 merge's abort would undo, so it is not tried), is refused as `uncommitted-changes` and names them
 without blaming anyone; a conflict with commits there, or a hook or lock that refuses the merge,
 stays `could-not-land` with git's words.
 
-One seam per worker. In a game the user brought, a worker is given a path, a folder or a glob to
+One seam per worker. In a project the user brought, a worker is given a path, a folder or a glob to
 own (`*` and `?` stop at a slash, `**` crosses them; a glob must be quoted in the tool call), and
-`worker_start` refuses a second worker in such a game with no seam of its own — a game's entry is
+`worker_start` refuses a second worker in such a project with no seam of its own — a project's entry is
 owned whole, because two workers in one entry file get union-merged and the merge has no seam to
 follow. `src/substrate/ownership.ts` and `loop/review.ts` are two copies of that one rule, held in
 step by a conformance test, because the seed runs outside the app, where nothing under `src/` resolves.
@@ -290,7 +293,7 @@ step by a conformance test, because the seed runs outside the app, where nothing
 Manual SkillOpt resolves the most recent run's model through `modelOn`, as the post-run path does.
 A cross-provider run stores its builder model alongside its orchestrator engine, so those two raw
 fields must not be passed together to a completion call. Skill gates compare instruction texts against saved task descriptions; they do not execute
-candidate builds or establish better future game outcomes. The analyst sees every other mined task and
+candidate builds or establish better future project outcomes. The analyst sees every other mined task and
 the gate judges only the rest, with the candidate changing sides between its three votes; a skill with
 no held-out task is not analysed. The pass stages proposals and never writes a skill itself: the host
 applies them (see Architecture, learned changes). Anything that learns asks `learningOn(ctx)` first:
@@ -310,7 +313,7 @@ prompt.
 `npm run test:agentic-readiness` prepares two disposable local Git checkouts with shared
 read-only-in-practice node_modules, then boots their fixture profiles plus a separate owned
 sentinel. It exercises navigation/filter/model menu, Unicode/keyboard, coordinator Send,
-Stop's real pending AbortSignal, history buttons/graph, distinct game input/image, diagnostics,
+Stop's real pending AbortSignal, history buttons/graph, distinct project input/image, diagnostics,
 identity failures, stale builds, preserved runtime self-edits, restart and cleanup isolation.
 It writes `.studio-dev/evidence/accept-<time>/report.json` and selected artifacts. Read the
 current report: required check statuses, not the existence of this command, establish support.
@@ -345,16 +348,16 @@ local-model host, and absence of the developer controller in ordinary builds. Th
 Node rig injects its scripted local provider before startup. Two existing asynchronous tests
 now wait for the first turn's completion and rendezvous of parallel delegates respectively;
 they retain the original assertions without a fixed overlap timing window. Fixture native
-guards and missing game compositor bounds fail explicitly; interrupted transport responses
+guards and missing project compositor bounds fail explicitly; interrupted transport responses
 are tested as failures, never successful captures.
 
 Finished base capture fixtures use the run-level `base/screenshots/default.jpg` path. Click
 the card header for details: once a thumbnail has loaded, its center opens the image viewer.
 Acceptance checks `naturalWidth` and completion of the saved image before recording success.
 The automatic-animation selftest waits up to five seconds for an observed frame advance; it
-never starts or steps the game to satisfy that assertion. The on-device speech selftest loads a
-page and a cross-site frame that call the Web Speech members which used to kill a game renderer;
-it is the real-Electron guard for `GAME_DISABLED_BLINK_FEATURES`, whose names Chromium would
+never starts or steps the project to satisfy that assertion. The on-device speech selftest loads a
+page and a cross-site frame that call the Web Speech members which used to kill a project renderer;
+it is the real-Electron guard for `PROJECT_DISABLED_BLINK_FEATURES`, whose names Chromium would
 ignore silently after an Electron upgrade. Packaged smoke also attempts a
 developer launch flag in test mode and requires rejection before profile initialization.
 
@@ -381,9 +384,9 @@ instead of quietly emptying a row); everything else is `other`, and the report s
 the corpus that is. The default run prints where it looked and what it found for each engine,
 because this machine has no isolated Codex home and a silent zero is indistinguishable from a bug;
 `--system-codex` is opt-in and keeps only the sessions the studio itself started: the ones that ran
-in a game folder, and the ones that ran in a scratch folder the studio named under the temp root
+in a project folder, and the ones that ran in a scratch folder the studio named under the temp root
 (`studio-playtest-`, `studio-judge-` — a playtester and every judge call run there, in nobody's
-game, and filtering on the game roots alone emptied those rows silently). What the filter drops is
+project, and filtering on the project roots alone emptied those rows silently). What the filter drops is
 said in the where-I-looked line, not swallowed. `--system-claude` does the same for `~/.claude`,
 where a chat signed in with this Mac's own Claude Code writes the studio's transcripts beside the
 owner's. Every request is priced at its own model's row of `evals/prices.json` and reported by
@@ -395,10 +398,10 @@ the change against an earlier run, cost included — run it before a diet and ag
 
 Milestone 4's own suites, all in `npm test`: `page-serve.test.ts` (where the studio's tags land in
 a page it did not write), `page-shim.test.ts` (the clock, the seed, the merging facade, and the
-game view's sandbox and disabled Blink features),
+project view's sandbox and disabled Blink features),
 `attach.test.ts` (renderer discovery and the world choice), `capture.test.ts` and
 `draw-counters.test.ts` (how a frame becomes a picture, and the counters at the graphics API),
-`shapes-fixtures.test.ts` (the five checked-in games are what their manifests say they are),
+`shapes-fixtures.test.ts` (the five checked-in projects are what their manifests say they are),
 `census.test.ts`, `engine-voice.test.ts` (every exported brief rendered once per engine: no bridge
 command in a Claude render, no `mcp__` name in a Codex render), `check-grammar.test.ts`,
 `facet-loop-v2.test.ts` and `evidence.test.ts`. `npm run verify:architecture` now walks `src/page`
@@ -424,7 +427,7 @@ CLI's own behaviour and a project skill still earns its keep.
 Run `tests/conformance/run-summary.test.ts` with graph, build-progress, chat and director
 conformance; `run-summary-feed.test.ts` covers incremental graph replies and shared live feeds. The sanitized village metadata fixture proves six integrations, three accepted and
 one rejected evaluated attempts, stopped follow-ups, explicit replacements and final negative
-visual evidence coexisting with structural passes. It is not a new gameplay-quality evaluation.
+visual evidence coexisting with structural passes. It is not a new interaction-quality evaluation.
 The build UI smoke additionally checks shared chat/graph totals, stopped follow-ups hanging
 below the line, failed-question visibility and learning separation in Electron. Inspect screenshots for layout;
 semantic assertions do not prove readability. `STUDIO_PACKAGE_DIR` may point both packaged
@@ -434,10 +437,10 @@ running app bundle. Fixture checks need no paid assets, real CLIs or credentials
 Build actions regression: real Git showBuild requests overlap in director conformance; Electron
 Build smoke overlaps two showBuild IPC requests with loadPreview, repeats Play, and checks
 live work staying in view, Jump to now and graph cursors. run-steps tests own step folding,
-merge-first state, gates and layout. No production game is used as a fixture.
+merge-first state, gates and layout. No production project is used as a fixture.
 
 The Build UI smoke also controls pending/failing bootstrap and selected-thread IPC reads to
-assert the startup loader, no premature Ready or empty games, explicit errors, and successful Retry.
+assert the startup loader, no premature Ready or empty projects, explicit errors, and successful Retry.
 Smoke read gates are unset in ordinary sessions and only consulted by fixture smoke handlers.
 Injected read failures persist until the test explicitly retries: development React's StrictMode
 replays mount effects, so a one-shot rejection can be consumed by a disposed effect and hide the
@@ -450,7 +453,7 @@ report.
 Owned fixture snapshots expose Profiler counters. Diagnostics add IPC/push totals, startup marks,
 GPU/process status and loop delay; normal launches require `--studio-diagnostics` for counters.
 `studio:performance.mark` accepts fixed journey names. Compare build-graph, large-build-graph
-(1,000 steps/five workers), chat-history and game-surface traces. macOS evidence does not certify
+(1,000 steps/five workers), chat-history and project-surface traces. macOS evidence does not certify
 Windows/Linux.
 
 
@@ -462,7 +465,7 @@ remains unless the user asked: Finish, or `user_asked` quoting the user's own wo
 delivered into the run (`integrate.ts` `userQuoted`, checked against the run inbox's steers). However a night ends — the lead's `finish`, the
 clock, the user's Finish, an engine limit — the close judges the head it is about to make live
 (`director/tools.ts` `judgeTheLanding`, from `integrate.ts`): blind against the build the user had,
-or, for a new game or one whose start nobody could photograph, a yes-or-no on the goal
+or, for a new project or one whose start nobody could photograph, a yes-or-no on the goal
 (`close-prompts.ts`). A lead's own blind judge of that head against the start, whichever build it
 picked, stands in for it. The judge borrows the studio's window, and its model calls must be done
 four minutes after it starts (judge.ts's per-call deadline, for engines that honour a request's
@@ -488,7 +491,7 @@ an exact revision; a new revision requires fresh evidence before victory. Typed 
 blockers retain the integration ref and pause once no independent required work remains.
 A user Resume revisits the prerequisite without granting package or publishing permission.
 An initial plan part requiring Genex online play declares `multiplayer: true`. Before delegation,
-`plugins.preflightMultiplayer` checks a regular game manifest, the pinned SDK installation tool,
+`plugins.preflightMultiplayer` checks a regular project manifest, the pinned SDK installation tool,
 unlocked Genex account and consented publishing capability. Missing capabilities block the goal;
 readiness never grants installation/publication consent or claims remote authentication or hosted
 play passed. Actual SDK installs still use the consolidated consent card.
@@ -497,13 +500,13 @@ Worker plugin approvals are recorded in the run owner's conversation, resolved f
 call attribution and persisted run starts. The original worker remains the cancellation
 scope. Ambiguous or mismatched run ownership is never guessed from a project name.
 Codex ownership recovery metadata lives beside the Codex engine home, never inside it (a folder
-there would read as a sign-in), rather than appearing as an untracked game edit; legacy in-game
+there would read as a sign-in), rather than appearing as an untracked project edit; legacy in-project
 records remain recoverable with hostile-path checks.
 The first independently verified milestone and latest checkpoint are retained in the journal
 and report, with immutable Git refs so later integration and cleanup cannot discard them. A one-time 30-minute review reports verified outcomes and blockers without ending
 healthy work. A reopen earns the checkpoints and the review anew. Existing Show build and safe
 landing operations can recover the saved commit;
-Stop does not overwrite the game folder.
+Stop does not overwrite the project folder.
 
 Wake payloads report their estimated token size against an 8k budget, excluding user messages,
 attachments and provider-managed history. Unchanged build cards and routine goal-plan

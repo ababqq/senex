@@ -380,7 +380,7 @@ test("plugin:submit refuses an official id, a placeholder publisher, a bad sourc
     ["placeholder publisher", [unnamed, "--catalog", catalog, ...SOURCE], /publisher/],
     ["short sha", [plain, "--catalog", catalog, ...SOURCE.slice(0, 2), "--sha", "abc", "--category", "tools"], /sha/],
     ["bad repo", [plain, "--catalog", catalog, "--repo", "acme", ...SOURCE.slice(2)], /repo/],
-    ["bad category", [plain, "--catalog", catalog, ...SOURCE.slice(0, 4), "--category", "games"], /category/],
+    ["bad category", [plain, "--catalog", catalog, ...SOURCE.slice(0, 4), "--category", "projects"], /category/],
     ["http docs", [plain, "--catalog", catalog, ...SOURCE, "--docs-url", "http://example.com"], /HTTPS/],
     ["no catalog", [plain, ...SOURCE], /Usage/],
     [

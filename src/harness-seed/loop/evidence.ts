@@ -2,7 +2,7 @@
  * Evidence — how the harness looks at a build.
  *
  * One pass (`gatherEvidence`): load the build, wait for it to say it is up, replay the requested
- * state, prove the studio owns the clock, drive the game's own controls, photograph every camera
+ * state, prove the studio owns the clock, drive the project's own controls, photograph every camera
  * and the player's eyes, run its demos, and read the state, the console and the GPU. Every mode
  * uses it — the classic gauntlet, the pipeline's base and facets, a spike, the director's judge,
  * health and close passes.
@@ -117,7 +117,7 @@ const USER_VIEW_MISMATCH = 0.02;
 const BLACK_LIT_FRACTION = 0.005;
 /** A page that takes longer than this to say it is ready is warned about: every pass pays that boot. */
 const SLOW_BOOT_MS = 5 * SECOND_MS;
-/** How long a setup waits for the game to settle after its actions: 400 ms unless it says, never over ten seconds. */
+/** How long a setup waits for the project to settle after its actions: 400 ms unless it says, never over ten seconds. */
 const SETUP_SETTLE_MS = 400;
 const SETUP_SETTLE_MAX_MS = 10 * SECOND_MS;
 /** The most keys a setup's gesture presses, and the most input actions it replays. */
@@ -132,9 +132,9 @@ const DRIVE_STEP_MS = 960;
 const LAST_DRIVE_STEP = DRIVE_STEPS - 1;
 /** A pass without a spec photographs at most this many cameras. */
 const MAX_CAMERAS = 6;
-/** The harness's own viewpoints, asked of a game that declares fewer than two. */
+/** The harness's own viewpoints, asked of a project that declares fewer than two. */
 const FLOOR_CAMERAS = [DEFAULT_CAMERA, "close", "wide"];
-/** The player's-eye cameras a pass photographs when the game has them. */
+/** The player's-eye cameras a pass photographs when the project has them. */
 const EYE_CAMERAS = ["eye:spawn", "eye:here", "eye:down"];
 /** How many of the page's UI entries a warning names. */
 const MAX_UI_ENTRIES = 6;
@@ -198,7 +198,7 @@ const EVIDENCE_FAILURES: ReadonlyArray<{ match: RegExp; means: readonly ProblemM
   { match: NO_FRAME, means: [ProblemMeaning.Observation] },
   { match: new RegExp(`^${MISSING_CONTRACT.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`), means: [ProblemMeaning.Race] },
   { match: /__studio is missing/, means: [ProblemMeaning.Load] },
-  { match: /could not drive the game/, means: [ProblemMeaning.Load] },
+  { match: /could not drive the project/, means: [ProblemMeaning.Load] },
 ];
 
 /** Does every problem mean `kind`? An empty list means nothing. */
@@ -303,7 +303,7 @@ interface SetupOutcome {
 /**
  * The knock first: a suspended AudioContext cannot resume, a pointer cannot lock and a title
  * screen waiting on a click cannot be walked past without a trusted gesture — and start() before
- * it would resume a game that is still on its first screen.
+ * it would resume a project that is still on its first screen.
  */
 async function knock(ctx: HarnessCtx, gesture: unknown, h: { handle?: string }): Promise<void> {
   const g: AnyRecord = gesture === true ? {} : (gesture as AnyRecord);
@@ -336,7 +336,7 @@ async function verifySetup(
   const state = (await ctx.call(HostMethod.PreviewState, { ...h }).catch(() => null)) as AnyRecord | null;
   const value = lookupState(state, verify.path);
   const usable = state && typeof state === "object" && !state.__missing;
-  if (!usable) return { reached: null, reason: "the game's state is unreadable" };
+  if (!usable) return { reached: null, reason: "the project's state is unreadable" };
   const note = setup.note ? ` (${setup.note})` : "";
   if ("equals" in verify) {
     const reached = value === verify.equals || String(value) === String(verify.equals);
@@ -448,7 +448,7 @@ export const STEP_WITNESS = `(() => {
 })()`;
 
 /**
- * Prove the studio drives the game before anything it drives is believed.
+ * Prove the studio drives the project before anything it drives is believed.
  *
  * Two steps, not one: a single delta can be satisfied by a wall-clock frame that happened to
  * land between two reads. Both must move the page's own stepped-frame counter, its draw counter
@@ -458,8 +458,8 @@ export const STEP_WITNESS = `(() => {
 export async function proveStep(ctx: HarnessCtx, h: { handle?: string } = {}, ms = 320): Promise<StepProof> {
   const samples = [await readWitness(ctx, h)];
   // The step answers, not only the witness: the shim counts the stepped frames that found no
-  // animation callback at all (`idle`), and that is the difference between a game riding the
-  // studio's clock and a game the studio merely stepped past.
+  // animation callback at all (`idle`), and that is the difference between a project riding the
+  // studio's clock and a project the studio merely stepped past.
   let idle = 0;
   let asked = 0;
   for (let i = 0; i < PROOF_STEPS; i++) {
@@ -518,7 +518,7 @@ function weighSteps(out: StepProof, samples: AnyRecord[]): StepProof {
   if (!samples.every((sample, index) => index === 0 || sample.steppedFrames > samples[index - 1].steppedFrames)) {
     out.code = "no-frame";
     out.reason =
-      "the studio stepped the clock and the page ran no frame of its own — the game does not ride the studio's clock";
+      "the studio stepped the clock and the page ran no frame of its own — the project does not ride the studio's clock";
     return out;
   }
   if (!(out.drawCalls > 0)) {
@@ -534,13 +534,13 @@ function weighSteps(out: StepProof, samples: AnyRecord[]): StepProof {
   out.ok = true;
   out.code = "ok";
   // Frames moved and something was drawn, but every stepped frame found no animation callback:
-  // the game draws from somewhere else (a timer, an input handler, a render on demand). That is
-  // a real game and not a failure, so it is a note — but the frame counts below are the studio's
-  // and not the game's, and the honest answer says so instead of charging them to its loop.
+  // the project draws from somewhere else (a timer, an input handler, a render on demand). That is
+  // a real project and not a failure, so it is a note — but the frame counts below are the studio's
+  // and not the project's, and the honest answer says so instead of charging them to its loop.
   if (out.askedFrames > 0 && out.idle >= out.askedFrames) {
     out.idleLoop = true;
     out.note =
-      "the studio stepped the clock and the game ran no animation frame of its own — it draws from somewhere else, so the frame counts are the studio's rather than the game's loop";
+      "the studio stepped the clock and the project ran no animation frame of its own — it draws from somewhere else, so the frame counts are the studio's rather than the project's loop";
   }
   return out;
 }
@@ -548,15 +548,18 @@ function weighSteps(out: StepProof, samples: AnyRecord[]): StepProof {
 /**
  * The empty-scene exemption, as one expression a test can run under `node:vm`.
  *
- * It censuses every scene the hook says was rendered (a menu → level machine renders two, and
- * the content may be in either), duck-types the scene and the camera rather than trusting a
- * three.js flag, and accepts a WebGPU backend everywhere `isWebGLRenderer` was once the gate.
+ * A page of DOM is empty when `inspect().dom` says it shows no text and no visual element. A page
+ * that draws a world censuses every scene the hook says was rendered (a menu → level machine
+ * renders two, and the content may be in either), duck-types the scene and the camera rather than
+ * trusting a three.js flag, and accepts a WebGPU backend everywhere `isWebGLRenderer` was once the
+ * gate.
  */
 export const EMPTY_SCENE_PROBE = `(() => {
   try {
     var s = window.__studio;
     var i = s && typeof s.inspect === "function" ? s.inspect() : null;
     if (!i || typeof i !== "object") return false;
+    if (!i.scene && i.dom && typeof i.dom.empty === "function") return i.dom.empty() === true;
     var r = i.renderer;
     var backend = !!r && (r.isWebGLRenderer === true || (!!r.backend && (r.backend.isWebGPUBackend === true || r.backend.isWebGLBackend === true)));
     var c = i.camera;
@@ -658,7 +661,7 @@ export async function gatherEvidence(
     const done = await phase(look);
     if (done) return done.value;
   }
-  // Everything from here to the last read touches the page. The finally hands the game back
+  // Everything from here to the last read touches the page. The finally hands the project back
   // running, so a crashed harness never leaves a dead page on the user's stage.
   try {
     for (const phase of LOOK_PHASES) {
@@ -666,7 +669,7 @@ export async function gatherEvidence(
       if (done) return done.value;
     }
   } finally {
-    // However this pass ends, the game is handed back running. A night that crashed here used
+    // However this pass ends, the project is handed back running. A night that crashed here used
     // to leave the user's own stage frozen on a paused frame until they reloaded it.
     await ctx.call(HostMethod.PreviewCall, { method: PageMethod.Start, ...look.h }).catch(() => {});
   }
@@ -682,7 +685,7 @@ export async function gatherEvidence(
 const LOOK_OPENING: Array<(look: Look) => Promise<LookEnd>> = [loadPage, reachRequestedState];
 
 /**
- * The evidence pass on the page itself, in order, inside the `finally` that hands the game back
+ * The evidence pass on the page itself, in order, inside the `finally` that hands the project back
  * running.
  */
 const LOOK_PHASES: Array<(look: Look) => Promise<LookEnd>> = [
@@ -741,7 +744,7 @@ async function readReadiness(look: Look): Promise<void> {
 /** (1) load, (2) ready and (3) status: read on a settled page, not on one still loading. */
 async function loadPage(look: Look): Promise<LookEnd> {
   const { ctx, entry, handle, iterationId, labelPrefix, root, run, scaffold, setup } = look;
-  // The state to look at: a worker's own (director, 2026-09-07 — one map per worker on a big game), else the run's.
+  // The state to look at: a worker's own (director, 2026-09-07 — one map per worker on a big project), else the run's.
   look.requestedSetup = setup === undefined ? run.setup : setup;
   const h = handle ? { handle } : {};
   look.h = h;
@@ -775,7 +778,7 @@ async function loadPage(look: Look): Promise<LookEnd> {
   if (status.crashed) problems.push("the renderer crashed");
 }
 
-/** (4) setup, the player-eye cameras the game has, and the readings the page phases fill. */
+/** (4) setup, the player-eye cameras the project has, and the readings the page phases fill. */
 async function reachRequestedState(look: Look): Promise<LookEnd> {
   const { ctx, eyes, h, prefix, requestedSetup, run, status, warnings } = look;
   // ── (4) setup: the requested state (computer use, 2026-09-07) — the scout's setup script,
@@ -792,11 +795,11 @@ async function reachRequestedState(look: Look): Promise<LookEnd> {
     if (look.requestedState.error) warnings.push(`setup script failed: ${look.requestedState.error}`);
   }
 
-  // Harness-owned player-eye cameras (v2 contract): present when the game passed `camera` and
-  // `player()` into installStudio. A board game has no eye worth photographing, so it is not
-  // asked; a game that declares no kind is looked at exactly as before.
+  // Harness-owned player-eye cameras (v2 contract): present when the project passed `camera` and
+  // `player()` into installStudio. A board project has no eye worth photographing, so it is not
+  // asked; a project that declares no kind is looked at exactly as before.
   look.eyeNames = [];
-  const looksThroughEyes = eyes && look.bootedFor && wantsEyeCameras(run?.game);
+  const looksThroughEyes = eyes && look.bootedFor && wantsEyeCameras(run?.app);
   if (looksThroughEyes) {
     try {
       const declared = await ctx.call(HostMethod.PreviewCall, { method: PageMethod.Eyes, ...h });
@@ -847,7 +850,7 @@ async function reachRequestedState(look: Look): Promise<LookEnd> {
 /**
  * Where a failed clock proof goes. A page with no canvas at all is the DOM-first-screen shape the
  * readiness ladder exists for: frames without draws there is a warning, never a verdict. The shim
- * not loading is not a fact about the game: nothing measured below can be believed on any stage,
+ * not loading is not a fact about the project: nothing measured below can be believed on any stage,
  * so it is a problem on a challenger exactly as on the base.
  *
  * An empty shared base draws nothing because there is nothing in it. That is the one stage where
@@ -891,13 +894,13 @@ async function proveClock(look: Look): Promise<void> {
  * every probe delta measured drift. The two proving steps sit before it, so the early sample is
  * the same distance into the simulation for every build.
  */
-async function driveGame(look: Look): Promise<void> {
+async function driveProject(look: Look): Promise<void> {
   const { ctx, h, motion, motionFrames, run, takeMotionFrame } = look;
   await ctx.call(HostMethod.PreviewCall, { method: PageMethod.Step, arg: DRIVE_STEP_MS, ...h });
   look.stateEarly = await ctx.call(HostMethod.PreviewState, { ...h });
-  // Drive the game's OWN controls every iteration so feel/play are judged on play, not idle
-  // time — and so a board game is clicked rather than walked.
-  await applyPlayScript(ctx, playScriptFor(run?.game), { clock: "step", runId: run.runId, ...h });
+  // Drive the project's OWN controls every iteration so feel/play are judged on play, not idle
+  // time — and so a board project is clicked rather than walked.
+  await applyPlayScript(ctx, playScriptFor(run?.app), { clock: "step", runId: run.runId, ...h });
   // The motion strip: a few frames spread over the scripted walk, from the player's eye —
   // feel is judged from motion, not from two JSON snapshots.
   const motionAt = new Set<number>();
@@ -915,7 +918,7 @@ async function driveGame(look: Look): Promise<void> {
   }
 }
 
-/** The state the drive left, what it says is wrong with the page, and what the game sounds like. */
+/** The state the drive left, what it says is wrong with the page, and what the project sounds like. */
 async function readDrivenState(look: Look): Promise<void> {
   const { audio, ctx, h, problems } = look;
   look.state = await ctx.call(HostMethod.PreviewState, { ...h });
@@ -930,24 +933,24 @@ async function readDrivenState(look: Look): Promise<void> {
   }
 }
 
-/** (5) prove the studio owns the clock, then (6) drive the game's own controls. */
+/** (5) prove the studio owns the clock, then (6) drive the project's own controls. */
 async function proveAndDrive(look: Look): Promise<LookEnd> {
   if (!look.bootedFor) return;
   try {
     await proveClock(look);
-    await driveGame(look);
+    await driveProject(look);
     await readDrivenState(look);
   } catch (err: any) {
-    look.problems.push(`could not drive the game: ${err?.message ?? err}`);
+    look.problems.push(`could not drive the project: ${err?.message ?? err}`);
   }
 }
 
 /** Whether an empty shared base is empty by inspection, and the base's held no-draw sentence. */
 async function inspectEmptyScene(look: Look): Promise<LookEnd> {
   const { baseStage, ctx, h, problems, warnings } = look;
-  // An empty shared base is infrastructure, not a finished game. Only this harness-owned
+  // An empty shared base is infrastructure, not a finished project. Only this harness-owned
   // stage may accept empty pixels, and only when inspection proves no content exists.
-  // A game's self-reported phase/drawCalls cannot turn off challenger health checks.
+  // A project's self-reported phase/drawCalls cannot turn off challenger health checks.
   look.emptyScene = false;
   if (baseStage) {
     try {
@@ -971,7 +974,7 @@ async function readSurfaces(look: Look): Promise<LookEnd> {
   // ── (7) surfaces: asked once, after the setup and before the cameras ──
   // The CAMERA frames stay canvas-sourced whatever this says: their stats feed the pixel
   // checks, the blank-build guard and style distance, and grading a DOM menu as if it were
-  // the game defeats an identity-weight check class for exactly the games this serves.
+  // the project defeats an identity-weight check class for exactly the projects this serves.
   look.pageUi = null;
   if (look.bootedFor) {
     try {
@@ -993,7 +996,7 @@ async function readSurfaces(look: Look): Promise<LookEnd> {
 type MissingShot = Shot & { missing?: boolean; reason?: string };
 
 /**
- * Only a viewpoint the GAME declares is censused for placement: the floor's own guesses
+ * Only a viewpoint the PROJECT declares is censused for placement: the floor's own guesses
  * answering from one frozen pose is the harness asking twice, not a base that never placed its
  * cameras.
  */
@@ -1058,9 +1061,9 @@ function addCamera(names: string[], name: string): void {
 }
 
 /**
- * Without a spec: "default" plus whatever the game declares, capped so the judge is not flooded
+ * Without a spec: "default" plus whatever the project declares, capped so the judge is not flooded
  * — with a FLOOR, because the template registers ONE camera and the classic trio has always
- * been the harness's, not the game's: a game declaring fewer than two viewpoints is still asked
+ * been the harness's, not the project's: a project declaring fewer than two viewpoints is still asked
  * for close and wide, and an unregistered one of those is skipped silently.
  */
 async function declaredCameraNames(look: Look, cameraNames: string[], floorCameras: Set<string>): Promise<void> {
@@ -1070,12 +1073,12 @@ async function declaredCameraNames(look: Look, cameraNames: string[], floorCamer
     const answer = await ctx.call(HostMethod.PreviewCall, { method: PageMethod.Cameras, ...h });
     if (Array.isArray(answer)) look.declaredCameras = answer.map(String);
   } catch {
-    /* a game predating cameras() declares none */
+    /* a project predating cameras() declares none */
   }
   const declared: string[] = look.declaredCameras ?? [];
   for (const name of declared)
     if (!cameraNames.includes(name) && cameraNames.length < MAX_CAMERAS) cameraNames.push(name);
-  // "default" above is the HARNESS asking for the view the page renders. A game that names
+  // "default" above is the HARNESS asking for the view the page renders. A project that names
   // its own cameras and none of them "default" declares one viewpoint fewer than the count
   // suggests, and its two identical frames are one view photographed twice — not a dead
   // debugCamera. Floor it, the way close and wide are floored.
@@ -1091,7 +1094,7 @@ async function declaredCameraNames(look: Look, cameraNames: string[], floorCamer
 
 /**
  * Which cameras to photograph. With a spec, exactly the cameras the facet names (default first)
- * plus the eye cameras; without one, the game's own with a floor (`declaredCameraNames`). A page
+ * plus the eye cameras; without one, the project's own with a floor (`declaredCameraNames`). A page
  * that never booted gets one frame: 30 step round trips against it is the endless hold, and a
  * human still sees whatever the page drew.
  */
@@ -1114,7 +1117,7 @@ async function chooseCameras(look: Look): Promise<void> {
     await declaredCameraNames(look, cameraNames, floorCameras);
     for (const name of wantEyes) addCamera(cameraNames, name);
   }
-  // The viewpoints the GAME claims to have: the floor's guesses are not among them, so an
+  // The viewpoints the PROJECT claims to have: the floor's guesses are not among them, so an
   // identical frame from a camera nobody declared is not evidence of dead wiring.
   look.declaredViewpoints = cameraNames.filter((name) => !name.startsWith("eye:") && !floorCameras.has(name));
 }
@@ -1122,12 +1125,12 @@ async function chooseCameras(look: Look): Promise<void> {
 /**
  * One camera's frame, kept on `shots`. A capture that raced the compositor returns the previous
  * camera's pixels: one retake settles the race; only a shot identical after the retake counts as
- * a dead debugCamera. A "default" the game never registered is noted on the look.
+ * a dead debugCamera. A "default" the project never registered is noted on the look.
  */
 async function shootCamera(look: Look, camera: string): Promise<void> {
   const { floorCameras, missingCameras, shots } = look;
   const label = camera.replace(/[^a-z0-9-_]+/gi, "-");
-  // A game that registers no "default" is still photographed on the view it renders — the
+  // A project that registers no "default" is still photographed on the view it renders — the
   // whole point of this milestone — instead of three frames of one frozen viewpoint.
   const options = { anyway: camera === DEFAULT_CAMERA, floor: floorCameras.has(camera) };
   let shot = await takeShot(look, camera, label, options);
@@ -1151,7 +1154,7 @@ function cameraWarnings(look: Look): void {
   const { cameras, missingCameras, problems, scaffold, warnings } = look;
   if (!look.registeredDefault) {
     warnings.push(
-      `this game registers no "default" camera (registered: ${(look.declaredCameras ?? []).join(", ") || "none"}) — every frame is the view the game itself renders`,
+      `this project registers no "default" camera (registered: ${(look.declaredCameras ?? []).join(", ") || "none"}) — every frame is the view the project itself renders`,
     );
   }
   if (!missingCameras.length) return;
@@ -1162,7 +1165,7 @@ function cameraWarnings(look: Look): void {
   );
 }
 
-/** The cameras: the facet's own or the game's, with a floor, and what is missing. */
+/** The cameras: the facet's own or the project's, with a floor, and what is missing. */
 async function photographCameras(look: Look): Promise<LookEnd> {
   const { problems } = look;
   look.cameraPoses = new Map<string, string>();
@@ -1202,7 +1205,7 @@ async function userViewDiff(look: Look, shot: AnyRecord): Promise<number | null>
 /** What the user's-eye frame tells the judge: UI outside the canvas, or a page that differs from it. */
 function userViewWarning(uiEntries: string[], diffFraction: number | null): string | null {
   if (uiEntries.length > 0)
-    return `this game paints UI outside the canvas (${uiEntries.slice(0, MAX_UI_ENTRIES).join(", ")}) — user:view shows it, the canvas frames do not`;
+    return `this project paints UI outside the canvas (${uiEntries.slice(0, MAX_UI_ENTRIES).join(", ")}) — user:view shows it, the canvas frames do not`;
   if (diffFraction !== null && diffFraction > USER_VIEW_MISMATCH)
     return `the page the user sees differs from the canvas capture on the default camera (${(diffFraction * 100).toFixed(1)}% of pixels) — the page shows UI the canvas does not (DOM HUD, overlays); compare user:view with default`;
   return null;
@@ -1268,7 +1271,7 @@ async function photographPageOffCanvas(look: Look, pageLabel: string): Promise<v
  * The user's-eye frame: the compositor's picture with every DOM element on it, on the default
  * camera. The canvas capture is the judge's picture for good reasons (it works occluded); this
  * one exists so a HUD painted into the DOM — invisible to every canvas shot — can be seen once,
- * and so a game whose UI IS the page is not judged blind.
+ * and so a project whose UI IS the page is not judged blind.
  */
 async function photographUserView(look: Look): Promise<LookEnd> {
   const { prefix, userView, warnings } = look;
@@ -1355,10 +1358,10 @@ async function runDemo(look: Look, name: string): Promise<void> {
 }
 
 /**
- * The game's scripted demos, each photographed at its own end state. Behavioural facets are
+ * The project's scripted demos, each photographed at its own end state. Behavioural facets are
  * invisible to the generic playthrough (a sit-on-a-bench beat that the scripted WASD walk never
- * reaches judged "pixel-identical" for six iterations), so any scripted demos the game declares
- * run now — after the main shots, because a demo moves the game to its own end state. Each
+ * reaches judged "pixel-identical" for six iterations), so any scripted demos the project declares
+ * run now — after the main shots, because a demo moves the project to its own end state. Each
  * demo's result is data for the judge and its end frame is photographed as it stands (no camera
  * switch: the demo composes its own view).
  */
@@ -1379,16 +1382,16 @@ async function runDemos(look: Look): Promise<LookEnd> {
     skippedDemos.push(...skipped);
     for (const name of toRun) await runDemo(look, name);
   } catch {
-    /* a game predating the demo contract simply has none */
+    /* a project predating the demo contract simply has none */
   }
 }
 
 /**
- * Whose count is this? The facade delegates `capture()` to the game, so a frame the page
- * labelled `game` — and the draw count beside it — is the build's claim about itself, not the
+ * Whose count is this? The facade delegates `capture()` to the project, so a frame the page
+ * labelled `project` — and the draw count beside it — is the build's claim about itself, not the
  * studio's read of the canvas. A verdict is only made on the studio's own reads.
  */
-const claimedByGame = (shot: Shot): boolean => shot.stats?.provenance === "game";
+const claimedByProject = (shot: Shot): boolean => shot.stats?.provenance === "project";
 
 /**
  * A frame that drew nothing is not evidence of blankness — it is evidence of no frame. It leaves
@@ -1401,16 +1404,16 @@ function weighDraws(look: Look): Shot[] {
   look.counted = counted;
   const zeroDraw = counted.filter((shot: Shot) => shot.stats?.drawCalls === 0);
   look.zeroDraw = zeroDraw;
-  look.claimed = claimedByGame;
+  look.claimed = claimedByProject;
   if (counted.length > 0 && zeroDraw.length === counted.length) {
     // An empty shared base draws nothing because there is nothing in it — the same exemption
     // the no-draw proof above waits for. Anywhere else it is the verdict.
-    if (look.emptyScene) warnings.push("the game drew nothing for any camera");
-    else if (zeroDraw.every(claimedByGame))
+    if (look.emptyScene) warnings.push("the project drew nothing for any camera");
+    else if (zeroDraw.every(claimedByProject))
       warnings.push(
-        "no camera frame reported a draw, and every frame is the game's own picture rather than the studio's read of the canvas — the count is the build's claim about itself, not a verdict",
+        "no camera frame reported a draw, and every frame is the project's own picture rather than the studio's read of the canvas — the count is the build's claim about itself, not a verdict",
       );
-    else problems.push("the game drew nothing for any camera");
+    else problems.push("the project drew nothing for any camera");
     return counted;
   }
   if (!zeroDraw.length) return counted;
@@ -1438,7 +1441,7 @@ function sameFrameEverywhere(look: Look): void {
   const { canvasSourced, declaredViewpoints, problems, uiEntries, uiPrimary, warnings } = look;
   if (uiPrimary) {
     warnings.push(
-      `a full-screen overlay covers the game (${uiEntries.slice(0, MAX_UI_ENTRIES).join(", ") || "the page"}) — every camera frame is the same picture behind it; judge user:view`,
+      `a full-screen overlay covers the project (${uiEntries.slice(0, MAX_UI_ENTRIES).join(", ") || "the page"}) — every camera frame is the same picture behind it; judge user:view`,
     );
   } else if (declaredViewpoints.length > 1 && canvasSourced) {
     problems.push("every camera returned the same frame — debugCamera switches nothing, the cameras contract is dead");
@@ -1453,7 +1456,7 @@ function sameFrameEverywhere(look: Look): void {
 
 /**
  * Different cameras returning byte-identical frames is one view wearing several labels — but
- * only when the game declares more than one viewpoint and the frames came off the canvas. A game
+ * only when the project declares more than one viewpoint and the frames came off the canvas. A project
  * with one camera is photographed three times by the floor, and identical frames there are its
  * design; a full-screen overlay is a different sentence again.
  */
@@ -1482,7 +1485,7 @@ function weighEmptyBase(look: Look): void {
   if (cameraPoses.size > 1 && new Set(cameraPoses.values()).size === 1)
     problems.push("every camera has the same transform — shared-base camera placement is not implemented");
   warnings.push(
-    "Empty shared base: runtime and camera placement checked; no visual content or gameplay has been validated.",
+    "Empty shared base: runtime and camera placement checked; no visual content or interaction has been validated.",
   );
 }
 
@@ -1516,7 +1519,7 @@ async function readConsole(look: Look): Promise<LookEnd> {
 
 /**
  * What the page-side capture said about the judged frame. Who took it, and by which rungs: a
- * `game` provenance means the numbers are the build's own report and not the studio's read of
+ * `project` provenance means the numbers are the build's own report and not the studio's read of
  * the canvas.
  */
 function judgedCanvas(judged: Shot | null): AnyRecord | null {
@@ -1565,7 +1568,7 @@ async function reportLook(look: Look): Promise<LookEnd> {
       demos: Object.keys(demos).length ? demos : null,
       // The state each demo left behind, for probes scoped to a demo.
       demoStates: Object.keys(demoStates).length ? demoStates : null,
-      // What the game declares vs what the cap left out — so a check can tell "not registered"
+      // What the project declares vs what the cap left out — so a check can tell "not registered"
       // (the builder's defect) from "not run" (nobody looked).
       registeredDemos: look.registeredDemos,
       skippedDemos,

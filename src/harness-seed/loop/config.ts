@@ -30,7 +30,7 @@ export const MIN_DELEGATE_TIMEOUT_MS = MINUTE_MS;
 export const LIGHT_EFFORT = "low";
 
 /**
- * The seed every evidence pass drives the game's randomness with, so two looks at a build — and
+ * The seed every evidence pass drives the project's randomness with, so two looks at a build — and
  * two builds — see the same world. Every mode uses this one number.
  */
 export const PAGE_SEED = 1234;

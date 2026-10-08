@@ -43,7 +43,7 @@ but no acceptance, **Done** is in place.
 
 ## Execution constraints
 
-- Preserve normal profiles, game originals, edited harnesses and existing generated assets.
+- Preserve normal profiles, project originals, edited harnesses and existing generated assets.
 - Account-connected checks require their explicit opt-in under [verification](agent/verification.md).
   A context read does not authorize a compaction, paid generation or new-build run.
 - Use an identified owned profile and check for active user work before restart or UI testing.

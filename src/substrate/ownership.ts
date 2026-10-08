@@ -7,8 +7,8 @@
  *
  * The rule has two readings, because a worker builds in one of two worlds (M4.6). Inside the
  * studio's own template a facet is a module under `src/` and the entry carries a FACET WIRING
- * block every builder adds one line to. In a game the user brought there is no wiring block,
- * `src/` may hold nothing, and the entry is the game's own: the worker is given a SEAM — a
+ * block every builder adds one line to. In a project the user brought there is no wiring block,
+ * `src/` may hold nothing, and the entry is the project's own: the worker is given a SEAM — a
  * path, a folder or a glob — and everything else is somebody's existing code. `template` is
  * the one flag that says which world this is, and it is read as `template !== false`, so an
  * ownership object written before this rule existed keeps the behaviour it had.
@@ -20,12 +20,12 @@ import { toPosixRelative } from "./paths.ts";
 export interface OwnershipSpec {
   id: string;
   owns?: string[];
-  /** The game's real entry module (default src/main.js) — a project with its own shape names its own. */
+  /** The project's real entry module (default src/main.js) — a project with its own shape names its own. */
   main?: string;
   /** The contract module (default src/studio.js). */
   studio?: string;
   /**
-   * Is this the studio's own template? Absent means yes. `false` for a game the user brought:
+   * Is this the studio's own template? Absent means yes. `false` for a project the user brought:
    * no FACET WIRING pass-through on the entry, no id-substring escape hatch, and a worker with
    * no seam owns the repository minus the entry, the contract and the page.
    */
@@ -38,11 +38,11 @@ export interface Ownership {
   ownsMain: boolean;
   main?: string;
   studio?: string;
-  /** False for a game the user brought — see `OwnershipSpec.template`. */
+  /** False for a project the user brought — see `OwnershipSpec.template`. */
   template?: boolean;
   /**
    * Directory prefixes (or exact paths) the Codex locks must never make read-only, on top of
-   * the ones every game has. The build output of a shape the studio serves from a subfolder
+   * the ones every project has. The build output of a shape the studio serves from a subfolder
    * belongs here: locking it turns `npm run build` into a permissions error nobody can read.
    */
   neverLock?: string[];
@@ -56,12 +56,6 @@ export function entryFiles(spec: { main?: string; studio?: string }): { main: st
 /** `src/studio.js` → `src/studio.d.ts`: the contract module's types, wherever it lives. */
 function declarationFor(studio: string): string {
   return studio.replace(/\.[cm]?js$/, ".d.ts");
-}
-
-/** `src/studio.js` → `src/hud.js`: the contract's HUD module, beside it (M4.2a). */
-function hudFor(studio: string): string {
-  const at = studio.lastIndexOf("/");
-  return at < 0 ? "hud.js" : `${studio.slice(0, at + 1)}hud.js`;
 }
 
 /** `tsconfig.json` and the files it references (`tsconfig.app.json`, `tsconfig.node.json`). */
@@ -124,32 +118,32 @@ export function specOf(ownership: Ownership): OwnershipSpec {
 
 /** Files any facet may write: its own notes, the studio's scratch and the asset folders. */
 function isSharedFile(file: string, spec: OwnershipSpec): boolean {
-  // `loop/repo.ts facetNotes` — a builder's notes live in docs/notes/, out of the game's root.
+  // `loop/repo.ts facetNotes` — a builder's notes live in docs/notes/, out of the project's root.
   if (file === `docs/notes/NOTES.${spec.id}.md` || file === "NOTES.md") return true;
   if (file.startsWith(".studio/")) return true;
   // Assets (AG-930): any facet may write the Blender script that models its own objects;
   // `assets/<name>.glb` is written by the studio, never by a builder.
   if (file === "assets" || file.startsWith("assets/")) return true;
-  // A bundled game serves `public/` from its output root: the same assets live there.
+  // A bundled project serves `public/` from its output root: the same assets live there.
   return file === "public/assets" || file.startsWith("public/assets/");
 }
 
 /** Files that belong to whoever owns the entry: the entry, the contract and its companions, the page. */
 function isEntryOwnersFile(file: string, entry: ReturnType<typeof entryFiles>): boolean {
   // The contract's declaration and the compiler config belong to whoever owns the entry: a
-  // TypeScript game whose build is `tsc -b && vite build` cannot import ./studio.js until they
+  // TypeScript project whose build is `tsc -b && vite build` cannot import ./studio.js until they
   // agree, and the brief that tells the builder to fix that must not also forbid the edit.
   if (file === declarationFor(entry.studio) || isTypeConfig(file)) return true;
-  return file === entry.main || file === entry.studio || file === hudFor(entry.studio) || file === "index.html";
+  return file === entry.main || file === entry.studio || file === "index.html";
 }
 
 /**
- * A worker with no seam in somebody's own game: everything except the entry, the contract,
- * its declaration and the page. Wider than the template's `src/` on purpose — the game's
+ * A worker with no seam in somebody's own project: everything except the entry, the contract,
+ * its declaration and the page. Wider than the template's `src/` on purpose — the project's
  * code is not under src/ — and the reason `worker_start` refuses to start a second one.
  */
 function outsideEntry(file: string, entry: ReturnType<typeof entryFiles>): boolean {
-  const reserved = [entry.main, entry.studio, declarationFor(entry.studio), hudFor(entry.studio), "index.html"];
+  const reserved = [entry.main, entry.studio, declarationFor(entry.studio), "index.html"];
   return !reserved.includes(file);
 }
 
@@ -161,7 +155,7 @@ export function allowedFile(file: string, spec: OwnershipSpec, ownsMain: boolean
   const entry = entryFiles(spec);
   if (isSharedFile(file, spec)) return true;
   if (ownsMain && isEntryOwnersFile(file, entry)) return true;
-  // The FACET WIRING block — reviewed by content. There is no such block in a game the user
+  // The FACET WIRING block — reviewed by content. There is no such block in a project the user
   // brought, so a worker that does not own the entry there does not get to open it at all.
   if (template && file === entry.main) return true;
   if (spec.owns?.length) {
@@ -171,22 +165,21 @@ export function allowedFile(file: string, spec: OwnershipSpec, ownsMain: boolean
     return spec.owns.some((own) => ownMatches(file, own)) || (template && file.includes(spec.id));
   }
   if (!template) return outsideEntry(file, entry);
-  const contractFile = file === entry.studio || file === hudFor(entry.studio);
-  return file.startsWith("src/") && !contractFile;
+  return file.startsWith("src/") && file !== entry.studio;
 }
 
 /**
  * Normalise an absolute or cwd-relative path into the repo-relative form the rule reads: `/`
  * separated, null for the workspace itself, `..` for anything outside it.
  */
-export function relativeGamePath(
+export function relativeProjectPath(
   filePath: string,
   cwd: string,
   platform: NodeJS.Platform = process.platform,
 ): string | null {
   const raw = String(filePath ?? "").trim();
   if (!raw) return null;
-  if (platform === StudioPlatform.Windows) return windowsGamePath(raw, cwd);
+  if (platform === StudioPlatform.Windows) return windowsProjectPath(raw, cwd);
   const normalisedCwd = path.posix.normalize(cwd).replace(/\/+$/, "");
   // Read what the path resolves to, not how it is spelled: `src/sky/../../index.html` is the
   // entry page, not a file under an owned `src/sky/` (P02-F2).
@@ -202,7 +195,7 @@ export function relativeGamePath(
  * UNC share) is compared with the workspace by `path.win32`; a drive-relative `C:file` resolves
  * against a folder nobody chose, so it reads as outside.
  */
-function windowsGamePath(raw: string, cwd: string): string | null {
+function windowsProjectPath(raw: string, cwd: string): string | null {
   const win = path.win32;
   if (/^[a-z]:(?![\\/])/i.test(raw)) return "..";
   if (!win.isAbsolute(raw)) return toPosixRelative(raw, StudioPlatform.Windows).replace(/^\.\//, "");
@@ -216,8 +209,8 @@ function windowsGamePath(raw: string, cwd: string): string | null {
 export function ownershipReason(file: string, ownership: Ownership): string {
   const entry = entryFiles(ownership);
   if (ownership.template === false) {
-    const seam = ownership.owns.length ? ownership.owns.join(", ") : "the files this part of the game needs";
-    return `${file} is outside worker "${ownership.facetId}"'s seam — this game is the user's own, so keep this work in ${seam} (and docs/notes/NOTES.${ownership.facetId}.md)${ownership.ownsMain ? "" : `; ${entry.main}, ${entry.studio} and index.html belong to whoever owns the entry`}. If the work genuinely needs another file, say so in your summary instead of editing it.`;
+    const seam = ownership.owns.length ? ownership.owns.join(", ") : "the files this part of the project needs";
+    return `${file} is outside worker "${ownership.facetId}"'s seam — this project is the user's own, so keep this work in ${seam} (and docs/notes/NOTES.${ownership.facetId}.md)${ownership.ownsMain ? "" : `; ${entry.main}, ${entry.studio} and index.html belong to whoever owns the entry`}. If the work genuinely needs another file, say so in your summary instead of editing it.`;
   }
   const where = ownership.owns.length ? ownership.owns.join(", ") : `src/${ownership.facetId}.js`;
   return `${file} is outside facet "${ownership.facetId}"'s ownership — keep this facet's work in ${where} (and docs/notes/NOTES.${ownership.facetId}.md); ${entry.main} only for the FACET WIRING line${ownership.ownsMain ? "" : `; ${entry.studio} and index.html belong to the main owner`}.`;

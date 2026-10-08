@@ -23,7 +23,7 @@ export function integratorBrief({
   worktreeOf: (facetId: string) => string | undefined;
 }): string {
   return [
-    `You are the integrator for Autopilot run ${run.runId} on the game "${run.project}".`,
+    `You are the integrator for Autopilot run ${run.runId} on the project "${run.project}".`,
     `Several facet builds could not be merged automatically. Each facet's accepted work is in a git worktree:`,
     ...conflicts.map(
       (c) =>
@@ -34,7 +34,7 @@ export function integratorBrief({
     `Nothing a facet registered may go missing: every demo (config.demos), named camera and tagged group the`,
     `conflicted facets expose in their worktrees must still be present in the merged build —`,
     `a merge that "resolves" a conflict by dropping a facet's module has destroyed that facet's work.`,
-    `When you are done: the game must load, window.__studio must still work, and you MUST commit`,
+    `When you are done: the project must load, window.__studio must still work, and you MUST commit`,
     `the reconciled result (\`git add -A\`, then \`git commit\`) — uncommitted integration work does not`,
     `survive a rollback and would be silently destroyed.`,
   ]

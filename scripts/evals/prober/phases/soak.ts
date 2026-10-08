@@ -21,7 +21,7 @@ export const SOAK_WINDOW_MS = 20 * SECOND_MS;
 export const MIN_WINDOW_SAMPLES = 3;
 /** The pause after every autoplay action. */
 export const SOAK_STEP_MS = 700;
-/** Frames every 5 s in the first minute (the minute a game shows whether it runs), then every 15 s. */
+/** Frames every 5 s in the first minute (the minute a project shows whether it runs), then every 15 s. */
 export const SOAK_EARLY_CAPTURE_MS = 5 * SECOND_MS;
 export const SOAK_EARLY_WINDOW_MS = MINUTE_MS;
 export const SOAK_FRAME_INTERVAL_MS = 15 * SECOND_MS;

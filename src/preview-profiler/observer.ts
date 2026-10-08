@@ -1,5 +1,5 @@
 /**
- * A value of the game's page: its renderer, scene, camera, the globals it set. Read defensively.
+ * A value of the project's page: its renderer, scene, camera, the globals it set. Read defensively.
  * Type-only, like every annotation in this file: the function below is serialized by
  * `toString()` into the page, so it may use nothing from outside its own body at runtime.
  */
@@ -15,7 +15,7 @@ export interface ProfileObserverOptions {
 }
 
 /**
- * App-owned temporary observer. This function is serialized into the untrusted game page.
+ * App-owned temporary observer. This function is serialized into the untrusted project page.
  * Every helper is declared inside it: `toString()` carries only this function's own body, so it
  * cannot be split into module-level steps.
  */
@@ -35,7 +35,7 @@ export function installProfileObserver(options: ProfileObserverOptions) {
   const drawable = typeof renderer?.render === "function" && renderer.info?.render && renderer.domElement;
   if (!renderer || !scene || !camera || !drawable) return { error: "missing renderer/scene/camera/render info" };
   const common = typeof renderer.hasInitialized === "function";
-  // A common Renderer throws out of render() until init() has resolved, and a WebGPU game's
+  // A common Renderer throws out of render() until init() has resolved, and a WebGPU project's
   // init() is a top-level await away. Saying so once used to skip the whole optimization stage;
   // `retryable` asks the host to come back rather than to give up.
   if (common && !renderer.hasInitialized()) return { error: "renderer is not initialized", retryable: true };
@@ -96,7 +96,7 @@ export function installProfileObserver(options: ProfileObserverOptions) {
     return out;
   };
   // What must not change for a sample to stay valid: the surface it is drawn on and how it is
-  // drawn. The camera is deliberately NOT in here — a game that swaps camera mid-sample is
+  // drawn. The camera is deliberately NOT in here — a project that swaps camera mid-sample is
   // reported through `configuration` instead, which makes the sample incomparable rather than
   // unavailable, and an unavailable sample is how a whole optimization stage used to vanish.
   const config = () => ({
@@ -131,7 +131,7 @@ export function installProfileObserver(options: ProfileObserverOptions) {
   });
   const initial = config();
   const counts = inventory(scene);
-  // A menu -> level game renders a different scene after a switch. The hook already decides
+  // A menu -> level project renders a different scene after a switch. The hook already decides
   // which scene was the world of a frame (a HUD scene and a full-screen composer quad never
   // are), so the observer follows that decision instead of dying on the first switch.
   const worldScenes = () => {
@@ -258,7 +258,7 @@ export function installProfileObserver(options: ProfileObserverOptions) {
     let deferred = false;
     try {
       const result = originalRender.apply(this, args);
-      // The common Renderer returns renderAsync() until it is initialised, and a game may call
+      // The common Renderer returns renderAsync() until it is initialised, and a project may call
       // renderAsync itself; either way the frame is finished when the promise settles, not when
       // the call returns. Measuring it is the point — refusing it skipped the whole stage.
       if (outer) deferred = settleLater(result);
@@ -278,7 +278,7 @@ export function installProfileObserver(options: ProfileObserverOptions) {
     reason = "rendering device/context lost";
     end();
   };
-  /** Put back a method the observer wrapped, unless the game has replaced it since. */
+  /** Put back a method the observer wrapped, unless the project has replaced it since. */
   function unwrap(owner: Foreign, name: string, wrapper: unknown, original: unknown, had: boolean) {
     if (owner[name] !== wrapper) return;
     if (had) owner[name] = original;
@@ -399,7 +399,7 @@ export function installProfileObserver(options: ProfileObserverOptions) {
     if (rendererReplaced()) reason = "renderer/backend replaced";
     if (JSON.stringify(config()) !== JSON.stringify(initial)) reason = "viewport/render configuration changed";
     const current = studio.inspect();
-    // The renderer and its canvas must hold; the scene and the camera may not, and a game that
+    // The renderer and its canvas must hold; the scene and the camera may not, and a project that
     // switches them says so in `configuration.sceneSwitches` instead of losing the sample.
     if (current?.renderer !== renderer) reason = "inspected renderer replaced";
   }

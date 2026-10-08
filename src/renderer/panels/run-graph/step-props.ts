@@ -4,7 +4,7 @@ import type { GatePoint, Step } from "../../run-steps.ts";
 
 /** Only the run and node state that can change one step's picture or interaction. */
 export interface StepNodeProps {
-  /** The game the run builds: a working step shows the screen of its agent on this game. */
+  /** The project the run builds: a working step shows the screen of its agent on this project. */
   project: string | null;
   runId: string;
   active: boolean;

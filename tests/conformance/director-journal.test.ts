@@ -8,7 +8,7 @@
  * a resumed night reads back (`restoreNight`); the first message it opens with, a digest built from
  * that record; and how often it is saved, into a store that keeps every version. And the workers'
  * engine limit, cleared once it lifts. And a finished build its chat reopens (director/reopen.ts):
- * its rewritten journal gives a fresh clock and wake loop, a fork in the game folder as it is now,
+ * its rewritten journal gives a fresh clock and wake loop, a fork in the project folder as it is now,
  * and the lead's words for the finished build instead of a pause. Every clock here is a number the
  * test chooses.
  */
@@ -56,7 +56,7 @@ const utc = (ms: number): string => `${new Date(ms).toISOString().slice(11, 16)}
 const SKY_ACCEPTED = "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678";
 const LAMPS_ACCEPTED = "b2c3d4e5f60718293a4b5c6d7e8f901234567890";
 const FORK = "0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f";
-/** Where a finished build's integration branch stood, and the game folder's head when it is reopened. */
+/** Where a finished build's integration branch stood, and the project folder's head when it is reopened. */
 const FINISHED = "c3d4e5f60718293a4b5c6d7e8f9012345678901a";
 const LIVE = "d4e5f60718293a4b5c6d7e8f90123456789012ab";
 const BRIEF = () => "You are the DIRECTOR of run run_j";
@@ -1198,7 +1198,7 @@ describe("a finished build reopened (director/reopen.ts)", () => {
     assert.equal(host.journals.at(-1)?.director.clock.workedMs, 30 * MINUTE_MS);
   });
 
-  it("K19. a reopened build forks from the game folder as it is now when the finished build is in it, and from the finished build when it is not; the folder as it is now is its start either way", async () => {
+  it("K19. a reopened build forks from the project folder as it is now when the finished build is in it, and from the finished build when it is not; the folder as it is now is its start either way", async () => {
     /** A ctx whose git answers `answer` (or throws), keeping every call. */
     const gitCtx = (answer: () => unknown) => {
       const calls: Array<{ method: string; params: Record<string, unknown> }> = [];
@@ -1246,9 +1246,9 @@ describe("a finished build reopened (director/reopen.ts)", () => {
     // The lead's first words say where it goes on from.
     assert.match(
       reopenNote({ inFolder: true, forkCommit: LIVE }),
-      new RegExp(`game folder as it is now \\(${shortSha(LIVE)}\\)`),
+      new RegExp(`project folder as it is now \\(${shortSha(LIVE)}\\)`),
     );
-    assert.match(reopenNote({ inFolder: false, forkCommit: FINISHED }), /not in the game folder .*finish land=yes/);
+    assert.match(reopenNote({ inFolder: false, forkCommit: FINISHED }), /not in the project folder .*finish land=yes/);
   });
 
   it("K20. a reopened build reads its journal back — its workers, the defects nobody owns, its plan — but not the last health pass, which was the finished head's", () => {

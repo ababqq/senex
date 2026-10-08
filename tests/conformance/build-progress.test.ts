@@ -55,7 +55,7 @@ test("first native worker activity appears before first-round judgment in old lo
   // What the checks saw is the starting point's own detail, not an unattributed sentence bolted
   // onto the line that says how tonight is going.
   assert.doesNotMatch(buildProgress(graph).health, /identical cameras/);
-  assert.match(buildProgress(graph).health, /empty game/);
+  assert.match(buildProgress(graph).health, /empty project/);
   assert.doesNotMatch(buildProgress(graph).health, /scaffold/);
   assert.match(buildProgress(graph).title, /1 part/);
 });
@@ -100,7 +100,7 @@ test("while the night runs, the header says what the outcome card says: the reco
   assert.match(buildProgress(graph).title, /1 part building/);
   const summary: RunSummary = {
     runId: "run_x",
-    project: "game",
+    project: "project",
     completeHistory: true,
     execution: "running",
     reason: null,
@@ -140,19 +140,19 @@ test("while the night runs, the header says what the outcome card says: the reco
   assert.ok(progress.health.endsWith(` · ${summaryCounts(summary)}`), "the counts are the outcome card's counts");
   assert.match(progress.health, /1 running/);
 });
-test("an empty base is reported as infrastructure, not a validated game", () => {
+test("an empty base is reported as infrastructure, not a validated project", () => {
   const graph = projectBuildGraph(
     [...start, event(3, "autopilot_base", { ok: true, empty: true })],
     "parent",
     [],
     null,
   )!;
-  assert.match(buildProgress(graph).health, /no scenery or gameplay yet/);
+  assert.match(buildProgress(graph).health, /no scenery or interaction yet/);
 });
 
 test("the final Optimization stage does not announce another creative build", async () => {
   const { emptyOptimization } = await import("../../src/harness-seed/loop/optimization.ts");
-  const result = { ...emptyOptimization({ runId: "run_x", project: "game" }), phase: "profiling_candidate" };
+  const result = { ...emptyOptimization({ runId: "run_x", project: "project" }), phase: "profiling_candidate" };
   const graph = projectBuildGraph(
     [...start, event(3, "autopilot_base", { ok: true }), event(4, "optimization_updated", result)],
     "parent",
@@ -294,7 +294,7 @@ test("a finished night reads off what happened to the build, not off a victory f
         "/runs",
       )!,
     );
-  assert.equal(of({ victory: false, landed: true }).title, "Finished after 1 round · live in your game");
+  assert.equal(of({ victory: false, landed: true }).title, "Finished after 1 round · live in your project");
   // "not made live yet" is only true of a night that merged something: the head has to have moved.
   assert.equal(
     of({
@@ -370,7 +370,7 @@ test("a build Live already shows is not offered, however it got there and howeve
   assert.equal(newBuildOffer(merged, head.slice(0, 7)), null);
   assert.equal(newBuildOffer(merged, head.slice(0, 6))?.head, head, "too short to name a commit");
   assert.equal(newBuildOffer(merged, "0123456789abcdef0000")?.head, head, "another commit");
-  assert.equal(newBuildOffer(merged, null)?.head, head, "Live shows the game folder");
+  assert.equal(newBuildOffer(merged, null)?.head, head, "Live shows the project folder");
 });
 
 test("the stage's mount read of Live never undoes an event main sent while it was asked", () => {
@@ -383,7 +383,7 @@ test("the stage's mount read of Live never undoes an event main sent while it wa
 
 /**
  * Live never changes while the person watches it (the user, 2026-09-28: "if I'm sitting in Live
- * the game must not update on its own; only Reload is highlighted, with a changed tooltip").
+ * the project must not update on its own; only Reload is highlighted, with a changed tooltip").
  * Reload names what it would bring: what main holds first, then a healthy build of the night,
  * then the way back from a build found broken.
  */
@@ -410,7 +410,7 @@ test("Reload offers what waits for Live, main's change first", () => {
   assert.equal(liveBehindOf({ waiting: { ...held, reason: null }, offer: null, shownBroken: false }), null);
 });
 
-test("nothing goes into Live on its own while someone is watching a game in it", () => {
+test("nothing goes into Live on its own while someone is watching a project in it", () => {
   const watching: StageWatch = { view: "live", visible: true, showEmpty: false };
   const held = { reason: "changed" as const, note: null, head: null, held: true };
   const build = { reason: "build" as const, note: null, head: "bbb", held: false };
@@ -425,7 +425,7 @@ test("nothing goes into Live on its own while someone is watching a game in it",
   ]) {
     assert.equal(appliesUnseen(held, stage), true, JSON.stringify(stage));
     assert.equal(appliesUnseen(broken, stage), true, JSON.stringify(stage));
-    // A night's newest build is never swapped in unasked: it waits for Reload, Play or Play latest.
+    // A night's newest build is never swapped in unasked: it waits for Reload, Open or Open latest.
     assert.equal(appliesUnseen(build, stage), false, JSON.stringify(stage));
   }
   assert.equal(appliesUnseen(null, { ...watching, view: "builds" }), false);
@@ -435,7 +435,7 @@ test("only the empty scaffold takes the night's first healthy build by itself", 
   const offer = { head: "aaa", at: "x", healthy: true };
   const empty: StageWatch = { view: "live", visible: true, showEmpty: true };
   assert.equal(firstBuildShows(offer, empty), true);
-  assert.equal(firstBuildShows(offer, { ...empty, showEmpty: false }), false, "a game is on the stage");
+  assert.equal(firstBuildShows(offer, { ...empty, showEmpty: false }), false, "a project is on the stage");
   assert.equal(firstBuildShows({ ...offer, healthy: null }, empty), false, "nothing has confirmed it runs");
   assert.equal(firstBuildShows(offer, { ...empty, view: "builds" }), false);
   assert.equal(firstBuildShows(null, empty), false);

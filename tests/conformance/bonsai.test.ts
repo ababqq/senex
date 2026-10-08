@@ -199,7 +199,7 @@ it("streamed Bonsai tools, images, reasoning and usage survive the wire", async 
 });
 it("read-only local sessions round-trip host images, save and resume without gaining write or shell tools", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "bonsai-session-"));
-  const cwd = path.join(root, "game");
+  const cwd = path.join(root, "project");
   await mkdir(cwd);
   const seen: CompleteRequest[] = [];
   const sessions = new LocalSessions({
@@ -223,14 +223,14 @@ it("read-only local sessions round-trip host images, save and resume without gai
           ])
         : seen.length === 2
           ? reply("", [{ id: "look3", name: "computer", arguments: { action: "screenshot" } }])
-          : reply("Observed game");
+          : reply("Observed project");
     },
   });
   try {
     const first = await sessions.run(
       {
         cwd,
-        prompt: "Look at the game",
+        prompt: "Look at the project",
         images: [{ label: "Reference", mimeType: "image/png", data: "REFERENCE" }],
         readOnly: true,
         liveTools: [{ name: "computer", description: "look", parameters: { type: "object", properties: {} } }],
@@ -254,7 +254,7 @@ it("read-only local sessions round-trip host images, save and resume without gai
     assert.equal(seen[2]!.messages.at(-1)!.images?.length, 1);
     assert.ok(!seen[0]!.tools?.some((t) => ["edit_file", "write_file", "run_command"].includes(t.name)));
     await sessions.run({ cwd, prompt: "Continue", readOnly: true, resume: first.sessionId }, model);
-    assert.ok(seen[3]!.messages.some((m) => m.content === "Observed game"));
+    assert.ok(seen[3]!.messages.some((m) => m.content === "Observed project"));
     const switched = await sessions.run(
       { cwd, prompt: "Continue", readOnly: true, resume: first.sessionId },
       BONSAI_MODELS[1].id,
@@ -263,7 +263,7 @@ it("read-only local sessions round-trip host images, save and resume without gai
     const child = JSON.parse(await readFile(path.join(root, "sessions", `${switched.sessionId}.json`), "utf8"));
     assert.equal(child.parentSession, first.sessionId);
     assert.equal(child.model, BONSAI_MODELS[1].id);
-    assert.ok(child.messages.some((m: any) => m.content === "Observed game"));
+    assert.ok(child.messages.some((m: any) => m.content === "Observed project"));
     const original = JSON.parse(await readFile(path.join(root, "sessions", `${first.sessionId}.json`), "utf8"));
     assert.equal(original.model, model);
   } finally {
@@ -274,7 +274,7 @@ it("a resumed local session keeps its system prompt: each request's own turn and
   // The minutes left change on every request; in the system prompt they made a resumed session
   // re-read its whole history instead of reusing the model's cached prefix.
   const root = await mkdtemp(path.join(os.tmpdir(), "bonsai-session-"));
-  const cwd = path.join(root, "game");
+  const cwd = path.join(root, "project");
   await mkdir(cwd);
   const seen: CompleteRequest[] = [];
   const sessions = new LocalSessions({
@@ -317,7 +317,7 @@ it("a resumed local session keeps its system prompt: each request's own turn and
 
 it("local file reads reject a symlink into an ungranted directory", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "bonsai-path-"));
-  const cwd = path.join(root, "game");
+  const cwd = path.join(root, "project");
   await mkdir(cwd);
   await symlink(os.homedir(), path.join(cwd, "escape"));
   let count = 0;
@@ -508,7 +508,7 @@ it("a download that cannot get its bytes stops without losing or publishing any 
 });
 it("local worker writes obey ownership and shell execution stays inside the sandbox", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "bonsai-worker-"));
-  const cwd = path.join(root, "game");
+  const cwd = path.join(root, "project");
   await mkdir(cwd);
   let round = 0;
   const seen: string[] = [];
@@ -553,7 +553,7 @@ it("local worker writes obey ownership and shell execution stays inside the sand
 
 it("local text reads stay bounded and support reading the next section", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "bonsai-read-"));
-  const cwd = path.join(root, "game");
+  const cwd = path.join(root, "project");
   await mkdir(cwd);
   await writeFile(path.join(cwd, "large.txt"), Array.from({ length: 500 }, (_, i) => `line ${i}`).join("\n"));
   let turn = 0;
@@ -588,7 +588,7 @@ it("local text reads stay bounded and support reading the next section", async (
 
 it("checkpoint summaries preserve completed tool identities, original requirements and the latest image", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "bonsai-checkpoint-"));
-  const cwd = path.join(root, "game");
+  const cwd = path.join(root, "project");
   await mkdir(cwd);
   let modelCalls = 0,
     summaryCalls = 0,
@@ -602,7 +602,7 @@ it("checkpoint summaries preserve completed tool identities, original requiremen
         summaryCalls++;
         assert.match(request.systemPrompt!, /checkpoint/);
         return {
-          ...reply("Observed existing game. Keep blue sky and original controls. Tool inspect already completed."),
+          ...reply("Observed existing project. Keep blue sky and original controls. Tool inspect already completed."),
           usage: { input_tokens: 41, output_tokens: 7 },
         };
       }
@@ -736,7 +736,7 @@ it("an output-limited checkpoint never replaces the last complete checkpoint", a
 
 it("local builder detects repeated inspection, warns, and stops without modifying the workspace", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "bonsai-stall-"));
-  const cwd = path.join(root, "game");
+  const cwd = path.join(root, "project");
   await mkdir(cwd);
   await writeFile(path.join(cwd, "main.js"), "// existing");
   let turns = 0;
@@ -827,7 +827,7 @@ it("Bonsai new-project base gets an actionable public API brief; imported projec
     ownShape: true,
     shape: { main: "app.ts", entry: "index.html" } as any,
   } as never);
-  assert.match(own, /THIS GAME HAS ITS OWN SHAPE/);
+  assert.match(own, /THIS PROJECT HAS ITS OWN SHAPE/);
   assert.doesNotMatch(own, /Read src.main.js first/);
 });
 it("native preflight counts chat template and tools and reserves output before generation", async () => {
@@ -875,7 +875,7 @@ it("native preflight counts chat template and tools and reserves output before g
 });
 it("targeted edits refuse ambiguous matches and preserve the remainder of a file", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "bonsai-edit-"));
-  const cwd = path.join(root, "game");
+  const cwd = path.join(root, "project");
   await mkdir(cwd);
   await writeFile(path.join(cwd, "main.js"), "prefix one two one suffix");
   let n = 0;
@@ -1204,7 +1204,7 @@ it(
 
 it("local output-limit recovery is bounded and never executes an incomplete tool batch", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "bonsai-output-limit-"));
-  const cwd = path.join(root, "game");
+  const cwd = path.join(root, "project");
   await mkdir(cwd);
   let turns = 0,
     calls = 0;
@@ -1251,7 +1251,7 @@ it("local output-limit recovery is bounded and never executes an incomplete tool
 
 it("a local session never reads a coding CLI sign-in home, even inside a folder it may read (SEC-3)", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "bonsai-cred-"));
-  const cwd = path.join(root, "game");
+  const cwd = path.join(root, "project");
   const shared = path.join(root, "shared");
   await mkdir(cwd);
   await mkdir(path.join(shared, "codex-home"), { recursive: true });
@@ -1296,7 +1296,7 @@ const launchTool = {
 };
 it("a local Loop chat keeps its contractor tools and records a launch for Studio", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "bonsai-loop-"));
-  const cwd = path.join(root, "game");
+  const cwd = path.join(root, "project");
   await mkdir(cwd);
   let offered: string[] = [];
   let count = 0;
@@ -1308,7 +1308,7 @@ it("a local Loop chat keeps its contractor tools and records a launch for Studio
       if (count++ === 0) {
         offered = (request.tools ?? []).map((t) => t.name);
         return reply("", [
-          { id: "l", name: "start_autopilot", arguments: { goal: "a boxing game", direction: "toy" } },
+          { id: "l", name: "start_autopilot", arguments: { goal: "a boxing project", direction: "toy" } },
         ]);
       }
       return reply("Starting the build.");
@@ -1316,13 +1316,13 @@ it("a local Loop chat keeps its contractor tools and records a launch for Studio
   });
   try {
     const result = await sessions.run(
-      { cwd, prompt: "Build the game from the plan", interviewTools: [launchTool] },
+      { cwd, prompt: "Build the project from the plan", interviewTools: [launchTool] },
       model,
     );
     // A Loop chat is a full contractor: it may edit and run commands, not only talk.
     assert.ok(offered.includes("write_file") && offered.includes("run_command"), `offered: ${offered.join(", ")}`);
     assert.deepEqual(result.studioToolCalls, [
-      { name: "start_autopilot", args: { goal: "a boxing game", direction: "toy" } },
+      { name: "start_autopilot", args: { goal: "a boxing project", direction: "toy" } },
     ]);
   } finally {
     await rm(root, { recursive: true, force: true });
@@ -1330,7 +1330,7 @@ it("a local Loop chat keeps its contractor tools and records a launch for Studio
 });
 it("a local Loop chat that keeps reading is told to finish or launch, not to implement", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "bonsai-loop-idle-"));
-  const cwd = path.join(root, "game");
+  const cwd = path.join(root, "project");
   await mkdir(cwd);
   await writeFile(path.join(cwd, "main.js"), "// existing");
   let turns = 0;

@@ -1,7 +1,7 @@
 /**
  * The grading commands (`grade`, `regrade`, `calibrate`, `diagnostics`) with an injected context:
  * usage errors exit 64, a refused or red outcome exits non-zero, and `calibrate` runs the committed
- * calibration fixtures (and the game template) through the fake server and probe and the real
+ * calibration fixtures (and the project template) through the fake server and probe and the real
  * checklist grader on a fake model, recording the result that gates grading.
  */
 import assert from "node:assert/strict";
@@ -50,7 +50,7 @@ import {
 } from "../../scripts/evals/vocabulary.ts";
 import { ZERO_TOKEN_USAGE } from "../../src/shared/eval-lane.ts";
 import { tmpDir } from "../helpers/tmp.ts";
-import { CAMPAIGN, GAME_ORIGIN, harness, LANES, runIdOf, seedCampaign } from "../fixtures/evals/grading/campaign.ts";
+import { CAMPAIGN, PROJECT_ORIGIN, harness, LANES, runIdOf, seedCampaign } from "../fixtures/evals/grading/campaign.ts";
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const PNG_MAGIC = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
@@ -218,8 +218,8 @@ describe("diagnostics", () => {
 /** Serve a calibration fixture's copy: the broken build fails to rebuild, everything else is served as is. */
 function calibrationServe(): ServeSnapshot {
   return async (options) => ({
-    url: `${GAME_ORIGIN}/?fixture=${encodeURIComponent(path.basename(options.root))}`,
-    origin: GAME_ORIGIN,
+    url: `${PROJECT_ORIGIN}/?fixture=${encodeURIComponent(path.basename(options.root))}`,
+    origin: PROJECT_ORIGIN,
     root: options.root,
     servedVia:
       path.basename(options.root) === CalibrationFixture.BrokenBuild ? ServedVia.RebuildFailed : ServedVia.AsIs,
@@ -228,7 +228,7 @@ function calibrationServe(): ServeSnapshot {
   });
 }
 
-/** Probe a calibration fixture: only the known-good game is enterable; frames carry what it drew. */
+/** Probe a calibration fixture: only the known-good project is enterable; frames carry what it drew. */
 function calibrationProbe(): RunQuickProbe {
   return async (url, options) => {
     const fixture = new URL(url).searchParams.get("fixture");
@@ -242,7 +242,7 @@ function calibrationProbe(): RunQuickProbe {
         path: file,
         atMs: 2_000 + index,
         phase: ProbePhase.InputBurst,
-        origin: GAME_ORIGIN,
+        origin: PROJECT_ORIGIN,
         width: 8,
         height: 8,
       });
@@ -260,7 +260,7 @@ function calibrationProbe(): RunQuickProbe {
       rendererMode: RendererMode.Gpu,
       servedVia: ServedVia.AsIs,
       evidence: {
-        gameOrigin: GAME_ORIGIN,
+        projectOrigin: PROJECT_ORIGIN,
         frames,
         consoleSummaryPath: "",
         networkSummaryPath: "",

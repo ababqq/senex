@@ -32,7 +32,7 @@ export interface ChatWorkProps {
   runStarted: number | undefined;
   /** The time the running build was given, when it was given one. */
   budgetMs: number | null;
-  /** The chat's game, whose running build's lead screen the build status shows. */
+  /** The chat's project, whose running build's lead screen the build status shows. */
   project: string | null;
   onShowBuilds?: () => void;
   /** The chat is loading: the line it opens with is simply there. */

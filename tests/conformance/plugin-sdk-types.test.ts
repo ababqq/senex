@@ -84,7 +84,7 @@ test("a backend written against the SDK declaration compiles clean", (t) => {
         await ctx.host('jobs.write', { id: 'job-1', value: { ok: true } });
         const job: unknown = await ctx.host('jobs.read', { id: 'job-1' });
         await ctx.host('events.emit', { kind: 'toolbar', item: 'publish', badge: 'Draft', tone: 'info' });
-        await ctx.host('observe', { project: 'g', root: '/games/g', files: ['index.html'] });
+        await ctx.host('observe', { project: 'g', root: '/projects/g', files: ['index.html'] });
         return { root, text, written, delivered, dir: exported.dir, files: exported.files, token, job };
       }
     `,

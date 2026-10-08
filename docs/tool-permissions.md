@@ -1,6 +1,6 @@
-# Tool permissions in game chats
+# Tool permissions in project chats
 
-A game chat's own Claude session follows Claude Code's permission modes and asks the person with
+A project chat's own Claude session follows Claude Code's permission modes and asks the person with
 Allow / Deny cards in the chat, as Claude Code asks in a terminal; so do a build's lead and the
 run's coordinator, in the chat's mode. A chat on another engine follows the modes that engine can
 honour ([Other engines](#other-engines)). Everything else the studio delegates stays unattended and
@@ -25,13 +25,13 @@ delegation asks only when all of these hold:
   director, coordinator, playtest, worker `ownership`, optimization candidate, own `cwd`, run
   self-capture, own `timeoutMs` or improvement class, and it is the chat's own session
   (`isChatsOwnSession`), not a lead's turn;
-- it works in its game's own folder and answers a chat turn (`chatTurn`) whose message id the
+- it works in its project's own folder and answers a chat turn (`chatTurn`) whose message id the
   person sent on this thread: `ConversationService` notes each composer send
   (`notePersonMessage`) before it dispatches, and the note ends when the queue records the message
   handled or removed, when a Stop ends it (`stopPersonMessages`: the message being answered and
   those its turn took in, never one still queued, which the queue answers next), or when the app
   quits (a message replayed after a restart runs unattended);
-- the thread is this game's open chat: metadata `kind: game`, `project` the brief's, not archived.
+- the thread is this project's open chat: metadata `kind: project`, `project` the brief's, not archived.
 
 While a Loop night runs, the person's messages go to the build's lead (live chat), and a read-only
 coordinator answers where no lead takes the chat. Both ask from their own seat
@@ -39,10 +39,10 @@ coordinator answers where no lead takes the chat. Both ask from their own seat
 `permissions`, when:
 
 - the engine asks about every call (`permissionPrompts`), and the seat is the host's finding: this
-  game's lead of a run (`#seatOf`) that
+  project's lead of a run (`#seatOf`) that
   was started in this chat (`#runOfChat`), answering the chat (`chatTurn` is its run id), or the
   coordinator of such a run answering a message (`chatTurn`, else `coordinator.messageId`);
-- the thread is this game's open chat.
+- the thread is this project's open chat.
 
 A lead or coordinator is the chat's main agent, so only the chat's mode and the rules the person
 saved limit it, as the chat's own session: the host adds no restriction of its own. Its session
@@ -63,7 +63,7 @@ the host's screen first (`#screenLeadCall`, a PreToolUse hook, which Claude Code
 deny, ask and allow rules and in every mode): while the session runs in Auto, Accept edits or
 Bypass and the chat is in another mode (a switch that failed, or one still on its way; Accept
 edits in an Auto chat excepted), it asks first ("The chat switched from Auto to …"), so the chat's
-mode answers, not the session's, a saved allow rule or the game's own `.claude/settings.json`. A
+mode answers, not the session's, a saved allow rule or the project's own `.claude/settings.json`. A
 lead's failed switch is never the picker's error; Auto refused records its model as without Auto,
 and tells the picker. A message
 handed to a lead never makes the chat's own session ask. Builders, workers, the playtester,
@@ -78,10 +78,10 @@ names: one it reads is one Accept edits writes without asking.
 
 ## The harness cannot forge it
 
-- `thread.create` takes a title and nothing else: no id, kind, game or mode.
+- `thread.create` takes a title and nothing else: no id, kind, project or mode.
 - `events.append` and `turn.append` refuse `tool_permission` and `plugin_consent` rows
   (`refuseHostQuestions`); the host appends both.
-- A session a person answers reads beyond its game only the folders the thread records
+- A session a person answers reads beyond its project only the folders the thread records
   (`metadata.extraReads`, set from the person's own messages) and the host's frame folders. A
   rewind may narrow those folders, never widen them (`readsAfterRewind`).
 - The mode, the answers and the saved rules are reached only over `studio:permissions.*`, which
@@ -96,9 +96,9 @@ reach Bypass mid-turn) and `canUseTool`, no `sandbox` key, no blanket `Bash`, `A
 and `EnterPlanMode` disallowed (ExitPlanMode brings a plan back for approval), no sibling-folder
 deny list, and the saved allow rules plus the folders granted in the chat. A read-only brief stays
 read-only. `askPerson` translates Claude Code's suggestions (`permissionGrants`: allow rules scoped
-chat or game by destination, a mode, a folder; never a whole `Bash`, `Edit`, `Write` or `Read`)
+chat or project by destination, a mode, a folder; never a whole `Bash`, `Edit`, `Write` or `Read`)
 and points the kept updates at `session`, so the CLI never writes `.claude/settings.local.json`
-into the game. A plan approved into Auto leaves Plan for Manual and then asks for Auto through
+into the project. A plan approved into Auto leaves Plan for Manual and then asks for Auto through
 the CLI's own gate. The mode the session reports (init and status messages) says whether Auto is
 available for its model; `liveControl` hands the picker `setPermissionMode` until the session's
 input closes (a pick made while the session starts is applied once that control arrives:
@@ -117,7 +117,7 @@ matcher, carries every call but the unscreened ones to `LeadAsks.screen` (`leadS
 screen that fails refuses. `askLead` refuses AskUserQuestion, EnterPlanMode and ExitPlanMode
 without asking the host and drops mode grants. Its settings carry the saved allow rules, the chat's
 granted folders and the person's fence (`protectWrites` included), with no sibling-folder deny
-list, as the chat's own session. The lead's prompt still leaves the game's changes to its builders
+list, as the chat's own session. The lead's prompt still leaves the project's changes to its builders
 while the build runs.
 
 Every session the person answers on an engine that asks about every call (the chat's own, a lead,
@@ -125,18 +125,18 @@ the coordinator: `SessionReach.reachesMac`) reads, right after its brief, the ho
 `mainAgentReachNote` ([`delegation-prompts.ts`](../src/main/core/delegation-prompts.ts)): it is the
 chat's main agent on the person's Mac, looks and works anywhere on it when asked (their Downloads,
 other folders, what fills the disk), and only the chat's mode decides each call. The brief
-(`loop/chat-session.ts`) says where the game's work goes, never that the session may not read
+(`loop/chat-session.ts`) says where the project's work goes, never that the session may not read
 other folders. The note is the host's, so neither an agent-edited seed kept on upgrade nor a resumed
 transcript that holds an older brief narrows it. An unattended session reads none of it.
 
 A lead also has the chat's own session's plugins, connectors and cover, whether or not it asks
-(`hostToolsEligible`): its brief's `readOnly` marks its seat in the game folder (`#leadRoot`), and
+(`hostToolsEligible`): its brief's `readOnly` marks its seat in the project folder (`#leadRoot`), and
 the host's own finding of that seat (`seat.leads`) decides, never the brief; a read-only session
 that leads nothing, the playtester and the coordinator get none. Its plugin calls act on the
 worktree it leads (`DelegationSession.leads` as the binding's directory), as a director's in its
-worktree, so a delivery is recorded as the build's and reaches the game when the night lands, and
+worktree, so a delivery is recorded as the build's and reaches the project when the night lands, and
 its brief says so without naming the build's path (`leadToolsNote`); a connector that shares the project root works on
-the game folder, as for every session (`resolveProject`). They are auto-allowed studio tools, as for
+the project folder, as for every session (`resolveProject`). They are auto-allowed studio tools, as for
 the chat's own session: a plugin tool that declares `confirmation` waits on its consent card
 (`plugin_consent`, nine minutes), asked each time rather than declined by an earlier answer in its
 run (`priorConsentDecline`), and a connector waits on its card unless its exact tool is saved as
@@ -174,7 +174,7 @@ any change unasked. Its commands always run in the studio's sandbox, so it has n
 switches a running session (`onControl`): the next call is decided in the new mode, and the model
 reads of it at its next round.
 
-Codex runs Auto as before (`workspace-write` in the game folder, no network, never asks), Bypass
+Codex runs Auto as before (`workspace-write` in the project folder, no network, never asks), Bypass
 with `--dangerously-bypass-approvals-and-sandbox`, and Plan from a folder of its own (`startsElsewhere`,
 as a read-only session) where only the studio's bridge is writable, told it plans
 (`planModeNote`). A pick applies to its next turn.
@@ -205,20 +205,20 @@ move it to Auto mid-turn, carries the studio's `autoMode` settings
 `autoModeRules`), which Auto's classifier (and Plan, run with Auto's semantics) reads on top of
 Claude Code's own: `environment` and `allow` start with `"$defaults"`, and `soft_deny` and
 `hard_deny` are not set, so the CLI's blocks, and a CLI update's new ones, stand unchanged. The CLI
-reads `autoMode` only from user, flag and managed settings (never a game's `.claude` files) and
+reads `autoMode` only from user, flag and managed settings (never a project's `.claude` files) and
 sends it to the server-side classifier too. The environment says the session runs on the person's
-own Mac with the person in the chat; for the chat's own session, that the game folder's files git
+own Mac with the person in the chat; for the chat's own session, that the project folder's files git
 does not ignore are checkpointed before each message (`main/chat-checkpoints.ts`: not `.env*`,
 nested repos or files over 50 MB) and Rewind restores them while HEAD stays put; for a lead or the
-coordinator, that the build's workers change the game in worktrees of their own and its own edits
+coordinator, that the build's workers change the project in worktrees of their own and its own edits
 there are not checkpointed. Public registries and asset
 sites are download sources, not trusted destinations. The carve-outs narrow the built-in blocks
-that ordinary game work trips, each naming what stays blocked: changes and deletions of
-checkpointed files, build output and caches in the game folder (chat's own session only; not other
+that ordinary project work trips, each naming what stays blocked: changes and deletions of
+checkpointed files, build output and caches in the project folder (chat's own session only; not other
 ignored files, `.git`, nested repos or large files), well-known packages, scaffolders and headless
 browsers, dev servers and directory servers on 127.0.0.1 (LAN only when the person asks) and
 stopping the agent's own or its dev port's listener, looking for an asset the person described in
-their folders (no sweeps of whole home folders), the game's own agent notes, and local production
+their folders (no sweeps of whole home folders), the project's own agent notes, and local production
 builds. The rules stay under `AUTO_MODE_BUDGET` (3,000 characters): they travel in the same
 command-line argument as every other setting. When the classifier cannot answer (an API
 overload), Claude Code denies the call ("Classifier unavailable") and the model may retry.
@@ -253,9 +253,9 @@ first leaves it, `projects/<O's first i characters>[<name characters but O[i]>]*
 readable.
 
 Unattended sessions get `Read()` rules for that fence and for the workspace deny list, which now
-leaves the delegation's own game readable (a worktree's `node_modules` link and git point there)
-and scans a folder's neighbours only under the games root or scratch. A person's session also gets
-`Edit()` rules for every studio file in userData (`#hostFiles` walks it; the games, the chat's
+leaves the delegation's own project readable (a worktree's `node_modules` link and git point there)
+and scans a folder's neighbours only under the projects root or scratch. A person's session also gets
+`Edit()` rules for every studio file in userData (`#hostFiles` walks it; the projects, the chat's
 folder, secrets and engine homes excepted) and the permission store. A build's lead is also spared
 the integration worktree it leads (its seat's checked real path, `LeadSessionAsk.leads`), where it
 builds with its own hands; its run's other worktrees, other runs and `runs/` stay fenced.
@@ -272,28 +272,28 @@ stop), the session's abort or the end of the turn settles it; a lead's or coordi
 the chat's turn (`outlivesTurn`), so another turn ending (a picture or slash command answered on its
 own) leaves it waiting. A withdrawn request reaches Claude as a deny in the host's own words ("The user stopped this work before answering."), never as words
 the person typed: the answer carries `withdrawn`, which only the host sets (`permissionAnswer`
-builds each Studio UI answer afresh). An answer that does not fit (Allow for a plan) is refused. "Always" keeps game rules in
+builds each Studio UI answer afresh). An answer that does not fit (Allow for a plan) is refused. "Always" keeps project rules in
 [`src/main/permission-store.ts`](../src/main/permission-store.ts) (`engine-homes/permissions.json`,
 atomic and serialized; a failed read is retried, never written over; Plan, Bypass and whole-tool
 rules are not believed), chat rules and folders in memory, and a mode on the thread. The boot
 repair denies a request left pending (`by: restart`).
 
-## A game's own Claude settings
+## A project's own Claude settings
 
-A game's `.claude` folder is Claude Code's project settings (`settingSources: ["project"]`): its
+A project's `.claude` folder is Claude Code's project settings (`settingSources: ["project"]`): its
 allow rules and hooks load into the person's own session there, which has no sandbox. The harness
-never writes it: `game.write` refuses a path through a `.claude` folder at any depth, in any case
-and as Windows reads a name, checked as named and as it really lands (a link inside the game
-included), for a game and an optimization candidate. Landing a build (`landBuild`, the person's
+never writes it: `project.write` refuses a path through a `.claude` folder at any depth, in any case
+and as Windows reads a name, checked as named and as it really lands (a link inside the project
+included), for a project and an optimization candidate. Landing a build (`landBuild`, the person's
 button and the coordinator's call) and promoting a candidate refuse a commit that changes one.
-The sandbox denies every agent process (the harness, `run.exec`, builds) writing a game's
+The sandbox denies every agent process (the harness, `run.exec`, builds) writing a project's
 `.claude` folder (`claudeFolderDenyWrites`).
 
 ## For the next Loop night
 
 Unattended deny rules now actually apply (they were relative before and guarded nothing). A real
 Loop night must confirm the two known changes: builders can no longer read sibling worktrees under
-`scratch/autopilot/<run>/`, and optimization candidates now read the live game.
+`scratch/autopilot/<run>/`, and optimization candidates now read the live project.
 
 ## Residual risks
 
@@ -306,13 +306,13 @@ Loop night must confirm the two known changes: builders can no longer read sibli
   budget can cut its card short. In Manual a night nobody watches waits that long on each question;
   Auto or Bypass keep it going.
 - A lead or coordinator has no sandbox: whatever its chat's mode allows runs with the person's
-  access, as in the chat's own session, edits and commands in the game folder included, so it can
-  change the live game under the night. Its prompt has it build in the integration worktree and
-  leave the game folder alone. A landing that git refuses over uncommitted changes there, or into a
+  access, as in the chat's own session, edits and commands in the project folder included, so it can
+  change the live project under the night. Its prompt has it build in the integration worktree and
+  leave the project folder alone. A landing that git refuses over uncommitted changes there, or into a
   folder with something staged or a merge under way, lands nothing and names them without blaming
   anyone (`uncommitted-changes`); Make it live refuses while the folder shows uncommitted changes.
   Changes the landing does not touch stay uncommitted after it; a lead that closes with `finish` is
-  told to leave them, and every landing names them (`landingResult.leftInGame`).
+  told to leave them, and every landing names them (`landingResult.leftInProject`).
 - A lead or coordinator whose session will not switch (the CLI refuses, or Auto is unavailable for
   its model) stays in the mode it runs in: in Manual it keeps carding in an Auto or Accept edits
   chat, and in another mode it asks first for each call while the chat is elsewhere (except Accept
@@ -349,18 +349,18 @@ Loop night must confirm the two known changes: builders can no longer read sibli
   sandbox code expands globs by walking the folder; neither has been checked in a live session.
 - A project folder that differs from the session's own only in case (possible on Linux) cannot be
   fenced by the case-blind matcher without fencing the session's own, and stays readable.
-- The harness's sandbox names each game's `.claude` folder at launch or adoption. On macOS a
-  case-blind glob covers a folder not made yet and any new game under the games folder; a `[` in
-  the game's path is escaped, and a `*`, `?` or ASCII control character matches any one-byte
+- The harness's sandbox names each project's `.claude` folder at launch or adoption. On macOS a
+  case-blind glob covers a folder not made yet and any new project under the projects folder; a `[` in
+  the project's path is escaped, and a `*`, `?` or ASCII control character matches any one-byte
   character, so the deny can also cover a neighbour's `.claude`. On Windows and Linux only folders
   that exist are named (srt-win would create a missing one), and Linux's sandbox drops a path
   holding `[`, `]`, `*` or `?`, so there the host's own refusals stand alone for a folder made
-  later or so named. A game adopted, or created anywhere but directly in the games folder, while
+  later or so named. A project adopted, or created anywhere but directly in the projects folder, while
   the harness runs is denied to the harness process itself from its next start.
-- The `.claude` deny matches paths, so an agent that can write a game's parent can move the game
+- The `.claude` deny matches paths, so an agent that can write a project's parent can move the project
   away, write its `.claude` and move it back. sandbox-runtime locks only the folder above the
-  deny's first glob character against moves: a plain game kept elsewhere is locked itself, a game
-  in the games folder only through that folder, and one whose path holds a glob character only
+  deny's first glob character against moves: a plain project kept elsewhere is locked itself, a project
+  in the projects folder only through that folder, and one whose path holds a glob character only
   above that character.
 - The Windows rule form (a drive, a network share) follows the CLI's own conversion and parser and
   is covered by a unit test, not yet by a live Windows session.

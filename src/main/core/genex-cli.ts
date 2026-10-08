@@ -2,7 +2,7 @@
  * The host side of the bundled Genex plugin's `host` tools: `genex__cli` and `genex__cli-paid` run
  * Studio's own pinned Genex CLI through the process sandbox.
  *
- * A run never happens in the game folder. There the CLI rewrites `.claude/skills`, `AGENTS.md`
+ * A run never happens in the project folder. There the CLI rewrites `.claude/skills`, `AGENTS.md`
  * and the contracts of every ancestor folder whenever the folder looks like a Genex workspace,
  * which an agent can arrange at any moment and which an unsandboxed profile would not stop. So
  * each call gets a fresh folder under `<userData>/genex-cli`, outside every agent's writable roots,
@@ -38,7 +38,7 @@ const CREDENTIAL_FD = "0";
 /** Where the plugin build puts the preload and the pinned CLI inside the app's resources. */
 const PRELOAD_IN_RESOURCES = "plugins/genex/preload.mjs";
 const CLI_IN_RESOURCES = "plugins/genex/node_modules/@genex-ai/cli-demo/dist/index.js";
-/** A game name as the Genex adapter names its publish workspace. */
+/** A project name as the Genex adapter names its publish workspace. */
 const PROJECT_NAME = /^[a-zA-Z0-9_-]+$/;
 const RUN_ID_CHARS = 12;
 
@@ -46,7 +46,7 @@ const RUN_ID_CHARS = 12;
 export const GENEX_PLUGIN_ID = "genex";
 
 const MESSAGE = {
-  InvalidProject: "This call is not bound to a game project Studio knows.",
+  InvalidProject: "This call is not bound to a project Studio knows.",
 } as const;
 
 /** What a run needs from Studio. Every path is Studio's own; none comes from the agent. */
@@ -63,7 +63,7 @@ export interface GenexCliDeps {
   resources: string;
   /** The Genex plugin's storage, whose `publish/<project>/.genex/project.json` names the hosted project. */
   genexStorage: string;
-  /** Folders a run may never write, on top of the sandbox's own denies: the games root and every game. */
+  /** Folders a run may never write, on top of the sandbox's own denies: the projects root and every project. */
   protectedWrites: () => string[] | Promise<string[]>;
   /** The Genex API origin; tests point it at a fixture. */
   api?: string;

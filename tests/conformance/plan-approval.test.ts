@@ -43,7 +43,7 @@ function chat(
   const passes: DelegateRequest[] = [];
   const request: DelegateRequest = {
     prompt: "Make it jump",
-    cwd: "/game",
+    cwd: "/project",
     images: [{ label: "ref", mimeType: "image/png", data: "AA==" }],
     permissions: {
       mode,

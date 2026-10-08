@@ -190,9 +190,9 @@ describe("autopilot substrate over the real rig", () => {
     rigs.push(rig);
     const api = apiOf(rig);
 
-    const project = ((await api["game.scaffold"]!({ name: "wtgame" })) as { name: string }).name;
+    const project = ((await api["project.scaffold"]!({ name: "wtgame" })) as { name: string }).name;
 
-    // — worktree RPC: two detached, playable forks of the same game —
+    // — worktree RPC: two detached, playable forks of the same project —
     const wt1 = (await api["snapshot.worktree"]!({ project, name: "facet-a", runId: "run1" })) as {
       path: string;
       commit: string;
@@ -252,7 +252,7 @@ describe("autopilot substrate over the real rig", () => {
     })) as { code: number | null };
     assert.equal(notes.code, 0, "the rest of the harness folder stays writable");
 
-    // — delegation lock is per-directory: two worktrees of one game build in parallel —
+    // — delegation lock is per-directory: two worktrees of one project build in parallel —
     const settled: Array<() => void> = [];
     const result: DelegateResult = { ok: true, summary: "done", usage: {}, turns: 1, engine: "fake-delegate" };
     rig.core.engines.register({
@@ -300,7 +300,7 @@ describe("autopilot substrate over the real rig", () => {
     await api["snapshot.removeWorktree"]!({ project, path: wt1.path });
     await assert.rejects(stat(wt1.path), /ENOENT/);
     await assert.rejects(
-      api["snapshot.removeWorktree"]!({ project, path: rig.core.games.dirFor(project) }),
+      api["snapshot.removeWorktree"]!({ project, path: rig.core.projects.dirFor(project) }),
       /outside scratch/,
     );
   });
@@ -311,11 +311,11 @@ describe("v2 contract upgrade", () => {
     const rig = await startRig();
     rigs.push(rig);
     const api = rig.core.api() as Record<string, (p: never) => Promise<unknown>>;
-    await api["game.scaffold"]!({ name: "oldgame", title: "Old" } as never);
-    const dir = path.join(rig.core.layout.gamesRoot, "oldgame");
+    await api["project.scaffold"]!({ name: "oldgame", title: "Old" } as never);
+    const dir = path.join(rig.core.layout.projectsRoot, "oldgame");
     // A fresh scaffold already carries v2: nothing to do.
     // A fresh scaffold already carries v2 and the material library: nothing to do.
-    assert.deepEqual(await api["game.upgradeContract"]!({ project: "oldgame" } as never), {
+    assert.deepEqual(await api["project.upgradeContract"]!({ project: "oldgame" } as never), {
       upgraded: false,
       materialsAdded: false,
     });
@@ -324,12 +324,12 @@ describe("v2 contract upgrade", () => {
       path.join(dir, "src", "studio.js"),
       "export function installStudio(config) { window.__studio = { version: 1, state: () => ({}) }; }\n",
     );
-    const before = (await api["game.validate"]!({ project: "oldgame" } as never)) as { warnings: string[] };
+    const before = (await api["project.validate"]!({ project: "oldgame" } as never)) as { warnings: string[] };
     assert.ok(
       before.warnings.some((w) => /predates the v2 contract/.test(w)),
       "validate names the old contract",
     );
-    const result = (await api["game.upgradeContract"]!({ project: "oldgame" } as never)) as {
+    const result = (await api["project.upgradeContract"]!({ project: "oldgame" } as never)) as {
       upgraded: boolean;
       backup: string;
     };
@@ -337,15 +337,15 @@ describe("v2 contract upgrade", () => {
     assert.equal(result.backup, "src/studio.v1.js");
     assert.match(await readFile(path.join(dir, "src", "studio.js"), "utf8"), /inspect/);
     assert.match(await readFile(path.join(dir, "src", "studio.v1.js"), "utf8"), /version: 1/);
-    // A v1 main.js on the v2 studio.js: the contract exists, the game does not feed it yet.
+    // A v1 main.js on the v2 studio.js: the contract exists, the project does not feed it yet.
     await writeFile(
       path.join(dir, "src", "main.js"),
       'import { installStudio } from "./studio.js";\ninstallStudio({ update() {}, render() {} });\n',
     );
-    const validation = (await api["game.validate"]!({ project: "oldgame" } as never)) as { warnings: string[] };
+    const validation = (await api["project.validate"]!({ project: "oldgame" } as never)) as { warnings: string[] };
     assert.ok(
-      validation.warnings.some((w) => /without scene\/camera\/player/.test(w)),
-      "validate now asks main.js to pass the v2 config",
+      validation.warnings.some((w) => /without probes/.test(w)),
+      "validate now asks main.js to pass probes",
     );
   });
 });

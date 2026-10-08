@@ -25,12 +25,12 @@ export function LeadPanel(props: InspectorProps): JSX.Element {
       onReply={props.onReply}
       media={
         leadFrame ? (
-          <LiveScreen frame={leadFrame} trail={trail} label="The lead's view of the game" onOpen={open} />
+          <LiveScreen frame={leadFrame} trail={trail} label="The lead's view of the project" onOpen={open} />
         ) : null
       }
     >
       <Para>
-        No part is working right now. The lead is deciding what comes next, or changing the game itself; a new part
+        No part is working right now. The lead is deciding what comes next, or changing the project itself; a new part
         shows up here when it starts one.
       </Para>
     </Panel>

@@ -1,27 +1,58 @@
 {
   "version": 2,
   "checks": {
+    "main-flow-demo": {
+      "kind": "demo",
+      "name": "main-flow",
+      "weight": "identity",
+      "optional": true,
+      "note": "The named config.demos entry \"main-flow\" (the project's central workflow, scripted: add the item, submit the form, reach the report) runs to its end state without a console error. Optional: a project that registers no main-flow demo is unmeasured, not failed.",
+      "uses": 0,
+      "passes": 0,
+      "origin": "seed"
+    },
+    "page-has-heading": {
+      "kind": "scene",
+      "js": "dom.count('h1, h2') >= 1",
+      "weight": "normal",
+      "note": "The page says where you are: at least one displayed heading. A screen of unlabelled blocks leaves a person (and a screen reader) guessing.",
+      "uses": 0,
+      "passes": 0,
+      "origin": "seed"
+    },
+    "one-main-landmark": {
+      "kind": "scene",
+      "js": "dom.count('main, [role=main]') === 1",
+      "weight": "normal",
+      "note": "Exactly one displayed main landmark, so keyboard and screen-reader users can jump to the content.",
+      "uses": 0,
+      "passes": 0,
+      "origin": "seed"
+    },
     "camera-player-eye": {
       "kind": "scene",
+      "kinds": ["graphics"],
       "js": "objects('player-eye').some(o => o.isCamera)",
       "weight": "normal",
-      "note": "A camera tagged player-eye exists in the graph, so the judge can be shown the frame the player sees. Where it points is the game's own decision — the follow-camera band is in camera.named-rig.",
+      "note": "A camera tagged player-eye exists in the graph, so the judge can be shown the frame the player sees. Where it points is the project's own decision — the follow-camera band is in camera.named-rig.",
       "uses": 0,
       "passes": 0,
       "origin": "seed"
     },
     "demo-walk": {
       "kind": "demo",
+      "kinds": ["graphics"],
       "name": "walk",
       "weight": "identity",
       "optional": true,
-      "note": "The named config.demos entry \"walk\" (a short deterministic control script) runs to its end state without a console error. Optional: a game that registers no walk demo is unmeasured, not failed.",
+      "note": "The named config.demos entry \"walk\" (a short deterministic control script) runs to its end state without a console error. Optional: a project that registers no walk demo is unmeasured, not failed.",
       "uses": 0,
       "passes": 0,
       "origin": "seed"
     },
     "drawcalls-ceiling": {
       "kind": "probe",
+      "kinds": ["graphics"],
       "expr": "__render.drawCalls <= 1000 && __render.triangles <= 400000",
       "needs": ["__render.drawCalls", "__render.triangles"],
       "weight": "normal",
@@ -32,20 +63,22 @@
     },
     "player-moved": {
       "kind": "probe",
+      "kinds": ["graphics"],
       "expr": "abs(delta(\"player.x\")) > 0 || abs(delta(\"player.z\")) > 0",
       "needs": ["player.x", "player.z"],
       "weight": "normal",
-      "note": "After the harness drives the game's own movement keys, state().player.x or .z changed; identical before and after means \"the controls do not work\". needs names the same paths delta() reads, so a build that reports no player — or one whose player only appears after the play script — is unmeasured, not passed.",
+      "note": "After the harness drives the project's own movement keys, state().player.x or .z changed; identical before and after means \"the controls do not work\". needs names the same paths delta() reads, so a build that reports no player — or one whose player only appears after the play script — is unmeasured, not passed.",
       "uses": 0,
       "passes": 0,
       "origin": "seed"
     },
     "primary-action-registers": {
       "kind": "probe",
+      "kinds": ["graphics"],
       "expr": "delta('actions.primary') >= 1",
       "needs": ["actions.primary"],
       "weight": "identity",
-      "note": "state() reports actions.primary — a count of the game's main verb, whatever it is (a shot, a jump, a placed tile). The scripted controls trigger it, so the count must rise at least once.",
+      "note": "state() reports actions.primary — a count of the project's main verb, whatever it is (a shot, a jump, a placed tile). The scripted controls trigger it, so the count must rise at least once.",
       "uses": 0,
       "passes": 0,
       "origin": "seed"

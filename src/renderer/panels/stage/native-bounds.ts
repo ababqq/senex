@@ -1,4 +1,4 @@
-/** Where the native game view sits: over the stage's slot, or nowhere while something else owns the stage. */
+/** Where the native project view sits: over the stage's slot, or nowhere while something else owns the stage. */
 import type { RefObject } from "react";
 import { useEffect } from "react";
 import { NATIVE_VIEW_ATTRIBUTE } from "../../native-view.ts";
@@ -30,7 +30,7 @@ function overlaps(panel: Element, rect: DOMRect): boolean {
   );
 }
 
-/** Why the native view gives the rectangle back to the DOM: anything on the stage that is not the running game. */
+/** Why the native view gives the rectangle back to the DOM: anything on the stage that is not the running project. */
 export interface StageCover {
   project: string | null;
   visible: boolean;
@@ -41,14 +41,14 @@ export interface StageCover {
   showEmpty: boolean;
   liveLoading: boolean;
   toolbarOpen: boolean;
-  /** The person stopped the game: its view holds a blank page, and the stage says it is stopped. */
+  /** The person stopped the project: its view holds a blank page, and the stage says it is stopped. */
   stopped: boolean;
-  /** The person watches a game in Live, whatever briefly covers it (`stage.ts` `watchingLive`); main tells a chat's show by it. */
+  /** The person watches a project in Live, whatever briefly covers it (`stage.ts` `watchingLive`); main tells a chat's show by it. */
   watching: boolean;
 }
 
-/** Whether the stage shows the running game at all. */
-const showsGame = (cover: StageCover): boolean =>
+/** Whether the stage shows the running project at all. */
+const showsProject = (cover: StageCover): boolean =>
   cover.visible &&
   Boolean(cover.project) &&
   ![
@@ -65,7 +65,7 @@ const showsGame = (cover: StageCover): boolean =>
 // Keep the native view aligned with this element through resizes and layout changes — and
 // hand the rectangle back to the DOM while Builds is open (the native view would otherwise
 // paint over it).
-/** Report the slot's rectangle to main while the game shows, and zero it the moment anything covers it. */
+/** Report the slot's rectangle to main while the project shows, and zero it the moment anything covers it. */
 export function useNativeViewBounds(slot: RefObject<HTMLDivElement | null>, cover: StageCover): void {
   const {
     project,
@@ -84,7 +84,7 @@ export function useNativeViewBounds(slot: RefObject<HTMLDivElement | null>, cove
   useEffect(() => {
     const element = slot.current;
     if (!element) return;
-    if (!showsGame(cover)) {
+    if (!showsProject(cover)) {
       element.removeAttribute(NATIVE_VIEW_ATTRIBUTE);
       void window.studio.previewBounds({ ...HIDDEN_BOUNDS, watching });
       return;
@@ -95,13 +95,13 @@ export function useNativeViewBounds(slot: RefObject<HTMLDivElement | null>, cove
       const panels = [...document.querySelectorAll(FLOATING_PANELS)];
       const cards = [...document.querySelectorAll(DOCKED_CARDS)];
       // A native view paints above DOM overlays. Modal dialogs must take it away;
-      // an anchored panel in the chat must not blank an unrelated game surface.
+      // an anchored panel in the chat must not blank an unrelated project surface.
       const covered =
         Boolean(document.querySelector(MODAL_DIALOG)) || [...panels, ...cards].some((panel) => overlaps(panel, rect));
       const bounds = covered
         ? HIDDEN_BOUNDS
         : { x: rect.left, y: rect.top, width: Math.max(0, rect.width), height: Math.max(0, rect.height) };
-      // What floats beside the stage reads where the game paints from here (native-view.ts).
+      // What floats beside the stage reads where the project paints from here (native-view.ts).
       element.toggleAttribute(NATIVE_VIEW_ATTRIBUTE, !covered);
       // The window size it was measured in lets main carry the slot through a resize in progress.
       const viewport = { width: window.innerWidth, height: window.innerHeight };

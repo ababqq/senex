@@ -1,6 +1,6 @@
 /**
- * The app's keyboard: ⌘K search, ⌘B sidebar, ⌘N new game, ⌘1 the last game, ⌘2 Studio, ⌘I the
- * game's composer, ⌥↑/↓ through the rail, Escape closes the compact drawer. A sheet, dialog or
+ * The app's keyboard: ⌘K search, ⌘B sidebar, ⌘N new project, ⌘1 the last project, ⌘2 Studio, ⌘I the
+ * project's composer, ⌥↑/↓ through the rail, Escape closes the compact drawer. A sheet, dialog or
  * menu that is asking a question owns the keyboard: a second folder dialog opened behind it, or
  * the room changing underneath it, is the app talking over itself.
  */
@@ -13,8 +13,8 @@ export interface AppShortcuts {
   toggleSidebar(): void;
   /** Escape in a compact window with the drawer open; returns false when it had nothing to close. */
   closeDrawer(): boolean;
-  newGame(): void;
-  returnToGame(): void;
+  newProject(): void;
+  returnToProject(): void;
   enterStudio(): void;
   focusComposer(): void;
   /** Alt-↑/↓: the conversation `step` places away along the rail. */
@@ -29,11 +29,11 @@ function shortcutAction(event: KeyboardEvent, on: AppShortcuts): (() => void) | 
   const withMeta: Record<string, () => void> = {
     k: on.search,
     b: on.toggleSidebar,
-    n: on.newGame,
-    "1": on.returnToGame,
+    n: on.newProject,
+    "1": on.returnToProject,
     "2": on.enterStudio,
     i: () => {
-      on.returnToGame();
+      on.returnToProject();
       requestAnimationFrame(on.focusComposer);
     },
   };

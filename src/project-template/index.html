@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="studio-template" content="web-app" />
+    <title>__PROJECT_TITLE__</title>
+    <link rel="stylesheet" href="/src/styles.css" />
+  </head>
+  <body>
+    <!-- The page is the product: real elements in the DOM, so the critic's capture, a keyboard and
+         a screen reader all meet the same thing. Besides #app the only element is the fatal-error
+         panel, hidden until a throw. -->
+    <pre id="fatal" role="alert"></pre>
+    <main id="app"></main>
+
+    <!-- three.js is vendored with the studio: a canvas or 3D project builds and runs with no network at
+         all. A page of DOM never imports it, and the map costs nothing. -->
+    <script type="importmap">
+      {
+        "imports": {
+          "three/webgpu": "/vendor/three.webgpu.js",
+          "three/tsl": "/vendor/three.tsl.js",
+          "three": "/vendor/three.module.js",
+          "three/addons/": "/vendor/three/examples/jsm/",
+          "three/": "/vendor/three/"
+        }
+      }
+    </script>
+    <script type="module">
+      // A project that throws on load must still be *diagnosable* by the critic, so failures are
+      // rendered into the page and pushed into the studio contract instead of vanishing into a
+      // console nobody reads.
+      function report(message, stack) {
+        const box = document.getElementById("fatal");
+        box.style.display = "block";
+        box.textContent = `${message}\n\n${stack ?? ""}`;
+        window.__studio_error = { message, stack: stack ?? "" };
+      }
+      window.addEventListener("error", (event) => report(event.message, event.error?.stack));
+      window.addEventListener("unhandledrejection", (event) => report(String(event.reason?.message ?? event.reason), event.reason?.stack));
+    </script>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

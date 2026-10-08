@@ -34,7 +34,7 @@
       "Edit(~/Library/Application Support/AI Game Studio/**)",
       "Read(~/Library/Application Support/ai-game-studio/**)",
       "Edit(~/Library/Application Support/ai-game-studio/**)",
-      "Edit(~/AI Games/**)",
+      "Edit(~/AI Projects/**)",
       "Bash(git reset --hard*)",
       "Bash(git clean*)",
       "Bash(rm -rf *)",

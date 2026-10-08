@@ -1,5 +1,5 @@
 /**
- * Claude Code permissions for game chats: the settings, the composer's mode picker, the answer to a
+ * Claude Code permissions for project chats: the settings, the composer's mode picker, the answer to a
  * card, and Stop allowing a saved rule. Studio UI only: `studio:permissions.*` is main-frame guarded
  * like `studio:plugins.*`, and the core's RPC table has none of these, so no agent can pick its own
  * mode or answer its own request.

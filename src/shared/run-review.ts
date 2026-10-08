@@ -1,16 +1,16 @@
 /**
- * Rebuild a game's last unattended night from the event log.
+ * Rebuild a project's last unattended night from the event log.
  *
  * Review used to walk the merged log and take the global last run / last 24 iterations, so two
- * games in one night mashed into one page. The log already names `project` and (now) `runId` on
+ * projects in one night mashed into one page. The log already names `project` and (now) `runId` on
  * every run event; this is the reconstruction the filmstrip reads.
  *
- * Lives in shared because both processes must agree on it: main replays a game's threads
+ * Lives in shared because both processes must agree on it: main replays a project's threads
  * uncapped for the morning-after review, the renderer computes the same shape from whatever
  * slice of the log it holds. Events in, review out — no Electron on either side.
  */
 import { CustomEvent } from "./custom-events.ts";
-import { EventKind, type EventEnvelope } from "./event-log.ts";
+import { EventKind, type EventEnvelope, SnapshotScope } from "./event-log.ts";
 import { RoundOutcome, roundOutcome, roundWinner, type RoundWinner } from "./run-state.ts";
 
 export interface RunShot {
@@ -183,8 +183,8 @@ const NIGHT_READERS: ReadonlyMap<string, (nights: NightRuns, row: RunRow) => voi
 ]);
 
 /**
- * The selected game's most recent run, including one still in flight (started, not finished).
- * Pass `project: null` to get an empty review — never a mashup of every game in the log.
+ * The selected project's most recent run, including one still in flight (started, not finished).
+ * Pass `project: null` to get an empty review — never a mashup of every project in the log.
  */
 export function lastNightForProject(events: EventEnvelope[], project: string | null): NightReview {
   if (!project) return { project: null, started: null, finished: null, iterations: [] };
@@ -269,7 +269,7 @@ export function undoneSelfChanges(events: EventEnvelope[]): Map<string, string> 
       readChange(data.event_type, asRecord(data.payload));
       return;
     }
-    if (data.type !== EventKind.WorkspaceRestored || data.scope === "game") return;
+    if (data.type !== EventKind.WorkspaceRestored || data.scope === SnapshotScope.Project) return;
     readRestore(data.snapshot_id, data.reason || event.id);
   });
   return undone;

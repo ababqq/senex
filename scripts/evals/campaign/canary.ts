@@ -50,7 +50,7 @@ export interface CanaryInput {
   noBuild: NoBuild | null;
   harnessFailure: HarnessFailure | null;
   evidenceDir: string;
-  /** The evaluated app build's vendored files (a Genex game's `/vendor/`); null serves the default ones. */
+  /** The evaluated app build's vendored files (a Genex project's `/vendor/`); null serves the default ones. */
   vendorDir: string | null;
 }
 

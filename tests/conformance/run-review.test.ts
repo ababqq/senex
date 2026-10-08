@@ -1,5 +1,5 @@
 /**
- * Morning review reconstruction — the filmstrip is per game, rebuilt from the log alone.
+ * Morning review reconstruction — the filmstrip is per project, rebuilt from the log alone.
  */
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
@@ -31,7 +31,7 @@ function event(id: string, eventType: string, payload: Record<string, unknown>):
 const shot = (camera: string, path: string) => ({ camera, path, bytes: 12 });
 
 describe("lastNightForProject", () => {
-  it("does not mash two games into one page", () => {
+  it("does not mash two projects into one page", () => {
     const events = [
       event("1", "run_started", { runId: "run-a", project: "alpha", goal: "alpha night" }),
       event("2", "run_iteration", {
@@ -178,7 +178,7 @@ describe("undoneSelfChanges", () => {
     assert.equal(undone.get("snap-pre"), "manual rollback");
   });
 
-  it("does not flag when the restore is earlier in the log, game-scope, or not older", () => {
+  it("does not flag when the restore is earlier in the log, project-scope, or not older", () => {
     const events = [
       snap("1", "snap-old"),
       restore("2", "snap-old", "harness"), // before the change: it cannot have undone it
@@ -190,8 +190,8 @@ describe("undoneSelfChanges", () => {
         snapshot_id: "snap-pre",
         post_snapshot_id: "snap-post",
       }),
-      snap("6", "snap-game", "game"),
-      restore("7", "snap-game", "game"), // a game rewind never touches the harness
+      snap("6", "snap-project", "game"),
+      restore("7", "snap-project", "game"), // a project rewind never touches the harness
       restore("8", "snap-post", "harness"), // restoring the post snapshot keeps the change
       snap("9", "snap-newer"),
       restore("10", "snap-newer", "harness"), // newer than post: the change is still in place

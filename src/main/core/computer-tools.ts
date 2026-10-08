@@ -29,11 +29,11 @@ import { CAMERA_SETTLE_MS, DEFAULT_SHOT_QUALITY, captureSurface, requestedSurfac
 import type { PreviewService } from "./previews.ts";
 import { iterationDir, safePathSegment } from "./run-shots.ts";
 import type { SessionPort } from "./session-port.ts";
-import { CaptureSurface, GameClock } from "../../shared/preview-contract.ts";
+import { CaptureSurface, ProjectClock } from "../../shared/preview-contract.ts";
 
 /** How long an input settles before the state is read back. */
 const INPUT_SETTLE_MS = 120;
-/** Characters of the game's state in an answer: after an action, by default, and when asked for. */
+/** Characters of the project's state in an answer: after an action, by default, and when asked for. */
 const STATE_CHARS = { afterAction: 600, default: 1_200, asked: 4_000 } as const;
 /** How many of the latest console errors an answer lists. */
 const CONSOLE_ERRORS_SHOWN = 12;
@@ -50,7 +50,7 @@ const TOOL_ROLE: Record<AgentScreenRole, ComputerToolRole> = {
 };
 
 /**
- * The roles that play a build to judge it: they take seconds to look and decide, so the game's clock
+ * The roles that play a build to judge it: they take seconds to look and decide, so the project's clock
  * stands still between their moves (golden-boot-glory: one key press ran four match minutes).
  */
 const PACED_ROLES: ReadonlySet<AgentScreenRole> = new Set(["playtester", "judge"]);
@@ -106,7 +106,7 @@ interface ComputerSession {
   readonly stateText: (port: PreviewPort, max?: number) => Promise<string>;
   readonly saveFrame: (jpeg: Buffer, name: string) => Promise<string>;
   readonly frame: (port: PreviewPort, jpeg: Buffer | null, caption: string, act: ScreenAct) => Promise<void>;
-  /** Run the game's clock for one move, then stand it still again when the session is paced. */
+  /** Run the project's clock for one move, then stand it still again when the session is paced. */
   readonly moving: <T>(port: PreviewPort, move: () => Promise<T>) => Promise<T>;
 }
 
@@ -128,7 +128,7 @@ async function look(ctx: ActionContext): Promise<LiveToolResult> {
   };
 }
 
-/** Point the game's debug camera; a camera the game does not know is a warning, never a refusal. */
+/** Point the project's debug camera; a camera the project does not know is a warning, never a refusal. */
 async function switchCamera(port: PreviewPort, camera: string | undefined): Promise<string> {
   let warning = "";
   const placed = (await port.studioCall("debugCamera", camera).catch(() => null)) as {
@@ -213,9 +213,9 @@ async function input(ctx: ActionContext): Promise<LiveToolResult> {
   return `OK — ${caption}; cursor at ${c.x},${c.y}. ${state}${ctx.noteLine}\nScreenshot to see the result.`;
 }
 
-/** Stand the game's clock still; a page with no clock to pause keeps running. */
+/** Stand the project's clock still; a page with no clock to pause keeps running. */
 async function stillClock(port: PreviewPort): Promise<void> {
-  await port.studioCall(GameClock.Pause).catch(() => null);
+  await port.studioCall(ProjectClock.Pause).catch(() => null);
 }
 
 /** One computer call: parsed, the build loaded (reloaded when asked), then answered by its action. */
@@ -322,7 +322,7 @@ export function computerTools(
   const ensureLoaded = sharedLoad(loadOnce);
   const moving = async <T>(window: PreviewPort, move: () => Promise<T>): Promise<T> => {
     if (!paced) return move();
-    await window.studioCall(GameClock.Start).catch(() => null);
+    await window.studioCall(ProjectClock.Start).catch(() => null);
     try {
       return await move();
     } finally {

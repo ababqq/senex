@@ -29,7 +29,7 @@ node scripts/affected-tests.mjs --staged --run      # only what is staged
 ```
 
 Rig tests (anything reaching `tests/helpers/studio-rig.ts`) are L3 and run with
-`--test-concurrency=1`. A change under `src/harness-seed/**` or `src/game-template/**` also
+`--test-concurrency=1`. A change under `src/harness-seed/**` or `src/project-template/**` also
 selects the harness gate (`harness-incidents` and `scoreboard`), because rigs copy those
 folders instead of importing them.
 

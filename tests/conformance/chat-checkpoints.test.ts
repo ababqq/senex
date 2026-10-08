@@ -11,10 +11,10 @@ import {
 } from "../../src/main/chat-checkpoints.ts";
 import { ensureRepo, git } from "../../src/substrate/snapshots.ts";
 
-async function game(t: { after: (fn: () => Promise<void>) => void }) {
+async function project(t: { after: (fn: () => Promise<void>) => void }) {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "studio-chat-checkpoint-"));
   t.after(() => fs.rm(root, { recursive: true, force: true }));
-  const dir = path.join(root, "game");
+  const dir = path.join(root, "project");
   await fs.mkdir(path.join(dir, "src"), { recursive: true });
   await fs.writeFile(path.join(dir, ".gitignore"), "dist/\n");
   await fs.writeFile(path.join(dir, "src", "main.js"), "jump();\n");
@@ -30,7 +30,7 @@ const exists = (dir: string, file: string) =>
   );
 
 test("checkpoints disable repository fsmonitor, hooks and content filters", async (t) => {
-  const { dir, checkpoints } = await game(t);
+  const { dir, checkpoints } = await project(t);
   const script = path.join(dir, "probe.sh");
   const marker = path.join(dir, "RAN");
   await fs.writeFile(script, `#!/bin/sh\ntouch '${marker}'\ncat\n`);
@@ -50,7 +50,7 @@ test("checkpoints disable repository fsmonitor, hooks and content filters", asyn
 });
 
 test("a checkpoint saves the folder without moving HEAD, a branch or the user’s staged work", async (t) => {
-  const { dir, checkpoints } = await game(t);
+  const { dir, checkpoints } = await project(t);
   await fs.writeFile(path.join(dir, "notes.txt"), "my notes\n");
   await fs.writeFile(path.join(dir, "src", "main.js"), "jump(); run();\n");
   await git(dir, ["add", "src/main.js"]);
@@ -75,11 +75,11 @@ test("a checkpoint saves the folder without moving HEAD, a branch or the user’
 });
 
 test("restoring puts back edited, deleted and added files, and leaves ignored files, studio.json and HEAD alone", async (t) => {
-  const { dir, checkpoints } = await game(t);
+  const { dir, checkpoints } = await project(t);
   await fs.writeFile(path.join(dir, "notes.txt"), "my notes\n");
   await checkpoints.take(dir, "thread-1", "msg_a");
   assert.deepEqual(await checkpoints.plan(dir, "thread-1", "msg_a"), { state: "unchanged", nested: [] });
-  // The answer's work: an edit, a new folder, a deletion; the game's shape changed meanwhile.
+  // The answer's work: an edit, a new folder, a deletion; the project's shape changed meanwhile.
   await fs.writeFile(path.join(dir, "src", "main.js"), "jump(); boss();\n");
   await fs.mkdir(path.join(dir, "src", "boss"), { recursive: true });
   await fs.writeFile(path.join(dir, "src", "boss", "boss.js"), "boss();\n");
@@ -112,8 +112,8 @@ test("restoring puts back edited, deleted and added files, and leaves ignored fi
   assert.deepEqual(await checkpoints.plan(dir, "thread-1", "msg_a"), { state: "unchanged", nested: [] });
 });
 
-test("files stay as they are once the game’s history moved, or when there is no checkpoint", async (t) => {
-  const { dir, checkpoints } = await game(t);
+test("files stay as they are once the project’s history moved, or when there is no checkpoint", async (t) => {
+  const { dir, checkpoints } = await project(t);
   assert.deepEqual(await checkpoints.plan(dir, "thread-1", "msg_a"), { state: "unavailable", reason: "no-checkpoint" });
   await checkpoints.take(dir, "thread-1", "msg_a");
   await fs.writeFile(path.join(dir, "src", "main.js"), "landed();\n");
@@ -129,22 +129,22 @@ test("files stay as they are once the game’s history moved, or when there is n
 test("a folder whose repository has no commit yet is checkpointed and restored too", async (t) => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "studio-chat-checkpoint-"));
   t.after(() => fs.rm(root, { recursive: true, force: true }));
-  const dir = path.join(root, "game");
+  const dir = path.join(root, "project");
   await fs.mkdir(dir);
   await git(dir, ["init", "-q", "-b", "main"]);
   await fs.writeFile(path.join(dir, "index.html"), "<canvas></canvas>\n");
   const checkpoints = new ChatCheckpoints(path.join(root, "indexes"));
   await checkpoints.take(dir, "thread-1", "msg_a");
   await fs.writeFile(path.join(dir, "index.html"), "<main></main>\n");
-  await fs.writeFile(path.join(dir, "game.js"), "x\n");
+  await fs.writeFile(path.join(dir, "project.js"), "x\n");
   assert.equal((await checkpoints.restore(dir, "thread-1", "msg_a")).files, 2);
   assert.equal(await read(dir, "index.html"), "<canvas></canvas>\n");
-  assert.equal(await exists(dir, "game.js"), false);
+  assert.equal(await exists(dir, "project.js"), false);
   assert.equal(await git(dir, ["rev-parse", "--verify", "-q", "HEAD"]).catch(() => "unborn"), "unborn");
 });
 
 test("each chat keeps its newest message checkpoints", async (t) => {
-  const { dir, checkpoints } = await game(t);
+  const { dir, checkpoints } = await project(t);
   for (let n = 0; n <= CHAT_CHECKPOINTS_KEPT; n++) {
     await fs.writeFile(path.join(dir, "src", "main.js"), `step(${n});\n`);
     await checkpoints.take(dir, "thread-1", `msg_${String(n).padStart(3, "0")}`);
@@ -156,8 +156,8 @@ test("each chat keeps its newest message checkpoints", async (t) => {
   assert.ok(refs.includes(chatCheckpointRef("thread-1", `msg_${CHAT_CHECKPOINTS_KEPT}`)));
 });
 
-test("a rewound .gitignore neither deletes nor captures what the game ignored, like .env", async (t) => {
-  const { dir, checkpoints } = await game(t);
+test("a rewound .gitignore neither deletes nor captures what the project ignored, like .env", async (t) => {
+  const { dir, checkpoints } = await project(t);
   await fs.writeFile(path.join(dir, ".gitignore"), "dist/\n.env\nsave/\n");
   await git(dir, ["add", ".gitignore"]);
   await git(dir, ["commit", "-qm", "ignore rules"]);
@@ -187,7 +187,7 @@ test("a rewound .gitignore neither deletes nor captures what the game ignored, l
 });
 
 test("a checkpoint that left nothing out carries no record of it; one that did keeps it", async (t) => {
-  const { dir, checkpoints } = await game(t);
+  const { dir, checkpoints } = await project(t);
   const record = ".studio-checkpoint-left-out.json";
   const files = async (ref: string) => (await git(dir, ["ls-tree", "--name-only", ref])).trim().split("\n");
   const plain = await checkpoints.take(dir, "thread-1", "msg_a");
@@ -206,7 +206,7 @@ test("a checkpoint that left nothing out carries no record of it; one that did k
 });
 
 test("nested repositories keep their own history, even one without a commit", async (t) => {
-  const { dir, checkpoints } = await game(t);
+  const { dir, checkpoints } = await project(t);
   await fs.mkdir(path.join(dir, "engine"));
   await git(path.join(dir, "engine"), ["init", "-q"]);
   await fs.writeFile(path.join(dir, "engine", "core.js"), "core();\n");
@@ -227,7 +227,7 @@ test("nested repositories keep their own history, even one without a commit", as
 });
 
 test("files changed between answers are named as changed outside the chat, and a restore can be undone", async (t) => {
-  const { dir, checkpoints } = await game(t);
+  const { dir, checkpoints } = await project(t);
   await checkpoints.take(dir, "thread-1", "msg_a");
   await fs.writeFile(path.join(dir, "src", "boss.js"), "boss();\n");
   await checkpoints.take(dir, "thread-1", "msg_a", "after");
@@ -252,7 +252,7 @@ test("files changed between answers are named as changed outside the chat, and a
 });
 
 test("files the repository tells git to skip are still saved and restored", async (t) => {
-  const { dir, checkpoints } = await game(t);
+  const { dir, checkpoints } = await project(t);
   await git(dir, ["update-index", "--assume-unchanged", "src/main.js"]);
   await fs.writeFile(path.join(dir, "src", "main.js"), "local();\n");
   await checkpoints.take(dir, "thread-1", "msg_a");
@@ -262,7 +262,7 @@ test("files the repository tells git to skip are still saved and restored", asyn
 });
 
 test("files too large to keep are never deleted or overwritten by a restore, and do not stop later checkpoints", async (t) => {
-  const { dir, checkpoints } = await game(t);
+  const { dir, checkpoints } = await project(t);
   const big = (file: string) => fs.truncate(path.join(dir, file), CHECKPOINT_FILE_MAX_BYTES + 1);
   // Too large before the message: the answer shrinks it, and the rewind must not delete it.
   await fs.writeFile(path.join(dir, "intro.mp4"), "");
@@ -292,7 +292,7 @@ test("files too large to keep are never deleted or overwritten by a restore, and
 });
 
 test("a folder standing where the checkpoint had a file is kept while it holds anything never saved", async (t) => {
-  const { dir, checkpoints } = await game(t);
+  const { dir, checkpoints } = await project(t);
   await fs.writeFile(path.join(dir, "server"), "old launcher\n");
   await checkpoints.take(dir, "thread-1", "msg_a");
   await fs.rm(path.join(dir, "server"));
@@ -315,7 +315,7 @@ test("a user whose git converts line endings gets every file back byte for byte"
     if (saved === undefined) delete process.env.GIT_CONFIG_GLOBAL;
     else process.env.GIT_CONFIG_GLOBAL = saved;
   });
-  const { dir, checkpoints } = await game(t);
+  const { dir, checkpoints } = await project(t);
   await fs.writeFile(path.join(dir, "notes.txt"), "lf\nonly\n");
   await fs.writeFile(path.join(dir, "windows.txt"), "crlf\r\nkept\r\n");
   await checkpoints.take(dir, "thread-1", "msg_a");
@@ -329,7 +329,7 @@ test("a user whose git converts line endings gets every file back byte for byte"
 test("a restore that fails partway puts the folder back as it was", {
   skip: process.platform === "win32" && "chmod cannot make a folder read-only on Windows",
 }, async (t) => {
-  const { dir, checkpoints } = await game(t);
+  const { dir, checkpoints } = await project(t);
   await fs.mkdir(path.join(dir, "locked"));
   await fs.writeFile(path.join(dir, "locked", "x.js"), "v1\n");
   await checkpoints.take(dir, "thread-1", "msg_a");
@@ -346,7 +346,7 @@ test("a restore that fails partway puts the folder back as it was", {
 });
 
 test("when a later answer left no checkpoint, changes outside the chat are reported as unknown", async (t) => {
-  const { dir, checkpoints } = await game(t);
+  const { dir, checkpoints } = await project(t);
   await checkpoints.take(dir, "thread-1", "msg_a");
   await fs.writeFile(path.join(dir, "src", "boss.js"), "boss();\n");
   await checkpoints.take(dir, "thread-1", "msg_a", "after");
@@ -361,7 +361,7 @@ test("when a later answer left no checkpoint, changes outside the chat are repor
 });
 
 test("a nested repository with a non-ASCII name and a stale index lock do not stop checkpoints", async (t) => {
-  const { dir, checkpoints } = await game(t);
+  const { dir, checkpoints } = await project(t);
   await fs.mkdir(path.join(dir, "игра"));
   await git(path.join(dir, "игра"), ["init", "-q"]);
   await fs.writeFile(path.join(dir, "игра", "main.js"), "x\n");
@@ -374,7 +374,7 @@ test("a nested repository with a non-ASCII name and a stale index lock do not st
 });
 
 test(".env.local and friends never enter a checkpoint and are never deleted, whatever .gitignore says", async (t) => {
-  const { dir, checkpoints } = await game(t);
+  const { dir, checkpoints } = await project(t);
   await fs.writeFile(path.join(dir, ".env.local"), "KEY=old\n");
   await checkpoints.take(dir, "thread-1", "msg_a");
   await fs.mkdir(path.join(dir, "server"));
@@ -398,7 +398,7 @@ test(".env.local and friends never enter a checkpoint and are never deleted, wha
 });
 
 test("a file too large to save standing where the checkpoint had a folder is left alone", async (t) => {
-  const { dir, checkpoints } = await game(t);
+  const { dir, checkpoints } = await project(t);
   await fs.mkdir(path.join(dir, "intro"));
   await fs.writeFile(path.join(dir, "intro", "frame1.png"), "f1");
   await checkpoints.take(dir, "thread-1", "msg_a");
@@ -411,7 +411,7 @@ test("a file too large to save standing where the checkpoint had a folder is lef
 });
 
 test("a folder holding something never saved keeps what the answer put in it too", async (t) => {
-  const { dir, checkpoints } = await game(t);
+  const { dir, checkpoints } = await project(t);
   await fs.writeFile(path.join(dir, ".gitignore"), "dist/\n*.log\n");
   await fs.writeFile(path.join(dir, "server"), "old launcher\n");
   await checkpoints.take(dir, "thread-1", "msg_a");
@@ -425,7 +425,7 @@ test("a folder holding something never saved keeps what the answer put in it too
 });
 
 test("a settled checkpoint operation releases its folder queue", async (t) => {
-  const { dir, checkpoints } = await game(t);
+  const { dir, checkpoints } = await project(t);
   const set = Map.prototype.set;
   const queues = new Set<Map<unknown, unknown>>();
   t.mock.method(Map.prototype, "set", function (this: Map<unknown, unknown>, key: unknown, value: unknown) {

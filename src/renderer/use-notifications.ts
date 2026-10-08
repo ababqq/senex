@@ -7,7 +7,7 @@ import { SECOND_MS } from "../shared/duration.ts";
  * screen arrives read.
  */
 import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
-import type { ConversationRecord, GameProject } from "./types.ts";
+import type { ConversationRecord, Project } from "./types.ts";
 import {
   activityNotices,
   applyEvents,
@@ -34,7 +34,7 @@ const NOTICE_SUBTITLES: Partial<Record<NoticeKind, string>> = {
 };
 
 export interface Notifications {
-  /** Rows about chats and games that still exist (and every sign-in). */
+  /** Rows about chats and projects that still exist (and every sign-in). */
   visible: Notice[];
   waitingCount: number;
   unread: boolean;
@@ -46,14 +46,14 @@ export interface Notifications {
 export function useNotifications({
   ready,
   threads,
-  games,
+  projects,
   activeThreadId,
   away,
   onOpen,
 }: {
   ready: boolean;
   threads: ConversationRecord[];
-  games: GameProject[];
+  projects: Project[];
   activeThreadId: string | null;
   /** Another room covers the chat (Plugins): its rows are not being watched. */
   away: boolean;
@@ -97,7 +97,7 @@ export function useNotifications({
     if (!arrived.length) return;
     // The first read and a focused window are already in front of the user: no system notice.
     if (first || focused) return;
-    sendSystemNotices(arrived, threads, games);
+    sendSystemNotices(arrived, threads, projects);
   });
   useEffect(() => {
     if (ready) receive();
@@ -115,12 +115,12 @@ export function useNotifications({
   const visible = useMemo(() => {
     const openChat = (id: string): boolean =>
       threads.some((thread) => thread.id === id && !threadMeta(thread).archived);
-    const gameKept = (project: string | undefined): boolean => !project || games.some((game) => game.name === project);
-    /** A sign-in notice always shows; any other while its chat is open and its game is still here. */
+    const kept = (project: string | undefined): boolean => !project || projects.some((entry) => entry.name === project);
+    /** A sign-in notice always shows; any other while its chat is open and its project is still here. */
     const shows = (notice: Notice): boolean =>
-      notice.kind === NoticeKind.SignIn || (openChat(notice.threadId) && gameKept(notice.project));
+      notice.kind === NoticeKind.SignIn || (openChat(notice.threadId) && kept(notice.project));
     return notices.items.filter(shows);
-  }, [notices, threads, games]);
+  }, [notices, threads, projects]);
   const waitingCount = waitingNotices(visible).length;
   const unread = activityNotices(visible).some((notice) => !notice.read);
   useEffect(() => {
@@ -162,18 +162,18 @@ export function useNotifications({
   );
 }
 
-function sendSystemNotices(arrived: Notice[], threads: ConversationRecord[], games: GameProject[]): void {
+function sendSystemNotices(arrived: Notice[], threads: ConversationRecord[], projects: Project[]): void {
   const source = (notice: Notice): string => {
     const thread = threadMeta(threads.find((item) => item.id === notice.threadId));
     return noticeSource(
       notice,
-      games.find((game) => game.name === (notice.project ?? thread.project))?.title,
-      thread.kind === ThreadKind.Game,
+      projects.find((project) => project.name === (notice.project ?? thread.project))?.title,
+      thread.kind === ThreadKind.Project,
     );
   };
   const notes =
     arrived.length > 3
-      ? [{ title: "Genex", body: `${arrived.length} updates from your games` }]
+      ? [{ title: "Genex", body: `${arrived.length} updates from your projects` }]
       : arrived.map((notice) => ({
           id: notice.id,
           title: source(notice),

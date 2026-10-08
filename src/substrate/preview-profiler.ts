@@ -119,7 +119,7 @@ function hasFiniteMetrics(sample: ProfileSample): boolean {
 
 /**
  * Class identity proves which imported Three module owns this renderer, and it is the
- * first thing tried. A game whose three is inside its own bundle has no bare specifier to
+ * first thing tried. A project whose three is inside its own bundle has no bare specifier to
  * import, so the fallback is the stamp three itself writes on the canvas it renders to
  * (`data-engine`, "three.js r<REVISION>", both builds, unconditionally). That stamp proves
  * which three DREW here and which revision it claims to be — it does not prove the module
@@ -211,7 +211,7 @@ export class PreviewProfiler {
 
   /**
    * A common Renderer throws out of render() until its init() has resolved, and a WebGPU
-   * game reaches that through a top-level await. The old single attempt raced it and the
+   * project reaches that through a top-level await. The old single attempt raced it and the
    * whole optimization stage was skipped; these retries fit inside the stage's own deadline.
    */
   async #installObserver(p: ProfileBegin, key: string): Promise<ObserverAnswer> {

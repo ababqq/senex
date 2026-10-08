@@ -1,4 +1,4 @@
-/** The Skills tab: Studio's own skills, this game's, each provider's global skills, and the skills plugins ship. */
+/** The Skills tab: Studio's own skills, this project's, each provider's global skills, and the skills plugins ship. */
 import type { JSX } from "react";
 import type { PluginInfo } from "../../../shared/plugins.ts";
 import type { ProjectSkillInventory, ProviderSkill, ProviderSkillInventory } from "../../../shared/provider-skills.ts";
@@ -7,7 +7,7 @@ import { SKILLS_WORDS } from "../../words.ts";
 import type { PluginsPage } from "./page.ts";
 import { Mark, Section } from "./rows.tsx";
 import {
-  gameSkillsSection,
+  projectSkillsSection,
   pluginSkillRows,
   providerNote,
   type ShownSkill,
@@ -102,7 +102,7 @@ function ProviderSkills({
   );
 }
 
-/** What sits beside a row: the builders that load a game's skill, or whether a plugin skill's plugin is on. */
+/** What sits beside a row: the builders that load a project's skill, or whether a plugin skill's plugin is on. */
 function RowTag({ row }: { row: SkillRow }): JSX.Element | false {
   if (row.tag) return <span className="shrink-0 text-xs text-ink-3">{row.tag}</span>;
   if (row.enabled === undefined) return false;
@@ -149,19 +149,19 @@ function RowsSection({
   );
 }
 
-/** This game's own skills, once the open game's folder has been read. */
-function GameSkills({
-  game,
+/** This project's own skills, once the open project's folder has been read. */
+function ProjectSkills({
+  project,
   page,
   query,
   onSkill,
 }: {
-  game: ProjectSkillInventory;
+  project: ProjectSkillInventory;
   page: PluginsPage;
   query: string;
   onSkill: (skill: ShownSkill) => void;
 }): JSX.Element {
-  const view = gameSkillsSection(game);
+  const view = projectSkillsSection(project);
   return <RowsSection view={view} page={page} query={query} empty={view.empty} onSkill={onSkill} />;
 }
 
@@ -171,7 +171,7 @@ export function SkillsBrowse({
   page,
   query,
   builtins,
-  game,
+  project,
   providerInventory,
   skillsLoading,
   onSkill,
@@ -180,7 +180,7 @@ export function SkillsBrowse({
   page: PluginsPage;
   query: string;
   builtins: Array<{ name: string; text: string; description: string }>;
-  game: ProjectSkillInventory | null;
+  project: ProjectSkillInventory | null;
   providerInventory: ProviderSkillInventory[] | null;
   skillsLoading: boolean;
   onSkill: (skill: ShownSkill) => void;
@@ -193,7 +193,7 @@ export function SkillsBrowse({
   };
   return (
     <>
-      {game && <GameSkills game={game} page={page} query={query} onSkill={onSkill} />}
+      {project && <ProjectSkills project={project} page={page} query={query} onSkill={onSkill} />}
       <RowsSection view={studioSkillsSection(builtins)} page={page} query={query} onSkill={onSkill} />
       {skillsLoading && <Pending label="Reading provider skills…" />}
       {providerInventory?.map((provider) => (

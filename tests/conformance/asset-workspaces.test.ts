@@ -28,12 +28,12 @@ test("an asset poll uses the revisions from one worktree listing", async () => {
   const root = await realpath(await tmpDir());
   const scratch = path.join(root, "scratch");
   const engineHomes = path.join(root, "engines");
-  const game = path.join(root, "game");
+  const project = path.join(root, "project");
   const worker = path.join(scratch, "autopilot", "run", "worker");
-  for (const folder of [engineHomes, game, worker]) await mkdir(folder, { recursive: true });
+  for (const folder of [engineHomes, project, worker]) await mkdir(folder, { recursive: true });
   const calls: string[][] = [];
   const core = {
-    games: { dirFor: () => game },
+    projects: { dirFor: () => project },
     layout: { scratch, engineHomes },
     assetCheckpoints: { records: async () => [] },
   };
@@ -44,6 +44,6 @@ test("an asset poll uses the revisions from one worktree listing", async () => {
       return args.includes("-z") ? `worktree ${worker}\0HEAD abcd\0\0` : `worktree ${worker}\nHEAD abcd\n\n`;
     },
   );
-  await service.projectAssets("game");
+  await service.projectAssets("project");
   assert.equal(calls.length, 1);
 });

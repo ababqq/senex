@@ -49,7 +49,7 @@ export interface CalibrationDeps {
 
 /** Evidence with nothing in it, for a fixture that was never probed. */
 const NO_EVIDENCE: EvidenceRefs = {
-  gameOrigin: "",
+  projectOrigin: "",
   frames: [],
   consoleSummaryPath: "",
   networkSummaryPath: "",

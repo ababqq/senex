@@ -56,7 +56,7 @@ export const VerdictRule = {
 } as const;
 export type VerdictRule = (typeof VerdictRule)[keyof typeof VerdictRule];
 
-/** The rules of a build judged with nothing before it: a night from an empty game, or a start nobody could photograph. */
+/** The rules of a build judged with nothing before it: a night from an empty project, or a start nobody could photograph. */
 const NOTHING_TO_COMPARE: ReadonlySet<string> = new Set([VerdictRule.FirstBuild, VerdictRule.NoStart]);
 
 /** Whether a verdict's build had nothing to be compared with, so it was judged on its own. */

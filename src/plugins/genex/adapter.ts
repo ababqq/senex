@@ -20,7 +20,7 @@ import {
   GenexPublishJobState,
   GenexPublishKind,
   GenexPublishPhase,
-  type GenexGameManifest,
+  type GenexProjectManifest,
   type GenexJob,
   type GenexPublishJob,
   type GenexPublishState,
@@ -114,7 +114,7 @@ export { validateGenexRequest } from "./request.ts";
 export { genexCliEnv, parseGenexJson } from "./cli.ts";
 
 const ASSET_TIMEOUT_MS = 3 * MINUTE_MS;
-/** An upload of a whole game, not a request: the CLI builds, pushes source and deploys in one run. */
+/** An upload of a whole project, not a request: the CLI builds, pushes source and deploys in one run. */
 const PUBLISH_TIMEOUT_MS = 20 * MINUTE_MS;
 /** Bounded so a waiting agent answers well inside the host's 190 s invocation ceiling. */
 const PUBLISH_WAIT_MS = 150_000;
@@ -188,7 +188,7 @@ interface PublishAttempt {
 /** A draft Genex was seen serving: the upload's revision, its page and its files' digest. */
 type ReadyDraft = NonNullable<GenexPublishState["readyDraft"]>;
 
-/** One running publish: its game, Studio's copy and the CLI's HOME in it, its job and how to stop it. */
+/** One running publish: its project, Studio's copy and the CLI's HOME in it, its job and how to stop it. */
 interface PublishRun {
   project: string;
   dir: string;
@@ -241,7 +241,7 @@ export class GenexTools {
     return next;
   }
   #controllers = new Map<AbortController, { project: string; threadId?: string }>();
-  /** The publish running in this process, per game. Absent after a restart: the record then reconciles. */
+  /** The publish running in this process, per project. Absent after a restart: the record then reconciles. */
   #sessionIdentity: { token: string; expires: number; session: any } | undefined;
   #exporting = new Set<string>();
   #readinessChecks = new Map<string, Promise<void>>();
@@ -355,9 +355,9 @@ export class GenexTools {
     return cwd;
   }
   /**
-   * The publish workspace: Studio's own copy of the game, never the user's folder.
+   * The publish workspace: Studio's own copy of the project, never the user's folder.
    * `publish.json` is Studio's record, `.genex/project.json` is the CLI's hosted identity,
-   * `dist/` is the exported game the CLI uploads, `.genex-agent/` takes `init --dir`'s templates
+   * `dist/` is the exported project the CLI uploads, `.genex-agent/` takes `init --dir`'s templates
    * and `home/` is the CLI's HOME. No `.genex/workspace.json` here: a tools workspace with no
    * hosted project is refused the publishing commands.
    */
@@ -369,7 +369,7 @@ export class GenexTools {
     const dir = this.#publishDir(project);
     await mkdir(path.join(dir, "home"), { recursive: true, mode: 0o700 });
     await mkdir(path.join(dir, "dist"), { recursive: true, mode: 0o700 });
-    // The CLI pushes this folder as the game's source; Studio's private HOME is not part of it.
+    // The CLI pushes this folder as the project's source; Studio's private HOME is not part of it.
     await writeFile(path.join(dir, ".gitignore"), "home/\n");
     return dir;
   }
@@ -406,7 +406,7 @@ export class GenexTools {
     });
   }
   /**
-   * The CLI always pushes the game's source, so git must already be here. Studio installs nothing:
+   * The CLI always pushes the project's source, so git must already be here. Studio installs nothing:
    * the pinned CLI's `pushSource` runs `brew install git-lfs` / `sudo apt-get install git-lfs` when
    * git-lfs is missing, so a machine without it is refused here, before the CLI is ever spawned.
    */
@@ -414,7 +414,7 @@ export class GenexTools {
     if (!(await this.#run("git", ["--version"], dir, home))) throw new Error(PUBLISH_MESSAGE.NeedsGit);
     if (!(await this.#run("git", ["lfs", "version"], dir, home))) throw new Error(PUBLISH_MESSAGE.NeedsGitLfs);
   }
-  /** What Studio knows about this game's pages. Read-only: it never starts or resumes an upload. */
+  /** What Studio knows about this project's pages. Read-only: it never starts or resumes an upload. */
   async publishStatus(project: string, force = false): Promise<GenexPublishState> {
     await this.init();
     const state = await this.#publishState(project);
@@ -523,7 +523,7 @@ export class GenexTools {
     });
   }
   /**
-   * Export this game and put it on its unlisted draft page only, creating the hosted project once.
+   * Export this project and put it on its unlisted draft page only, creating the hosted project once.
    * Serialized on the account tail like every other account-scoped operation, so two presses in one
    * window can never run two CLIs in one workspace.
    */
@@ -531,7 +531,7 @@ export class GenexTools {
     return this.#account(() => this.#startPublish(project, GenexPublishKind.Draft, exportStage));
   }
   /**
-   * Publish: export this game, put it on the draft page, test it there and make that same build
+   * Publish: export this project, put it on the draft page, test it there and make that same build
    * the public version, creating the hosted project and the gallery listing the first time. `title`
    * is the name it is listed under: the last one Studio listed, else its folder name, as words.
    */
@@ -579,7 +579,7 @@ export class GenexTools {
     };
     if (kind === GenexPublishKind.Gallery)
       job.title = cleanGenexTitle(title) ?? state.title ?? defaultGenexTitle(project);
-    if (exportStage) await this.#exportGame(project, state, job, dir, exportStage);
+    if (exportStage) await this.#exportProject(project, state, job, dir, exportStage);
     state.job = job;
     delete state.warnings;
     delete state.lastError;
@@ -592,8 +592,8 @@ export class GenexTools {
     });
     return { ...state, job };
   }
-  /** Export the game into the publish workspace and mark it, inside the invocation that asked. */
-  async #exportGame(
+  /** Export the project into the publish workspace and mark it, inside the invocation that asked. */
+  async #exportProject(
     project: string,
     state: GenexPublishState,
     job: GenexPublishJob,
@@ -606,7 +606,7 @@ export class GenexTools {
       job.phase = GenexPublishPhase.Exporting;
       state.job = job;
       await this.#savePublishState(project, state);
-      const exported = (await exportStage()) as { files?: unknown; genex?: GenexGameManifest } | null;
+      const exported = (await exportStage()) as { files?: unknown; genex?: GenexProjectManifest } | null;
       state.lastExportAt = new Date().toISOString();
       const files = exported?.files;
       if (Number.isSafeInteger(files)) job.export = { files: files as number };
@@ -624,14 +624,14 @@ export class GenexTools {
     }
   }
   /**
-   * The CLI tells Genex what the game ships (sign-in support above all) from the package.json of
-   * the folder it runs in: Studio's copy gets the game's Genex part of it, or none.
+   * The CLI tells Genex what the project ships (sign-in support above all) from the package.json of
+   * the folder it runs in: Studio's copy gets the project's Genex part of it, or none.
    */
   async #writeWorkspaceManifest(
     dir: string,
     project: string,
     job: GenexPublishJob,
-    manifest: GenexGameManifest | undefined,
+    manifest: GenexProjectManifest | undefined,
   ): Promise<void> {
     const pkg = workspaceManifest(project, manifest);
     const file = path.join(dir, "package.json");
@@ -766,7 +766,7 @@ export class GenexTools {
     job.phase = GenexPublishPhase.CreatingProject;
     await this.#persistJob(project, job);
     // Without `--no-auth` the fd-3 token satisfies the CLI, so the hosted project is created here
-    // and nowhere near the user's game folder.
+    // and nowhere near the user's project folder.
     await this.#cliText(dir, ["init", project, "--dir", path.join(dir, ".genex-agent")], signal, home);
     const created = await readJsonOr<HostedMeta>(metaFile(dir));
     if (!created?.slug) throw new Error(PUBLISH_MESSAGE.NoHostedProject);
@@ -882,7 +882,7 @@ export class GenexTools {
     state.readyDraft = { ...ready, verifiedAt: finishedAt };
   }
   /**
-   * Whether the game is listed is Genex's answer, not the CLI's record: only `preview` writes the
+   * Whether the project is listed is Genex's answer, not the CLI's record: only `preview` writes the
    * status back, so after a gallery run the local `project.json` still says `draft`. One
    * authenticated read settles it, and the CLI's own file stays the single source of truth.
    */
@@ -1136,7 +1136,7 @@ export class GenexTools {
       })),
     };
   }
-  /** Inspect or verify how the game uses a job's delivered files. */
+  /** Inspect or verify how the project uses a job's delivered files. */
   async #recordUse(project: string, root: string, request: GenexRequest, signal: AbortSignal) {
     if (typeof request.id !== "string" || !JOB_ID.test(request.id)) throw new Error(MESSAGE.InspectWithStudioId);
     const cwd = await this.#workspace(project);
@@ -1197,7 +1197,7 @@ export class GenexTools {
       return job;
     }
   }
-  /** Record the CLI's answer on the job and, when it finished, deliver its files into the game. */
+  /** Record the CLI's answer on the job and, when it finished, deliver its files into the project. */
   async #recordAnswer(
     cwd: string,
     dir: string,
@@ -1221,7 +1221,7 @@ export class GenexTools {
     if (hasDownloadableResult(job)) await this.#deliverResult(cwd, job, root, output, signal);
     await this.#reconcileJob(cwd, job);
   }
-  /** Reconcile with Genex, fetch the desktop variant, then deliver the output into the game. */
+  /** Reconcile with Genex, fetch the desktop variant, then deliver the output into the project. */
   async #deliverResult(cwd: string, job: GenexJob, root: string, output: string, signal: AbortSignal) {
     await this.#reconcileJob(cwd, job, true, signal);
     await fetchDesktopVariant(job, output, signal);

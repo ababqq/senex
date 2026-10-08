@@ -90,12 +90,12 @@ describe("host-owned Genex tools", () => {
       const tools = fixtureTools(path.join(root, "host"), api);
       await tools.init();
       await fixtureCredentials(tools.root).set("fixture-token");
-      const game = path.join(root, "game");
-      await mkdir(game);
+      const project = path.join(root, "project");
+      await mkdir(project);
       const request = { operation: "model", prompt: "fixture cottage" };
-      const first = (await tools.execute("fixture", game, request)) as any;
+      const first = (await tools.execute("fixture", project, request)) as any;
       assert.equal(first.status, "unresolved", JSON.stringify({ first, calls }));
-      const second = (await tools.execute("fixture", game, request)) as any;
+      const second = (await tools.execute("fixture", project, request)) as any;
       assert.equal(second.generationId, "fixture-generation", JSON.stringify({ second, calls }));
       assert.equal(creates, 1);
       assert.ok(
@@ -116,21 +116,24 @@ it("does not submit signed-out or already stopped work, and keeps validation fai
   try {
     const tools = fixtureTools(path.join(root, "host"), "http://127.0.0.1:1");
     await tools.init();
-    await assert.rejects(tools.execute("game", root, { operation: "model", prompt: "x" }), /Connect Genex/);
+    await assert.rejects(tools.execute("project", root, { operation: "model", prompt: "x" }), /Connect Genex/);
 
     await assert.rejects(
-      tools.execute("game", root, { operation: "model", prompt: "x" }, AbortSignal.abort()),
+      tools.execute("project", root, { operation: "model", prompt: "x" }, AbortSignal.abort()),
       /Stopped before/,
     );
     await fixtureCredentials(tools.root).set("fixture-token");
-    const failed = (await tools.execute("game", root, {
+    const failed = (await tools.execute("project", root, {
       operation: "image",
       options: { edit: "../outside-secret.png" },
     })) as any;
     assert.equal(failed.status, "failed");
-    const approval = (await tools.execute("game", root, { operation: "character.finalize", id: "candidate" })) as any;
+    const approval = (await tools.execute("project", root, {
+      operation: "character.finalize",
+      id: "candidate",
+    })) as any;
     assert.equal(approval.status, "failed", "missing approval views fail closed");
-    await assert.rejects(tools.approve("game", approval.id), /no longer pending/);
+    await assert.rejects(tools.approve("project", approval.id), /no longer pending/);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -184,19 +187,19 @@ it("uses server credit admission across parallel requests without a Studio allow
     const tools = fixtureTools(path.join(temp, "host"), api);
     await tools.init();
     await fixtureCredentials(tools.root).set("fixture-token");
-    const game = path.join(temp, "game");
-    await mkdir(game);
+    const project = path.join(temp, "project");
+    await mkdir(project);
     const results = (await Promise.all(
-      ["sun", "moon"].map((prompt) => tools.execute("same-project", game, { operation: "image", prompt })),
+      ["sun", "moon"].map((prompt) => tools.execute("same-project", project, { operation: "image", prompt })),
     )) as any[];
     assert.equal(creates, 1, JSON.stringify(results));
     assert.deepEqual(results.map((r) => r.status).sort(), ["accepted", "failed"]);
-    const loaded = (await tools.execute("same-project", game, { operation: "wait", id: "existing-image" })) as any;
+    const loaded = (await tools.execute("same-project", project, { operation: "wait", id: "existing-image" })) as any;
     assert.equal(loaded.status, "downloaded", JSON.stringify(loaded));
     assert.equal(loaded.files.length, 1);
-    assert.deepEqual(await readFile(path.join(game, loaded.files[0])), png);
+    assert.deepEqual(await readFile(path.join(project, loaded.files[0])), png);
     const reopened = fixtureTools(tools.root, api);
-    const again = (await reopened.execute("same-project", game, { operation: "wait", id: "existing-image" })) as any;
+    const again = (await reopened.execute("same-project", project, { operation: "wait", id: "existing-image" })) as any;
     assert.equal(again.status, "downloaded", JSON.stringify(again));
     assert.equal(creates, 1, "retrieval is not another generation");
   } finally {
@@ -302,9 +305,9 @@ it("shows all character candidates before a real UI selection can authorize the 
     const tools = fixtureTools(path.join(root, "host"), `http://127.0.0.1:${(server.address() as any).port}`);
     await tools.init();
     await fixtureCredentials(tools.root).set("fixture-token");
-    const game = path.join(root, "game");
-    await mkdir(game);
-    const request = (await tools.execute("game", game, {
+    const project = path.join(root, "project");
+    await mkdir(project);
+    const request = (await tools.execute("project", project, {
       operation: "character.preview",
       id: "concept",
       options: { candidate: 1 },
@@ -313,17 +316,17 @@ it("shows all character candidates before a real UI selection can authorize the 
     assert.equal(creates, 0);
     assert.equal(JSON.stringify(request).includes("data:image"), false, "approval pixels do not enter model prompts");
     const saved = JSON.parse(
-      await readFile(path.join(tools.root, "projects/game/jobs", request.id, "job.json"), "utf8"),
+      await readFile(path.join(tools.root, "projects/project/jobs", request.id, "job.json"), "utf8"),
     );
     assert.deepEqual(
       saved.approval.images.map((image: any) => image.label),
       ["1", "2", "3"],
     );
-    await assert.rejects(tools.approve("game", request.id), /Choose candidate/);
+    await assert.rejects(tools.approve("project", request.id), /Choose candidate/);
     assert.equal(creates, 0);
     const attempts = await Promise.allSettled([
-      tools.approve("game", request.id, 3),
-      tools.approve("game", request.id, 3),
+      tools.approve("project", request.id, 3),
+      tools.approve("project", request.id, 3),
     ]);
     assert.equal(
       attempts.filter((result) => result.status === "fulfilled").length,
@@ -334,7 +337,7 @@ it("shows all character candidates before a real UI selection can authorize the 
     assert.equal(approved.status, "accepted", JSON.stringify(approved));
     assert.equal(creates, 1);
     assert.equal(chosen, 3, "the UI choice wins over the agent suggestion");
-    await assert.rejects(tools.approve("game", request.id, 3), /no longer pending/);
+    await assert.rejects(tools.approve("project", request.id, 3), /no longer pending/);
   } finally {
     globalThis.fetch = originalFetch;
     server.closeAllConnections();
@@ -383,21 +386,21 @@ it("Stop after acceptance preserves the generation and reopening reconciles it w
   try {
     const tools = fixtureTools(path.join(temp, "host"), api);
     await fixtureCredentials(tools.root).set("fixture-token");
-    const game = path.join(temp, "game");
-    await mkdir(game);
-    const accepted = (await tools.execute("game", game, { operation: "image", prompt: "fixture" })) as any;
+    const project = path.join(temp, "project");
+    await mkdir(project);
+    const accepted = (await tools.execute("project", project, { operation: "image", prompt: "fixture" })) as any;
     assert.equal(accepted.generationId, "accepted-before-stop");
     assert.equal(accepted.status, "accepted");
     hold = true;
-    const waiting = tools.execute("game", game, { operation: "wait", id: accepted.generationId });
+    const waiting = tools.execute("project", project, { operation: "wait", id: accepted.generationId });
     await polled;
-    tools.cancel("game");
+    tools.cancel("project");
     const stopped = (await waiting) as any;
     assert.equal(stopped.status, "stopped");
     assert.equal(stopped.generationId, accepted.generationId);
     hold = false;
     const reopened = fixtureTools(tools.root, api);
-    const status = await reopened.status("game");
+    const status = await reopened.status("project");
     assert.equal(status.jobs.find((job) => job.id === accepted.id)?.remoteStatus, "completed");
     assert.equal(creates, 1);
     assert.equal(status.jobs[0]?.creditsRefunded, undefined, "local Stop does not invent a refund");
@@ -436,9 +439,9 @@ it("reconciling an accepted job names only completed, processing and pending rem
   try {
     const tools = fixtureTools(path.join(temp, "host"), api);
     await fixtureCredentials(tools.root).set("fixture-token");
-    const game = path.join(temp, "game");
-    await mkdir(game);
-    const accepted = (await tools.execute("game", game, { operation: "image", prompt: "fixture" })) as any;
+    const project = path.join(temp, "project");
+    await mkdir(project);
+    const accepted = (await tools.execute("project", project, { operation: "image", prompt: "fixture" })) as any;
     assert.equal(accepted.status, "accepted");
     const expected: [string, string][] = [
       ["completed", "generated"],
@@ -449,7 +452,7 @@ it("reconciling an accepted job names only completed, processing and pending rem
     ];
     for (const [remoteStatus, jobStatus] of expected) {
       remote = remoteStatus;
-      const job = (await tools.status("game")).jobs.find((x) => x.id === accepted.id);
+      const job = (await tools.status("project")).jobs.find((x) => x.id === accepted.id);
       assert.equal(job?.remoteStatus, remoteStatus);
       assert.equal(job?.status, jobStatus, `remote ${remoteStatus}`);
     }
@@ -495,11 +498,11 @@ it("reports expired login honestly and quote refusals never become create submis
   try {
     const tools = fixtureTools(path.join(temp, "host"), `http://127.0.0.1:${(server.address() as any).port}`);
     await fixtureCredentials(tools.root).set("fixture-token");
-    const game = path.join(temp, "game");
-    await mkdir(game);
+    const project = path.join(temp, "project");
+    await mkdir(project);
     for (const code of [402, 503, 500]) {
       quoteStatus = code;
-      const job = (await tools.execute("game", game, { operation: "image", prompt: "fixture" })) as any;
+      const job = (await tools.execute("project", project, { operation: "image", prompt: "fixture" })) as any;
       assert.equal(job.status, "failed", JSON.stringify(job));
       assert.equal(job.generationId, undefined);
       assert.equal(creates, 0);
@@ -537,7 +540,7 @@ it("disconnect blocks a new submission even while protected credential deletion 
     await store.set("fixture-token");
     disconnect = tools.disconnect();
     await deleting;
-    const job = (await tools.execute("game", temp, { operation: "image", prompt: "fixture" })) as any;
+    const job = (await tools.execute("project", temp, { operation: "image", prompt: "fixture" })) as any;
     assert.equal(job.status, "failed");
     assert.match(job.error, /Connect Genex Tools first/);
     assert.equal(job.requestId, undefined);

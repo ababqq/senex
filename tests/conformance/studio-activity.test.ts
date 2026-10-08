@@ -66,7 +66,7 @@ test("a later restore marks instruction changes undone without treating normal l
   assert.match(items.find((item) => item.kind === "learning")!.status!, /awaiting review/);
 });
 
-test("game chats say plainly what Harness learned; restarts become Work rows and errors stay visible", () => {
+test("project chats say plainly what Harness learned; restarts become Work rows and errors stay visible", () => {
   const result = toEntries([
     custom(1, "skillopt_accepted", { skill: "facet-decomposition", rationale: "Keep ownership explicit" }),
     custom(2, "skillopt_pass", { tasks: 8, staged: 1 }),
@@ -82,7 +82,7 @@ test("game chats say plainly what Harness learned; restarts become Work rows and
       reason: "Recovered from the missed heartbeat",
     }),
     custom(6, "skillopt_pass", { tasks: 8, staged: 0, accepted: 0, rejected: 3 }),
-    custom(7, "skillopt_accepted", { skill: "director", title: "Check the player’s view before finishing a scene" }),
+    custom(7, "skillopt_accepted", { skill: "director", title: "Check a narrow window before finishing a screen" }),
   ]);
   assert.deepEqual(
     result.map((item) => item.kind),
@@ -96,7 +96,7 @@ test("game chats say plainly what Harness learned; restarts become Work rows and
   assert.equal(result[2]!.kind === "notice" && result[2].row.state, "stopped");
   assert.equal(
     result[5]!.kind === "learning" && result[5].text,
-    "Harness learned to check the player’s view before finishing a scene.",
+    "Harness learned to check a narrow window before finishing a screen.",
   );
   assert.ok(
     !result.some((item) => "text" in item && /facet-decomposition|past tasks reviewed|rejected/.test(item.text)),
@@ -118,7 +118,7 @@ test("Activity describes runs and instruction changes in plain words", () => {
     custom(4, "skillopt_accepted", {
       skill: "facet-decomposition",
       approvedBy: "human",
-      title: "Check the player’s view",
+      title: "Check a narrow window",
       summary: ["Looks through the player’s eyes."],
     }),
     custom(5, "skillopt_accepted", {
@@ -136,7 +136,7 @@ test("Activity describes runs and instruction changes in plain words", () => {
     changes.map((item) => [item.title, item.approvedBy]),
     [
       ["Changed how Harness plans a build", "auto"],
-      ["Check the player’s view", "human"],
+      ["Check a narrow window", "human"],
     ],
   );
   assert.deepEqual(changes[1]!.summary, ["Looks through the player’s eyes."]);
@@ -197,13 +197,13 @@ test("the move to TypeScript says which edits were replaced, and a return from a
 });
 
 test("Activity indexes noisy run events without retaining their payloads", () => {
-  const log = [custom(1, "run_started", { runId: "run", project: "game", goal: "Build" })];
+  const log = [custom(1, "run_started", { runId: "run", project: "project", goal: "Build" })];
   const index = new ActivityIndex();
   assert.equal(index.append(log), true);
   for (let at = 2; at < 1002; at++) {
     const next = custom(at, "director_progress", {
       runId: "run",
-      project: "game",
+      project: "project",
       head: `head-${at}`,
       noisy: "x".repeat(1000),
     });
@@ -213,7 +213,7 @@ test("Activity indexes noisy run events without retaining their payloads", () =>
   assert.deepEqual(index.items(), studioActivity(log));
   assert.equal(index.records().length, 1, "only the run start is retained for ownership checks");
   assert.equal(
-    index.append([custom(1, "run_finished", { runId: "run", project: "game" })]),
+    index.append([custom(1, "run_finished", { runId: "run", project: "project" })]),
     false,
     "older imports ask the caller to rebuild from durable history",
   );

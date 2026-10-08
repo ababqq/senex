@@ -1,4 +1,4 @@
-/* Genex Tools: the plugin's own page (account card, the tools it routes, this game), its picture and the promo card. */
+/* Genex Tools: the plugin's own page (account card, the tools it routes, this project), its picture and the promo card. */
 
 /* ── the Genex page ─────────────────────────────────────────────────────────────── */
 .extensions-title-actions {
@@ -305,7 +305,7 @@
 .genex-job-state:is([data-state="review"], [data-state="unsure"]) {
   color: var(--orange);
 }
-.genex-job-state[data-state="in-game"] {
+.genex-job-state[data-state="in-project"] {
   color: var(--green);
 }
 .genex-job-state[data-state="failed"] {
@@ -393,7 +393,7 @@
 
 /* ── the promo card after the welcome ──────────────────────────────────────────── */
 /* Above the workspace, beneath dialogs (z 210) and toasts (z 300). */
-/* Floats over everything beneath it and moves nothing: bottom-right over a game's stage, and
+/* Floats over everything beneath it and moves nothing: bottom-right over a project's stage, and
    bottom-left over home, where the right corner would cover home's composer on a laptop window. */
 .genex-promo {
   position: fixed;
@@ -577,24 +577,24 @@
   }
 }
 
-/* Publish to the web, drawn by Studio over the stage: the game, one main button, its progress. */
+/* Publish to the web, drawn by Studio over the stage: the project, one main button, its progress. */
 .genex-publish-body {
   display: grid;
   gap: 20px;
   min-width: 0;
 }
-/* The game: its cover sphere beside the name players will see and where it is. */
-.genex-publish-game {
+/* The project: its cover sphere beside the name players will see and where it is. */
+.genex-publish-project {
   display: flex;
   align-items: center;
   gap: 14px;
   min-width: 0;
 }
-.genex-publish-cover.game-avatar {
+.genex-publish-cover.project-avatar {
   width: 48px;
   height: 48px;
 }
-.genex-publish-game-text {
+.genex-publish-project-text {
   display: grid;
   flex: 1;
   gap: 4px;

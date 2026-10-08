@@ -441,7 +441,7 @@ function PageBody({
           page={page}
           query={nav.query}
           builtins={data.builtins}
-          game={skills.game}
+          project={skills.project}
           providerInventory={skills.providerInventory}
           skillsLoading={skills.skillsLoading}
           onSkill={nav.setSkill}

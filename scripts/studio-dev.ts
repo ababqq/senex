@@ -244,7 +244,7 @@ async function profileStatus(owner: any, id: string) {
         electron: owner.electron,
         session: owner.session,
         core: owner.core,
-        games: owner.games,
+        projects: owner.projects,
         ...(owner.freshMachine === true ? { home: owner.home } : {}),
       },
     };

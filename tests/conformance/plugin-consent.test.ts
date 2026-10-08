@@ -14,7 +14,7 @@ const ask = (
     consentId,
     pluginId: "genex",
     tool: "genex__publish",
-    project: extra.project ?? "game",
+    project: extra.project ?? "project",
     ...(extra.threadId ? { threadId: extra.threadId } : {}),
     ...(extra.signal ? { signal: extra.signal } : {}),
   });
@@ -43,19 +43,19 @@ test("nobody answering declines on the user's behalf", async () => {
   assert.equal(consent.resolve("c1", true), false, "a click after the timeout changes nothing");
 });
 
-test("a turn's end and a game's Stop withdraw only the questions in their scope", async () => {
+test("a turn's end and a project's Stop withdraw only the questions in their scope", async () => {
   const consent = new PluginConsent({ timeoutMs: 10_000 });
-  const inTurn = ask(consent, "c1", { project: "game", threadId: "t1" });
-  const otherTurn = ask(consent, "c2", { project: "game", threadId: "t2" });
-  const otherGame = ask(consent, "c3", { project: "other", threadId: "t3" });
-  const unbound = ask(consent, "c4", { project: "game" });
+  const inTurn = ask(consent, "c1", { project: "project", threadId: "t1" });
+  const otherTurn = ask(consent, "c2", { project: "project", threadId: "t2" });
+  const otherProject = ask(consent, "c3", { project: "other", threadId: "t3" });
+  const unbound = ask(consent, "c4", { project: "project" });
   assert.equal(consent.cancel({ threadId: "t1" }, "turn"), 1);
   assert.deepEqual(await inTurn, { approved: false, by: "turn" });
   assert.deepEqual(
     consent.pending().map((p) => p.consentId),
     ["c2", "c3", "c4"],
   );
-  assert.equal(consent.cancel({ project: "game" }, "stop"), 2);
+  assert.equal(consent.cancel({ project: "project" }, "stop"), 2);
   assert.deepEqual(await otherTurn, { approved: false, by: "stop" });
   assert.deepEqual(await unbound, { approved: false, by: "stop" });
   assert.deepEqual(
@@ -63,7 +63,7 @@ test("a turn's end and a game's Stop withdraw only the questions in their scope"
     ["c3"],
   );
   assert.equal(consent.cancel({}, "stop"), 1, "an empty scope is the shutdown path: everything goes");
-  assert.deepEqual(await otherGame, { approved: false, by: "stop" });
+  assert.deepEqual(await otherProject, { approved: false, by: "stop" });
   assert.equal(consent.cancel({}, "stop"), 0);
 });
 

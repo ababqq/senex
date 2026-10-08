@@ -7,7 +7,7 @@ import { AppearanceSection } from "./AppearanceSection.tsx";
 import { ModelProvidersSection, type ModelSettingsProps } from "./ModelsSection.tsx";
 import { LocalModelsSection } from "./LocalModelsSection.tsx";
 import { HarnessSection } from "./HarnessSection.tsx";
-import { GamesSection } from "./GamesSection.tsx";
+import { ProjectsSection } from "./ProjectsSection.tsx";
 import { PermissionsSection } from "./PermissionsSection.tsx";
 import { PrivacySection } from "./PrivacySection.tsx";
 import { AboutSection } from "./AboutSection.tsx";
@@ -23,7 +23,7 @@ const SECTIONS: readonly SectionTab[] = [
   { id: SettingsSection.Providers, label: "Model Providers", icon: "globe" },
   { id: SettingsSection.Local, label: "Local Models", icon: "box" },
   { id: SettingsSection.Appearance, label: "Appearance", icon: "palette" },
-  { id: SettingsSection.Games, label: "Games", icon: "folder" },
+  { id: SettingsSection.Projects, label: "Projects", icon: "folder" },
   { id: SettingsSection.Harness, label: "Harness", icon: "harness" },
   { id: SettingsSection.Permissions, label: "Permissions", icon: "shield" },
   { id: SettingsSection.Privacy, label: PRIVACY_WORDS.tab, icon: "eye" },
@@ -45,16 +45,17 @@ function SectionBody({
   section,
   engines,
   onEnginesRefresh,
-  gamesRootLabel,
-  onGamesRoot,
+  projectsRootLabel,
+  onProjectsRoot,
 }: {
   section: SettingsSection;
   engines: EngineDescriptor[];
   onEnginesRefresh: ModelSettingsProps["onEnginesRefresh"];
-  gamesRootLabel: string;
-  onGamesRoot: (label: string) => void;
+  projectsRootLabel: string;
+  onProjectsRoot: (label: string) => void;
 }): JSX.Element {
-  if (section === SettingsSection.Games) return <GamesSection rootLabel={gamesRootLabel} onRoot={onGamesRoot} />;
+  if (section === SettingsSection.Projects)
+    return <ProjectsSection rootLabel={projectsRootLabel} onRoot={onProjectsRoot} />;
   if (section === SettingsSection.Appearance) return <AppearanceSection />;
   if (section === SettingsSection.Providers)
     return <ModelProvidersSection engines={engines} onEnginesRefresh={onEnginesRefresh} />;
@@ -74,8 +75,8 @@ export function SettingsDialog({
   returnFocus,
   engines,
   onEnginesRefresh,
-  gamesRootLabel,
-  onGamesRoot,
+  projectsRootLabel,
+  onProjectsRoot,
 }: {
   section: SettingsSection;
   onSection: (section: SettingsSection) => void;
@@ -83,8 +84,8 @@ export function SettingsDialog({
   returnFocus?: React.RefObject<HTMLElement | null>;
   engines: EngineDescriptor[];
   onEnginesRefresh: ModelSettingsProps["onEnginesRefresh"];
-  gamesRootLabel: string;
-  onGamesRoot: (label: string) => void;
+  projectsRootLabel: string;
+  onProjectsRoot: (label: string) => void;
 }) {
   const [horizontal, setHorizontal] = useState(() => window.matchMedia("(max-width: 639px)").matches);
   useEffect(() => {
@@ -160,8 +161,8 @@ export function SettingsDialog({
               section={section}
               engines={engines}
               onEnginesRefresh={onEnginesRefresh}
-              gamesRootLabel={gamesRootLabel}
-              onGamesRoot={onGamesRoot}
+              projectsRootLabel={projectsRootLabel}
+              onProjectsRoot={onProjectsRoot}
             />
           </div>
         </div>

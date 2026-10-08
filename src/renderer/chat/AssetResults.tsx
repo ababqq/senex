@@ -1,10 +1,10 @@
 import type { JSX } from "react";
 import { memo, useMemo, useState } from "react";
-import type { AssetDeliveredPayload, ProjectAsset } from "../../shared/game-assets.ts";
+import type { AssetDeliveredPayload, ProjectAsset } from "../../shared/project-assets.ts";
 import { assetPreviewMode } from "../../shared/asset-preview.ts";
 import type { ModelRig } from "../../shared/model-rig.ts";
 import { assetTitle, clipTitles } from "../asset-names.ts";
-import { foldAssets, ownerInGame, useModelRigs } from "../model-rigs.ts";
+import { foldAssets, ownerInProject, useModelRigs } from "../model-rigs.ts";
 import { AssetTile } from "../panels/AssetTile.tsx";
 import { AssetPreview } from "../panels/AssetPreview.tsx";
 import { Icon } from "../ui/icons.tsx";
@@ -14,9 +14,9 @@ import { AudioStrip } from "./AudioStrip.tsx";
 import { hostPlatform } from "../platform.ts";
 import { ASSET_WORDS, animationCountWords, fileManagerWords, modelAnimationsWords } from "../words.ts";
 
-/** What the game folder was last seen holding, so a remounted row keeps its height. */
+/** What the project folder was last seen holding, so a remounted row keeps its height. */
 const presence = new Map<string, boolean>();
-/** The model each animation file that came alone moves, once looked up in the game, by game and file. */
+/** The model each animation file that came alone moves, once looked up in the project, by project and file. */
 const clipOwners = new Map<string, ProjectAsset | null>();
 /** How many files `presence` remembers before it forgets the oldest. */
 const PRESENCE_CAP = 2000;
@@ -53,7 +53,7 @@ function deliveredAssets(deliveries: AssetDeliveredPayload[]): ProjectAsset[] {
 }
 
 /**
- * The files the game folder holds now, or null until the first answer (unless every file was
+ * The files the project folder holds now, or null until the first answer (unless every file was
  * seen before). Entries are rebuilt as the log grows; the question only changes when the files do.
  */
 function usePresentFiles(project: string, files: readonly string[], revision: number): Set<string> | null {
@@ -94,7 +94,7 @@ interface Opened {
 }
 
 /**
- * The model an animation file that came without one moves, looked up among everything the game
+ * The model an animation file that came without one moves, looked up among everything the project
  * holds: undefined while looking, null when no model fits.
  */
 function useClipOwner(project: string, clip: ModelRig | null): ProjectAsset | null | undefined {
@@ -103,7 +103,7 @@ function useClipOwner(project: string, clip: ModelRig | null): ProjectAsset | nu
   useAsyncEffect(
     (alive) => {
       if (!clip || clipOwners.has(key)) return;
-      void ownerInGame(project, clip).then((owner) => {
+      void ownerInProject(project, clip).then((owner) => {
         clipOwners.set(key, owner);
         if (alive()) setFound({ key, owner });
       });
@@ -159,7 +159,7 @@ function AssetRow({
 
 /**
  * Animation files that came without their model, as one row: the model's name, the clips' names,
- * and a click that opens the model playing them. With no model in the game, the row only names them.
+ * and a click that opens the model playing them. With no model in the project, the row only names them.
  */
 function AnimationRow({
   clips,
@@ -213,7 +213,7 @@ function TileGroup({ tiles, render }: { tiles: ProjectAsset[]; render: (asset: P
   return null;
 }
 
-/** What the game folder holds of the delivered files, read once: present files, their rigs, and a lone clip's model. */
+/** What the project folder holds of the delivered files, read once: present files, their rigs, and a lone clip's model. */
 function useDelivered(project: string, assets: ProjectAsset[], revision: number) {
   const files = useMemo(() => assets.map((asset) => asset.file), [assets]);
   const present = usePresentFiles(project, files, revision);
@@ -233,8 +233,8 @@ function useDelivered(project: string, assets: ProjectAsset[], revision: number)
 }
 
 /**
- * Generated files as results: only what the game folder holds now. A build's files arrive with
- * its result once it lands; a file that is not in the game is never shown as a broken preview.
+ * Generated files as results: only what the project folder holds now. A build's files arrive with
+ * its result once it lands; a file that is not in the project is never shown as a broken preview.
  * Animation files never get a card of their own: they ride on their model's card, or, when their
  * model came earlier, share one row that opens it.
  */

@@ -13,7 +13,7 @@
  *
  * Simplification vs the original design: it budgeted a bundled
  * `pnpm` for dependency restore. Both workspaces are dependency-free by design — the harness
- * talks to the substrate over RPC and games are built with the app's bundled esbuild against a
+ * talks to the substrate over RPC and projects are built with the app's bundled esbuild against a
  * vendored three.js — so restore is a pure checkout. {@link SnapshotEngine.restore} still calls
  * the `afterRestore` hook where an install step would go.
  */
@@ -34,10 +34,10 @@ const execFileAsync = promisify(execFile);
 
 /** The snapshot index entry is a contract the UI reads too; it lives in `shared/event-log.ts`. */
 export type { SnapshotRecord } from "../shared/event-log.ts";
-/** The commits a snapshot holds, plus — for a game — the branch it was taken on. */
+/** The commits a snapshot holds, plus — for a project — the branch it was taken on. */
 export type SnapshotRecordGit = SnapshotGitRefs;
 
-/** Why the engine would not snapshot or restore a game folder. Error codes callers read: never rename a value. */
+/** Why the engine would not snapshot or restore a project folder. Error codes callers read: never rename a value. */
 export const SnapshotRefusal = {
   OperationInProgress: "operation-in-progress",
   BranchChanged: "branch-changed",
@@ -77,7 +77,7 @@ export class SnapshotRefusedError extends Error {
 
 /**
  * A commit the studio makes in somebody's repository: their hooks (husky, lint-staged) never run
- * on it and cannot refuse it, as in `game-candidate.ts`.
+ * on it and cannot refuse it, as in `project-candidate.ts`.
  */
 const NO_HOOKS = ["-c", "core.hooksPath=/dev/null"];
 
@@ -91,11 +91,11 @@ const OPERATIONS_IN_PROGRESS = [
   "rebase-apply",
 ];
 
-/** The harness's own workspace key; every other key names a game's workspace. */
+/** The harness's own workspace key; every other key names a project's workspace. */
 export const HARNESS_WORKSPACE = "harness";
 
 export interface WorkspaceSpec {
-  /** "harness" or a game workspace key. */
+  /** "harness" or a project workspace key. */
   name: string;
   dir: string;
 }
@@ -104,7 +104,7 @@ export interface WorkspaceSpec {
  * One committer, everywhere the studio writes history — here, in the night's worktrees
  * (`harness-seed/loop/repo.ts`) and in `landBuild`. A user's `git log` used to name five
  * (studio-substrate, studio-facet, studio-integrator, studio-director, studio-base) as if a
- * committee had been through their game overnight.
+ * committee had been through their project overnight.
  */
 export const STUDIO_COMMITTER = { name: "AI Game Studio", email: "studio@ai-game-studio.local" };
 
@@ -124,7 +124,7 @@ export const GIT_ENV = {
 };
 
 /**
- * Config a repository cannot override on the host: a `.git/config` planted in a game folder
+ * Config a repository cannot override on the host: a `.git/config` planted in a project folder
  * (`core.fsmonitor = ./x.sh`, `core.hooksPath`) must never make a host-side status, diff or
  * commit run a program. `-c` beats every config file.
  */
@@ -146,7 +146,7 @@ export async function git(dir: string, args: string[], env: Record<string, strin
 /**
  * The files that bringing `to` into `from` would change inside a `.claude` folder (Claude Code's
  * project settings, hooks, commands, skills), against their merge base: what no build may land in
- * a game on the harness's word.
+ * a project on the harness's word.
  */
 export async function claudeFolderChanges(dir: string, from: string, to: string): Promise<string[]> {
   const changed = await git(dir, ["diff", "--name-only", "--no-renames", "-z", `${from}...${to}`]);
@@ -222,15 +222,15 @@ export class SnapshotEngine {
     for (const dir of this.workspaces.values()) await ensureRepo(dir);
   }
 
-  #namesForScope(scope: SnapshotScope, gameWorkspace?: string): string[] {
-    const game = gameWorkspace ? [gameWorkspace] : [];
+  #namesForScope(scope: SnapshotScope, projectWorkspace?: string): string[] {
+    const project = projectWorkspace ? [projectWorkspace] : [];
     switch (scope) {
       case SnapshotScope.Harness:
         return [HARNESS_WORKSPACE];
-      case SnapshotScope.Game:
-        return game;
+      case SnapshotScope.Project:
+        return project;
       case SnapshotScope.Both:
-        return [HARNESS_WORKSPACE, ...game];
+        return [HARNESS_WORKSPACE, ...project];
     }
   }
 
@@ -241,12 +241,12 @@ export class SnapshotEngine {
   async snapshot(options: {
     scope: SnapshotScope;
     reason: string;
-    gameWorkspace?: string;
+    projectWorkspace?: string;
     healthy?: boolean;
   }): Promise<SnapshotRecord> {
     const snapshotId = shortId("snap");
     const refs: SnapshotRecordGit = {};
-    for (const name of this.#namesForScope(options.scope, options.gameWorkspace)) {
+    for (const name of this.#namesForScope(options.scope, options.projectWorkspace)) {
       const dir = this.dirFor(name);
       await ensureRepo(dir);
       // `add -A` in the middle of the user's merge would commit their conflict markers for them.
@@ -281,21 +281,21 @@ export class SnapshotEngine {
    * the snapshot (a half-written broken tool, for instance) actually disappear.
    *
    * `scope` narrows the restore to part of what the record captured — a "both" snapshot can be
-   * rewound game-only, leaving the harness where it stands. A workspace the record holds no
+   * rewound project-only, leaving the harness where it stands. A workspace the record holds no
    * commit for is skipped, so widening beyond the record is harmless but does nothing.
    *
-   * A game folder is somebody's own, and they may be working in it while a round runs. Before its
+   * A project folder is somebody's own, and they may be working in it while a round runs. Before its
    * reset, everything the folder holds is committed to a rescue snapshot, which this returns (null
-   * when no game was restored). The restore is refused, with the folder untouched, when that
+   * when no project was restored). The restore is refused, with the folder untouched, when that
    * rescue cannot be taken, when the folder is no longer on the branch the snapshot was taken on,
    * or when the branch holds commits since the snapshot that are not the studio's own.
    */
   async restore(
     record: SnapshotRecord,
-    options: { gameWorkspace?: string; scope?: SnapshotScope } = {},
+    options: { projectWorkspace?: string; scope?: SnapshotScope } = {},
   ): Promise<SnapshotRecord | null> {
     const targets: Array<{ name: string; dir: string; commit: string }> = [];
-    for (const name of this.#namesForScope(options.scope ?? record.scope, options.gameWorkspace)) {
+    for (const name of this.#namesForScope(options.scope ?? record.scope, options.projectWorkspace)) {
       const commit = name === HARNESS_WORKSPACE ? record.git.harness : record.git.game;
       if (commit) targets.push({ name, dir: this.dirFor(name), commit });
     }
@@ -307,8 +307,8 @@ export class SnapshotEngine {
       await this.#refuseMovedHistory(name, dir, commit, record.git.gameBranch);
       try {
         rescue = await this.snapshot({
-          scope: SnapshotScope.Game,
-          gameWorkspace: name,
+          scope: SnapshotScope.Project,
+          projectWorkspace: name,
           reason: MESSAGE.RescueReason(record.snapshot_id),
         });
       } catch (err) {
@@ -371,10 +371,10 @@ export class SnapshotEngine {
   }
 
   /**
-   * A playable fork of a game workspace at a snapshot — pairs with an event-log fork.
+   * A playable fork of a project workspace at a snapshot — pairs with an event-log fork.
    *
    * `versionNested` is the user's answer to "may the studio version the repositories inside my
-   * game folder" (decision 1, 2026-09-08): with it, the fork's copy of a nested repository is
+   * project folder" (decision 1, 2026-09-08): with it, the fork's copy of a nested repository is
    * committed here, so a worker's edits inside it are real work the studio can keep, roll back
    * and merge. Without it the copy is what it always was — files to read and run, versioned by
    * nothing.
@@ -388,12 +388,12 @@ export class SnapshotEngine {
     const dir = this.dirFor(workspace);
     const resolved = await resolveCommit(dir, commit);
     await git(dir, ["worktree", "add", "--detach", "-f", "--end-of-options", targetDir, resolved]);
-    // A game with its own build needs its dependencies in the copy too: node_modules is
+    // A project with its own build needs its dependencies in the copy too: node_modules is
     // ignored by git, so the worktree gets a link to the workspace's own.
     await this.#linkModules(dir, targetDir, "");
-    // A nested git repository inside the game (the user's own project dropped into the folder)
+    // A nested git repository inside the project (the user's own project dropped into the folder)
     // is a bare pointer in the studio's history and an empty directory in a worktree. Copy its
-    // working tree in (without its .git) so agents see and run the game — a director once spent
+    // working tree in (without its .git) so agents see and run the project — a director once spent
     // its first quarter hour discovering this.
     const nested = await this.nestedRepositories(workspace, resolved);
     for (const rel of nested) {
@@ -408,16 +408,16 @@ export class SnapshotEngine {
     }
     if (options.versionNested) await this.#versionNested(targetDir, nested, resolved);
     // After the conversion, never before: a link is not a file the studio may commit into
-    // somebody's game.
+    // somebody's project.
     for (const rel of nested) await this.#linkModules(dir, targetDir, rel);
     return targetDir;
   }
 
   /**
    * Link a folder's installed packages into the fork instead of installing them again (142 MB
-   * for the game that produced this rule), so the game's own build runs where its package.json
+   * for the project that produced this rule), so the project's own build runs where its package.json
    * is. Only where git ignores that path: an untracked symlink is swept up by the next
-   * `git add -A`, and a landed one would point the user's game at itself.
+   * `git add -A`, and a landed one would point the user's project at itself.
    */
   async #linkModules(repoDir: string, targetDir: string, rel: string): Promise<void> {
     const relPath = rel ? `${rel}/node_modules` : "node_modules";
@@ -430,7 +430,7 @@ export class SnapshotEngine {
   }
 
   /**
-   * Replace the pointers to the game's own repositories with the files themselves — in this fork
+   * Replace the pointers to the project's own repositories with the files themselves — in this fork
    * only. A gitlink is committed by nothing: a worker's edits under `wreckage/` never reached an
    * "accepted" commit, survived a lost iteration's `reset --hard`, or landed (flautout-remix,
    * 2026-09-07). The live folder keeps its pointer until the user agrees to the same conversion
@@ -439,7 +439,7 @@ export class SnapshotEngine {
    * The commit is deterministic — same parent, same files, same identity, same date as the commit
    * it forks from — so two forks of one commit produce the *same* conversion commit. That makes
    * merging one fork into another a plain three-way merge instead of an add/add conflict on every
-   * file of the game.
+   * file of the project.
    */
   async #versionNested(targetDir: string, nested: string[], commit: string): Promise<void> {
     const staged: string[] = [];
@@ -453,7 +453,7 @@ export class SnapshotEngine {
     const date = (await gitOrNull(targetDir, ["show", "-s", "--format=%cI", "--end-of-options", commit]))?.trim();
     await gitOrNull(
       targetDir,
-      ["commit", "-q", "-m", `studio: version ${staged.join(", ")} — the game's own repositories`],
+      ["commit", "-q", "-m", `studio: version ${staged.join(", ")} — the project's own repositories`],
       date ? { GIT_AUTHOR_DATE: date, GIT_COMMITTER_DATE: date } : {},
     );
   }

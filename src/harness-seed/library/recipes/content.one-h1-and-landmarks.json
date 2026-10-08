@@ -1,0 +1,40 @@
+{
+  "id": "content.one-h1-and-landmarks",
+  "title": "One main heading and real landmarks",
+  "tags": [
+    "heading",
+    "h1",
+    "landmark",
+    "main",
+    "nav",
+    "header",
+    "footer",
+    "semantic",
+    "outline",
+    "document",
+    "seo",
+    "structure"
+  ],
+  "checkClass": "heading-outline",
+  "kind": "craft",
+  "pack": "a11y",
+  "appKinds": ["content-site", "dashboard", "form-flow", "list-manager", "utility", "editor", "data-viz"],
+  "note": "One h1, headings in order, and header, nav, main and footer elements instead of anonymous divs.",
+  "intent": "The structure of a page is a feature for everyone who does not scan it with their eyes. Use exactly one h1 that names the page, h2 and h3 in order without skipping levels, and the landmark elements: header, nav (with an aria-label when there are several), main (one), footer. Links go somewhere (a real href), buttons do something, lists are ul/ol, tables have headers. Set the document title and language. This also makes the page far easier to test.",
+  "check": {
+    "id": "heading-outline",
+    "kind": "scene",
+    "js": "dom.count('h1') === 1 && dom.count('main, [role=main]') === 1",
+    "weight": "normal",
+    "note": "Exactly one displayed h1 and one main landmark."
+  },
+  "port": "The shell owns header, nav, main and footer; views render into main and start their own content with an h1 or h2.",
+  "evidence": [],
+  "stats": {
+    "applied": 0,
+    "wins": 0,
+    "losses": 0
+  },
+  "status": "candidate",
+  "origin": "seed"
+}

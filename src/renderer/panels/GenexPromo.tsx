@@ -1,9 +1,9 @@
 /**
  * The Genex promo: a card floating in a bottom corner after the welcome, with a short film of
  * Genex making assets, three lines on what it does and one button that connects it. Over home it
- * sits bottom-left, clear of home's composer, and moves nothing beneath it; over a game it sits
+ * sits bottom-left, clear of home's composer, and moves nothing beneath it; over a project it sits
  * bottom-right, over the stage, away from the chat's composer. It never covers the welcome or
- * Plugins, settles for good once dismissed or connected, and hands a running game's rectangle back
+ * Plugins, settles for good once dismissed or connected, and hands a running project's rectangle back
  * to the DOM while it is up (`stage/native-bounds.ts`).
  */
 import type { JSX } from "react";

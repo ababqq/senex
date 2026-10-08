@@ -244,7 +244,7 @@ function box(
   for (let i = 0; i < 4; i++) L.push({ c, k, p: [bot[i], top[i]] });
 }
 
-/** The stopped game: an upright square plate, the stop sign as a slab, with its face inset. */
+/** The stopped project: an upright square plate, the stop sign as a slab, with its face inset. */
 function stopPlate(): Line[] {
   if (stopPlateLines) return stopPlateLines;
   const L: Line[] = [];

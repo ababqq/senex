@@ -1,7 +1,7 @@
 /**
  * Legacy custom covers: a deliberately small GLSL surface language from before recipes. Saved
  * covers keep rendering, and already-installed harnesses may still author one through
- * `game.setCoverShader`; new covers are recipes (cover-recipe.ts). The host owns the lens and GPU work.
+ * `project.setCoverShader`; new covers are recipes (cover-recipe.ts). The host owns the lens and GPU work.
  */
 export type CoverShaderVersion = 1 | 2;
 const FUNCTIONS = new Set(

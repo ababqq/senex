@@ -12,11 +12,11 @@ test("summary reader caches full histories, reads appended tails, and includes e
     const studio = await store.createThread({ title: "Studio" });
     const first = await store.createThread({
       title: "Earlier",
-      metadata: { project: "game" },
+      metadata: { project: "project" },
     });
     const second = await store.createThread({
       title: "Later",
-      metadata: { project: "game" },
+      metadata: { project: "project" },
     });
     const other = await store.createThread({
       title: "Other",
@@ -31,15 +31,19 @@ test("summary reader caches full histories, reads appended tails, and includes e
       return list(...args);
     };
     const reader = new RunSummaryReader(store);
-    const before = await reader.forProject("game", studio);
+    const before = await reader.forProject("project", studio);
     const count = reads;
     assert.ok(before.some((e) => e.thread_id === first));
     assert.ok(before.some((e) => e.thread_id === second));
     assert.ok(!before.some((e) => e.thread_id === other));
-    assert.equal(await reader.forProject("game", studio), before, "unchanged heads reuse the merged project history");
+    assert.equal(
+      await reader.forProject("project", studio),
+      before,
+      "unchanged heads reuse the merged project history",
+    );
     assert.equal(reads, count);
     await store.appendEvents(first, [{ type: "custom", event_type: "run_finished", payload: { runId: "r" } }]);
-    const [one, two] = await Promise.all([reader.forProject("game", studio), reader.forProject("game", studio)]);
+    const [one, two] = await Promise.all([reader.forProject("project", studio), reader.forProject("project", studio)]);
     assert.equal(one.length, before.length + 1);
     assert.deepEqual(one, two);
     assert.equal(reads, count + 1);

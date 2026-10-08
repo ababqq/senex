@@ -52,7 +52,7 @@ export interface InspectorProps {
   resultPath: string | null;
   /** the result's picture is a part's, lent while the new build is being tried */
   resultBorrowed: boolean;
-  /** the lead's newest view of the game, while it has the run */
+  /** the lead's newest view of the project, while it has the run */
   leadFrame: AgentScreenFrame | null;
   onClose: () => void;
   onSelect: (id: string) => void;

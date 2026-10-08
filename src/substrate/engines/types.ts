@@ -150,7 +150,7 @@ export const DelegateEventType = {
   Stderr: "stderr",
   /** A note the studio put in front of the session (an output limit, a progress check). */
   Status: "status",
-  /** The contractor said the game reached a moment worth seeing. */
+  /** The contractor said the project reached a moment worth seeing. */
   Checkpoint: "checkpoint",
   System: "system",
   Assistant: "assistant",
@@ -230,7 +230,7 @@ export interface DelegateRequest {
   compact?: boolean;
   /** Stills folders the user named outside this workspace — readable, not writable. */
   extraReads?: string[];
-  /** Sibling folders the contractor must not Read — other games, not stills. */
+  /** Sibling folders the contractor must not Read — other projects, not stills. */
   denyReads?: string[];
   /** Host-stored folder trust; never taken from an editable harness RPC parameter. */
   trustedProjectSettings?: boolean;
@@ -268,7 +268,7 @@ export interface DelegateRequest {
   playtest?: DelegatePlaytestGrant;
   /**
    * The director (director, 2026-09-07): the run's orchestrating session. Its cwd is the run's integration
-   * worktree (`root`) — or, for a waking night's lead, the game folder, leading that worktree; it gets the computer tool on a window of its own (`look` points that window at
+   * worktree (`root`) — or, for a waking night's lead, the project folder, leading that worktree; it gets the computer tool on a window of its own (`look` points that window at
    * any build of the run), capture, and the harness's run tools — workers, judges, playtests,
    * merges, finish — which the studio forwards to the harness process that owns them. The
    * serializable half; the studio injects the closures.
@@ -294,10 +294,10 @@ export interface DelegateRequest {
    * facet's notes and the wiring line of src/main.js) before the edit lands, with a reason
    * the contractor reads. `ownsMain` also allows src/main.js, src/studio.js and index.html.
    *
-   * `template: false` is a game the user brought (M4.6): the entry has no wiring block to pass
+   * `template: false` is a project the user brought (M4.6): the entry has no wiring block to pass
    * through, and a worker with no seam owns the repository minus the entry, the contract and
    * the page. `neverLock` names directory prefixes the Codex locks must leave writable — a
-   * shape's own build output, on top of the lockfiles and caches every game has.
+   * shape's own build output, on top of the lockfiles and caches every project has.
    */
   ownership?: DelegateOwnership;
   /**
@@ -311,13 +311,13 @@ export interface DelegateRequest {
   steer?: { ready(send: SteerSend | null): void };
   /**
    * A person is answering this chat and chose how it may act (Claude Code's permission modes).
-   * Present only for a game chat's own session answering a message the person sent: the host
+   * Present only for a project chat's own session answering a message the person sent: the host
    * decides that from what it recorded, never the harness. Absent, the engine keeps the
    * unattended contract: sandboxed shell, edits in the workspace, no questions.
    */
   permissions?: DelegatePermissions;
   /**
-   * A build's lead, or the run's coordinator, in a game chat: the chat's main agent, limited only by
+   * A build's lead, or the run's coordinator, in a project chat: the chat's main agent, limited only by
    * the chat's mode and the rules the person saved. Its session gets Claude Code's tools, no sandbox
    * and no blanket shell, in its chat's Auto, Accept edits or Bypass, else in Manual
    * (`LeadAsks.mode`), which the picker switches while it runs (`onControl`); every tool call but a
@@ -366,7 +366,7 @@ export type PermissionReply = ToolPermissionAnswer | WithdrawnAnswer;
 
 /** What a session that asks is handed: its standing grants, the host files it never edits, and the way to ask. */
 export interface DelegateAsks {
-  /** Saved "always allow" rules for this game and this chat, in Claude Code's rule syntax. */
+  /** Saved "always allow" rules for this project and this chat, in Claude Code's rule syntax. */
   allow: string[];
   /** Folders granted for this chat, beyond the workspace and `extraReads`. */
   directories: string[];
@@ -402,7 +402,7 @@ export interface AskFirst {
 /**
  * What a build's lead or the run's coordinator is handed: a session that asks, and the host's word
  * on each tool call before anything else decides it. Claude Code applies its mode and allow rules
- * (the saved ones, a game's own `.claude` settings) before it asks, so only a check that runs ahead
+ * (the saved ones, a project's own `.claude` settings) before it asks, so only a check that runs ahead
  * of them holds while the chat is in a mode the session could not be switched to.
  */
 export interface LeadAsks extends DelegateAsks {
@@ -481,9 +481,9 @@ export interface Engine {
   refreshModels?(force?: boolean): Promise<void>;
   /** Local engines: delete an installed model from this Mac. */
   removeModel?(id: string): Promise<void>;
-  /** One-shot completion. Direct engines use this for the whole tool loop; Claude Code uses it only as the isolated critic (no tools, no game folder). */
+  /** One-shot completion. Direct engines use this for the whole tool loop; Claude Code uses it only as the isolated critic (no tools, no project folder). */
   complete?(request: CompleteRequest): Promise<CompleteResponse>;
-  /** Build a game. Delegated engines (Claude Code) take a brief and work in a workspace. */
+  /** Build a project. Delegated engines (Claude Code) take a brief and work in a workspace. */
   delegate?(request: DelegateRequest): Promise<DelegateResult>;
   defaultModel?(): Promise<string | null>;
 }

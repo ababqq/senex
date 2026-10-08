@@ -138,7 +138,7 @@ export type DispatchAction =
       stills?: ReferenceFrame[];
       /** How many of `stills` the composer attached (they come first); a rewind gives them back. */
       pickedImages?: number;
-      /** Reference files this message saved in the game (relative paths); a rewind with files removes them. */
+      /** Reference files this message saved in the project (relative paths); a rewind with files removes them. */
       references?: string[];
       /** Composer Loop: the chat may start an unattended build when the ask needs one. */
       loop?: LoopCommission;
@@ -265,7 +265,7 @@ export interface RunReference {
   shots: string[];
   notes?: string;
   /**
-   * "reference" is a real game to beat (the blind panel is the exit); "direction" is free text
+   * "reference" is a real project to beat (the blind panel is the exit); "direction" is free text
    * to push toward — no panel, the run spends its whole budget iterating.
    */
   kind?: "reference" | "direction";
@@ -318,7 +318,7 @@ export interface RunSpec {
   directorLoop?: "wake" | "turn";
   /**
    * gauntlet reference bar — Named / Fetchable / Comparable. `kind` widens it:
-   * "reference" is a real game to beat (the blind panel is the exit condition); "direction" is
+   * "reference" is a real project to beat (the blind panel is the exit condition); "direction" is
    * free text to push toward — no reference panel. Completion is controlled by budgets.
    */
   reference: RunReference;

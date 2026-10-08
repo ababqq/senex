@@ -8,7 +8,7 @@ import { CheckResult, ProbeRow, type RendererMode } from "../../vocabulary.ts";
 import type { DarkPhaseReview } from "../dark-phase.ts";
 import { fullscreenOf, pointerLockOf } from "../driver.ts";
 import type { ProbeRms, ProbeSample } from "../instrument.ts";
-import { type QuickObservation, quickGameplay, quickRows } from "../quick-rows.ts";
+import { type QuickObservation, quickInteraction, quickRows } from "../quick-rows.ts";
 import type { Check } from "../types.ts";
 import { lookInputVerdict } from "../verdicts.ts";
 import { ackRow } from "./ack.ts";
@@ -78,7 +78,7 @@ function soakRows(o: FullObservation): Check[] {
     lookInput: lookInputVerdict(lock),
     fullscreen: fullscreenOf(last),
     entranceConfirmed: o.quick.entrance?.verdict.confirmed ?? false,
-    gameplay: quickGameplay(o.quick),
+    interaction: quickInteraction(o.quick),
   };
   return [
     survivesRow(o.soak, heapGrowth(last?.heap), o.soakShortenedWhy),
@@ -100,7 +100,7 @@ export function fullRows(o: FullObservation): Check[] {
     assetsUsableRow(q.events, ranOver(q.snapshots, q.events)),
     spatiallyLegibleRow(),
     darkPhaseRow(q.frames, q.firstRenderMs, o.darkPhaseReview),
-    ...audioRows(audioFacts(last, o.rms, q.events.network), quickGameplay(q)),
+    ...audioRows(audioFacts(last, o.rms, q.events.network), quickInteraction(q)),
     phoneViewportRow(o.mobile),
   ];
   return rows.sort((a, b) => ROW_ORDER.indexOf(a.id) - ROW_ORDER.indexOf(b.id));

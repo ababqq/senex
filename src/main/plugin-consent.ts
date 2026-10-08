@@ -97,7 +97,7 @@ export class PluginConsent {
 
   /**
    * Withdraw every pending question in scope. A scope key left undefined matches everything, so
-   * `{}` is the shutdown path, `{threadId}` a turn's end and `{project}` a game's Stop. A turn's
+   * `{}` is the shutdown path, `{threadId}` a turn's end and `{project}` a project's Stop. A turn's
    * end leaves a question that outlives turns (`outlivesTurn`). Returns how many were settled.
    */
   cancel(scope: { project?: string; threadId?: string }, by: "stop" | "turn"): number {

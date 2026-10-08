@@ -1,6 +1,6 @@
 /**
  * A local session's chat mode (`local-session.ts`): which of its tool calls wait for the person
- * and how their answer reads to the model. Only a game chat's own session the person answers has a
+ * and how their answer reads to the model. Only a project chat's own session the person answers has a
  * mode (`DelegateRequest.permissions`); unattended work never asks. The studio runs these tools
  * itself, so it asks before each change as Claude Code does: Manual before every edit and command,
  * Accept edits before every command, Auto never; Plan refuses every change until the plan is

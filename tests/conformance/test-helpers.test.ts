@@ -23,20 +23,20 @@ describe("fakeStudioApi", () => {
   it("answers every named call with a default, records it, and lets a test replace one", async () => {
     const studio = fakeStudioApi();
     for (const method of STUDIO_METHODS) assert.equal(typeof studio.api[method], "function", method);
-    assert.deepEqual(await studio.api.games(), []);
+    assert.deepEqual(await studio.api.projects(), []);
     assert.equal((await studio.api.bootstrap()).threadId, "thread-main");
     studio.stub("renameThread", async () => undefined as never);
     await studio.api.renameThread("t1", "Pong");
     assert.deepEqual(studio.callsOf("renameThread"), [["t1", "Pong"]]);
     assert.deepEqual(
       studio.calls.map((call) => call.method),
-      ["games", "bootstrap", "renameThread"],
+      ["projects", "bootstrap", "renameThread"],
     );
   });
 
   it("in strict mode refuses any call the test did not stub", async () => {
-    const studio = fakeStudioApi({ games: async () => [] }, { strict: true });
-    assert.deepEqual(await studio.api.games(), []);
+    const studio = fakeStudioApi({ projects: async () => [] }, { strict: true });
+    assert.deepEqual(await studio.api.projects(), []);
     await assert.rejects(studio.api.stopRun("run-a"), /stopRun is not stubbed/);
   });
 

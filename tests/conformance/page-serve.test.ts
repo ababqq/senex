@@ -14,9 +14,9 @@ import {
   confinePreviewContents,
   cspNote,
   findMetaCsp,
-  gameRequestAllowed,
+  projectRequestAllowed,
   previewNavigationAllowed,
-  rewriteGameHtml,
+  rewriteProjectHtml,
   shimTag,
   resolveServed,
   routeHttp,
@@ -42,7 +42,7 @@ const read = (name: string) => fs.readFileSync(path.join(FIXTURES, name), "utf8"
 describe("the served page", () => {
   it("puts the shim ahead of every module script and of the import map", () => {
     for (const name of DOCUMENTS) {
-      const { html, injected } = rewriteGameHtml(read(name));
+      const { html, injected } = rewriteProjectHtml(read(name));
       assert.equal(injected, true, name);
       const shim = html.indexOf(SHIM_TAG);
       assert.ok(shim >= 0, `${name} has no shim tag`);
@@ -55,7 +55,7 @@ describe("the served page", () => {
 
   it("puts the hook after the import map, because a module ahead of a map disables it", () => {
     for (const name of ["template.html", "map-first.html", "meta-csp.html"]) {
-      const { html } = rewriteGameHtml(read(name));
+      const { html } = rewriteProjectHtml(read(name));
       const map = html.indexOf('<script type="importmap"');
       const hook = html.indexOf(HOOK_TAG);
       assert.ok(map >= 0 && hook > map, `${name}: hook at ${hook}, map at ${map}`);
@@ -65,7 +65,7 @@ describe("the served page", () => {
 
   it("keeps the charset declaration inside the first kilobyte", () => {
     for (const name of DOCUMENTS) {
-      const { html } = rewriteGameHtml(read(name));
+      const { html } = rewriteProjectHtml(read(name));
       const at = html.toLowerCase().indexOf("<meta charset");
       assert.ok(at < CHARSET_BUDGET, `${name}: charset at ${at}`);
       if (read(name).toLowerCase().includes("<meta charset")) assert.ok(at >= 0, `${name} lost its charset`);
@@ -74,8 +74,8 @@ describe("the served page", () => {
 
   it("is idempotent — a page already carrying the shim comes back unchanged", () => {
     for (const name of DOCUMENTS) {
-      const once = rewriteGameHtml(read(name));
-      const twice = rewriteGameHtml(once.html);
+      const once = rewriteProjectHtml(read(name));
+      const twice = rewriteProjectHtml(once.html);
       assert.equal(twice.injected, false, name);
       assert.equal(twice.html, once.html, name);
     }
@@ -97,17 +97,17 @@ describe("the served page", () => {
     ];
     for (const mention of mentions) {
       const source = mention(read("template.html"));
-      const result = rewriteGameHtml(source, { documentUrl: "game://sweep/index.html" });
+      const result = rewriteProjectHtml(source, { documentUrl: "project://sweep/index.html" });
       assert.equal(result.injected, true, "a page that only mentions the attribute was left untouched");
       assert.ok(result.html.includes(SHIM_TAG), "the served page has no shim");
       assert.equal(result.reach, "import-map");
       // And the real thing is still idempotent.
-      assert.equal(rewriteGameHtml(result.html, { documentUrl: "game://sweep/index.html" }).injected, false);
+      assert.equal(rewriteProjectHtml(result.html, { documentUrl: "project://sweep/index.html" }).injected, false);
     }
   });
 
   it("does not drop its tags into a comment that mentions the head", () => {
-    const { html } = rewriteGameHtml(read("commented-head.html"));
+    const { html } = rewriteProjectHtml(read("commented-head.html"));
     const comment = html.indexOf("<!-- <head>");
     const shim = html.indexOf(SHIM_TAG);
     assert.ok(shim > html.indexOf("-->", comment), "the shim landed inside the comment");
@@ -120,14 +120,14 @@ describe("the served page", () => {
       source.indexOf('<script type="importmap"'),
       source.indexOf("</script>") + "</script>".length,
     );
-    assert.ok(rewriteGameHtml(source).html.includes(map));
+    assert.ok(rewriteProjectHtml(source).html.includes(map));
   });
 
   it("names a meta content-security-policy instead of editing it", () => {
     const source = read("meta-csp.html");
     const csp = findMetaCsp(source);
     assert.equal(csp?.directive, "script-src");
-    const { html, notes } = rewriteGameHtml(source);
+    const { html, notes } = rewriteProjectHtml(source);
     assert.ok(notes.includes(cspNote(csp!)));
     assert.ok(html.includes(`content="default-src 'none'; script-src 'unsafe-inline'; img-src data:"`));
     assert.equal(findMetaCsp(read("template.html")), null);
@@ -143,7 +143,7 @@ describe("the served page", () => {
       readyMs: 30_000,
       seed: null,
     });
-    assert.ok(rewriteGameHtml(read("template.html"), { shim: { readyMs: 30_000, seed: null } }).html.includes(tag));
+    assert.ok(rewriteProjectHtml(read("template.html"), { shim: { readyMs: 30_000, seed: null } }).html.includes(tag));
   });
 });
 
@@ -208,11 +208,11 @@ describe("which file a request names", () => {
     const outside = await tmpDir("studio-outside-");
     const worktree = path.join(holder, "facet-a");
     touch(path.join(worktree, "index.html"));
-    touch(path.join(outside, "secret.txt"), "not the game's\n");
-    touch(path.join(outside, "index.html"), "not the game's\n");
+    touch(path.join(outside, "secret.txt"), "not the project's\n");
+    touch(path.join(outside, "index.html"), "not the project's\n");
     const pinned = real(worktree);
     const vendor = await tmpDir("studio-vendor-");
-    const roots = { vendor, gameRoot: () => worktree, pinnedGameRoot: () => pinned };
+    const roots = { vendor, projectRoot: () => worktree, pinnedProjectRoot: () => pinned };
     assert.deepEqual(await servedLocation("index.html", roots), { ok: true, path: path.join(pinned, "index.html") });
     // The worktree folder is replaced by a link out of scratch after the check.
     fs.renameSync(worktree, `${worktree}-moved`);
@@ -249,39 +249,39 @@ describe("which file a request names", () => {
     }
   });
 
-  it("reads vendor paths from the studio's vendor folder and asks for a game root only otherwise", async () => {
+  it("reads vendor paths from the studio's vendor folder and asks for a project root only otherwise", async () => {
     const vendor = await tmpDir("studio-vendor-");
-    const game = await tmpDir("studio-game-");
+    const project = await tmpDir("studio-project-");
     touch(path.join(vendor, "three.module.js"));
-    touch(path.join(game, "vendorish", "a.js"));
+    touch(path.join(project, "vendorish", "a.js"));
     let asked = 0;
-    const roots = { vendor, gameRoot: () => (asked++, game) };
+    const roots = { vendor, projectRoot: () => (asked++, project) };
     assert.deepEqual(await servedLocation("vendor/three.module.js", roots), {
       ok: true,
       path: path.join(real(vendor), "three.module.js"),
     });
     assert.deepEqual(await servedLocation("vendor", roots), { ok: true, path: real(vendor) });
     assert.deepEqual(await servedLocation("vendor/../../x", roots), { ok: false, status: 403 });
-    assert.equal(asked, 0, "a vendor request never looks the game up");
+    assert.equal(asked, 0, "a vendor request never looks the project up");
     assert.deepEqual(await servedLocation("vendorish/a.js", roots), {
       ok: true,
-      path: path.join(real(game), "vendorish", "a.js"),
+      path: path.join(real(project), "vendorish", "a.js"),
     });
     assert.equal(asked, 1);
   });
 
-  it("serves only game names the library could have made", () => {
+  it("serves only project names the library could have made", () => {
     assert.equal(servableProject("pond-life_2"), true);
     for (const name of ["", "-lead", "Pond", "pond life", "../pond", "pond/.."])
       assert.equal(servableProject(name), false, name);
   });
 
-  it("refuses a symlink planted in the game that leads out of it (SECUI-2)", async () => {
-    // Flipped from the Stage 0 pin "follows a symlink out of the game folder (current behaviour)":
+  it("refuses a symlink planted in the project that leads out of it (SECUI-2)", async () => {
+    // Flipped from the Stage 0 pin "follows a symlink out of the project folder (current behaviour)":
     // lexical containment passed the link, and the main process's file:// fetch followed it.
     const outside = await tmpDir("studio-outside-");
     const base = await tmpDir("studio-serve-");
-    touch(path.join(outside, "secret.txt"), "not the game's\n");
+    touch(path.join(outside, "secret.txt"), "not the project's\n");
     fs.mkdirSync(path.join(base, "assets"));
     fs.symlinkSync(path.join(outside, "secret.txt"), path.join(base, "assets", "k.txt"));
     fs.symlinkSync(outside, path.join(base, "linked-dir"));
@@ -291,7 +291,7 @@ describe("which file a request names", () => {
     }
   });
 
-  it("serves a link that stays inside the game, at its real path", async () => {
+  it("serves a link that stays inside the project, at its real path", async () => {
     const base = await tmpDir("studio-serve-");
     touch(path.join(base, "assets", "real.png"));
     fs.symlinkSync(path.join(base, "assets", "real.png"), path.join(base, "alias.png"));
@@ -301,15 +301,15 @@ describe("which file a request names", () => {
     });
   });
 
-  it("serves a worktree's packages through the studio's link to the live game's node_modules (R4)", async () => {
-    // SnapshotEngine.worktreeAt links <worktree>/node_modules to the live game's; a game with an
+  it("serves a worktree's packages through the studio's link to the live project's node_modules (R4)", async () => {
+    // SnapshotEngine.worktreeAt links <worktree>/node_modules to the live project's; a project with an
     // import map onto ./node_modules/three must still load in a worker's preview.
     const live = await tmpDir("studio-live-");
     const outside = await tmpDir("studio-outside-");
     const module = path.join("node_modules", "three", "build", "three.module.js");
     touch(path.join(live, module), "export {};\n");
     touch(path.join(live, "sub", module), "export {};\n");
-    touch(path.join(outside, "secret.txt"), "not the game's\n");
+    touch(path.join(outside, "secret.txt"), "not the project's\n");
     touch(path.join(outside, "node_modules", "x.js"));
     fs.symlinkSync(path.join(outside, "secret.txt"), path.join(live, "node_modules", "planted.txt"));
     const worktree = await tmpDir("studio-worktree-");
@@ -318,13 +318,13 @@ describe("which file a request names", () => {
     fs.mkdirSync(path.join(worktree, "sub"));
     fs.symlinkSync(path.join(live, "sub", "node_modules"), path.join(worktree, "sub", "node_modules"), "dir");
     const vendor = await tmpDir("studio-vendor-");
-    const roots = { vendor, gameRoot: () => worktree, liveRoot: () => live };
+    const roots = { vendor, projectRoot: () => worktree, liveRoot: () => live };
     assert.deepEqual(await servedLocation(module, roots), { ok: true, path: path.join(real(live), module) });
     assert.deepEqual(await servedLocation(`sub/${module}`, roots), {
       ok: true,
       path: path.join(real(live), "sub", module),
     });
-    // Hostile rows: the exception reaches the live game's own packages and nothing else.
+    // Hostile rows: the exception reaches the live project's own packages and nothing else.
     fs.symlinkSync(path.join(outside, "node_modules"), path.join(worktree, "other-modules"));
     fs.mkdirSync(path.join(worktree, "evil"));
     fs.symlinkSync(path.join(outside, "node_modules"), path.join(worktree, "evil", "node_modules"));
@@ -338,21 +338,21 @@ describe("which file a request names", () => {
     ];
     for (const request of refused)
       assert.deepEqual(await servedLocation(request, roots), { ok: false, status: 403 }, request);
-    // Without a live game to compare with (the live preview itself), nothing changes.
-    assert.deepEqual(await servedLocation(module, { vendor, gameRoot: () => worktree }), { ok: false, status: 403 });
+    // Without a live project to compare with (the live preview itself), nothing changes.
+    assert.deepEqual(await servedLocation(module, { vendor, projectRoot: () => worktree }), { ok: false, status: 403 });
   });
 
-  it("serves a game whose own folder is reached through a link (a linked games root)", async () => {
+  it("serves a project whose own folder is reached through a link (a linked projects root)", async () => {
     const holder = await tmpDir("studio-holder-");
-    const game = await tmpDir("studio-game-");
-    touch(path.join(game, "index.html"));
+    const project = await tmpDir("studio-project-");
+    touch(path.join(project, "index.html"));
     const linked = path.join(holder, "pond-life");
-    fs.symlinkSync(game, linked);
+    fs.symlinkSync(project, linked);
     assert.deepEqual(await resolveServed(linked, "index.html"), {
       ok: true,
-      path: path.join(real(game), "index.html"),
+      path: path.join(real(project), "index.html"),
     });
-    assert.deepEqual(await resolveServed(linked, "."), { ok: true, path: real(game) });
+    assert.deepEqual(await resolveServed(linked, "."), { ok: true, path: real(project) });
   });
 
   it("answers 404, not a guess, when the file or the folder is missing", async () => {
@@ -370,7 +370,7 @@ describe("which file a request names", () => {
     const vendor = await tmpDir("studio-vendor-");
     touch(path.join(outside, "secret.txt"));
     fs.symlinkSync(path.join(outside, "secret.txt"), path.join(vendor, "three.module.js"));
-    const roots = { vendor, gameRoot: () => vendor };
+    const roots = { vendor, projectRoot: () => vendor };
     assert.deepEqual(await servedLocation("vendor/three.module.js", roots), { ok: false, status: 403 });
     assert.deepEqual(await servedLocation("vendor/missing.js", roots), { ok: false, status: 404 });
   });
@@ -379,7 +379,7 @@ describe("which file a request names", () => {
 describe("which http requests are the studio's", () => {
   const ports = new Map([[41234, "pond-life"]]);
 
-  it("serves a game on the loopback port it was given, under either loopback name", () => {
+  it("serves a project on the loopback port it was given, under either loopback name", () => {
     assert.deepEqual(routeHttp("http://localhost:41234/index.html", ports), { route: "serve", project: "pond-life" });
     assert.deepEqual(routeHttp(new URL("http://127.0.0.1:41234/src/main.js"), ports), {
       route: "serve",
@@ -402,20 +402,20 @@ describe("which http requests are the studio's", () => {
   });
 });
 
-describe("what the game partition may request (SECUI-3)", () => {
+describe("what the project partition may request (SECUI-3)", () => {
   const ports = new Map([[41234, "pond-life"]]);
 
-  it("allows the studio's own schemes and the game's registered loopback port", () => {
+  it("allows the studio's own schemes and the project's registered loopback port", () => {
     for (const url of [
-      "game://pond-life/index.html",
-      "game://pond-life/vendor/three.module.js",
+      "project://pond-life/index.html",
+      "project://pond-life/vendor/three.module.js",
       "data:image/png;base64,AAAA",
-      "blob:game://pond-life/1b4a2f",
+      "blob:project://pond-life/1b4a2f",
       "devtools://devtools/bundled/devtools_app.html",
       "http://localhost:41234/index.html",
       "http://127.0.0.1:41234/assets/a.png",
     ])
-      assert.equal(gameRequestAllowed(url, ports), true, url);
+      assert.equal(projectRequestAllowed(url, ports), true, url);
   });
 
   it("refuses the network: remote hosts, unregistered loopback ports and every other scheme", () => {
@@ -435,20 +435,20 @@ describe("what the game partition may request (SECUI-3)", () => {
       "chrome-extension://abc/x.js",
       "not a url",
       "",
-      // L2: other spellings of "this machine", which reach a server the game did not get.
+      // L2: other spellings of "this machine", which reach a server the project did not get.
       "http://localhost.:41234/",
       "http://0.0.0.0:41234/",
       "http://a.localhost:41234/",
       "http://[::ffff:127.0.0.1]:41234/",
-      "filesystem:game://pond-life/temporary/x",
+      "filesystem:project://pond-life/temporary/x",
       "chrome://gpu",
     ])
-      assert.equal(gameRequestAllowed(url, ports), false, url);
+      assert.equal(projectRequestAllowed(url, ports), false, url);
     // The URL parser lowercases the host: this is the registered origin, not another one.
-    assert.equal(gameRequestAllowed("http://LOCALHOST:41234/", ports), true);
+    assert.equal(projectRequestAllowed("http://LOCALHOST:41234/", ports), true);
   });
 
-  it("lets a game read its libraries and fonts from the well-known public CDNs, and nothing else there", () => {
+  it("lets a project read its libraries and fonts from the well-known public CDNs, and nothing else there", () => {
     for (const url of [
       "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
       "https://unpkg.com/three@0.170.0/build/three.module.js",
@@ -457,9 +457,9 @@ describe("what the game partition may request (SECUI-3)", () => {
       "https://fonts.googleapis.com/css2?family=Inter",
       "https://fonts.gstatic.com/s/inter/v13/abc.woff2",
     ]) {
-      assert.equal(gameRequestAllowed(url, ports, "GET"), true, url);
-      assert.equal(gameRequestAllowed(url, ports, "HEAD"), true, url);
-      assert.equal(gameRequestAllowed(url, ports), true, `${url} (method unknown means a read)`);
+      assert.equal(projectRequestAllowed(url, ports, "GET"), true, url);
+      assert.equal(projectRequestAllowed(url, ports, "HEAD"), true, url);
+      assert.equal(projectRequestAllowed(url, ports), true, `${url} (method unknown means a read)`);
     }
     for (const [url, method] of [
       ["https://cdn.jsdelivr.net/npm/three/x.js", "POST"],
@@ -475,7 +475,7 @@ describe("what the game partition may request (SECUI-3)", () => {
       ["https://cdn.jsdеlivr.net/npm/three/x.js", "GET"],
       ["https://cdn.jsdelivr.net./npm/three/x.js", "GET"],
     ] as const)
-      assert.equal(gameRequestAllowed(url, ports, method), false, `${method} ${url}`);
+      assert.equal(projectRequestAllowed(url, ports, method), false, `${method} ${url}`);
   });
 });
 
@@ -487,12 +487,12 @@ describe("traffic the request filter never sees (M7)", () => {
   });
 });
 
-describe("where a game page may navigate (SECUI-3)", () => {
+describe("where a project page may navigate (SECUI-3)", () => {
   const ports = new Map([[41234, "pond-life"]]);
 
-  it("keeps the page on game:// and its registered loopback origin", () => {
+  it("keeps the page on project:// and its registered loopback origin", () => {
     for (const url of [
-      "game://pond-life/level-2.html",
+      "project://pond-life/level-2.html",
       "http://localhost:41234/index.html?genex_local_test=1",
       "http://127.0.0.1:41234/",
     ]) {
@@ -513,7 +513,7 @@ describe("where a game page may navigate (SECUI-3)", () => {
       "http://0.0.0.0:41234/",
       "http://a.localhost:41234/",
       "http://[::ffff:127.0.0.1]:41234/",
-      "filesystem:game://pond-life/temporary/x",
+      "filesystem:project://pond-life/temporary/x",
       "chrome://gpu",
     ]) {
       assert.equal(previewNavigationAllowed(url, ports, { mainFrame: true }), false, url);
@@ -522,7 +522,7 @@ describe("where a game page may navigate (SECUI-3)", () => {
   });
 
   it("lets an embedded frame hold content the page already has, never the top level", () => {
-    for (const url of ["about:blank", "about:srcdoc", "data:text/html,<p>hi</p>", "blob:game://pond-life/1b4a2f"]) {
+    for (const url of ["about:blank", "about:srcdoc", "data:text/html,<p>hi</p>", "blob:project://pond-life/1b4a2f"]) {
       assert.equal(previewNavigationAllowed(url, ports, { mainFrame: false }), true, url);
       assert.equal(previewNavigationAllowed(url, ports, { mainFrame: true }), false, url);
     }

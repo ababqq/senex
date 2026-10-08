@@ -9,30 +9,30 @@ it("host candidate authority routes direct and delegated writes away from live, 
   const rig = await startRig();
   try {
     const api = rig.core.api() as unknown as Record<string, (p: any) => Promise<any>>;
-    await api["game.scaffold"]!({ name: "candidate-game", title: "Candidate game" });
+    await api["project.scaffold"]!({ name: "candidate-project", title: "Candidate project" });
     const snapshot = await api["snapshot.create"]!({
       scope: "game",
-      project: "candidate-game",
+      project: "candidate-project",
       reason: "verified B",
       healthy: true,
     });
     const candidate = await api["optimization.open"]!({
-      project: "candidate-game",
+      project: "candidate-project",
       runId: "run_host",
       baselineSnapshotId: snapshot.snapshot_id,
     });
-    const live = rig.core.games.dirFor("candidate-game");
+    const live = rig.core.projects.dirFor("candidate-project");
     const baseline = await readFile(path.join(live, "src/main.js"), "utf8");
-    await api["game.write"]!({
-      project: "candidate-game",
+    await api["project.write"]!({
+      project: "candidate-project",
       candidateId: candidate.candidateId,
       file: "src/main.js",
       contents: baseline + "\n// candidate only\n",
     });
     assert.equal(await readFile(path.join(live, "src/main.js"), "utf8"), baseline);
     await assert.rejects(
-      api["game.write"]!({
-        project: "candidate-game",
+      api["project.write"]!({
+        project: "candidate-project",
         candidateId: candidate.candidateId,
         file: "../escape.js",
         contents: "bad",
@@ -53,7 +53,7 @@ it("host candidate authority routes direct and delegated writes away from live, 
     });
     await api["engine.delegate"]!({
       engine: "candidate-engine",
-      project: "candidate-game",
+      project: "candidate-project",
       candidateId: candidate.candidateId,
       cwd: live,
       prompt: "candidate",
@@ -66,7 +66,7 @@ it("host candidate authority routes direct and delegated writes away from live, 
     await assert.rejects(
       api["engine.delegate"]!({
         engine: "candidate-engine",
-        project: "candidate-game",
+        project: "candidate-project",
         candidateId: candidate.candidateId,
         coordinator: { runId: "run_host" },
         threadId: "t",
@@ -79,15 +79,15 @@ it("host candidate authority routes direct and delegated writes away from live, 
     await assert.rejects(
       api["engine.delegate"]!({
         engine: "candidate-engine",
-        project: "candidate-game",
+        project: "candidate-project",
         candidateId: candidate.candidateId,
         prompt: "late",
       }),
       /frozen/,
     );
     await assert.rejects(
-      api["game.write"]!({
-        project: "candidate-game",
+      api["project.write"]!({
+        project: "candidate-project",
         candidateId: candidate.candidateId,
         file: "late.js",
         contents: "bad",

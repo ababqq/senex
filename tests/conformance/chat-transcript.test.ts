@@ -23,7 +23,7 @@ import {
 
 const event = (n: number, data: EventData): EventEnvelope => ({
   id: String(n).padStart(6, "0"),
-  thread_id: "game",
+  thread_id: "project",
   turn_id: null,
   session_id: null,
   created_at: new Date(n).toISOString(),
@@ -41,7 +41,7 @@ it("upload review retains the complete host file list rather than the clipped ar
       pluginName: "Genex",
       tool: "genex__export_review",
       args: { files: "clipped" },
-      project: "game",
+      project: "project",
       prompt: "Review upload",
       state: "pending",
       exportReview: { included, excluded: [".env.local"] },
@@ -68,7 +68,7 @@ const consent = (n: number, consentId: string, state: "pending" | "approved" | "
     pluginName: "Palette",
     tool: "recolor",
     args: {},
-    project: "game",
+    project: "project",
     prompt: "Recolor the sky?",
     state,
   });
@@ -113,7 +113,7 @@ describe("transcriptEntries: what stays reachable whatever page is loaded", () =
   });
 
   it("keeps an unanswered intake question when its page is unloaded", () => {
-    const threadEvents = [user(1, "make a game"), question(2, "Which genre?")];
+    const threadEvents = [user(1, "make a project"), question(2, "Which genre?")];
     const list = entries({ threadEvents, events: [] });
     assert.deepEqual(questions(list), [{ text: "Which genre?", pending: true }]);
     assert.equal(list.filter(isPendingQuestion).length, 1);
@@ -126,7 +126,7 @@ describe("transcriptEntries: what stays reachable whatever page is loaded", () =
       custom(3, "run_started", { runId: "r1" }),
       custom(3, "run_registered", { runId: "r1" }),
     ]) {
-      const threadEvents = [user(1, "make a game"), question(2, "Which genre?"), answer];
+      const threadEvents = [user(1, "make a project"), question(2, "Which genre?"), answer];
       assert.deepEqual(
         questions(entries({ threadEvents, events: [] })),
         [],
@@ -134,7 +134,7 @@ describe("transcriptEntries: what stays reachable whatever page is loaded", () =
       );
     }
     const askedAgain = [
-      user(1, "make a game"),
+      user(1, "make a project"),
       question(2, "Which genre?"),
       user(3, "platformer"),
       question(4, "How long?"),
@@ -207,7 +207,7 @@ describe("transcriptEntries: records the chat leaves to other surfaces", () => {
     assert.deepEqual(
       kinds(entries({ threadEvents, studio: false })),
       ["user", "work", "notice"],
-      "a game chat shows the update and the restore",
+      "a project chat shows the update and the restore",
     );
     assert.deepEqual(
       kinds(entries({ threadEvents, studio: true })),

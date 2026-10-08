@@ -5,7 +5,7 @@
  * seen what the studio found (tests/conformance/project-shape.test.ts).
  */
 import type { OpenChoice } from "../shared/shape-words.ts";
-import type { FolderInspection, GameProject } from "./types.ts";
+import type { FolderInspection, Project } from "./types.ts";
 
 /** Home's Open a folder…: pick a folder and inspect it. Cancelling the picker inspects nothing. */
 export async function inspectPickedFolder(api: {
@@ -18,9 +18,9 @@ export async function inspectPickedFolder(api: {
 
 /** The open sheet's answer: adopt the inspected folder the way the user chose. */
 export function adoptPickedFolder(
-  api: { adoptFolder(dir: string, options?: OpenChoice): Promise<GameProject> },
+  api: { adoptFolder(dir: string, options?: OpenChoice): Promise<Project> },
   dir: string,
   choice: OpenChoice,
-): Promise<GameProject> {
+): Promise<Project> {
   return api.adoptFolder(dir, choice);
 }

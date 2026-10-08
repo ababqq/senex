@@ -52,12 +52,12 @@ export const ROLE_LITERALS = [
   ["coordinator:intake", "You are the studio's intake interviewer for an"],
   ["playtester", "You are a playtester"],
   ["planner:replan", "You are the planner of an Autopilot run"],
-  ["judge:blind-compare", "You are judging two builds of the same game against a quality bar"],
+  ["judge:blind-compare", "You are judging two builds of the same project against a quality bar"],
   ["judge:facet-compare", "You are judging ONE FACET of two builds"],
   ["judge:taste", "You are the taste judge for ONE FACET"],
   ["judge:code-review", "You are reviewing ONE diff"],
   ["judge:liveness", "You are the liveness critic"],
-  ["judge:readability", "This game is a screen, not a place a player walks through"],
+  ["judge:readability", "This project is software people operate, not a place they walk through"],
   ["judge:vision-check", "You answer ONE yes/no question about ONE picture"],
   ["judge:vision-batch", "You answer SEVERAL yes/no questions about pictures"],
   ["judge:reference-panel", "You are one vote on the panel that decides whether an Autopilot run has WON"],
@@ -535,7 +535,7 @@ export interface Homes {
   claudeSystem: string;
   codexIsolated: string;
   codexSystem: string;
-  gameRoots: string[];
+  projectRoots: string[];
   /** Where the studio makes the scratch folders it runs a playtester and a judge in. */
   tmpDir: string;
 }
@@ -550,35 +550,35 @@ export function defaultHomes(home = os.homedir()): Homes {
     claudeSystem: path.join(home, ".claude"),
     codexIsolated: path.join(appDir, "engine-homes", EngineId.Codex),
     codexSystem: path.join(home, ".codex"),
-    gameRoots: [
+    projectRoots: [
       path.join(appDir, "workspaces", "games"),
       path.join(appDir, "scratch"),
       path.join(legacyAppDir, "workspaces", "games"),
       path.join(legacyAppDir, "scratch"),
-      path.join(home, "AI Games"),
-      path.join(home, "ai-games"),
+      path.join(home, "AI Projects"),
+      path.join(home, "ai-projects"),
     ],
     tmpDir: os.tmpdir(),
   };
 }
 
 /**
- * The studio does not run every Codex session in a game folder. A playtester is a read-only
+ * The studio does not run every Codex session in a project folder. A playtester is a read-only
  * delegation started in a fresh scratch directory, and every judge call gets one too — both under
  * the system temp folder, both named with the studio's own prefix (src/substrate/engines/codex.ts
  * mkdtemps `studio-playtest-` and `studio-judge-`). Filtering the owner's own `~/.codex` on the
- * game roots alone dropped all of them, so a `playtester` row and nine `judge:*` rows read zero
+ * project roots alone dropped all of them, so a `playtester` row and nine `judge:*` rows read zero
  * while the director and the workers filled in.
  */
 export const STUDIO_SCRATCH_PREFIXES = ["studio-playtest-", "studio-judge-"] as const;
 
 /**
  * Whether a session belongs to the studio rather than to the person whose home it sits in: it ran
- * in one of the game roots, or in a scratch folder the studio itself named. Ownership, not path.
+ * in one of the project roots, or in a scratch folder the studio itself named. Ownership, not path.
  */
 export function ownedByStudio(cwd: string | null | undefined, homes: Homes): boolean {
   if (!cwd) return false;
-  if (homes.gameRoots.some((root) => isInside(root, cwd))) return true;
+  if (homes.projectRoots.some((root) => isInside(root, cwd))) return true;
   if (!STUDIO_SCRATCH_PREFIXES.some((prefix) => path.basename(cwd).startsWith(prefix))) return false;
   // macOS hands `os.tmpdir()` back as /var/folders/... and reports the same folder to a child
   // process as /private/var/folders/..., so the temp root is matched through both names.
@@ -979,7 +979,7 @@ function homeNote(isolatedHome: string, isolated: boolean, systemAsked: boolean 
 /**
  * Reads the Claude sessions of the studio's isolated home, or (asked to) the studio's own ones in
  * the system home: a chat signed in with this Mac's own Claude Code writes its transcripts there,
- * beside the owner's, so only the sessions that ran in a game folder or a studio scratch folder count.
+ * beside the owner's, so only the sessions that ran in a project folder or a studio scratch folder count.
  */
 async function claudeSessions(homes: Homes, options: CensusOptions): Promise<{ look: Look; sessions: Session[] }> {
   const claudeIsolated = await exists(path.join(homes.claudeIsolated, "projects"));
@@ -1032,7 +1032,7 @@ async function codexSessions(homes: Homes, options: CensusOptions): Promise<{ lo
     const session = await readCodexSession(file, options.prices ?? null);
     if (!session) continue;
     // The system home is the owner's own Codex, so only the sessions the studio itself started
-    // belong to the census: the ones that ran in a game folder, and the ones that ran in a
+    // belong to the census: the ones that ran in a project folder, and the ones that ran in a
     // scratch folder the studio named (a playtester, a judge).
     if (!codexIsolated && !ownedByStudio(session.cwd, homes)) {
       dropped += 1;

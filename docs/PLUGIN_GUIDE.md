@@ -66,7 +66,7 @@ export async function activate(host) {
   opt into `acceptJsonString` for legacy bridge input; the host normalizes it before dispatch.
 - `action` is never an agent tool. It is what a button or a panel invokes.
 - `ctx` carries `project`, `directory`, `threadId`, an `AbortSignal`, a `callId` and `host`. **Do
-  not store it**: concurrent calls can belong to different games and different workers, and host
+  not store it**: concurrent calls can belong to different projects and different workers, and host
   services answer only during an active invocation.
 - The host never retries a failed invocation. Persist a remote reference before you return, and
   reconcile an uncertain submission instead of creating it again. Cancellation stops local
@@ -91,14 +91,14 @@ undeclared method is a compile error.
 | Method | Capability | What it does |
 | --- | --- | --- |
 | `settings.read` | `settings` | Declared defaults plus the host-owned values a user edited |
-| `storage.root` | none | Your durable folder, outside games and exports |
+| `storage.root` | none | Your durable folder, outside projects and exports |
 | `project.read` | `project.read` | A relative file in the bound worktree, utf8. Dot paths, `node_modules`, `AGENTS.md` and `CLAUDE.md` are refused |
 | `project.write` | `project.write` | Writes a relative file; the parent must exist, symlink targets are refused |
-| `assets.deliver` | `project.write` | Copies your output into a unique asset directory in the game; delivered files reach the host ledger |
+| `assets.deliver` | `project.write` | Copies your output into a unique asset directory in the project; delivered files reach the host ledger |
 | `jobs.read` / `jobs.write` | `jobs` | Durable provider references. Not a credit ledger |
 | `events.emit` | `jobs` | Sanitized progress, attributed to the bound project/thread. `{kind:'toolbar', …}` updates a toolbar badge |
 | `observe` | `observe` | Loading/capture/audio evidence for authorized files in the bound worktree |
-| `export.stage` | `export` | Studio writes the public export of the bound game under `storage.root/publish/<project>/dist` and returns the result |
+| `export.stage` | `export` | Studio writes the public export of the bound project under `storage.root/publish/<project>/dist` and returns the result |
 | `credentials.session` | `credentials`, API 3 | Reuse an explicitly unlocked host-memory lease; never opens the OS store |
 | `runtime.detect` / `runtime.installation` | `native-runtime`, API 3 | Read declared native runtime readiness and durable installation progress |
 | `runtime.install` / `runtime.cancelInstall` | `native-runtime`, API 3 | Fixed pinned installation through a real declared user action; installation requires its confirmation |
@@ -112,7 +112,7 @@ disclosure for the install-time scan; a plugin that reaches the network without 
 ### Skills
 
 A skill tells agents how to use your tools. Studio adds it to builder briefs while your plugin is
-enabled and drops it the moment it is not; nothing is written into the game. Keep a short rule
+enabled and drops it the moment it is not; nothing is written into the project. Keep a short rule
 inline and put a long guide in a file:
 
 ```json
@@ -156,7 +156,7 @@ A panel is served into an opaque-origin sandboxed frame with
   `node src/plugin-sdk/inline-panel-sdk.mjs panel.html` (the scaffold already did): it pastes the
   current `panel.js` and `ui.js` in, so the bridge matches `index.d.ts`.
 - No `fetch`, no forms, no external images, no external fonts. Images must be `data:` URLs, and
-  `project.read` is utf8-only, so a panel cannot display a PNG read from the game folder.
+  `project.read` is utf8-only, so a panel cannot display a PNG read from the project folder.
 - The only bridge is `window.studioPlugin.call(method, name?, args?)`:
   `call('context')` → `{project, apiVersion, theme}`, `call('settings')` → your standard settings,
   `call('action', name, args)` → a declared action. Nothing else crosses.
@@ -168,7 +168,7 @@ A panel is served into an opaque-origin sandboxed frame with
 Two different things, both asked by the host and never by the plugin or the agent:
 
 - **`tools[].confirmation`** (API 2) — an agent-invoked tool that spends, publishes or acts beyond
-  the game folder. Studio asks the user before the backend sees the call. With no way to ask, the
+  the project folder. Studio asks the user before the backend sees the call. With no way to ask, the
   call fails closed. A declined or expired request reaches the agent as text
   (`{consent:'declined', by, message}`), never as an error — say in your skill text that a declined
   request must not be repeated.
@@ -200,7 +200,7 @@ Up to four per plugin, rendered beside Live/Builds:
 `status` names a declared action **without** confirmation that returns
 `{badge?, disabled?, title?, tone?: ok|warn|err|info, attention?}`; `attention: true` draws the
 button in the accent (its action is due), otherwise it wears the quiet pill. Studio calls it on
-mount, on every plugin change and every 30 s while a game is open; a backend can also push one with
+mount, on every plugin change and every 30 s while a project is open; a backend can also push one with
 `events.emit({kind:'toolbar', item:'demo', badge:'Draft'})`.
 
 ### Reserved labels and uniqueness
@@ -398,7 +398,7 @@ use a declared Cancel action. Clean up timers/subscriptions when the panel close
 actions keep their existing timeout; do not increase every plugin call to cover downloads.
 
 To verify a native plugin, install it explicitly, invoke it from an existing conversation, observe
-the delivered file in the game, disable/re-enable without resetting the conversation, and retrieve
+the delivered file in the project, disable/re-enable without resetting the conversation, and retrieve
 the old job. Test with Genex disabled. Run doctor/pack against the prebuilt package and test the
 actual installed app; a mocked host or a TypeScript pass is not native-runtime acceptance.
 
@@ -418,7 +418,7 @@ acceptance rule. Invalid lowercase asset names and missing inputs fail before Bl
 
 Native results include `inputs[name] = { file, sha256 }` for the actual staged bytes.
 The host inventory uses this identity to retain derivative provenance after source renames;
-recorded lineage does not by itself establish that a game loads the derivative.
+recorded lineage does not by itself establish that a project loads the derivative.
 
 
 ## Curated public distribution

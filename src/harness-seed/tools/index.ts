@@ -49,9 +49,9 @@ const TOOL_MODULE = /\.(?:ts|mjs)$/;
 /** The registry's own module, never a tool module. */
 const REGISTRY_MODULES = new Set(["index.ts", "index.mjs"]);
 /** The module a candidate's tools come from… */
-const CANDIDATE_MODULE = "game-tools";
+const CANDIDATE_MODULE = "project-tools";
 /** …and the only tools of it a candidate may use: it reads and writes its own files, and checks them. */
-const CANDIDATE_TOOLS = new Set(["list_files", "read_file", "write_file", "check_game"]);
+const CANDIDATE_TOOLS = new Set(["list_files", "read_file", "write_file", "check_project"]);
 
 /** Where a registered tool came from, when it is not one of the workspace's own modules. */
 const ToolSource = {
@@ -92,7 +92,7 @@ export async function loadToolModules(workspace: string): Promise<{ modules: Too
   return { modules, broken };
 }
 
-/** May a candidate's turn use this tool? Only its own file tools, from the game tools module. */
+/** May a candidate's turn use this tool? Only its own file tools, from the project tools module. */
 function candidateMayUse(tool: HarnessTool, module: ToolModule): boolean {
   return CANDIDATE_TOOLS.has(tool.name) && module.name.replace(TOOL_MODULE, "") === CANDIDATE_MODULE;
 }

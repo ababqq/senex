@@ -2,7 +2,7 @@
  * The anti-fitting checker (§6.4), a static check in the `check-vocabulary.ts` mould rather than a
  * test, because a test that reads `src/**` as text is refused by `check-test-style.ts`. It looks
  * for the eval cases inside what the in-app agent reads: a seven-word run of any brief, or a traced
- * checklist phrase, in the harness seed, the game template, plugin skills or a `*-prompts.ts`
+ * checklist phrase, in the harness seed, the project template, plugin skills or a `*-prompts.ts`
  * module is a leak. Village tuning is semantic and invisible here; that is what `Exposure` carries.
  */
 import fs from "node:fs";
@@ -77,7 +77,7 @@ const NON_WORD = /[^\p{L}\p{N}]+/u;
 const ELLIPSIS = /\.{3}|…/;
 const SCANNED_TEXT = /\.(?:md|txt|json|[cm]?[jt]sx?|html|css|glsl|wgsl|ya?ml)$/;
 const SKIPPED_DIRS = new Set(["node_modules", "dist", "out", ".git"]);
-const WHOLE_TREES = ["src/harness-seed/", "src/game-template/"];
+const WHOLE_TREES = ["src/harness-seed/", "src/project-template/"];
 const PLUGIN_SKILLS = /^src\/plugins\/[^/]+\/skills\//;
 const PROMPT_MODULE = /-prompts\.ts$/;
 /**
@@ -174,7 +174,7 @@ function isInstructionFile(rel: string): boolean {
 }
 
 /**
- * Every scanned file, by repository path: under `root/src` the harness seed, the game template,
+ * Every scanned file, by repository path: under `root/src` the harness seed, the project template,
  * plugin skills and prompt modules, plus the graders' rubrics. Symlinks are never followed, so
  * nothing outside those roots is read.
  */

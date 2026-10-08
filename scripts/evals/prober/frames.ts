@@ -457,7 +457,7 @@ function correlationAt(a: ArrayLike<number>, b: ArrayLike<number>, s: number, st
  * Normalised cross-correlation of two 1-D profiles over integer offsets. Positive shift = profile B
  * looks like profile A moved in the + direction.
  *
- * Camera conventions differ per game, so the prober never asserts an absolute sign; it asserts that
+ * Camera conventions differ per project, so the prober never asserts an absolute sign; it asserts that
  * opposite keys produce opposite signs. This function's only obligation is sign and magnitude.
  */
 export function bestShift(a: ArrayLike<number>, b: ArrayLike<number>, maxShift: number): ShiftEstimate {

@@ -45,7 +45,7 @@ export interface ProfileBegin {
   counters?: boolean;
 }
 export type ProfileRequest = ProfileBegin | { action: "read" | "end" | "start"; sessionId: string };
-/** A host-owned optimizer worktree (`substrate/game-candidate.ts`), as `optimization.open` answers it. */
+/** A host-owned optimizer worktree (`substrate/project-candidate.ts`), as `optimization.open` answers it. */
 export interface OptimizationCandidate {
   candidateId: string;
   project: string;

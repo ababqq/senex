@@ -140,7 +140,7 @@ function eventPhase(i: number): "start" | "move" | "end" {
 }
 
 /**
- * A game that never took a pointer lock reads look input from a DRAG, so a CDP leg on one holds the
+ * A project that never took a pointer lock reads look input from a DRAG, so a CDP leg on one holds the
  * button. Decided from what the page already answered, and it fails closed: before any step has
  * reported, nothing is pressed.
  */
@@ -168,7 +168,7 @@ async function syntheticStep(run: LookRun): Promise<{ events: number; target: Lo
   return { events, target, dxPx: per * LOOK_EVENTS_PER_STEP };
 }
 
-/** The input half of a CDP step: one leg out from the centre, as a drag on a game with no lock. */
+/** The input half of a CDP step: one leg out from the centre, as a drag on a project with no lock. */
 async function cdpStep(run: LookRun, sign: number): Promise<{ events: number; target: null; dxPx: number }> {
   const mouse = run.deps.mouse;
   if (!mouse) return { events: 0, target: null, dxPx: 0 };
@@ -215,7 +215,7 @@ async function runSweep(run: LookRun, sweep: number, mechanism: LookMechanism, o
   return sweepDeg;
 }
 
-/** The CDP ±200 px wobble, one continuous press across both legs on a game that never locked. */
+/** The CDP ±200 px wobble, one continuous press across both legs on a project that never locked. */
 async function cdpFallback(run: LookRun): Promise<NonNullable<LookMeasurement["fallback"]>> {
   const mouse = run.deps.mouse;
   if (!mouse) return { tried: false, sweepDeg: null, reached: null, heldButton: false };
@@ -263,7 +263,7 @@ export function lookNote(
   const s1 = degrees(m.sweeps[0]?.sweepDeg);
   const s2 = degrees(m.sweeps[1]?.sweepDeg);
   if (!anyHeading) {
-    return "No camera heading could be read at any step, so whether the look input reached the game is unmeasured; the frames were still captured.";
+    return "No camera heading could be read at any step, so whether the look input reached the project is unmeasured; the frames were still captured.";
   }
   if (m.deliveredBy === LookMechanism.Synthetic) {
     return `The synthetic pointermove/mousemove deltas turned the camera (sweep 1: ${s1}, sweep 2: ${s2}).`;
@@ -274,11 +274,11 @@ export function lookNote(
   }
   const dragShaped =
     m.steps.some((s) => s.target === LookTargetKind.Canvas) && !m.steps.some((s) => s.target === LookTargetKind.Lock);
-  const drags = dragShaped ? "The game never took a pointer lock, so the synthetic steps went out as drags. " : "";
+  const drags = dragShaped ? "The project never took a pointer lock, so the synthetic steps went out as drags. " : "";
   const fallback = m.fallback?.tried
     ? `the CDP wobble (${degrees(m.fallback.sweepDeg)})`
     : "a CDP wobble (the page has no mouse to send one)";
-  return `${drags}Neither the synthetic events (sweep 1: ${s1}, sweep 2: ${s2}) nor ${fallback} turned the heading past ${MIN_LOOK_YAW_DEG}°: the look input did not reach the game, and the frames under this phase are one heading throughout.`;
+  return `${drags}Neither the synthetic events (sweep 1: ${s1}, sweep 2: ${s2}) nor ${fallback} turned the heading past ${MIN_LOOK_YAW_DEG}°: the look input did not reach the project, and the frames under this phase are one heading throughout.`;
 }
 
 /** Run the look phase. */

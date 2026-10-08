@@ -2,14 +2,14 @@ import { useEffect, useRef } from "react";
 import type { PromptBarHandle } from "../ui/PromptBar.tsx";
 
 /**
- * The composer a new game's chat opens with focus in, and the idea typed at the welcome that
- * waits for home's composer (or, failing that, the next game's). Once the chat is on screen and
+ * The composer a new project's chat opens with focus in, and the idea typed at the welcome that
+ * waits for home's composer (or, failing that, the next project's). Once the chat is on screen and
  * loaded, the cursor goes in.
  */
 export function useComposerHandoff(contentReady: boolean, activeThreadId: string | null) {
   const composer = useRef<PromptBarHandle>(null);
   const focusComposerFor = useRef<string | null>(null);
-  // First launch: the welcome covers the app; the idea typed there waits for the first game's composer.
+  // First launch: the welcome covers the app; the idea typed there waits for the first project's composer.
   const pendingIdea = useRef<string | null>(null);
   const composeFor = useRef<{ threadId: string; text: string } | null>(null);
   useEffect(() => {
@@ -25,7 +25,7 @@ export function useComposerHandoff(contentReady: boolean, activeThreadId: string
   return {
     composer,
     homeComposer,
-    /** The welcome's idea, for the composer that opens next: home's, or a game chat's. */
+    /** The welcome's idea, for the composer that opens next: home's, or a project chat's. */
     holdIdea: (idea: string | null) => {
       pendingIdea.current = idea;
     },

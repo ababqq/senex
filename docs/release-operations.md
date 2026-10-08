@@ -84,9 +84,9 @@ name behavior changes, migration requirements and known limitations.
 
 ## Install, update and recovery acceptance
 
-Test clean install, launch, terminal, first game, upgrade from the previous supported version,
+Test clean install, launch, terminal, first project, upgrade from the previous supported version,
 data migration, quit during work, relaunch and uninstall on each supported platform. Back up
-owned test games/profile before migration and prove the backup restores. Verify failed or
+owned test projects/profile before migration and prove the backup restores. Verify failed or
 partial update recovery separately from a successful download.
 
 Automatic updates are on from the public launch; see

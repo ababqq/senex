@@ -38,21 +38,21 @@ import { tmpDir } from "../helpers/tmp.ts";
 const names = (text: string) => fileMentions(text).map((mention) => mention.name);
 
 test("a chat names files the way people and agents write them", () => {
-  assert.deepEqual(names("I updated src/game.js and assets/video/intro.mp4."), [
-    "src/game.js",
+  assert.deepEqual(names("I updated src/project.js and assets/video/intro.mp4."), [
+    "src/project.js",
     "assets/video/intro.mp4",
   ]);
-  assert.deepEqual(names("Saved to ~/AI Games/rift/src/main.js, then ran it."), ["~/AI Games/rift/src/main.js"]);
-  assert.deepEqual(names("Open /Users/me/AI Games/rift/docs/DESIGN.md: it lists everything"), [
-    "/Users/me/AI Games/rift/docs/DESIGN.md",
+  assert.deepEqual(names("Saved to ~/AI Projects/rift/src/main.js, then ran it."), ["~/AI Projects/rift/src/main.js"]);
+  assert.deepEqual(names("Open /Users/me/AI Projects/rift/docs/DESIGN.md: it lists everything"), [
+    "/Users/me/AI Projects/rift/docs/DESIGN.md",
   ]);
   assert.deepEqual(names("See ./docs/DESIGN.md and ../shared/a.ts:42 (and .github/workflows/ci.yml)"), [
     "./docs/DESIGN.md",
     "../shared/a.ts:42",
     ".github/workflows/ci.yml",
   ]);
-  assert.deepEqual(names('file:///Users/me/AI%20Games/a.md and "quoted/path.txt"'), [
-    "file:///Users/me/AI%20Games/a.md",
+  assert.deepEqual(names('file:///Users/me/AI%20Projects/a.md and "quoted/path.txt"'), [
+    "file:///Users/me/AI%20Projects/a.md",
     "quoted/path.txt",
   ]);
   assert.deepEqual(names("cat src/a.js | grep foo; node scripts/build.mjs --out=/tmp/out.png"), [
@@ -60,7 +60,7 @@ test("a chat names files the way people and agents write them", () => {
     "scripts/build.mjs",
     "/tmp/out.png",
   ]);
-  // Bare names are asked about (main looks for them in the game); these never are.
+  // Bare names are asked about (main looks for them in the project); these never are.
   assert.deepEqual(names("Uses Node.js, e.g. v1.2.3, see https://example.com/a.md and me@example.com"), ["Node.js"]);
   assert.deepEqual(names("</div> a / b and/or /usr @react-three/fiber @genex/job/out.png"), []);
   assert.deepEqual(names("package.json changed"), ["package.json"]);
@@ -71,8 +71,8 @@ test("comments, the next sentence and the next argument are not part of a path",
   assert.deepEqual(names("x = y // 2"), []);
   assert.deepEqual(names("x // see src/a.js"), ["src/a.js"]);
   assert.deepEqual(names("Wrote /tmp/shot.png. See docs/DESIGN.md for more."), ["/tmp/shot.png", "docs/DESIGN.md"]);
-  assert.deepEqual(names("Saved /Users/me/AI Games/rift/index.html. Also Assets/hero.png changed."), [
-    "/Users/me/AI Games/rift/index.html",
+  assert.deepEqual(names("Saved /Users/me/AI Projects/rift/index.html. Also Assets/hero.png changed."), [
+    "/Users/me/AI Projects/rift/index.html",
     "Assets/hero.png",
   ]);
   assert.deepEqual(names("cp /tmp/out src/a.js"), ["/tmp/out", "src/a.js"]);
@@ -81,15 +81,15 @@ test("comments, the next sentence and the next argument are not part of a path",
   ]);
   // The tail of a spaced name is not a file of its own.
   assert.deepEqual(names("Updated assets/Hero Sprite.png now"), []);
-  assert.deepEqual(names("src/game.ts package.json"), ["src/game.ts", "package.json"]);
+  assert.deepEqual(names("src/project.ts package.json"), ["src/project.ts", "package.json"]);
   assert.equal(wholeFileName("//"), null);
 });
 
 test("names in any script and between any quotes are names", () => {
-  assert.deepEqual(names("Файл «src/game.js» обновлён"), ["src/game.js"]);
-  assert.deepEqual(names("Updated “src/game.js” today; see src/a.js—the main loop"), ["src/game.js", "src/a.js"]);
+  assert.deepEqual(names("Файл «src/project.js» обновлён"), ["src/project.js"]);
+  assert.deepEqual(names("Updated “src/project.js” today; see src/a.js—the main loop"), ["src/project.js", "src/a.js"]);
   assert.deepEqual(names("Обновил assets/герой.png и docs/ПЛАН.md"), ["assets/герой.png", "docs/ПЛАН.md"]);
-  assert.deepEqual(names("Сохранил в ~/AI Games/Моя игра/index.html"), ["~/AI Games/Моя игра/index.html"]);
+  assert.deepEqual(names("Сохранил в ~/AI Projects/Моя игра/index.html"), ["~/AI Projects/Моя игра/index.html"]);
   assert.deepEqual(names("и т.д. и т.п."), []);
 });
 
@@ -107,7 +107,7 @@ test("finding names stays fast on text built to be slow", () => {
 });
 
 test("inline code is a file chip only when the whole of it is one name", () => {
-  for (const code of ["docs/DESIGN.md", "~/AI Games/rift/a.js", "index.html", "src/game.ts:42", "/tmp/out.mp4"])
+  for (const code of ["docs/DESIGN.md", "~/AI Projects/rift/a.js", "index.html", "src/project.ts:42", "/tmp/out.mp4"])
     assert.equal(wholeFileName(code), code);
   for (const code of ["npm run dev", "node scripts/build.mjs", "@react-three/fiber", "three", "a\nb.md"])
     assert.equal(wholeFileName(code), null, code);
@@ -119,15 +119,15 @@ test("the hover text says what a click does and where the file is, in the platfo
     "Opens beside the chat",
   );
   assert.equal(
-    fileLinkTitle({ open: "app", path: "~/AI Games/rift/src/game.js" }, "src/game.js", "darwin"),
-    "Opens in its default app\n~/AI Games/rift/src/game.js",
+    fileLinkTitle({ open: "app", path: "~/AI Projects/rift/src/project.js" }, "src/project.js", "darwin"),
+    "Opens in its default app\n~/AI Projects/rift/src/project.js",
   );
   assert.equal(
     fileLinkTitle({ open: "finder", path: "tools/run.command", build: true }, "tools/run.command", "darwin"),
-    "Shows in Finder\nIn the build · not in your game folder yet",
+    "Shows in Finder\nIn the build · not in your project folder yet",
   );
   assert.equal(
-    fileLinkTitle({ open: "folder", path: "~/AI Games/rift" }, "~/AI Games/rift", "darwin"),
+    fileLinkTitle({ open: "folder", path: "~/AI Projects/rift" }, "~/AI Projects/rift", "darwin"),
     "Opens in Finder",
   );
   assert.equal(fileLinkTitle({ open: "finder", path: "a.bat" }, "a.bat", "win32"), "Shows in Explorer");
@@ -135,9 +135,9 @@ test("the hover text says what a click does and where the file is, in the platfo
 });
 
 const known = new Map<string, ChatFileLink | null>([
-  ["src/game.js", { open: "app", path: "~/AI Games/rift/src/game.js" }],
+  ["src/project.js", { open: "app", path: "~/AI Projects/rift/src/project.js" }],
   ["docs/DESIGN.md", { open: "beside", path: "docs/DESIGN.md" }],
-  ["scripts/build.mjs", { open: "app", path: "~/AI Games/rift/scripts/build.mjs" }],
+  ["scripts/build.mjs", { open: "app", path: "~/AI Projects/rift/scripts/build.mjs" }],
   ["Node.js", null],
 ]);
 const lookup: ChatFileLookup = (name) => known.get(name);
@@ -145,11 +145,11 @@ const lookup: ChatFileLookup = (name) => known.get(name);
 test("rendered text links only the names main confirmed, and leaves everything else as it was", () => {
   const asked: ChatFileRef[] = [];
   const html =
-    '<p>Edited src/game.js &amp; intro.mp4, like Node.js.</p><pre><code><span class="hljs-built_in">node</span> scripts/build.mjs</code></pre><a href="https://x.dev/src/game.js">src/game.js</a>';
+    '<p>Edited src/project.js &amp; intro.mp4, like Node.js.</p><pre><code><span class="hljs-built_in">node</span> scripts/build.mjs</code></pre><a href="https://x.dev/src/project.js">src/project.js</a>';
   const out = linkifyHtml(html, lookup, asked);
   assert.match(
     out,
-    /<p>Edited <button type="button" class="prose-file" data-file-path="src\/game.js" data-file-open="app" data-file-target="~\/AI Games\/rift\/src\/game.js" title="Opens in its default app\n~\/AI Games\/rift\/src\/game.js">/,
+    /<p>Edited <button type="button" class="prose-file" data-file-path="src\/project.js" data-file-open="app" data-file-target="~\/AI Projects\/rift\/src\/project.js" title="Opens in its default app\n~\/AI Projects\/rift\/src\/project.js">/,
   );
   assert.match(out, /&amp; intro.mp4, like Node.js.<\/p>/, "unknown and missing names stay text, escaped once");
   assert.match(
@@ -157,10 +157,10 @@ test("rendered text links only the names main confirmed, and leaves everything e
     /<\/span> <button type="button" class="file-link" data-file-path="scripts\/build.mjs"[^>]*>scripts\/build.mjs<\/button><\/code><\/pre>/,
     "code keeps its own look",
   );
-  assert.match(out, /<a href="https:\/\/x.dev\/src\/game.js">src\/game.js<\/a>$/, "a link keeps its words");
+  assert.match(out, /<a href="https:\/\/x.dev\/src\/project.js">src\/project.js<\/a>$/, "a link keeps its words");
   assert.deepEqual(
     [...new Set(asked.map((ref) => ref.name))],
-    ["src/game.js", "intro.mp4", "Node.js", "scripts/build.mjs"],
+    ["src/project.js", "intro.mp4", "Node.js", "scripts/build.mjs"],
   );
   const plain = "<p>Nothing to see &amp; here, 1 &lt; 2.</p>";
   assert.equal(linkifyHtml(plain, lookup, []), plain, "text without files is returned byte for byte");
@@ -250,9 +250,9 @@ test("documents open in their app; programs, scripts and unknown types are only 
 });
 
 test("a name is read the way the chat wrote it, and clipped names are not files", () => {
-  assert.equal(chatFileName("src/game.ts:42:7"), "src/game.ts");
-  assert.equal(chatFileName("src/game.ts#L12-L20"), "src/game.ts");
-  assert.equal(chatFileName("file:///Users/me/AI%20Games/a.md"), "/Users/me/AI Games/a.md");
+  assert.equal(chatFileName("src/project.ts:42:7"), "src/project.ts");
+  assert.equal(chatFileName("src/project.ts#L12-L20"), "src/project.ts");
+  assert.equal(chatFileName("file:///Users/me/AI%20Projects/a.md"), "/Users/me/AI Projects/a.md");
   assert.equal(chatFileName("`docs/DESIGN.md`"), "docs/DESIGN.md");
   for (const name of ["https://example.com/a.md", "src/very/long… [12 more chars]", "a\u0000b", "", 42])
     assert.equal(chatFileName(name), null, String(name));
@@ -261,7 +261,7 @@ test("a name is read the way the chat wrote it, and clipped names are not files"
 function fixture() {
   const root = realpathSync(mkdtempSync(path.join(tmpdir(), "chat-files-")));
   const home = path.join(root, "home");
-  const game = path.join(home, "AI Games", "rift");
+  const project = path.join(home, "AI Projects", "rift");
   const env = {
     ...process.env,
     GIT_AUTHOR_NAME: "t",
@@ -270,30 +270,30 @@ function fixture() {
     GIT_COMMITTER_EMAIL: "t@t",
   };
   const git = (...args: string[]) =>
-    execFileSync("git", ["-C", game, ...args], { env })
+    execFileSync("git", ["-C", project, ...args], { env })
       .toString()
       .trim();
   for (const dir of ["docs", "src", "assets/video", "assets/sfx", "tools"])
-    mkdirSync(path.join(game, dir), { recursive: true });
-  writeFileSync(path.join(game, "docs", "DESIGN.md"), "# Plan");
-  writeFileSync(path.join(game, "docs", "NOTES.md"), "# Notes");
-  writeFileSync(path.join(game, "src", "game.js"), "old");
-  writeFileSync(path.join(game, "src", "same.js"), "same");
-  writeFileSync(path.join(game, "assets", "video", "intro.mp4"), "video");
-  writeFileSync(path.join(game, "assets", "sfx", "hit.wav"), "a");
-  writeFileSync(path.join(game, "assets", "video", "hit.wav"), "b");
-  writeFileSync(path.join(game, "tools", "run.command"), "#!/bin/sh\necho hi");
-  chmodSync(path.join(game, "tools", "run.command"), 0o755);
+    mkdirSync(path.join(project, dir), { recursive: true });
+  writeFileSync(path.join(project, "docs", "DESIGN.md"), "# Plan");
+  writeFileSync(path.join(project, "docs", "NOTES.md"), "# Notes");
+  writeFileSync(path.join(project, "src", "project.js"), "old");
+  writeFileSync(path.join(project, "src", "same.js"), "same");
+  writeFileSync(path.join(project, "assets", "video", "intro.mp4"), "video");
+  writeFileSync(path.join(project, "assets", "sfx", "hit.wav"), "a");
+  writeFileSync(path.join(project, "assets", "video", "hit.wav"), "b");
+  writeFileSync(path.join(project, "tools", "run.command"), "#!/bin/sh\necho hi");
+  chmodSync(path.join(project, "tools", "run.command"), 0o755);
   // A document with an exec bit is only shown, like the links the window routes.
-  writeFileSync(path.join(game, "docs", "tool.txt"), "#!/bin/sh\necho hi");
-  chmodSync(path.join(game, "docs", "tool.txt"), 0o755);
+  writeFileSync(path.join(project, "docs", "tool.txt"), "#!/bin/sh\necho hi");
+  chmodSync(path.join(project, "docs", "tool.txt"), 0o755);
   git("init", "-q");
   git("add", "-A");
-  git("commit", "-qm", "game");
-  // The run's build: a newer game.js, a file only the build has, and same.js unchanged.
-  writeFileSync(path.join(game, "src", "game.js"), "new");
-  writeFileSync(path.join(game, "src", "enemy.js"), "enemy");
-  writeFileSync(path.join(game, "docs", "BUILD.md"), "# Build");
+  git("commit", "-qm", "project");
+  // The run's build: a newer project.js, a file only the build has, and same.js unchanged.
+  writeFileSync(path.join(project, "src", "project.js"), "new");
+  writeFileSync(path.join(project, "src", "enemy.js"), "enemy");
+  writeFileSync(path.join(project, "docs", "BUILD.md"), "# Build");
   git("add", "-A");
   git("commit", "-qm", "build");
   const head = git("rev-parse", "HEAD");
@@ -306,9 +306,9 @@ function fixture() {
   writeFileSync(path.join(home, ".ssh", "id_rsa"), "secret");
   mkdirSync(path.join(home, ".codex"), { recursive: true });
   writeFileSync(path.join(home, ".codex", "auth.json"), '{"token":"secret"}');
-  symlinkSync(path.join(game, ".git"), path.join(game, "gitlink"));
-  symlinkSync(path.join(home, ".ssh", "id_rsa"), path.join(game, "key.txt"));
-  symlinkSync(path.join(game, "tools", "run.command"), path.join(game, "readme.md"));
+  symlinkSync(path.join(project, ".git"), path.join(project, "gitlink"));
+  symlinkSync(path.join(home, ".ssh", "id_rsa"), path.join(project, "key.txt"));
+  symlinkSync(path.join(project, "tools", "run.command"), path.join(project, "readme.md"));
   mkdirSync(path.join(home, "Tools", "Thing.app", "Contents"), { recursive: true });
   const worktree = path.join(root, "scratch", "autopilot", "run-1", "integration");
   mkdirSync(path.join(worktree, "docs"), { recursive: true });
@@ -319,14 +319,14 @@ function fixture() {
 
   const scope = (over: Partial<ChatFileScope> = {}): ChatFileScope => ({
     home,
-    game: { dir: game, head, preferBuild: true, runId: "run-1" },
+    project: { dir: project, head, preferBuild: true, runId: "run-1" },
     workspace: null,
     deny: credentialRoots(home, {}),
     worktrees: path.join(root, "scratch", "autopilot"),
     copies: path.join(root, "opened-files"),
     ...over,
   });
-  return { root, home, game, head, outside, worktree, workspace, scope };
+  return { root, home, project, head, outside, worktree, workspace, scope };
 }
 
 test("resolving and opening build files never executes repository content filters", async () => {
@@ -334,19 +334,19 @@ test("resolving and opening build files never executes repository content filter
   const marker = path.join(f.root, "RAN");
   const command = `touch '${marker}'; cat`;
   for (const operation of ["clean", "smudge"])
-    execFileSync("git", ["-C", f.game, "config", `filter.hostile.${operation}`, command]);
-  writeFileSync(path.join(f.game, ".gitattributes"), "src/* filter=hostile\n");
+    execFileSync("git", ["-C", f.project, "config", `filter.hostile.${operation}`, command]);
+  writeFileSync(path.join(f.project, ".gitattributes"), "src/* filter=hostile\n");
   const resolver = new ChatFileResolver();
-  await resolver.resolve(f.scope(), [{ name: "src/game.js" }]);
+  await resolver.resolve(f.scope(), [{ name: "src/project.js" }]);
   const opened = await resolver.target(f.scope(), { name: "src/enemy.js" });
   assert.equal(readFileSync(opened.target, "utf8"), "enemy");
   assert.equal(existsSync(marker), false);
 });
 
-test("a game chat links its own files, newer build files and files anywhere on this computer", {
+test("a project chat links its own files, newer build files and files anywhere on this computer", {
   skip: process.platform === "win32" && "symbolic links and exec bits are POSIX",
 }, async () => {
-  const { game, outside, worktree, scope } = fixture();
+  const { project, outside, worktree, scope } = fixture();
   const chat = new ChatFileResolver();
   const resolve = async (name: string, base?: string, over?: Partial<ChatFileScope>) =>
     (await chat.resolve(scope(over), [base ? { name, base } : { name }]))[0];
@@ -359,42 +359,47 @@ test("a game chat links its own files, newer build files and files anywhere on t
   );
   assert.deepEqual(await resolve("docs/BUILD.md"), { open: "beside", path: "docs/BUILD.md", build: true });
   assert.deepEqual(
-    await resolve("src/game.js:3"),
-    { open: "app", path: "src/game.js", build: true },
+    await resolve("src/project.js:3"),
+    { open: "app", path: "src/project.js", build: true },
     "the build’s newer copy",
   );
   assert.deepEqual(
-    await resolve("src/game.js", undefined, { game: { dir: game, head: null, preferBuild: false, runId: null } }),
-    { open: "app", path: "~/AI Games/rift/src/game.js" },
+    await resolve("src/project.js", undefined, {
+      project: { dir: project, head: null, preferBuild: false, runId: null },
+    }),
+    { open: "app", path: "~/AI Projects/rift/src/project.js" },
   );
   assert.deepEqual(
     await resolve("src/same.js"),
-    { open: "app", path: "~/AI Games/rift/src/same.js" },
+    { open: "app", path: "~/AI Projects/rift/src/same.js" },
     "unchanged in the build: the folder’s file",
   );
   assert.deepEqual(await resolve("src/enemy.js"), { open: "app", path: "src/enemy.js", build: true });
   assert.deepEqual(
     await resolve("intro.mp4"),
-    { open: "app", path: "~/AI Games/rift/assets/video/intro.mp4" },
+    { open: "app", path: "~/AI Projects/rift/assets/video/intro.mp4" },
     "the one file with that name",
   );
-  assert.deepEqual(await resolve("video/hit.wav"), { open: "app", path: "~/AI Games/rift/assets/video/hit.wav" });
+  assert.deepEqual(await resolve("video/hit.wav"), { open: "app", path: "~/AI Projects/rift/assets/video/hit.wav" });
   assert.equal(await resolve("hit.wav"), null, "two files share the name: neither is guessed");
-  assert.deepEqual(await resolve("tools/run.command"), { open: "finder", path: "~/AI Games/rift/tools/run.command" });
-  assert.deepEqual(await resolve("docs/tool.txt"), { open: "finder", path: "~/AI Games/rift/docs/tool.txt" });
+  assert.deepEqual(await resolve("tools/run.command"), {
+    open: "finder",
+    path: "~/AI Projects/rift/tools/run.command",
+  });
+  assert.deepEqual(await resolve("docs/tool.txt"), { open: "finder", path: "~/AI Projects/rift/docs/tool.txt" });
   assert.deepEqual(
     await resolve("readme.md"),
-    { open: "finder", path: "~/AI Games/rift/tools/run.command" },
+    { open: "finder", path: "~/AI Projects/rift/tools/run.command" },
     "a link is judged by what it points at",
   );
-  assert.deepEqual(await resolve(`${game}/assets`), { open: "folder", path: "~/AI Games/rift/assets" });
+  assert.deepEqual(await resolve(`${project}/assets`), { open: "folder", path: "~/AI Projects/rift/assets" });
   assert.deepEqual(await resolve("~/Movies/trailer.mov"), { open: "app", path: "~/Movies/trailer.mov" });
   assert.deepEqual(await resolve(`file://${encodeURI(outside)}`), { open: "app", path: "~/Movies/trailer.mov" });
   assert.deepEqual(await resolve("~/Tools/Thing.app"), { open: "finder", path: "~/Tools/Thing.app" });
   assert.deepEqual(
     await resolve(path.join(worktree, "docs", "DESIGN.md")),
     { open: "beside", path: "docs/DESIGN.md" },
-    "the run’s worktree copy of a game document",
+    "the run’s worktree copy of a project document",
   );
   for (const name of [
     "key.txt",
@@ -404,7 +409,7 @@ test("a game chat links its own files, newer build files and files anywhere on t
     ".git/config",
     ".GIT/config",
     "gitlink/config",
-    `${game}/.git/config`,
+    `${project}/.git/config`,
     "docs/../../x.md",
     "Node.js",
     "src/missing.js",
@@ -417,17 +422,17 @@ test("a game chat links its own files, newer build files and files anywhere on t
   }
 });
 
-test("Studio and a chat without a game resolve only what they can reach", async () => {
+test("Studio and a chat without a project resolve only what they can reach", async () => {
   const { workspace, scope } = fixture();
   const chat = new ChatFileResolver();
-  const studio = scope({ game: null, workspace });
+  const studio = scope({ project: null, workspace });
   assert.deepEqual(
     (await chat.resolve(studio, [{ name: "skills/play.md" }]))[0],
     { open: "app", path: path.join(workspace, "skills", "play.md") },
     "nothing opens beside Studio",
   );
   assert.deepEqual((await chat.resolve(studio, [{ name: "../x.md" }]))[0], null);
-  const draft = scope({ game: null });
+  const draft = scope({ project: null });
   assert.deepEqual(await chat.resolve(draft, [{ name: "docs/DESIGN.md" }, { name: "~/Movies/trailer.mov" }]), [
     null,
     { open: "app", path: "~/Movies/trailer.mov" },
@@ -437,15 +442,15 @@ test("Studio and a chat without a game resolve only what they can reach", async 
 test("opening re-resolves the name; a build-only file opens as a read-only copy", {
   skip: process.platform === "win32" && "exec bits and read-only modes are POSIX",
 }, async () => {
-  const { game, root, scope } = fixture();
+  const { project, root, scope } = fixture();
   const chat = new ChatFileResolver();
   assert.deepEqual(await chat.target(scope(), { name: "assets/video/intro.mp4" }), {
     open: "app",
-    target: path.join(game, "assets", "video", "intro.mp4"),
+    target: path.join(project, "assets", "video", "intro.mp4"),
   });
   assert.deepEqual(await chat.target(scope(), { name: "tools/run.command" }), {
     open: "finder",
-    target: path.join(game, "tools", "run.command"),
+    target: path.join(project, "tools", "run.command"),
   });
   const copy = await chat.target(scope(), { name: "src/enemy.js" });
   assert.equal(copy.open, "app");
@@ -458,24 +463,26 @@ test("opening re-resolves the name; a build-only file opens as a read-only copy"
     copy.target,
     "opened again, the same copy",
   );
-  assert.equal(readFileSync((await chat.target(scope(), { name: "src/game.js" })).target, "utf8"), "new");
+  assert.equal(readFileSync((await chat.target(scope(), { name: "src/project.js" })).target, "utf8"), "new");
   await assert.rejects(chat.target(scope(), { name: "~/.ssh/id_rsa" }), /isn’t on this computer/);
 });
 
 test("a chat asks the core about the files it names; the studio's secrets never link", async () => {
-  const { core, gamesRoot } = await coreLite({ gamesRoot: realpathSync.native(await tmpDir("chat-files-core-")) });
-  const game = await core.games.scaffold("rift", { title: "Rift" });
-  const threadId = await core.threadForGame("rift");
-  mkdirSync(path.join(game.dir, "docs"), { recursive: true });
-  writeFileSync(path.join(game.dir, "docs", "DESIGN.md"), "# Plan");
-  writeFileSync(path.join(gamesRoot, "outside.md"), "elsewhere");
+  const { core, projectsRoot } = await coreLite({
+    projectsRoot: realpathSync.native(await tmpDir("chat-files-core-")),
+  });
+  const project = await core.projects.scaffold("rift", { title: "Rift" });
+  const threadId = await core.threadForProject("rift");
+  mkdirSync(path.join(project.dir, "docs"), { recursive: true });
+  writeFileSync(path.join(project.dir, "docs", "DESIGN.md"), "# Plan");
+  writeFileSync(path.join(projectsRoot, "outside.md"), "elsewhere");
   const secret = path.join(core.layout.secrets, "token.txt");
   mkdirSync(path.dirname(secret), { recursive: true });
   writeFileSync(secret, "secret");
 
   const [plan, outside, stored, missing] = await core.resolveChatFiles(threadId, [
     { name: "docs/DESIGN.md" },
-    { name: path.join(gamesRoot, "outside.md") },
+    { name: path.join(projectsRoot, "outside.md") },
     { name: secret },
     { name: "docs/MISSING.md" },
   ]);
@@ -492,7 +499,7 @@ test("a chat asks the core about the files it names; the studio's secrets never 
   await assert.rejects(core.resolveChatFiles("no-such-thread", []), /no longer here/);
   assert.deepEqual(await core.chatFileTarget(threadId, { name: "docs/DESIGN.md" }), {
     open: "app",
-    target: path.join(realpathSync.native(game.dir), "docs", "DESIGN.md"),
+    target: path.join(realpathSync.native(project.dir), "docs", "DESIGN.md"),
   });
   await assert.rejects(core.chatFileTarget(threadId, { name: secret }), /isn’t on this computer/);
 });
@@ -500,7 +507,7 @@ test("a chat asks the core about the files it names; the studio's secrets never 
 test("a Claude Code tool names its file in the row's chip", () => {
   const envelope = (id: number, data: EventData): EventEnvelope => ({
     id: String(id).padStart(6, "0"),
-    thread_id: "game",
+    thread_id: "project",
     turn_id: "turn",
     session_id: null,
     created_at: new Date().toISOString(),

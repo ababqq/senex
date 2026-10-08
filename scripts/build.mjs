@@ -16,11 +16,11 @@ import { vendorTsc } from "./vendor-tsc.ts";
  *   dist/main/main.mjs        substrate + app shell (ESM, Electron 43 supports ESM main)
  *   dist/preload/preload.cjs  renderer bridge (sandboxed preloads must be CommonJS)
  *   dist/renderer/*           React UI
- *   dist/resources/*          read-only app resources: the harness seed, the bootstrap, the game
+ *   dist/resources/*          read-only app resources: the harness seed, the bootstrap, the project
  *                             template, vendored three.js, and the TypeScript 7 compiler the
  *                             in-app type gate runs (dist/resources/tsc, scripts/vendor-tsc.ts)
  *
- * esbuild only, deliberately: one tool, no plugin-compatibility surface, and the game workspaces
+ * esbuild only, deliberately: one tool, no plugin-compatibility surface, and the project workspaces
  * need no bundler at all (import maps + vendored three).
  */
 import { spawn } from "node:child_process";
@@ -166,7 +166,7 @@ async function rendererContexts() {
   ];
 }
 
-// The page world: the studio's own code, served onto every game page before the game runs.
+// The page world: the studio's own code, served onto every project page before the project runs.
 // Bundled rather than injected as a string — it is several modules, and observer.ts's
 // toString() trick forbids module-level helpers. The shim is a classic script (it must run
 // before every module script); the hook is a module (it must follow the import map).
@@ -314,10 +314,10 @@ async function copyResources() {
   // The stable bootstrap — shipped, never edited by the agent.
   await cp(path.join(root, "src/genex-host"), path.join(resources, "genex-host"), { recursive: true });
   await cp(path.join(root, "src/harness-boot"), path.join(resources, "harness-boot"), { recursive: true });
-  // The game template.
-  await cp(path.join(root, "src/game-template"), path.join(resources, "game-template"), { recursive: true });
+  // The project template.
+  await cp(path.join(root, "src/project-template"), path.join(resources, "project-template"), { recursive: true });
 
-  // Every library three.js vendors (copied below for games, two decoders for the Assets viewer)
+  // Every library three.js vendors (copied below for projects, two decoders for the Assets viewer)
   // has its license in THIRD-PARTY-NOTICES.md, which ships beside each copy.
   const threeLibs = path.join(root, "node_modules/three/examples/jsm/libs");
   assertThreeLibsListed(threeLibs, await readFile(path.join(root, "THIRD-PARTY-NOTICES.md"), "utf8"));
@@ -332,7 +332,7 @@ async function copyResources() {
     );
   }
   await cp(path.join(root, "src/renderer/asset-basis-entry.js"), path.join(dist, "renderer/decoders/basis/worker.js"));
-  // Vendored three.js: games run with no network and no package manager.
+  // Vendored three.js: projects run with no network and no package manager.
   const vendor = path.join(resources, "vendor");
   await mkdir(vendor, { recursive: true });
   await cp(path.join(root, "node_modules/three/build/three.module.js"), path.join(vendor, "three.module.js"));

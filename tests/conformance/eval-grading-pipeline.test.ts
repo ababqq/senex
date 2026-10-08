@@ -319,7 +319,7 @@ describe("grading a campaign: what is left alone", () => {
   });
 });
 
-describe("the vendor folder a game is served with", () => {
+describe("the vendor folder a project is served with", () => {
   const BASE_SHA = "b".repeat(40);
   const CAND_SHA = "c".repeat(40);
 

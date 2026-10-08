@@ -2,7 +2,7 @@
  * The composer's permissions pill: Claude Code's permission modes for this chat, in its own order
  * and words. Digits pick while the panel is open, as in Claude Code's menu. Every engine has the
  * pill; a mode the chat's engine does not honour stays in the list, unavailable, with the reason
- * (`unavailableModeReason`). Bypass asks once more: nothing stops it outside the game folder, and
+ * (`unavailableModeReason`). Bypass asks once more: nothing stops it outside the project folder, and
  * Rewind brings back only that folder (the words name this Mac, or this computer elsewhere:
  * `bypassPermissionsWords`).
  */
@@ -54,7 +54,7 @@ const UNAVAILABLE_WORDS: Record<UnavailableModeReason, (engine: string) => strin
 /** What a mode does where the chat's engine works otherwise than Claude Code, by engine. */
 const ENGINE_MODE_WORDS: Partial<Record<string, Partial<Record<PermissionModeType, string>>>> = {
   [EngineId.Codex]: {
-    [PermissionMode.Auto]: "Game folder only, no network",
+    [PermissionMode.Auto]: "Project folder only, no network",
     [PermissionMode.Bypass]: "Runs outside its sandbox",
   },
 };
@@ -208,7 +208,7 @@ function BypassConfirm({
 }
 
 /**
- * The panel stays over the chat: beside it the native game would cover whatever spilled over. Its
+ * The panel stays over the chat: beside it the native project would cover whatever spilled over. Its
  * boundary is the page left of the prompt bar's right edge.
  */
 function chatSide(trigger: HTMLElement | null) {

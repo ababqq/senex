@@ -10,7 +10,7 @@
  */
 import type { AgentScreenEvent, AgentScreenFrame } from "./agent-screen.ts";
 import type { ReadyUpdate } from "./app-update.ts";
-import type { AssetDeliveredPayload } from "./game-assets.ts";
+import type { AssetDeliveredPayload } from "./project-assets.ts";
 import type { LiveBehindEvent } from "./live-behind.ts";
 import type { McpChange } from "./mcp.ts";
 import type { CliInstallJob } from "./cli-install.ts";
@@ -105,16 +105,16 @@ export interface UiEventMap {
   "cli.install": CliInstallJob;
   "model.pull": { model: string; progress: ModelPullProgress };
 
-  // — games and builds —
-  "game.changed": { project?: string; file?: string; warning?: string };
-  "game.archived": { project: string; trash: boolean };
+  // — projects and builds —
+  "project.changed": { project?: string; file?: string; warning?: string };
+  "project.archived": { project: string; trash: boolean };
   "delegation.started": { project: string; engine: string; active: number };
   "delegation.finished": { project: string; engine: string; active: number };
   "delegation.checkpoint": { project: string; cwd: string; note: string };
   /** One event of a delegated contractor session, as its engine reported it. */
   "delegated.event": { engine: string; type: string; payload: unknown };
   "asset.delivered": AssetDeliveredPayload;
-  /** A coordinator tool put a build on screen: the chat of that game brings Live forward. */
+  /** A coordinator tool put a build on screen: the chat of that project brings Live forward. */
   "stage.show": { project: string; view: "live" };
 
   // — runs —
@@ -151,7 +151,7 @@ export interface UiEventMap {
   "preview.frame": AgentScreenFrame;
   /** Something Live could show now waits for the person's Reload, or (`reason: null`) nothing does. */
   "live.behind": LiveBehindEvent;
-  /** ⌥⌘M pressed while the Live game had the keyboard: the renderer owns the switch and flips it. */
+  /** ⌥⌘M pressed while the Live project had the keyboard: the renderer owns the switch and flips it. */
   "preview.sound.toggle": { at: number };
 
   // — plugins and connectors —
@@ -160,7 +160,7 @@ export interface UiEventMap {
   "plugin.event": { id: string; event: unknown; project?: string; threadId?: string };
   "plugin.consent": { consentId: string; threadId?: string; project: string; state: PluginConsentEvent["state"] };
   /**
-   * A game chat's Claude session asked the person (`tool_permission` in the log), or the question
+   * A project chat's Claude session asked the person (`tool_permission` in the log), or the question
    * settled. A nudge to read the log again, never state: the harness may send any name.
    */
   "tool.permission": { requestId: string; threadId: string; project: string; state: ToolPermissionState };
@@ -239,8 +239,8 @@ export const UiEvent = {
   ModelInstall: "model.install",
   CliInstall: "cli.install",
   ModelPull: "model.pull",
-  GameChanged: "game.changed",
-  GameArchived: "game.archived",
+  ProjectChanged: "project.changed",
+  ProjectArchived: "project.archived",
   DelegationStarted: "delegation.started",
   DelegationFinished: "delegation.finished",
   DelegationCheckpoint: "delegation.checkpoint",

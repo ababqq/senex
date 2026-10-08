@@ -81,7 +81,7 @@ type Hardware = Awaited<ReturnType<typeof window.studio.hardware>>;
 const COMPOSER = { left: 120, top: 130, width: 520 } as const;
 const SEND = { x: COMPOSER.left + COMPOSER.width - 26, y: COMPOSER.top + 62 } as const;
 const ROLES = [
-  { name: "Plan your game", does: "the idea becomes tasks", left: 7, at: ROLE_AT.planner },
+  { name: "Plan your project", does: "the idea becomes tasks", left: 7, at: ROLE_AT.planner },
   { name: "Build with workers", does: "every piece at once", left: 260, at: ROLE_AT.workers },
   { name: "Reviewers test it", does: "and approve each build", left: 513, at: ROLE_AT.reviewers },
 ] as const;
@@ -220,9 +220,9 @@ function pointerAt(phase: number, still: boolean): "off" | "on" | "gone" {
 }
 
 function welcomeCaption(beat: 0 | 1, writing: boolean): string {
-  if (beat === 1) return "Multi-agent workflows. Custom plugins. Assets for games.";
+  if (beat === 1) return "Multi-agent workflows. Custom plugins. Assets for projects.";
   if (writing) return "Type your own idea. It waits for you after setup.";
-  return "Open source AI harness for game development";
+  return "Open source AI harness for project development";
 }
 
 /** The welcome's two beats, its script, and what the person does to it: write an idea, send it, jump a beat. */
@@ -387,8 +387,8 @@ function WelcomeComposer({ w }: { w: WelcomeModel }): JSX.Element {
       <input
         ref={w.input}
         className="onboarding-idea text-composer"
-        aria-label="Describe a game"
-        placeholder="Describe a game…"
+        aria-label="Describe a project"
+        placeholder="Describe a project…"
         value={value}
         data-let-go={w.letGo || undefined}
         disabled={!composerOn}

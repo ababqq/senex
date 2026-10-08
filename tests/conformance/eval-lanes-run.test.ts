@@ -192,7 +192,7 @@ const evalCase: EvalCase = {
   id: "tiny-pong",
   number: 1,
   label: "Tiny pong",
-  brief: "Make a tiny pong game.",
+  brief: "Make a tiny pong project.",
   mode: CaseMode.Build,
   exposure: CaseExposure.None,
   exposureReason: null,
@@ -489,14 +489,14 @@ describe("harness guards", () => {
       ...init,
       mcpServers: ["playwright"],
       plugins: 1,
-      skills: ["genex-game-director"],
+      skills: ["genex-project-director"],
       agents: ["genex-helper"],
       permissionMode: PermissionMode.Bypass,
     };
     assert.deepEqual(
       claudeContamination(dirty, {
         ...pins,
-        operator: { skills: new Set(["genex-game-director"]), agents: new Set(["genex-helper"]) },
+        operator: { skills: new Set(["genex-project-director"]), agents: new Set(["genex-helper"]) },
       }),
       [
         ContaminationFinding.McpServers,
@@ -551,7 +551,7 @@ describe("raw Claude lane", () => {
     const projectDir = path.join(req.workRoot, "project");
     assert.equal(spawned.cwd, projectDir);
     assert.equal(spawned.file, `/fake/bin/${EngineId.ClaudeCode}-cli`);
-    const prompt = `Make a tiny pong game.\n\n${req.suffix}\n\n`;
+    const prompt = `Make a tiny pong project.\n\n${req.suffix}\n\n`;
     assert.ok(String(spawned.args.at(-1)).startsWith(prompt));
     assert.ok(String(spawned.args.at(-1)).includes("look-at-page <url>"));
     assert.deepEqual(
@@ -689,7 +689,7 @@ describe("raw Codex lane", () => {
     assert.equal(result.cliVersion, "0.159.0");
     const spawned = machine.spawned[0];
     assert.ok(spawned);
-    assert.ok(spawned.stdin.startsWith("Make a tiny pong game."));
+    assert.ok(spawned.stdin.startsWith("Make a tiny pong project."));
     assert.equal(spawned.args.at(-1), "-");
     assert.ok(
       spawned.args.includes(
@@ -739,7 +739,7 @@ describe("Genex app lane", () => {
     effortServed: null,
     appVersion: "0.0.0",
     harnessDigest: { workspace: "a", shipped: "a", matches: true },
-    projectDir: path.join(spec.gamesRoot, "tiny-pong"),
+    projectDir: path.join(spec.projectsRoot, "tiny-pong"),
     templateDigest: null,
     threadId: "t1",
     startedAt: "2026-10-01T12:00:00.000Z",

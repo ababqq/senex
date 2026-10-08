@@ -1,5 +1,5 @@
 /**
- * The `notifications` fixture: a library of games that will each have something to say, and the
+ * The `notifications` fixture: a library of projects that will each have something to say, and the
  * news that arrives once the window is up — builds that land, fail and pause, a sign-in, a
  * plugin's question, a plan waiting for a go and an interview question.
  */
@@ -15,7 +15,7 @@ import { ExecutionStatus } from "../../shared/run-state.ts";
 
 /** Why the notifications fixture cannot be seeded. */
 const MESSAGE = {
-  missingGame: "fixture game notify-orbit is missing",
+  missingProject: "fixture project notify-orbit is missing",
 } as const;
 
 /** One piece of news every half second. */
@@ -23,7 +23,7 @@ const ARRIVAL_GAP_MS = 500;
 /** News starts after the window has read its first feed, so it arrives as news. */
 export const NOTIFICATIONS_START_MS = 4000;
 
-const NOTIFY_GAMES = [
+const NOTIFY_PROJECTS = [
   ["notify-lunar", "Lunar garden"],
   ["notify-neon", "Neon drift"],
   ["notify-orbit", "Orbit racer"],
@@ -32,18 +32,18 @@ const NOTIFY_GAMES = [
   ["notify-glass", "Glass cathedral"],
 ] as const;
 
-/** A library whose games will each have something to say; one build already ended before launch. */
-export async function seedNotificationGames(core: StudioCore): Promise<void> {
-  for (const [n, [name, title]] of NOTIFY_GAMES.entries()) {
-    await core.games.scaffold(name, { title });
-    await core.threadForGame(name);
+/** A library whose projects will each have something to say; one build already ended before launch. */
+export async function seedNotificationProjects(core: StudioCore): Promise<void> {
+  for (const [n, [name, title]] of NOTIFY_PROJECTS.entries()) {
+    await core.projects.scaffold(name, { title });
+    await core.threadForProject(name);
     const look = ALL_COVER_LOOKS[(n * 7) % ALL_COVER_LOOKS.length];
     if (!look) continue;
-    await core.games.update(name, {
+    await core.projects.update(name, {
       cover: { kind: "recipe", ...look, seed: (n * 131) % 997, placeholder: true },
     });
   }
-  const snow = await core.threadForGame("notify-snow");
+  const snow = await core.threadForProject("notify-snow");
   await core.append(
     finishedBuild("notify-snow", "Snow on the temple steps", {
       landed: true,
@@ -54,7 +54,7 @@ export async function seedNotificationGames(core: StudioCore): Promise<void> {
   );
 }
 
-/** A build of one notify game, started and finished with `outcome`. */
+/** A build of one notify project, started and finished with `outcome`. */
 function finishedBuild(project: string, goal: string, outcome: Record<string, unknown>): EventData[] {
   const run = fixtureRun({ runId: `fixture-${project}`, project });
   return [run(CustomEvent.RunStarted, { goal }), run(CustomEvent.RunFinished, outcome)];
@@ -62,7 +62,7 @@ function finishedBuild(project: string, goal: string, outcome: Record<string, un
 
 /** The news, one piece at a time. */
 export async function notificationArrivals(core: StudioCore): Promise<void> {
-  const orbit = await core.threadForGame("notify-orbit");
+  const orbit = await core.threadForProject("notify-orbit");
   await say(
     core,
     orbit,
@@ -72,16 +72,16 @@ export async function notificationArrivals(core: StudioCore): Promise<void> {
       summary: "Drifting holds the racing line.",
     }),
   );
-  const desert = await core.threadForGame("notify-desert");
+  const desert = await core.threadForProject("notify-desert");
   await say(
     core,
     desert,
     finishedBuild("notify-desert", "A market in the dunes", {
       executionStatus: ExecutionStatus.Failed,
-      failure: { message: "The game stopped responding while it loaded the market." },
+      failure: { message: "The project stopped responding while it loaded the market." },
     }),
   );
-  const glass = await core.threadForGame("notify-glass");
+  const glass = await core.threadForProject("notify-glass");
   await say(core, glass, [
     ...finishedBuild("notify-glass", "Stained glass light", {
       landed: false,
@@ -109,10 +109,10 @@ function step(): Promise<unknown> {
   return sleep(ARRIVAL_GAP_MS);
 }
 
-/** A plugin asks before it changes the game; the real consent ledger holds it until answered. */
+/** A plugin asks before it changes the project; the real consent ledger holds it until answered. */
 async function askToUseTrackTexture(core: StudioCore, orbit: string): Promise<void> {
-  const game = (await core.games.list()).find((candidate) => candidate.name === "notify-orbit");
-  if (!game) throw new Error(MESSAGE.missingGame);
+  const project = (await core.projects.list()).find((candidate) => candidate.name === "notify-orbit");
+  if (!project) throw new Error(MESSAGE.missingProject);
   void core
     .requestConsent(
       "Image studio",
@@ -123,13 +123,13 @@ async function askToUseTrackTexture(core: StudioCore, orbit: string): Promise<vo
         confirmation: "Use the new track texture in Orbit racer?",
       },
       { file: "assets/track-texture.png" },
-      { project: "notify-orbit", directory: game.dir, threadId: orbit },
+      { project: "notify-orbit", directory: project.dir, threadId: orbit },
     )
     .catch(() => {});
 }
 
 async function planWaitingForGo(core: StudioCore): Promise<void> {
-  const neon = await core.threadForGame("notify-neon");
+  const neon = await core.threadForProject("notify-neon");
   const review = {
     id: "fixture-notify-plan",
     state: "waiting" as const,
@@ -143,7 +143,7 @@ async function planWaitingForGo(core: StudioCore): Promise<void> {
 }
 
 async function interviewQuestion(core: StudioCore): Promise<void> {
-  const lunar = await core.threadForGame("notify-lunar");
+  const lunar = await core.threadForProject("notify-lunar");
   await say(core, lunar, [
     { type: EventKind.Messages, messages: [{ role: "user", content: "Make the garden feel magical at night." }] },
     customEventData(CustomEvent.InterviewQuestion, {

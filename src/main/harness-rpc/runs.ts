@@ -13,7 +13,7 @@ export function runsRpc(core: StudioCore, _x: CoreInternals) {
   return {
     // — sandboxed execution —
     [HostMethod.RunExec]: async (p) => {
-      const cwd = p.project ? core.games.dirFor(p.project) : (p.cwd ?? core.layout.harnessWs);
+      const cwd = p.project ? core.projects.dirFor(p.project) : (p.cwd ?? core.layout.harnessWs);
       return core.sandbox.run({
         command: p.command,
         cwd,

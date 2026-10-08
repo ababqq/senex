@@ -3,7 +3,7 @@ interface FrameHost {
   cancel(id: number): void;
 }
 
-/** Suspend an unobserved preview's native frames without losing the game's queued callbacks. */
+/** Suspend an unobserved preview's native frames without losing the project's queued callbacks. */
 export function animationGate(host: FrameHost) {
   let visible = true;
   let next = 0;

@@ -76,7 +76,7 @@ const SECRET = "outside-the-evidence-sentinel";
 const REVIEWER = "0f1e2d3c4b5a6978";
 const CAMPAIGN = "20261002T100000-smoke";
 const LANES = ["genex-claude", "raw-claude", "raw-codex", "genex-codex"];
-/** The origin the prober served the game on; frames on any other origin are not evidence. */
+/** The origin the prober served the project on; frames on any other origin are not evidence. */
 const ORIGIN = "http://127.0.0.1:5173";
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 const ledgerFixtures = path.resolve(import.meta.dirname, "../fixtures/evals/ledger");
@@ -124,7 +124,7 @@ async function writeRunEvidence(evidenceRoot: string, run: RunRow, frames: numbe
     refs.push({ path: file, atMs: 100 * index, phase: ProbePhase.InputBurst, origin: ORIGIN, width: 4, height: 3 });
   }
   const evidence = {
-    gameOrigin: ORIGIN,
+    projectOrigin: ORIGIN,
     frames: refs,
     consoleSummaryPath: "",
     networkSummaryPath: "",
@@ -910,11 +910,11 @@ describe("eval review tasks: sessions", () => {
       id: run.case.id,
       version: run.case.version,
       label: "Mini golf",
-      brief: "Make a mini golf game.",
+      brief: "Make a mini golf project.",
     };
     const request = { campaignId: CAMPAIGN, mode: ReviewMode.Pair, seed: "s6", reviewerId: REVIEWER, sample: null };
     const same = await loadReviewTasks(request, memorySource(root, { runs, cases: [evalCase as EvalCase] }));
-    assert.deepEqual(same[0]?.caseText, { label: "Mini golf", brief: "Make a mini golf game." });
+    assert.deepEqual(same[0]?.caseText, { label: "Mini golf", brief: "Make a mini golf project." });
     const moved = await loadReviewTasks(
       request,
       memorySource(root, { runs, cases: [{ ...evalCase, version: "ffffffffffff" } as EvalCase] }),

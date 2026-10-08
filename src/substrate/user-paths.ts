@@ -2,13 +2,13 @@
  * Paths the user types into chat — the Cursor/Codex equivalent of "this is the folder".
  *
  * A draft chat that names an existing directory should work *there*, not spawn a twin under
- * `~/AI Games`. A bound chat that names a folder of stills should look at those pictures where
+ * `~/AI Projects`. A bound chat that names a folder of stills should look at those pictures where
  * they are, not copy them into `references/` and not go hunting the rest of the disk.
  */
 import { readdir, realpath, stat } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { isImageFile } from "./game-workspace.ts";
+import { isImageFile } from "./project-workspace.ts";
 import { StudioPlatform } from "../shared/boot.ts";
 
 const STILL_DIR_NAMES = new Set(["ref", "refs", "references", "still", "stills", "mood", "moodboard"]);
@@ -27,8 +27,8 @@ const BROAD_HOME_CHILDREN = new Set([
   "music",
   "library",
   "applications",
-  "ai games",
-  "ai-games",
+  "ai projects",
+  "ai-projects",
 ]);
 
 export interface NamedPaths {

@@ -54,7 +54,7 @@ test("ui takes a request file, stdin or inline --json, exactly one of them", () 
   );
   assert.throws(() => parseStudioDevArgs(["ui", "--profile", "p", "--json", '{"method":"stop","params":{"pid":1}}']));
   assert.throws(() => parseOperation("{not json"), /request is not JSON/);
-  assert.deepEqual(parseOperation('{"method":"game.state","params":{}}'), { method: "game.state", params: {} });
+  assert.deepEqual(parseOperation('{"method":"project.state","params":{}}'), { method: "project.state", params: {} });
 });
 
 test("snapshot, logs and capture shortcuts build the protocol operations with its defaults", () => {

@@ -1,7 +1,7 @@
 /**
  * THE PROBE BUDGET: a probe must always write its evidence inside the grader's deadline, whatever the
  * page does. A slow page (a main thread busy for seconds, screenshots timing out) once took a probe
- * past the grader's deadline twice and left NO evidence, less than a game that crashed in ten seconds.
+ * past the grader's deadline twice and left NO evidence, less than a project that crashed in ten seconds.
  *
  * Three rules, pure and clock-injected so the shape replays as a test:
  *   1. The budget is four soaks minus a fixed readout margin, but never less than the soak itself
@@ -159,5 +159,5 @@ export function budgetSentence(b: BudgetSummary): string | null {
     );
   }
   if (parts.length === 0) return null;
-  return `Probe budget: ${parts.join("; ")}. A row that is unknown because of this says so in its own detail; none of it is a verdict on the game.`;
+  return `Probe budget: ${parts.join("; ")}. A row that is unknown because of this says so in its own detail; none of it is a verdict on the project.`;
 }

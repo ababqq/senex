@@ -1,18 +1,18 @@
 /**
  * AUDIO, FIVE ANSWERS, NEVER ONE BOOLEAN: a file arrived over the network, an AudioContext is running,
  * the graph reaches the destination, the analyser tapped onto the destination heard something, a
- * media element is playing. A game that synthesises sound in WebAudio legitimately fails the network
+ * media element is playing. A project that synthesises sound in WebAudio legitimately fails the network
  * row while passing the other four; that combination is what a one-boolean version got wrong.
  *
- * A silent network fails only INSIDE the game: a title screen that loads its music on entry produces
- * the same zero, so without gameplay reached the network row is `unknown`, naming why.
+ * A silent network fails only INSIDE the project: a title screen that loads its music on entry produces
+ * the same zero, so without interaction reached the network row is `unknown`, naming why.
  */
 import { CheckResult, ProbeRow } from "../../vocabulary.ts";
 import type { InstrumentSnapshot } from "../driver.ts";
 import { mean, percentile } from "../frames.ts";
 import type { ProbeRms } from "../instrument.ts";
 import type { Check, NetworkEntry } from "../types.ts";
-import type { GameplayReached } from "../verdicts.ts";
+import type { InteractionReached } from "../verdicts.ts";
 import { machineRow } from "./row.ts";
 import { AUDIBLE_RMS } from "./verbs.ts";
 
@@ -70,18 +70,18 @@ export function audioFacts(
   };
 }
 
-function networkRow(f: AudioFacts, gameplay: GameplayReached): Check {
+function networkRow(f: AudioFacts, interaction: InteractionReached): Check {
   const id = ProbeRow.L3AudioNetwork;
-  const value = { ...f.network, gameplayReached: gameplay.reached, gameplayWhy: gameplay.why };
+  const value = { ...f.network, interactionReached: interaction.reached, interactionWhy: interaction.why };
   if (f.network.files > 0) {
     const detail = `${f.network.files} audio file(s) arrived. This says bytes arrived, nothing about whether they were played.`;
     return machineRow(id, CheckResult.Pass, detail, value);
   }
-  if (gameplay.reached) {
-    const detail = `No audio file arrived, on a run that reached gameplay (${gameplay.why}). A game synthesising sound in WebAudio looks like this too, which is why the other four rows are separate.`;
+  if (interaction.reached) {
+    const detail = `No audio file arrived, on a run that reached interaction (${interaction.why}). A project synthesising sound in WebAudio looks like this too, which is why the other four rows are separate.`;
     return machineRow(id, CheckResult.Fail, detail, value);
   }
-  const detail = `No audio file arrived, but gameplay was never reached (${gameplay.why}), and a title screen that loads its music on entry produces the same silence.`;
+  const detail = `No audio file arrived, but interaction was never reached (${interaction.why}), and a title screen that loads its music on entry produces the same silence.`;
   return machineRow(id, CheckResult.Unknown, detail, value);
 }
 
@@ -150,7 +150,7 @@ function elementRow(f: AudioFacts): Check {
   const value = { elements: f.elements, playing };
   if (!f.elements.length) {
     const detail =
-      "This game uses no HTMLMediaElement at all: a normal choice (WebAudio only), unknown rather than a failure.";
+      "This project uses no HTMLMediaElement at all: a normal choice (WebAudio only), unknown rather than a failure.";
     return machineRow(id, CheckResult.Unknown, detail, value);
   }
   if (playing)
@@ -170,6 +170,6 @@ function elementRow(f: AudioFacts): Check {
 }
 
 /** The five audio rows, in `ProbeRow` order. */
-export function audioRows(f: AudioFacts, gameplay: GameplayReached): Check[] {
-  return [networkRow(f, gameplay), contextRow(f), graphRow(f), outputRow(f), elementRow(f)];
+export function audioRows(f: AudioFacts, interaction: InteractionReached): Check[] {
+  return [networkRow(f, interaction), contextRow(f), graphRow(f), outputRow(f), elementRow(f)];
 }

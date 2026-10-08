@@ -57,9 +57,9 @@ function cardMessage({ engine, vendor, login, busy, flat, missingCli, installing
   if (busy) return "Finish in the browser window that just opened. This card goes away on its own when you're in.";
   if (installing) return `Installing ${vendor.name}. This can take a minute.`;
   if (missingCli) return `${vendor.name} isn't installed on this computer yet.`;
-  if (flat) return `Use ${vendor.product} to build games.`;
+  if (flat) return `Use ${vendor.product} to build projects.`;
   if (engine === EngineId.Codex)
-    return "Connect your ChatGPT subscription to build games. Codex handles sign-in in your browser.";
+    return "Connect your ChatGPT subscription to build projects. Codex handles sign-in in your browser.";
   return `${capitalise(vendor.product)} expired or isn't signed in. The studio never sees your password — ${vendor.who}.`;
 }
 

@@ -1,6 +1,6 @@
 /**
  * The senses, as the substrate sees them (moved down from studio-core.ts). The only real
- * implementation is Electron's GamePreview; tests satisfy it with a plain object, which is the
+ * implementation is Electron's ProjectPreview; tests satisfy it with a plain object, which is the
  * proof the port carries no Electron dependency.
  */
 import type { PageUi, PageUiAnswer } from "./page-ui.ts";
@@ -17,7 +17,7 @@ import type {
 export type { CaptureSurface, CropRect, PreviewConsoleEntry, PreviewPixelStats, PreviewPortStatus };
 
 /**
- * What the studio's page shim is told when it is served onto a game's page (M4.1). The values
+ * What the studio's page shim is told when it is served onto a project's page (M4.1). The values
  * live here, in the port, because both sides need them: the main process bakes them into the
  * script tag and the harness passes them per load. `src/page/shim.ts` normalises whatever it
  * receives, so an older seed that sends nothing still gets the defaults.
@@ -42,13 +42,13 @@ export interface ShimOptions {
 }
 
 /**
- * How this game is connected to the studio, and what the studio can see of it (M4.2a) — the page
- * half of `game.attached`. Read off the renderer hook (what it wrapped, what it has seen
- * rendered, which scene and camera the last judged frame used), never off the game's own claim
- * about itself. `installed` is a game that assigned `window.__studio`; `attached` is a game the
+ * How this project is connected to the studio, and what the studio can see of it (M4.2a) — the page
+ * half of `project.attached`. Read off the renderer hook (what it wrapped, what it has seen
+ * rendered, which scene and camera the last judged frame used), never off the project's own claim
+ * about itself. `installed` is a project that assigned `window.__studio`; `attached` is a project the
  * studio recognised in the frames it drew, with nothing added to it.
  *
- * Every field but `contract` is optional: the caller (studio-core's `game.attached`) fills the
+ * Every field but `contract` is optional: the caller (studio-core's `project.attached`) fills the
  * gaps of a page that answered nothing.
  */
 export interface PageAttachReport {
@@ -65,7 +65,7 @@ export interface PageAttachReport {
   cameraKind?: string | null;
   cameras?: string[];
   eyes?: string[];
-  /** Whether the game reports where its player is — not the pose itself. */
+  /** Whether the project reports where its player is — not the pose itself. */
   player?: boolean;
   renders?: number;
   frames?: number;
@@ -77,11 +77,11 @@ export interface PageAttachReport {
   consoleErrors?: number;
 }
 
-/** One observation port on a game. Implemented by Electron's GamePreview. */
+/** One observation port on a project. Implemented by Electron's ProjectPreview. */
 export interface PreviewPort {
   invalidateProfile?(reason: string): Promise<void>;
   profile?(request: import("./preview-profiler.ts").ProfileRequest): Promise<unknown>;
-  /** `root` is a playable worktree; omit it to serve the live game folder. `loopback` serves it as http://localhost:<port>/ — what a game with its own shape expects. `shim` overrides the page shim for this load (the boot budget is the one that changes per game). */
+  /** `root` is a playable worktree; omit it to serve the live project folder. `loopback` serves it as http://localhost:<port>/ — what a project with its own shape expects. `shim` overrides the page shim for this load (the boot budget is the one that changes per project). */
   load(
     project: string,
     entry?: string,
@@ -93,7 +93,7 @@ export interface PreviewPort {
   stop?(): Promise<void>;
   /** Optional: the person's Play on a stopped page — the same page again, from the top. */
   resume?(): Promise<void>;
-  /** Optional: a line the studio itself puts on the game's console — e.g. a build that failed before the page could load. */
+  /** Optional: a line the studio itself puts on the project's console — e.g. a build that failed before the page could load. */
   note?(level: string, message: string, options?: { loadError?: boolean }): void;
   screenshot(quality?: number): Promise<Buffer>;
   /** A thumbnail capture with bounded statistics, never used as judged evidence. */
@@ -117,7 +117,7 @@ export interface PreviewPort {
     opts?: { page?: boolean; surface?: CaptureSurface },
   ): Promise<{ jpeg: Buffer; stats: PreviewPixelStats; surface?: CaptureSurface }>;
   /**
-   * Optional: what the page's own DOM paints over the game — the studio's second eye (M4.5a).
+   * Optional: what the page's own DOM paints over the project — the studio's second eye (M4.5a).
    * The payload is a {@link PageUi}, or null when the page could not be probed, which is not the
    * same as a page with no UI. It is typed as the raw answer because a port may be a fake or an
    * older seed that reports the page's own shape; {@link readPageUi} is the one folder.
@@ -127,7 +127,7 @@ export interface PreviewPort {
   studioState(): Promise<unknown>;
   /**
    * Call a `window.__studio` method by name. The classic set is typed; the v2 contract adds
-   * `eye`, `inspect` and `audio`, and a game may expose more — the page answers `{__missing}`
+   * `eye`, `inspect` and `audio`, and a project may expose more — the page answers `{__missing}`
    * for anything it does not have.
    */
   studioCall(method: string, arg?: unknown): Promise<unknown>;

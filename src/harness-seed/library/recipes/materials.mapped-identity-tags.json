@@ -5,6 +5,7 @@
   "checkClass": "materials",
   "kind": "craft",
   "pack": "materials",
+  "appKinds": ["graphics"],
   "note": "Every material on an identity tag carries a baked map, a triplanar projection or a modelled asset — a flat standard material is an untextured box.",
   "intent": "The check is written against the facet's own identity tags, not against everything in the scene: whatever the facet exists to build must not be flat colour. Three answers pass it — a baked map from materials.js, a triplanar projection for terrain and rock where UVs are painful, or a mesh loaded with loadAsset (which bakes a map onto any asset material that has none). Replace tags() in the check body with the facet's identity tag list when the plan writes it down, so a facet is measured on its own work rather than on the whole world.",
   "check": {

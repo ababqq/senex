@@ -187,9 +187,9 @@ describe("grader-validation labels", () => {
 
 describe("the denylist", () => {
   const hits: Array<[string, string, GuardRule]> = [
-    ["a macOS home path", spell("/Us", "ers/someone/game"), GuardRule.AbsolutePath],
+    ["a macOS home path", spell("/Us", "ers/someone/project"), GuardRule.AbsolutePath],
     ["a Linux home path", spell("/ho", "me/someone"), GuardRule.AbsolutePath],
-    ["a Windows drive path", spell("C:", "\\Games\\x"), GuardRule.AbsolutePath],
+    ["a Windows drive path", spell("C:", "\\Projects\\x"), GuardRule.AbsolutePath],
     ["a tilde path", spell("~", "/notes"), GuardRule.AbsolutePath],
     ["an email", spell("someone", "@", "example.org"), GuardRule.Email],
     ["an API key", spell("sk-", "ant-", "abcdef123456"), GuardRule.Secret],

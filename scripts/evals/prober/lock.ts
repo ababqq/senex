@@ -1,7 +1,7 @@
 /**
  * ONE PROBE AT A TIME, PER MACHINE (Rule 11). Probes render through Chromium, and concurrent probes
  * contend for the CPU and GPU: the demo measured a software-rendered median of 30 fps fall to 10 with
- * four probes in parallel, with nothing about the games changed. So parallelism is not a tuning knob.
+ * four probes in parallel, with nothing about the projects changed. So parallelism is not a tuning knob.
  *
  * The lock is a file at an explicit path under `$GENEX_EVALS_HOME/locks/`, created exclusively and
  * holding the owner's pid. The holder touches it every `PROBE_LOCK_HEARTBEAT_MS` while it holds it,

@@ -12,18 +12,18 @@ import { tmpDir } from "../helpers/tmp.ts";
 
 async function workspace() {
   const root = await tmpDir("studio-asset-records-");
-  const game = path.join(root, "game");
-  await mkdir(path.join(game, "assets"), { recursive: true });
-  await writeFile(path.join(game, "assets", "crate.glb"), "glb");
-  return { root, game, file: path.join(root, "host-deliveries.json") };
+  const project = path.join(root, "project");
+  await mkdir(path.join(project, "assets"), { recursive: true });
+  await writeFile(path.join(project, "assets", "crate.glb"), "glb");
+  return { root, project, file: path.join(root, "host-deliveries.json") };
 }
 
 describe("asset delivery records", () => {
   it("a missing record file reads as no records", async () => {
-    const { game, file } = await workspace();
+    const { project, file } = await workspace();
     const checkpoints = new AssetCheckpoints(file);
     assert.deepEqual(await checkpoints.records(), []);
-    await checkpoints.record("game", game, "genex", "job-1", ["assets/crate.glb"]);
+    await checkpoints.record("project", project, "genex", "job-1", ["assets/crate.glb"]);
     assert.equal((await checkpoints.records()).length, 1);
   });
 
@@ -38,10 +38,10 @@ describe("asset delivery records", () => {
       t.skip("a Windows file stays readable to its elevated owner");
       return;
     }
-    const { game, file } = await workspace();
+    const { project, file } = await workspace();
     const earlier: AssetDeliveryRecord[] = [
-      { id: "r1", project: "game", workspace: game, plugin: "genex", jobId: "j1", files: [] },
-      { id: "r2", project: "game", workspace: game, plugin: "genex", jobId: "j2", files: [] },
+      { id: "r1", project: "project", workspace: project, plugin: "genex", jobId: "j1", files: [] },
+      { id: "r2", project: "project", workspace: project, plugin: "genex", jobId: "j2", files: [] },
     ];
     await writeFile(file, JSON.stringify(earlier));
     const before = await readFile(file, "utf8");
@@ -50,7 +50,7 @@ describe("asset delivery records", () => {
       const checkpoints = new AssetCheckpoints(file);
       await assert.rejects(checkpoints.records(), /EACCES|permission/i);
       await assert.rejects(
-        checkpoints.record("game", game, "genex", "job-3", ["assets/crate.glb"]),
+        checkpoints.record("project", project, "genex", "job-3", ["assets/crate.glb"]),
         /EACCES|permission/i,
       );
     } finally {
@@ -60,11 +60,11 @@ describe("asset delivery records", () => {
   });
 
   it("a record path that is a folder fails the delivery and is left as it was", async () => {
-    const { game, file } = await workspace();
+    const { project, file } = await workspace();
     await mkdir(file);
     const checkpoints = new AssetCheckpoints(file);
     await assert.rejects(checkpoints.records(), /EISDIR/);
-    await assert.rejects(checkpoints.record("game", game, "genex", "job-3", ["assets/crate.glb"]), /EISDIR/);
+    await assert.rejects(checkpoints.record("project", project, "genex", "job-3", ["assets/crate.glb"]), /EISDIR/);
     assert.ok((await stat(file)).isDirectory(), "nothing replaced the unreadable records");
   });
 });

@@ -92,7 +92,7 @@ const REAL_FREE_TEXT = [
   "every camera renders effectively black at 69f573d1a2 (litFraction 0.001)",
   "kept unlanded on refs/studio/runs/run_fixture123456/integration",
   "the base at a82ee734 was rebuilt: crowd shader now compiles under r185",
-  "THREE.WebGLProgram: shader error in /Users/x/ai-games/skate/src/main.js",
+  "THREE.WebGLProgram: shader error in /Users/x/ai-projects/skate/src/main.js",
   "the mud never reaches the tyres on the dirt-side camera",
 ];
 
@@ -151,12 +151,12 @@ describe("one record, whatever judged the build", () => {
         landingLine: "made live, a judge preferred it",
       }),
       verdictRecord({ pass: "close", kept: false, rule: "not-landed", notLanded: "does-not-run" }),
-      // A game with a repository of its own inside it: the night may not add that folder to the
+      // A project with a repository of its own inside it: the night may not add that folder to the
       // user's history, so the build waits for the button that may (`landBuild`).
       verdictRecord({ pass: "close", kept: false, rule: "not-landed", notLanded: "nested-not-versioned" }),
       // The lead's last edits could not be committed (HQ-2): the land is refused, and says why.
       verdictRecord({ pass: "close", kept: false, rule: "not-landed", notLanded: "final-commit-failed" }),
-      // The game folder had uncommitted changes the landing would not merge over (OS5): named, never blamed.
+      // The project folder had uncommitted changes the landing would not merge over (OS5): named, never blamed.
       verdictRecord({ pass: "close", kept: false, rule: "not-landed", notLanded: "uncommitted-changes" }),
       verdictRecord({ pass: "close", kept: false, rule: "not-landed", notLanded: null }),
     ];
@@ -210,8 +210,8 @@ describe("one record, whatever judged the build", () => {
   });
 
   it("names what a build was judged against the way its owner would", () => {
-    assert.equal(againstWords("start"), "the game you had");
-    assert.equal(againstWords("live"), "the game you had");
+    assert.equal(againstWords("start"), "the project you had");
+    assert.equal(againstWords("live"), "the project you had");
     assert.equal(againstWords("round"), "the round before");
     assert.equal(againstWords("none"), null);
     assert.equal(againstWords(null), null);
@@ -303,9 +303,9 @@ describe("the report keeps how a round was judged", () => {
   it("keeps a round's own record when it has one, and a truthful digest when it does not", () => {
     const withRecord = iterationDigest({
       ...rounds[0],
-      verdict: { because: "Undone: the game did not start after this build." },
+      verdict: { because: "Undone: the project did not start after this build." },
     });
-    assert.equal(withRecord.verdict!.because, "Undone: the game did not start after this build.");
+    assert.equal(withRecord.verdict!.because, "Undone: the project did not start after this build.");
     assert.equal(iterationDigest(rounds[0]).verdict, null, "the first night wrote none");
     const stopped = iterationDigest({ iteration: 4, verdictSource: "stopped", winner: null, scoreboard: null });
     assert.equal(stopped.stopped, true);
@@ -481,7 +481,7 @@ describe("the build box shows the last look at the build, not a line about the r
     ])!;
     assert.equal(graph.verdicts.length, 3, "every look the lead took");
     assert.equal(headVerdict(graph)!.pass, "judge", "the newest look at the build on the stage");
-    assert.equal(buildVerdictLine(graph), "The reviewer preferred it to the game you had.");
+    assert.equal(buildVerdictLine(graph), "The reviewer preferred it to the project you had.");
     assertPlain(buildVerdictLine(graph)!, "the build box");
 
     // A verdict about an older head is not the head's verdict.
@@ -537,7 +537,7 @@ describe("every pass of a real night writes one", () => {
       { previewPoolMax: 2, createHeadlessPreview: async () => makeFakePreview() },
     );
     rigs.push(rig);
-    const project = await rig.core.games.scaffold("verdict-night", { title: "Verdict night" });
+    const project = await rig.core.projects.scaffold("verdict-night", { title: "Verdict night" });
     const trace: Array<{ tool: string; result: unknown }> = [];
     rig.core.engines.register({
       id: "codex",
@@ -646,7 +646,7 @@ describe("every pass of a real night writes one", () => {
       customEvents(events, "run_finished").find((e) => e.runId === runId) as { integrationHead: string }
     ).integrationHead;
     assert.equal(closeJudge.build.head, landedHead, "the close judged the head it made live");
-    assert.equal(closeJudge.seen.judgeCalls, 1, "blind, against the game the user had");
+    assert.equal(closeJudge.seen.judgeCalls, 1, "blind, against the project the user had");
     assert.equal(byPass.close.decision.rule, "landed");
     assert.equal(byPass.close.build.head, landedHead);
 

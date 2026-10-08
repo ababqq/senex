@@ -873,7 +873,7 @@ describe("the plugins' asset jobs in the run graph", () => {
     ]);
   });
 
-  it("keeps a failed in-game check off the asset list and on the asset it checked", () => {
+  it("keeps a failed in-project check off the asset list and on the asset it checked", () => {
     counter = 0;
     const check = { args: "operation=inspect_use id=job-1" };
     const graph = buildRunGraph([
@@ -1096,7 +1096,7 @@ it("replays Optimization once, ignores stale/unknown updates, and keeps its resu
   const result = {
     schemaVersion: 1,
     runId: "run_x",
-    project: "game",
+    project: "project",
     stageId: "optimization",
     sequence: 2,
     phase: "terminal",
@@ -1293,7 +1293,7 @@ describe("a synthetic lead night, replayed", () => {
       ...journal.slice(0, -1),
       { ...finished, data: { type: "custom", event_type: "run_finished", payload: { ...payload, landed: true } } },
     ])!;
-    assert.equal(buildProgress(landed).title, "Finished after 21 rounds · live in your game");
+    assert.equal(buildProgress(landed).title, "Finished after 21 rounds · live in your project");
     const final = landed.nodes.find((node) => node.kind === "final")!;
     assert.equal(final.kind === "final" && final.landed, true);
   });

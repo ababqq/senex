@@ -198,7 +198,7 @@ export function ComposerLimits({
   compactBusy?: boolean;
   /** Which roles each subscription serves in the current setup, keyed by engine id. */
   usedBy?: Record<string, RoleKey[]>;
-  /** The open game: Genex's block reads this game's spend. */
+  /** The open project: Genex's block reads this project's spend. */
   project?: string | null;
 }) {
   const [open, setOpen] = useState(false);

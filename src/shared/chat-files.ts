@@ -3,13 +3,13 @@
  *
  * Anything in a chat can name a file: a reply, a person's own message, a tool row, a plan. The
  * renderer finds the names here and asks main which of them exist; only those become links.
- * Markdown and images of the game open beside the chat; every other file opens in the app the
+ * Markdown and images of the project open beside the chat; every other file opens in the app the
  * system uses for it. Main decides (src/main/chat-files.ts) and never launches programs.
  */
 
 /**
  * How a file the chat names opens:
- * - `beside`: a tab next to the chat (Markdown and images the game or its build has)
+ * - `beside`: a tab next to the chat (Markdown and images the project or its build has)
  * - `app`: the file's default app
  * - `folder`: a folder, opened in the file manager
  * - `finder`: shown in the file manager, never launched (apps, scripts, installers, unknown types)
@@ -25,7 +25,7 @@ export type ChatFileOpen = (typeof ChatFileOpen)[keyof typeof ChatFileOpen];
 /** Every way a click opens a file except beside the chat, which the renderer does itself. */
 export type ChatFileOpenOutside = Exclude<ChatFileOpen, typeof ChatFileOpen.Beside>;
 
-/** A name as the chat wrote it; `base` is the game document it appeared in, for its relative links. */
+/** A name as the chat wrote it; `base` is the project document it appeared in, for its relative links. */
 export interface ChatFileRef {
   name: string;
   base?: string;
@@ -33,7 +33,7 @@ export interface ChatFileRef {
 
 export interface ChatFileLink {
   open: ChatFileOpen;
-  /** Game-relative for `beside`; otherwise where it is on this computer, with `~` for home. */
+  /** Project-relative for `beside`; otherwise where it is on this computer, with `~` for home. */
   path: string;
   /** Only in the run's build so far: what opens is a read-only copy. */
   build?: true;
@@ -64,7 +64,7 @@ const STOP = String.raw`\s"'` + BT + String.raw`<>|*?()\[\]{},;«»“”`;
 const LETTERS = String.raw`\p{L}\p{N}_`;
 const WORD = `[${LETTERS}]`;
 const EXT = String.raw`\.[A-Za-z][A-Za-z0-9]{0,9}`;
-// `src/game.ts:42`, `src/game.ts:42:7` or `#L42`, as editors and agents write them.
+// `src/project.ts:42`, `src/project.ts:42:7` or `#L42`, as editors and agents write them.
 const POSITION = String.raw`(?::\d+(?::\d+)?|#L\d+(?:-L?\d+)?)?`;
 const BEFORE = String.raw`(?<=^|[\s(\["'` + BT + String.raw`{<=,;«“‘—–])`;
 const AFTER = String.raw`(?=$|[\s)\]}"'` + BT + String.raw`>,;:!?.»”’—–…])`;
@@ -73,15 +73,15 @@ const MENTION = new RegExp(
   [
     // file:///Users/me/a.md
     String.raw`${BEFORE}file:\/\/[^${STOP}]+`,
-    // /Users/me/AI Games/rift/a.js, ~/Movies/intro.mp4, never `//` (a comment). A space belongs to
-    // the path only inside a capitalized folder name that goes on to a slash ("AI Games/",
+    // /Users/me/AI Projects/rift/a.js, ~/Movies/intro.mp4, never `//` (a comment). A space belongs to
+    // the path only inside a capitalized folder name that goes on to a slash ("AI Projects/",
     // "Application Support/", "Моя игра/"), and not after a file name or a full stop, so the next
     // sentence, or the next argument of a command (`cp /tmp/out src/a.js`), is not swallowed.
     // Bounded look-around keeps a long run of capitalized words linear.
     String.raw`${BEFORE}(?:~|)\/(?!\/)(?:[^${STOP}]|(?<=\/\p{Lu}[^/]{0,255})(?<![.:!?])(?<!${EXT})[ ](?=(?:\p{Lu}[^${STOP}/.:]{0,63} ){0,3}${WORD}[^${STOP}/]{0,127}\/))+`,
-    // src/game.js, ./docs/DESIGN.md, ../shared/a.ts
+    // src/project.js, ./docs/DESIGN.md, ../shared/a.ts
     String.raw`${BEFORE}(?:(?:\.{1,2}\/)+|${SEGMENT}\/)(?:${SEGMENT}\/)*${SEGMENT}${EXT}${POSITION}${AFTER}`,
-    // package.json, intro.mp4 (main looks for these in the game)
+    // package.json, intro.mp4 (main looks for these in the project)
     String.raw`${BEFORE}${WORD}[${LETTERS}.+\-]*\.[A-Za-z][A-Za-z0-9]{1,9}${POSITION}${AFTER}`,
   ]
     .map((part) => `(?:${part})`)
@@ -109,7 +109,7 @@ function trimMention(raw: string): string {
   return value.replace(/ +$/, "");
 }
 
-/** An absolute or `~/` name worth asking about: `/tmp/a.png` and `/Users/me/Game`, not `/usr` or `</div>`. */
+/** An absolute or `~/` name worth asking about: `/tmp/a.png` and `/Users/me/Project`, not `/usr` or `</div>`. */
 function plausibleAbsolute(name: string): boolean {
   const bare = name.replace(TRAILING_POSITION, "");
   // `//` starts a code comment; slashes alone are never a file.
@@ -158,7 +158,7 @@ export function fileMentions(text: string): FileMention[] {
 }
 
 /**
- * Inline code that is one file name as a whole (`docs/DESIGN.md`, `~/AI Games/rift/a.js`), which
+ * Inline code that is one file name as a whole (`docs/DESIGN.md`, `~/AI Projects/rift/a.js`), which
  * becomes a file chip. Code that only contains a name (`node scripts/build.mjs`) links that name.
  */
 export function wholeFileName(code: string): string | null {

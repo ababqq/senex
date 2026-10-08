@@ -57,13 +57,13 @@ describe("the Add menu's rows", () => {
     );
   });
 
-  it("says a plugin's switch applies to all games, and a server's does not", () => {
+  it("says a plugin's switch applies to all projects, and a server's does not", () => {
     const { actions } = recorder();
     const entries = addMenuEntries([plugin("genex")], [server("github")], null, actions);
     assert.deepEqual(
       entries.map((e) => [e.id, e.scope]),
       [
-        ["plugin:genex", EntryScope.AllGames],
+        ["plugin:genex", EntryScope.AllProjects],
         ["mcp:github", undefined],
       ],
     );
@@ -148,11 +148,11 @@ describe("the Add menu's rows", () => {
 });
 
 describe("which servers the menu offers", () => {
-  it("keeps to the game's scope and hides a plugin's optional endpoint until it is configured", () => {
+  it("keeps to the project's scope and hides a plugin's optional endpoint until it is configured", () => {
     const optional = plugin("genex", {}, { mcpServers: [{ id: "cloud", requires: { settings: ["key"] } }] });
     const views = [
       server("global"),
-      server("other-game", {}, { scope: { projects: ["golf"] } }),
+      server("other-project", {}, { scope: { projects: ["golf"] } }),
       server("cloud", {}, { enabled: false, source: { plugin: "genex", server: "cloud" } }),
     ];
     assert.deepEqual(

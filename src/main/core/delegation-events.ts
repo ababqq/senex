@@ -1,7 +1,7 @@
 import { chatDeltas } from "./chat-deltas.ts";
 /**
  * A delegated session's events, mirrored into the log of the thread that asked for the build —
- * so a delegated build is as inspectable as a local one, and each game's chat holds its own
+ * so a delegated build is as inspectable as a local one, and each project's chat holds its own
  * builds — and streamed to the chat while the conversation's own session replies.
  */
 import { ChatActivityPhase, SessionActivityRole } from "../../shared/chat-activity.ts";
@@ -93,7 +93,7 @@ export function delegationMirror(options: DelegationMirrorOptions): DelegationMi
   function checkpoint(event: EngineEvent): void {
     core.emit(UiEvent.DelegationCheckpoint, {
       project: options.project,
-      cwd: options.cwd ?? core.games.dirFor(options.project),
+      cwd: options.cwd ?? core.projects.dirFor(options.project),
       note: (event.payload as { note?: string } | undefined)?.note ?? "",
     });
   }

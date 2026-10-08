@@ -1,8 +1,8 @@
 {"afterMs":410,"event":{"type":"thread.started","thread_id":"{{THREAD_ID}}"}}
 {"afterMs":60,"event":{"type":"turn.started"}}
-{"afterMs":720,"event":{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"I'll build a one-hole mini golf game on a canvas."}}}
+{"afterMs":720,"event":{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"I'll build a one-hole mini golf project on a canvas."}}}
 {"afterMs":260,"event":{"type":"item.started","item":{"id":"item_1","type":"file_change","changes":[{"path":"{{CWD}}/index.html","kind":"add"},{"path":"{{CWD}}/main.js","kind":"add"}],"status":"in_progress"}}}
-{"afterMs":90,"writeGame":true}
+{"afterMs":90,"writeProject":true}
 {"afterMs":30,"event":{"type":"item.completed","item":{"id":"item_1","type":"file_change","changes":[{"path":"{{CWD}}/index.html","kind":"add"},{"path":"{{CWD}}/main.js","kind":"add"}],"status":"completed"}}}
-{"afterMs":340,"event":{"type":"item.completed","item":{"id":"item_2","type":"agent_message","text":"The game is ready: open index.html, aim with the mouse and click to putt."}}}
+{"afterMs":340,"event":{"type":"item.completed","item":{"id":"item_2","type":"agent_message","text":"The project is ready: open index.html, aim with the mouse and click to putt."}}}
 {"afterMs":40,"event":{"type":"turn.completed","usage":{"input_tokens":18240,"cached_input_tokens":14080,"output_tokens":3410,"reasoning_output_tokens":512}}}

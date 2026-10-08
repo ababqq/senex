@@ -1,0 +1,28 @@
+{
+  "id": "editor.undo-and-autosave",
+  "title": "An editor can undo, and does not lose work",
+  "tags": ["editor", "undo", "redo", "autosave", "history", "document", "edit", "text", "canvas", "shortcut", "ctrl"],
+  "checkClass": "edit-undo",
+  "kind": "craft",
+  "pack": "data",
+  "appKinds": ["editor"],
+  "note": "Every edit can be undone with Ctrl/Cmd+Z and is saved as it happens.",
+  "intent": "People edit without fear only when edits can be undone. Keep the document as data, record each change as an entry that can be reversed, support undo and redo with the familiar shortcuts (and visible buttons), and save automatically after a short pause with a quiet \"Saved\" indicator. Selection, focus and scroll position should survive an undo. Declare a demo named `edit-undo` that makes an edit, undoes it and returns whether the document is back to what it was.",
+  "check": {
+    "id": "edit-undo",
+    "kind": "demo",
+    "name": "edit-undo",
+    "expr": "restored == true",
+    "weight": "normal",
+    "note": "The demo `edit-undo` edits, undoes and compares: result.restored is true."
+  },
+  "port": "The document module exposes `apply(change)`, `undo()` and `redo()`; every UI path goes through them, so nothing can edit around the history.",
+  "evidence": [],
+  "stats": {
+    "applied": 0,
+    "wins": 0,
+    "losses": 0
+  },
+  "status": "candidate",
+  "origin": "seed"
+}

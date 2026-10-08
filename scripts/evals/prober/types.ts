@@ -62,7 +62,7 @@ export interface Check {
   /**
    * Whether this row may decide its layer's gate; absent means yes. `false` is for a row that went
    * `unknown` because this substrate cannot measure it (frame rate on a software rasteriser), as
-   * opposed to one the game left unanswered, and for a row that can never fail by construction.
+   * opposed to one the project left unanswered, and for a row that can never fail by construction.
    */
   gates?: boolean;
 }

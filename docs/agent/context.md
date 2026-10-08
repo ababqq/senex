@@ -1,30 +1,30 @@
 # Genex: product overview
 
-Genex (formerly AI Game Studio) is a macOS Electron application for making local browser games
-with AI. A person describes a game or a change, answers questions when needed, and reviews
-the running game and build results. The game is a real local project that can be opened,
+Genex (formerly AI Game Studio) is a macOS Electron application for making local browser software
+(web apps, tools, sites) with AI. A person describes a project or a change, answers questions when needed, and reviews
+the running project. The project is a real local project that can be opened,
 edited and exported. Unity is retired.
 
 ## What the app contains
 
-The sidebar opens games, Plugins, Studio and Settings. Each game has one main conversation
-on the left and a stage on the right. The stage switches between **Live** (the playable
-game), **Builds** (work and results) and **Assets** (files and generated media).
+The sidebar opens projects, Plugins, Studio and Settings. Each project has one main conversation
+on the left and a stage on the right. The stage switches between **Live** (the running
+project), **Builds** (work and results) and **Assets** (files and generated media).
 
 The prompt bar chooses the model, permissions, Auto or Loop mode, optional planning,
 references and tools. Chat shows replies, real questions, compact work status and results. Detailed tools,
 checks and worker activity expand on demand. Long history loads in portions.
 
 Studio is a separate assistant and Activity feed for reviewing runs and improvements to
-the game-building instructions. Plugins add tools, assets and integrations. Settings owns
-the games folder, appearance, provider/model setup and saved permissions. Accounts, local projects and installed harness edits
+the project-building instructions. Plugins add tools, assets and integrations. Settings owns
+the projects folder, appearance, provider/model setup and saved permissions. Accounts, local projects and installed harness edits
 must survive application changes.
 
 ## Read the part you are changing
 
 | Part | Current UI, behavior and implementation entry points |
 | --- | --- |
-| [Workspace and games](../product/workspace.md) | Navigation, library, new/open games, settings and export |
+| [Workspace and projects](../product/workspace.md) | Navigation, library, new/open projects, settings and export |
 | [Chat and questions](../product/chat.md) | Messages, streaming, statuses, plans, questions and long history |
 | [Builds and Live](../product/builds-live.md) | Auto/Loop, workers, progress, playback, checks and outcomes |
 | [Models and context](../product/models-context.md) | Models, permissions, saved preferences, accounts and context |
@@ -46,5 +46,5 @@ This handbook is shared developer knowledge, not a session diary: update the aff
 the behavior change's PR, replacing outdated statements ([AGENTS.md](../../AGENTS.md#documentation-and-prs));
 `npm run verify:context` checks its size.
 
-The external developer edits this repository. The in-app harness builds games with narrower
+The external developer edits this repository. The in-app harness builds projects with narrower
 authority; its conversation history and learning are separate from this handbook.

@@ -70,7 +70,7 @@ app.whenReady().then(async()=>{
  await key('Enter');check('menu activates chosen action',await evalJS('document.querySelector("#action").textContent==="Share"'));
  await wait(250);check('menu restores trigger focus',await evalJS('document.activeElement.id==="menu-trigger"'));
  await evalJS('document.querySelector("#dialog-trigger").focus();document.querySelector("#dialog-trigger").click()');await wait(350);
- check('dialog focuses field',await evalJS('document.activeElement.getAttribute("aria-label")==="Game name"'));
+ check('dialog focuses field',await evalJS('document.activeElement.getAttribute("aria-label")==="Project name"'));
  const dialogField=await evalJS(fieldEdge);
  check('a focused dialog field draws no inset edge either',dialogField.visible&&dialogField.style==='none',dialogField);
  await capture(${JSON.stringify(path.join(out, "dialog.png"))});

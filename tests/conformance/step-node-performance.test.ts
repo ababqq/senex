@@ -16,7 +16,7 @@ it("a thousand rebuilt step snapshots avoid all unchanged node renders", () => {
   const props: StepNodeProps[] = rows
     .flatMap((row) => row.steps)
     .map((step) => ({
-      project: "fixture-game",
+      project: "fixture-project",
       runId: graph.runId,
       active: graph.active,
       step,
@@ -38,7 +38,7 @@ it("a thousand rebuilt step snapshots avoid all unchanged node renders", () => {
     { ...first, selected: true },
     { ...first, active: !first.active },
     { ...first, runId: "another-run" },
-    { ...first, project: "another-game" },
+    { ...first, project: "another-project" },
     { ...first, ghost: !first.ghost },
     { ...first, onSelect: () => {} },
     { ...first, step: { ...first.step, name: "changed" } },

@@ -1,5 +1,5 @@
 import { Play } from "lucide-react";
-import type { ProjectAsset } from "../../shared/game-assets.ts";
+import type { ProjectAsset } from "../../shared/project-assets.ts";
 import { Icon } from "../ui/icons.tsx";
 import { ASSET_WORDS, animationCountWords } from "../words.ts";
 import { AssetThumbnail } from "./AssetThumbnail.tsx";

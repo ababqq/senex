@@ -1,6 +1,6 @@
 /**
  * A real {@link StudioCore} brought up to `init()` and no further: real event log, settings,
- * game library, plugin registry and `api()` table, but no harness child process, no engines and
+ * project library, plugin registry and `api()` table, but no harness child process, no engines and
  * (unless asked) no Seatbelt sandbox. The dev-policy pattern, made reusable.
  *
  * Use it for anything that talks to the core's substrate API or public methods directly. Reach for
@@ -17,7 +17,7 @@ export type CoreApi = ReturnType<StudioCore["api"]>;
 export interface CoreLite {
   core: StudioCore;
   userData: string;
-  gamesRoot: string;
+  projectsRoot: string;
   resources: string;
   /** The substrate table the harness calls through `ctx.call(method, params)`. */
   api(): CoreApi;
@@ -44,17 +44,17 @@ export async function coreLite(options: CoreLiteOptions = {}): Promise<CoreLite>
   const { init = true, resources: ownResources, ...overrides } = options;
   const resourcesDir = ownResources ?? (await sharedResources());
   // Real, not /var/folders behind the /private link: the development containment check refuses a
-  // games root reached through a link, and the app's own games root is never spelled that way.
+  // projects root reached through a link, and the app's own projects root is never spelled that way.
   const root = await realpath(await tmpDir("studio-core-lite-"));
   const userData = path.join(root, "userData");
-  const gamesRoot = overrides.gamesRoot ?? path.join(root, "games");
-  await mkdir(gamesRoot, { recursive: true });
+  const projectsRoot = overrides.projectsRoot ?? path.join(root, "projects");
+  await mkdir(projectsRoot, { recursive: true });
   const core = new StudioCore({
     paths: { userData, resources: resourcesDir },
-    gamesRoot,
+    projectsRoot,
     // No engine unless the test brings one: nothing probes an account, a CLI or a local model.
     engines: [],
-    executionPolicy: { allowedProjectRoot: gamesRoot, runBackgroundImprovement: false },
+    executionPolicy: { allowedProjectRoot: projectsRoot, runBackgroundImprovement: false },
     improvementIdle: { idleMs: 0, minGapMs: 0 },
     // Seatbelt is a process-wide singleton with proxy servers that keep the file alive; tests that
     // assert containment opt back in with `sandbox: true`.
@@ -70,5 +70,5 @@ export async function coreLite(options: CoreLiteOptions = {}): Promise<CoreLite>
   };
   closeBeforeCleanup(close);
   if (init) await core.init();
-  return { core, userData, gamesRoot, resources: resourcesDir, api: () => core.api(), close };
+  return { core, userData, projectsRoot, resources: resourcesDir, api: () => core.api(), close };
 }

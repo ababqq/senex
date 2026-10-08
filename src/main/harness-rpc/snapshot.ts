@@ -1,4 +1,4 @@
-/** Harness RPC: snapshots of the harness and the games, and the guardian's self-restart and self-edit gate. */
+/** Harness RPC: snapshots of the harness and the projects, and the guardian's self-restart and self-edit gate. */
 import path from "node:path";
 import { rm } from "node:fs/promises";
 import { ensureDir } from "../../substrate/fsx.ts";
@@ -35,9 +35,9 @@ function worktreeDir(scratch: string, p: HarnessParams<typeof HostMethod.Snapsho
 
 /** The commit a worktree is detached at: the one named (resolved as a commit), or the live HEAD. */
 async function worktreeCommit(core: StudioCore, project: string, named: unknown): Promise<string> {
-  // H1: a named revision is a commit of this game, never something git reads as an option.
+  // H1: a named revision is a commit of this project, never something git reads as an option.
   if (named === undefined || named === null) return core.snapshots.currentCommit(project);
-  return resolveCommit(core.games.dirFor(project), String(named));
+  return resolveCommit(core.projects.dirFor(project), String(named));
 }
 
 /**
@@ -63,10 +63,10 @@ export function snapshotRpc(core: StudioCore, x: CoreInternals) {
       // run; code becomes healthy once it has booted (#applySelfRestart, #vouchForBootedSelf),
       // and a boot in a validation fork counts for code exactly as the fork booted it
       // (guardian.validate_edit).
-      // R2: a "both" snapshot (a won round) is healthy at once for its game half, and for its
+      // R2: a "both" snapshot (a won round) is healthy at once for its project half, and for its
       // harness half only by the same rule.
       const scope = p.scope ?? SnapshotScope.Both;
-      const vouched = scope !== SnapshotScope.Game && p.healthy === true;
+      const vouched = scope !== SnapshotScope.Project && p.healthy === true;
       const wonRound = scope === SnapshotScope.Both;
       const record = await core.snapshot(
         scope,
@@ -86,12 +86,12 @@ export function snapshotRpc(core: StudioCore, x: CoreInternals) {
       const scope = p.scope ?? record.scope;
       // A refusal (SnapshotRefusedError) reaches the harness with its typed `code`.
       const rescue = await core.snapshots.restore(record, {
-        ...(p.project ? { gameWorkspace: p.project } : {}),
+        ...(p.project ? { projectWorkspace: p.project } : {}),
         ...(p.scope ? { scope: p.scope } : {}),
       });
       // The harness came back from the past: files the app once wrote now differ from the
       // manifest, and unrepaired that difference reads as agent edits at the next boot.
-      if (scope !== SnapshotScope.Game) await core.reconcileSeedManifest();
+      if (scope !== SnapshotScope.Project) await core.reconcileSeedManifest();
       await core.append([
         ...(rescue ? [x.recovery.snapshotCreated(rescue)] : []),
         {
@@ -115,19 +115,19 @@ export function snapshotRpc(core: StudioCore, x: CoreInternals) {
     [HostMethod.SnapshotDiff]: async (p) =>
       core.snapshots.diff(p.workspace ?? HARNESS_WORKSPACE, p.from, p.to ?? "HEAD"),
     // Facet worktrees: a detached, playable, sandbox-writable fork
-    // of a game under scratch. Detached at the given commit — the incumbent snapshot — or at
+    // of a project under scratch. Detached at the given commit — the incumbent snapshot — or at
     // the live HEAD when none is named.
     [HostMethod.SnapshotWorktree]: async (p) => {
       const scratch = path.resolve(core.layout.scratch);
       const dir = worktreeDir(scratch, p);
-      const gameDir = core.games.dirFor(p.project);
-      await core.assertProjectAllowed(gameDir);
-      core.snapshots.register({ name: p.project, dir: gameDir });
+      const projectDir = core.projects.dirFor(p.project);
+      await core.assertProjectAllowed(projectDir);
+      core.snapshots.register({ name: p.project, dir: projectDir });
       const commit = await worktreeCommit(core, p.project, p.commit);
       await clearWorktree(core, x, p.project, scratch, dir);
       await ensureDir(path.dirname(dir));
       await x.assertNoLinkBelow(scratch, dir);
-      await core.snapshots.worktreeAt(p.project, commit, dir, await x.previews.nestedPolicy(gameDir));
+      await core.snapshots.worktreeAt(p.project, commit, dir, await x.previews.nestedPolicy(projectDir));
       return { path: dir, commit };
     },
     [HostMethod.SnapshotRemoveWorktree]: async (p) => {

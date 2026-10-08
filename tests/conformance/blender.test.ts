@@ -88,8 +88,8 @@ describe("Blender through the public plugin API", () => {
         return { ok: true, engine: "fake-delegate", summary: "fixture", turns: 1, usage: {} };
       },
     } as never);
-    const project = await rig.core.games.scaffold("modelworld");
-    const threadId = await rig.core.createGameThread("modelworld");
+    const project = await rig.core.projects.scaffold("modelworld");
+    const threadId = await rig.core.createProjectThread("modelworld");
     const api = rig.core.api() as unknown as Record<string, (p: unknown) => Promise<unknown>>;
     const delegate = (extra: Record<string, unknown> = {}) =>
       api["engine.delegate"]!({ engine: "fake-delegate", project: "modelworld", threadId, prompt: "build", ...extra });
@@ -175,7 +175,7 @@ describe("Blender through the public plugin API", () => {
     assert.deepEqual(
       await rig.core.presentProjectAssets({ project: "modelworld", files: delivered }),
       [],
-      "chat never offers a preview of a file the game folder lacks",
+      "chat never offers a preview of a file the project folder lacks",
     );
     await mkdir(path.dirname(path.join(project.dir, delivered[0]!)), { recursive: true });
     await writeFile(path.join(project.dir, delivered[0]!), "landed");

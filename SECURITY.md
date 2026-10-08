@@ -8,7 +8,7 @@ we treat sandbox and trust bugs as serious even in pre-release.
 Email [team@genex.games](mailto:team@genex.games) with the subject “Genex security report”.
 If GitHub private reporting is enabled on the repository, you can also use its **Security** tab
 and choose **Report a vulnerability**. Please do not open a public issue, pull request or
-discussion for a suspected vulnerability. Do not include credentials or personal game files;
+discussion for a suspected vulnerability. Do not include credentials or personal project files;
 use a minimal reproduction with synthetic data.
 
 Include what you found, the steps or a proof of concept, the commit or build you tested, and
@@ -22,18 +22,18 @@ There is no bug bounty.
 
 In scope, on the current `dev` and `main` branches:
 
-- **Sandbox escapes.** Anything that lets the in-app harness, a game build, a builder agent or a
+- **Sandbox escapes.** Anything that lets the in-app harness, a project build, a builder agent or a
   plugin backend write outside its allowed folders, read denied secret paths, or run a process
   outside `ProcessSandbox`.
 - **Credential exposure.** Provider, Genex or plugin credentials reaching the renderer, the event
-  log, logs, diagnostics, prompts, games or another plugin.
+  log, logs, diagnostics, prompts, projects or another plugin.
 - **Plugin and MCP trust.** Installing, updating, enabling or approving a plugin or MCP server
   without the confirmation the host promises; a catalog entry impersonating an official
   publisher; capability expansion without re-consent.
-- **Renderer and preview isolation.** A game page or plugin panel reaching Node, Electron, main
+- **Renderer and preview isolation.** A project page or plugin panel reaching Node, Electron, main
   or preload APIs, or calling Studio beyond the named calls in `src/shared/studio-api.ts`.
 - **Path and git safety.** Harness RPC path parameters escaping their owned root, or destructive
-  git operations on a user's game folder without a snapshot.
+  git operations on a user's project folder without a snapshot.
 
 Out of scope:
 

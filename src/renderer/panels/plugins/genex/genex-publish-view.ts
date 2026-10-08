@@ -1,5 +1,5 @@
 /**
- * The Publish dialog's view of Genex's publish record: where the game is (not online, draft only,
+ * The Publish dialog's view of Genex's publish record: where the project is (not online, draft only,
  * public), the running attempt's steps, how the last one ended, and the one press the next step needs. What Publish asks
  * for first (Genex installed and on, then an account) and whether Studio puts Publish on the strip
  * itself are decided here too. Pure, so the dialog only draws it.
@@ -25,7 +25,7 @@ import { GENEX_WORDS } from "../../../words.ts";
 
 const WORDS = GENEX_WORDS.publish;
 
-/** Where the game is on Genex. */
+/** Where the project is on Genex. */
 export const PublishStage = { None: "none", Draft: "draft", Public: "public" } as const;
 export type PublishStage = (typeof PublishStage)[keyof typeof PublishStage];
 
@@ -87,7 +87,7 @@ export interface PublishView {
   phase: string;
   startedAt: string | null;
   steps: StepView[];
-  /** The game's line under its name: not online, a test version, live since…, publishing. */
+  /** The project's line under its name: not online, a test version, live since…, publishing. */
   status: string;
   primary: PublishButton;
   /** Check again and allow a new upload, while an upload's outcome is unknown. */
@@ -99,7 +99,7 @@ export interface PublishView {
   problems: string[];
   /** A failed or unknown attempt, said calmly, and the raw detail it keeps for support. */
   failure: { title: string; text: string; details: string } | null;
-  /** The link anyone can play, once the game is public. */
+  /** The link anyone can play, once the project is public. */
   link: string | null;
 }
 
@@ -128,7 +128,7 @@ function stepViews(job: GenexPublishJob | undefined, running: boolean): StepView
   }));
 }
 
-/** Where the game is: public once listed, a draft once it has a page, else not online. */
+/** Where the project is: public once listed, a draft once it has a page, else not online. */
 function stageOf(state: GenexPublishState): PublishStage {
   if (isListed(state)) return PublishStage.Public;
   return state.slug ? PublishStage.Draft : PublishStage.None;
@@ -148,7 +148,7 @@ function outcomeOf(job: GenexPublishJob | undefined, running: boolean): PublishO
   return PublishOutcome.Idle;
 }
 
-/** The game's line under its name. */
+/** The project's line under its name. */
 function statusLine(state: GenexPublishState, stage: PublishStage, running: boolean, now: number): string {
   if (running) return WORDS.statusPublishing;
   if (stage === PublishStage.Public)
@@ -207,7 +207,7 @@ export function publishView(state: GenexPublishState, now = Date.now()): Publish
     primary: {
       label: (failed && WORDS.tryAgain) || (listed && WORDS.updatePublic) || WORDS.publish,
       action: GenexAction.PublishGallery,
-      ariaLabel: "Publish this game on Genex",
+      ariaLabel: "Publish this project on Genex",
     },
     extra: unresolvedButtons(job),
     terms:
@@ -221,9 +221,13 @@ export function publishView(state: GenexPublishState, now = Date.now()): Publish
   };
 }
 
-/** The name the dialog offers: the one the game is listed under, else Studio's title for it, else its folder. */
-export function offeredTitle(state: GenexPublishState | null, gameTitle: string | undefined, project: string): string {
-  return state?.title ?? cleanGenexTitle(gameTitle) ?? defaultGenexTitle(project);
+/** The name the dialog offers: the one the project is listed under, else Studio's title for it, else its folder. */
+export function offeredTitle(
+  state: GenexPublishState | null,
+  projectTitle: string | undefined,
+  project: string,
+): string {
+  return state?.title ?? cleanGenexTitle(projectTitle) ?? defaultGenexTitle(project);
 }
 
 /** What Publish asks for before it can publish, in this order. */
@@ -249,7 +253,7 @@ export const isGenexPublish = (entry: PluginToolbarEntry): boolean =>
   entry.item.target.kind === "panel" &&
   entry.item.target.id === GENEX_PUBLISH_PANEL;
 
-/** Whether Studio puts Publish on the strip itself: a game is open and Genex, off or gone, adds none. */
+/** Whether Studio puts Publish on the strip itself: a project is open and Genex, off or gone, adds none. */
 export function studioPublishButton(plugins: readonly PluginInfo[], project: string | null): boolean {
   return Boolean(project) && !toolbarItems(plugins, project).some(isGenexPublish);
 }

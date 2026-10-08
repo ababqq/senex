@@ -18,10 +18,10 @@ import { HarnessState, DispatchActionType } from "../../shared/protocol.ts";
 import { CodingCliState } from "../../shared/coding-cli.ts";
 import { pushToRenderer } from "../ipc-handle.ts";
 import { finishedPayload, startedPayload } from "../plugin-activity.ts";
-import type { GamePreview } from "../preview.ts";
+import type { ProjectPreview } from "../preview.ts";
 import type { StudioCore } from "../studio-core.ts";
 import type { DelegateRequest, DelegateResult, Engine } from "../../substrate/engines/types.ts";
-import { COMPUTER_SMOKE_GAME, COMPUTER_SMOKE_WEBGPU_GAME } from "./fixture-games.ts";
+import { COMPUTER_SMOKE_PROJECT, COMPUTER_SMOKE_WEBGPU_PROJECT } from "./fixture-projects.ts";
 import type { SmokeReadGates } from "./read-gates.ts";
 import { sleep, waitFor as waitUntil } from "./wait.ts";
 import { errorMessage } from "../../shared/errors.ts";
@@ -66,7 +66,7 @@ export interface RendererConsoleEntry {
 export interface SmokeContext {
   core: StudioCore;
   window: BrowserWindow;
-  preview: GamePreview;
+  preview: ProjectPreview;
   /** The smoke's own throwaway userData. */
   testUserData: string;
   resources: string;
@@ -75,7 +75,7 @@ export interface SmokeContext {
   developmentController: boolean;
   rendererConsole: readonly RendererConsoleEntry[];
   smokeReads: SmokeReadGates;
-  /** The last rectangle the renderer asked the native game view to take. */
+  /** The last rectangle the renderer asked the native project view to take. */
   previewBoundsSeen: { last: { x: number; y: number; width: number; height: number } | null };
   pushUiEvent(event: UiEvent): void;
   /** Whether main is holding the Mac awake for a run. */
@@ -296,7 +296,7 @@ async function checkEnginesAndToolchain(smoke: Smoke): Promise<void> {
     described.join(","),
   );
   // A Finder-launched app is born with launchd's PATH — no Homebrew, no nvm, no Volta — so
-  // every `npm run build` the studio ever ran exited 127 and no game with its own build could
+  // every `npm run build` the studio ever ran exited 127 and no project with its own build could
   // be shown. The resolved toolchain is what the sandbox hands every process.
   const tools = await toolchain();
   check(
@@ -474,7 +474,7 @@ function discoveryAsExpected(state: string, expected: string | undefined, isolat
   return ACTIONABLE_DISCOVERY.includes(state);
 }
 
-/** The build smoke (`--studio-build-smoke`): the Build room end to end on a fixture game. */
+/** The build smoke (`--studio-build-smoke`): the Build room end to end on a fixture project. */
 async function runBuildSmoke(smoke: Smoke): Promise<void> {
   const buildSmoke = await startBuildSmoke(smoke);
   await checkReadGates(buildSmoke);
@@ -503,7 +503,7 @@ async function runBuildSmoke(smoke: Smoke): Promise<void> {
   await captureBuildShot(buildSmoke);
   await checkSharedDesign(buildSmoke);
   await checkChromeAndCursors(buildSmoke);
-  await checkGameImage(buildSmoke);
+  await checkProjectImage(buildSmoke);
   await checkOverlayFixture(buildSmoke);
   await checkModelPickerOverlay(buildSmoke);
   await checkContextPanelOverlay(buildSmoke);
@@ -522,7 +522,7 @@ async function checkCredentialedPlugins(buildSmoke: BuildSmoke): Promise<void> {
   await checkPublishGate(buildSmoke);
 }
 
-/** The build smoke's fixture game, its thread and run, and the helpers every scenario uses. */
+/** The build smoke's fixture project, its thread and run, and the helpers every scenario uses. */
 /** The time the follow smoke's run was given: its status reads "… of 30 min". */
 const FOLLOW_RUN_WALL_CLOCK_MS = 30 * MINUTE_MS;
 /** How long a follow shot waits for the restored window to paint. */
@@ -580,12 +580,12 @@ interface OutcomeRun {
   outcomeEvent: (type: string, payload: Record<string, unknown>) => Promise<unknown>;
 }
 
-/** The fixture game and its thread, the scripted coordinator, and the window pointed at them. */
+/** The fixture project and its thread, the scripted coordinator, and the window pointed at them. */
 async function startBuildSmoke(smoke: Smoke): Promise<BuildSmoke> {
   const { wc } = smoke;
   const { core } = smoke.ctx;
-  const project = await core.games.scaffold("build-preview-smoke", { title: "Build preview smoke" });
-  const threadId = await core.threadForGame(project.name);
+  const project = await core.projects.scaffold("build-preview-smoke", { title: "Build preview smoke" });
+  const threadId = await core.threadForProject(project.name);
   const runId = "run_preview_smoke";
   // Script only the coordinator in this isolated smoke app; never call a paid model.
   core.engines.register({
@@ -653,9 +653,9 @@ async function checkReadGates(buildSmoke: BuildSmoke): Promise<void> {
   smokeReads.failBootstrap = true;
   wc.reload();
   check(
-    "bootstrap failure lifts the startup loader and offers Retry instead of empty games",
+    "bootstrap failure lifts the startup loader and offers Retry instead of empty projects",
     await waitFor(
-      `document.body.innerText.includes('Could not load games and chats.')&&!document.body.innerText.includes('No games yet')&&!document.getElementById('app-loader')`,
+      `document.body.innerText.includes('Could not load projects and chats.')&&!document.body.innerText.includes('No projects yet')&&!document.getElementById('app-loader')`,
     ),
   );
   smokeReads.failBootstrap = false;
@@ -670,17 +670,17 @@ async function checkReadGates(buildSmoke: BuildSmoke): Promise<void> {
     `Array.from(document.querySelectorAll('button')).find(b=>b.textContent==='Retry')?.click()`,
   );
   check(
-    "a pending retry keeps the failure up with Retry busy, never Ready or empty games",
+    "a pending retry keeps the failure up with Retry busy, never Ready or empty projects",
     await waitFor(
-      `Array.from(document.querySelectorAll('[role="alert"] button')).some(b=>b.textContent==='Retrying…'&&b.disabled)&&!document.body.innerText.includes('No games yet')&&!Array.from(document.querySelectorAll('button')).some(b=>b.textContent==='Ready')`,
+      `Array.from(document.querySelectorAll('[role="alert"] button')).some(b=>b.textContent==='Retrying…'&&b.disabled)&&!document.body.innerText.includes('No projects yet')&&!Array.from(document.querySelectorAll('button')).some(b=>b.textContent==='Ready')`,
     ),
   );
   releaseBootstrap();
   smokeReads.bootstrap = undefined;
   check(
-    "games can load while the chat is still pending",
+    "projects can load while the chat is still pending",
     await waitFor(
-      `!document.body.innerText.includes('Could not load games and chats.')&&!!document.querySelector('[aria-label="Loading conversation…"]')&&!!document.querySelector('nav [data-project]')`,
+      `!document.body.innerText.includes('Could not load projects and chats.')&&!!document.querySelector('[aria-label="Loading conversation…"]')&&!!document.querySelector('nav [data-project]')`,
     ),
   );
   smokeReads.failThread = true;
@@ -750,7 +750,7 @@ async function checkModelRoles(buildSmoke: BuildSmoke): Promise<void> {
     defaultModel: async () => "bonsai-2:27b-pq2_0",
   });
   pushUiEvent({ type: UiEvent.EnginesChanged, payload: { engine: EngineId.Bonsai } });
-  // Timed runs start from a game chat's Loop control now; Studio's own chat has one model menu.
+  // Timed runs start from a project chat's Loop control now; Studio's own chat has one model menu.
   await wc.executeJavaScript(`document.querySelector('nav [data-thread="studio"]')?.click()`);
   await waitFor(`!!document.querySelector('[data-studio-composer] [aria-label="Model settings"]')`);
   await wc.executeJavaScript(`document.querySelector('[data-studio-composer] [aria-label="Model settings"]')?.click()`);
@@ -792,7 +792,7 @@ async function checkModelRoles(buildSmoke: BuildSmoke): Promise<void> {
   await waitFor(`!document.querySelector('[data-testid="settings-dialog"]')`);
 }
 
-/** A game chat picks its builder and judge, and the choice survives a reload. */
+/** A project chat picks its builder and judge, and the choice survives a reload. */
 async function checkChatModelRoles(buildSmoke: BuildSmoke): Promise<void> {
   const { wc, check, threadId, waitFor } = buildSmoke;
   await wc.executeJavaScript(`document.querySelector('nav [data-thread="${threadId}"]')?.click()`);
@@ -854,9 +854,9 @@ async function checkPluginsSurface(buildSmoke: BuildSmoke): Promise<void> {
   );
   await wc.executeJavaScript(`document.querySelector('button[aria-label="Plugins"]').click()`);
   check(
-    "Plugins surface opens with bundled Genex, shown as the game dev tools router",
+    "Plugins surface opens with bundled Genex, shown as the project dev tools router",
     await waitFor(
-      `document.querySelector('[aria-label="Studio plugins"] [data-plugin-row="genex"]')?.textContent.includes('Game dev tools router')`,
+      `document.querySelector('[aria-label="Studio plugins"] [data-plugin-row="genex"]')?.textContent.includes('Project dev tools router')`,
     ),
   );
   check(
@@ -867,7 +867,9 @@ async function checkPluginsSurface(buildSmoke: BuildSmoke): Promise<void> {
   );
   check(
     "Genex row offers one Connect button for a locked account",
-    await waitFor(`!!document.querySelector('[data-plugin-row="genex"] [aria-label="Connect Game dev tools router"]')`),
+    await waitFor(
+      `!!document.querySelector('[data-plugin-row="genex"] [aria-label="Connect Project dev tools router"]')`,
+    ),
   );
   check(
     "bundled plugins show their pictures: Local Blender its own, Genex the eight tools it routes",
@@ -956,7 +958,7 @@ async function checkGenexPanel(buildSmoke: BuildSmoke): Promise<void> {
   const { wc, check, waitFor } = buildSmoke;
   const { core } = buildSmoke.ctx;
   await wc.executeJavaScript(`document.querySelector('[aria-label="Extensions"] button:first-child').click()`);
-  await wc.executeJavaScript(`document.querySelector('button[aria-label="View Game dev tools router"]').click()`);
+  await wc.executeJavaScript(`document.querySelector('button[aria-label="View Project dev tools router"]').click()`);
   check("Genex page draws its own account card", await waitFor(`!!document.querySelector('[data-genex-account]')`));
   check(
     "Genex page lists the tools it routes and no Connections",
@@ -965,9 +967,9 @@ async function checkGenexPanel(buildSmoke: BuildSmoke): Promise<void> {
     ),
   );
   check(
-    "Genex page shows no plugin frame and no per-game numbers",
+    "Genex page shows no plugin frame and no per-project numbers",
     await waitFor(
-      `!document.querySelector('[data-plugins-page] iframe')&&!document.querySelector('[data-plugins-page]').textContent.includes('Used by this game')`,
+      `!document.querySelector('[data-plugins-page] iframe')&&!document.querySelector('[data-plugins-page]').textContent.includes('Used by this project')`,
     ),
   );
   const rejected = await wc.executeJavaScript(
@@ -1132,11 +1134,11 @@ async function checkPublishGate(buildSmoke: BuildSmoke): Promise<void> {
   // the confirmed action. No live account is touched — the fixture profile refuses the dialog.
   check(
     "Genex contributes a Publish button to the stage top bar",
-    await waitFor(`!!document.querySelector('button[aria-label="Publish game"]')`),
+    await waitFor(`!!document.querySelector('button[aria-label="Publish project"]')`),
   );
-  await wc.executeJavaScript(`document.querySelector('button[aria-label="Publish game"]').click()`);
+  await wc.executeJavaScript(`document.querySelector('button[aria-label="Publish project"]').click()`);
   check(
-    "Studio draws the Publish dialog and reads the game's publishing state",
+    "Studio draws the Publish dialog and reads the project's publishing state",
     await waitFor(
       `!!document.querySelector('[role="dialog"][aria-label="Publish to the web"] [data-genex-publish-status]')&&!document.querySelector('[role="dialog"][aria-label="Publish to the web"] iframe')`,
     ),
@@ -1157,12 +1159,12 @@ async function checkPublishGate(buildSmoke: BuildSmoke): Promise<void> {
     "disabled Genex contributes no tools or guidance",
     !core.plugins.tools().some((t) => t.name.startsWith("genex__")) && !core.plugins.guidance().includes("Genex"),
   );
-  // Publish stays for every open game: with Genex off it offers to turn Genex on.
+  // Publish stays for every open project: with Genex off it offers to turn Genex on.
   check(
     "disabled Genex leaves a Publish that offers to turn it on",
-    await waitFor(`!!document.querySelector('button[aria-label="Publish game"]')`),
+    await waitFor(`!!document.querySelector('button[aria-label="Publish project"]')`),
   );
-  await wc.executeJavaScript(`document.querySelector('button[aria-label="Publish game"]').click()`);
+  await wc.executeJavaScript(`document.querySelector('button[aria-label="Publish project"]').click()`);
   check(
     "Publish with Genex off asks to turn it on",
     await waitFor(
@@ -1192,11 +1194,11 @@ async function checkEmptyScaffoldEvidence(buildSmoke: BuildSmoke): Promise<void>
   const { core, resources, pushUiEvent } = buildSmoke.ctx;
   const callHost = hostCaller(core);
   const observed = (await callHost(HostMethod.PreviewEvaluate, {
-    expression: `(() => { const s = window.__studio; const i = s.inspect(); const state = s.state(); return { children: i.scene.children.length, player: state.player, hudItems: state.hud.items.length, phase: state.phase }; })()`,
-  })) as { children: number; player: unknown; hudItems: number; phase: string };
+    expression: `(() => { const s = window.__studio; const i = s.inspect(); const state = s.state(); return { elements: document.getElementById("app").children.length, empty: i.dom.empty(), phase: state.phase }; })()`,
+  })) as { elements: number; empty: boolean; phase: string };
   check(
-    "fresh project has no stock geometry, player or HUD",
-    observed.children === 0 && observed.player === null && observed.hudItems === 0 && observed.phase === "empty",
+    "fresh project has no stock content or controls",
+    observed.elements === 0 && observed.empty === true && observed.phase === "empty",
     JSON.stringify(observed),
   );
   const { pathToFileURL } = await import("node:url");
@@ -1214,7 +1216,7 @@ async function checkEmptyScaffoldEvidence(buildSmoke: BuildSmoke): Promise<void>
   check("real empty base passes infrastructure checks", base.ok && base.emptyScene, JSON.stringify(base.problems));
   const generated = await gatherEvidence(context, { ...request, iterationId: "001", scaffold: false });
   check(
-    "real empty canvas fails generated-game checks",
+    "real empty canvas fails generated-project checks",
     !generated.ok && !generated.emptyScene,
     JSON.stringify(generated.problems),
   );
@@ -1253,8 +1255,8 @@ async function deliverFixtureAsset(buildSmoke: BuildSmoke): Promise<{ assetJobId
   // ── the Assets stage ───────────────────────────────────────────────────────────────
   // A real delivery, not a synthetic one: the fixture job is written under the Genex
   // plugin's own storage and handed to the real `assets.deliver` service, so the copy into
-  // the game, the host's ledger append and the UI push all happen exactly as they do for a
-  // paid generation. The canvas then has to read that very PNG back out of the game
+  // the project, the host's ledger append and the UI push all happen exactly as they do for a
+  // paid generation. The canvas then has to read that very PNG back out of the project
   // through the contained reader — a card with a picture on it is the proof.
   const assetJobId = randomUUID();
   const assetJobDir = path.join(core.pluginServices.root("genex"), "projects", project.name, "jobs", assetJobId);
@@ -1284,7 +1286,7 @@ async function deliverFixtureAsset(buildSmoke: BuildSmoke): Promise<{ assetJobId
     { project: project.name, directory: project.dir, threadId },
   )) as string[];
   check(
-    "Assets tab is offered for a loaded game",
+    "Assets tab is offered for a loaded project",
     await waitFor(`!!document.querySelector('[data-stage-action="assets"]')`),
   );
   return { assetJobId, delivered };
@@ -1299,7 +1301,7 @@ async function checkAssetsView(buildSmoke: BuildSmoke, delivered: string[]): Pro
   previewBoundsSeen.last = null;
   await wc.executeJavaScript(`document.querySelector('[data-stage-action="assets"]').click()`);
   await checkAsync(
-    "Assets view takes the stage and hides the native game",
+    "Assets view takes the stage and hides the native project",
     async () => {
       if (!(await waitFor(`document.querySelector('[data-stage-view]')?.dataset.stageView === 'assets'`))) return false;
       return waitUntil(
@@ -1347,10 +1349,10 @@ async function checkAssetsView(buildSmoke: BuildSmoke, delivered: string[]): Pro
 async function checkStartNodes(buildSmoke: BuildSmoke): Promise<string> {
   const { wc, check, runId, append, waitFor } = buildSmoke;
   const { core, pushUiEvent } = buildSmoke.ctx;
-  // The stage goes back to the game before the Builds checks below, which start from Live.
+  // The stage goes back to the project before the Builds checks below, which start from Live.
   await wc.executeJavaScript(`document.querySelector('[data-stage-action="live"]').click()`);
   check(
-    "leaving Assets gives the stage back to the game",
+    "leaving Assets gives the stage back to the project",
     await waitFor(`document.querySelector('[data-stage-view]')?.dataset.stageView === 'live'`),
   );
   await wc.executeJavaScript(`document.querySelector('[data-stage-action="builds"]').click()`);
@@ -1561,9 +1563,9 @@ async function checkInterruptControls(buildSmoke: BuildSmoke): Promise<Interrupt
     ),
   );
   check(
-    "a building game's dot sits where its ⋯ appears",
+    "a building project's dot sits where its ⋯ appears",
     await waitFor(
-      `(() => { const row = document.querySelector('nav [data-game="${buildSmoke.project.name}"]'); const dot = row?.querySelector('.sidebar-game-status')?.getBoundingClientRect(), menu = row?.querySelector('.sidebar-game-menu')?.getBoundingClientRect(); return !!dot && !!menu && dot.width > 0 && Math.abs((dot.left + dot.width / 2) - (menu.left + menu.width / 2)) < 1 && Math.abs((dot.top + dot.height / 2) - (menu.top + menu.height / 2)) < 1 && !row.querySelector('.sidebar-pin'); })()`,
+      `(() => { const row = document.querySelector('nav [data-project-row="${buildSmoke.project.name}"]'); const dot = row?.querySelector('.sidebar-project-status')?.getBoundingClientRect(), menu = row?.querySelector('.sidebar-project-menu')?.getBoundingClientRect(); return !!dot && !!menu && dot.width > 0 && Math.abs((dot.left + dot.width / 2) - (menu.left + menu.width / 2)) < 1 && Math.abs((dot.top + dot.height / 2) - (menu.top + menu.height / 2)) < 1 && !row.querySelector('.sidebar-pin'); })()`,
     ),
   );
   pushUiEvent({ type: UiEvent.RunKeepawake, payload: { runId } });
@@ -1717,8 +1719,8 @@ async function checkConcurrentPlay(buildSmoke: BuildSmoke): Promise<void> {
   // Real Git worktrees and native navigation: overlapping requests must not abort each other.
   core.snapshots.register({ name: project.name, dir: project.dir });
   const playSnapshot = await core.snapshots.snapshot({
-    scope: SnapshotScope.Game,
-    gameWorkspace: project.name,
+    scope: SnapshotScope.Project,
+    projectWorkspace: project.name,
     reason: "preview concurrency fixture",
   });
   const playHead = playSnapshot.git.game;
@@ -1860,20 +1862,20 @@ async function checkRunTimeAndLead(buildSmoke: BuildSmoke, { followRun, followEv
 async function checkLiveRevisions(buildSmoke: BuildSmoke, { followRun, followEvent }: FollowRun): Promise<void> {
   const { wc, check, waitFor, project } = buildSmoke;
   const { core, pushUiEvent } = buildSmoke.ctx;
-  // Real tiny Three.js revisions exercise the stage's rules against native loads.
+  // Real tiny page revisions exercise the stage's rules against native loads.
   const liveMain = path.join(project.dir, "src/main.js");
   const emptyMain = await fs.readFile(liveMain, "utf8");
   const playableMain = emptyMain
     .replace(
-      "const scene = new THREE.Scene();",
-      "const scene = new THREE.Scene(); const cube = new THREE.Mesh(new THREE.BoxGeometry(1,1,1),new THREE.MeshBasicMaterial({color:0x44cc88})); cube.position.z=-3; scene.add(cube);",
+      'const app = document.getElementById("app");',
+      'const app = document.getElementById("app"); app.innerHTML = \'<h1 style="color:#44cc88">Playable</h1>\';',
     )
     .replace('phase: "empty"', 'phase: "playing"');
   await fs.writeFile(liveMain, playableMain);
   const firstPlayable = (
     await core.snapshots.snapshot({
-      scope: SnapshotScope.Game,
-      gameWorkspace: project.name,
+      scope: SnapshotScope.Project,
+      projectWorkspace: project.name,
       reason: "incremental first playable",
     })
   ).git.game;
@@ -1901,11 +1903,11 @@ async function checkLiveRevisions(buildSmoke: BuildSmoke, { followRun, followEve
       15000,
     ),
   );
-  await fs.writeFile(liveMain, playableMain.replace("0x44cc88", "0x4488cc"));
+  await fs.writeFile(liveMain, playableMain.replace("#44cc88", "#4488cc"));
   const nextPlayable = (
     await core.snapshots.snapshot({
-      scope: SnapshotScope.Game,
-      gameWorkspace: project.name,
+      scope: SnapshotScope.Project,
+      projectWorkspace: project.name,
       reason: "incremental next playable",
     })
   ).git.game;
@@ -1942,10 +1944,10 @@ const reloadState = (reason: string | null, label?: string): string =>
     : `!!document.querySelector('[data-stage-reload=""]')`;
 
 /**
- * The user, 2026-09-28: "if I'm sitting in Live the game must not update on its own when code
+ * The user, 2026-09-28: "if I'm sitting in Live the project must not update on its own when code
  * changes; only Reload is highlighted, with a changed tooltip". A later healthy build and a
  * builder's checkpoint light Reload while Live is on screen and load nothing; Reload plays the
- * build; leaving Live for Builds brings the changed game folder in.
+ * build; leaving Live for Builds brings the changed project folder in.
  */
 async function checkLiveStaysStill(
   buildSmoke: BuildSmoke,
@@ -1962,7 +1964,7 @@ async function checkLiveStaysStill(
   await countLiveLoads(wc);
   check(
     "a later healthy build lights Reload instead of replacing Live",
-    await waitFor(reloadState("build", "A new build is ready — reload to play it")),
+    await waitFor(reloadState("build", "A new build is ready — reload to use it")),
   );
   await wc.executeJavaScript(`document.querySelector('[data-stage-reload]')?.focus();true`);
   await followShot(buildSmoke, "reload-behind");
@@ -1982,29 +1984,29 @@ async function checkLiveStaysStill(
     "Reload plays the waiting build and goes quiet",
     await waitFor(`${shown(nextPlayable)}&&${reloadState(null)}`, 20000),
   );
-  // A builder's checkpoint after the game folder changed: the note rides on Reload, Live stays.
-  await fs.writeFile(liveMain, (await fs.readFile(liveMain, "utf8")).replace("0x4488cc", "0xcc8844"));
+  // A builder's checkpoint after the project folder changed: the note rides on Reload, Live stays.
+  await fs.writeFile(liveMain, (await fs.readFile(liveMain, "utf8")).replace("#4488cc", "#cc8844"));
   await core.snapshots.snapshot({
-    scope: SnapshotScope.Game,
-    gameWorkspace: project.name,
+    scope: SnapshotScope.Project,
+    projectWorkspace: project.name,
     reason: "a builder's checkpoint",
   });
   await countLiveLoads(wc);
   pushUiEvent({
     type: UiEvent.DelegationCheckpoint,
-    payload: { project: project.name, cwd: core.games.dirFor(project.name), note: "the cube turned orange" },
+    payload: { project: project.name, cwd: core.projects.dirFor(project.name), note: "the cube turned orange" },
   });
   check(
     "a checkpoint lights Reload with the builder's note and loads nothing",
-    (await waitFor(reloadState("changed", "The game changed — reload to see it: the cube turned orange"))) &&
+    (await waitFor(reloadState("changed", "The project changed — reload to see it: the cube turned orange"))) &&
       Boolean(await wc.executeJavaScript(`${LIVE_LOADS}===0`)),
   );
   // Out of sight, what waits goes in, so Live is current when the person comes back. Live then
-  // shows the game folder, so Reload may offer the night's newest build again, never the change.
+  // shows the project folder, so Reload may offer the night's newest build again, never the change.
   await wc.executeJavaScript(`document.querySelector('[data-stage-action="builds"]').click()`);
   const changedGone = `!document.querySelector('[data-behind-reason="changed"]')`;
   check(
-    "leaving Live for Builds brings the changed game in",
+    "leaving Live for Builds brings the changed project in",
     // Settled too: the next checks read a Builds panel that a late Live update would redraw.
     await waitFor(`${changedGone}&&${LIVE_LOADS}>0&&${LIVE_SETTLED}>=${LIVE_LOADS}`, 20000),
     String(
@@ -2058,13 +2060,13 @@ async function seedOutcomeRun(buildSmoke: BuildSmoke): Promise<OutcomeRun> {
     build: { head: "head-6" },
     measured: {
       planned: [
-        { id: "movement", pass: true },
-        { id: "world", pass: true },
-        { id: "hud", pass: true },
+        { id: "navigation", pass: true },
+        { id: "data", pass: true },
+        { id: "forms", pass: true },
         { id: "detail", pass: true },
       ],
     },
-    seen: { question: "Is the requested first-person view confirmed?", answer: false },
+    seen: { question: "Is the requested dashboard view confirmed?", answer: false },
   });
   await outcomeEvent(CustomEvent.RunInteractionEvidence, {
     head: "head-6",
@@ -2092,7 +2094,7 @@ async function finishOutcomeRun(
     JSON.stringify({
       head: "head-6",
       answer: {
-        question: "Is the requested first-person view confirmed?",
+        question: "Is the requested dashboard view confirmed?",
         yes: false,
         note: "Fixture observation on head-6",
         camera: "default",
@@ -2139,7 +2141,7 @@ async function checkOutcomePanel(buildSmoke: BuildSmoke): Promise<void> {
   check(
     "delivery keeps its failed check in the status line",
     await waitFor(
-      `(()=>{const t=document.querySelector('[data-testid="build-status"]')?.textContent??'';return t.includes('Live in your game')&&t.includes('1 check failed');})()`,
+      `(()=>{const t=document.querySelector('[data-testid="build-status"]')?.textContent??'';return t.includes('Live in your project')&&t.includes('1 check failed');})()`,
     ),
   );
   // The recorded checks sit under the technical details opened above.
@@ -2206,7 +2208,7 @@ async function checkChecksAndCapture(buildSmoke: BuildSmoke): Promise<void> {
   check(
     "checks show the failed question on its own revision",
     await waitFor(
-      `document.body.innerText.includes('Is the requested first-person view confirmed?')&&document.body.innerText.includes('head-6')&&document.body.innerText.includes('failed · visual')`,
+      `document.body.innerText.includes('Is the requested dashboard view confirmed?')&&document.body.innerText.includes('head-6')&&document.body.innerText.includes('failed · visual')`,
     ),
   );
   await wc.executeJavaScript(
@@ -2224,7 +2226,7 @@ async function checkChecksAndCapture(buildSmoke: BuildSmoke): Promise<void> {
   check(
     "learning remains separate from delivered build",
     await waitFor(
-      `document.querySelector('[data-graph-panel="final"]')?.textContent.includes('Studio learning: running — separate from game execution.')&&document.querySelector('[data-testid="build-status"]')?.textContent.includes('Live in your game')`,
+      `document.querySelector('[data-graph-panel="final"]')?.textContent.includes('Studio learning: running — separate from project execution.')&&document.querySelector('[data-testid="build-status"]')?.textContent.includes('Live in your project')`,
     ),
   );
 }
@@ -2232,7 +2234,7 @@ async function checkChecksAndCapture(buildSmoke: BuildSmoke): Promise<void> {
 /** Activity reports the build; the Plugins page lists Genex's MCP server. */
 async function checkActivityAndMcp(buildSmoke: BuildSmoke): Promise<void> {
   const { wc, check, threadId, waitFor } = buildSmoke;
-  // Activity gives a run its result only; counts and checks stay in the game's Builds tab.
+  // Activity gives a run its result only; counts and checks stay in the project's Builds tab.
   await wc.executeJavaScript(`document.querySelector('nav [data-thread="studio"]')?.click()`);
   check(
     "Activity reports the delivered build the chat reported",
@@ -2254,7 +2256,7 @@ async function checkActivityAndMcp(buildSmoke: BuildSmoke): Promise<void> {
   check(
     "a search finds a plugin's own server and names the plugin it is part of",
     await waitFor(
-      `document.querySelector('[data-testid="mcp-connectors"] [data-plugin-server="creator"]')?.textContent.includes('Part of Game dev tools router')`,
+      `document.querySelector('[data-testid="mcp-connectors"] [data-plugin-server="creator"]')?.textContent.includes('Part of Project dev tools router')`,
     ),
   );
   await wc.executeJavaScript(`document.querySelector('[data-plugins-page] [aria-label="Clear search"]').click()`);
@@ -2405,9 +2407,9 @@ async function checkChromeAndCursors(buildSmoke: BuildSmoke): Promise<void> {
   await wc.capturePage();
   await waitFor(`innerWidth===1440 && innerHeight===900`);
   check(
-    "Export sits in the game chat header menu and Plugins belongs to the sidebar",
+    "Export sits in the project chat header menu and Plugins belongs to the sidebar",
     await wc.executeJavaScript(
-      `!!document.querySelector('[data-chat-header] [aria-label="Chat actions"]') && !!document.querySelector('nav [aria-label="Plugins"]') && !document.querySelector('[data-stage-strip] [aria-label="Export game"], [data-stage-strip] [aria-label="Plugins"]')`,
+      `!!document.querySelector('[data-chat-header] [aria-label="Chat actions"]') && !!document.querySelector('nav [aria-label="Plugins"]') && !document.querySelector('[data-stage-strip] [aria-label="Export project"], [data-stage-strip] [aria-label="Plugins"]')`,
     ),
   );
   check(
@@ -2418,57 +2420,59 @@ async function checkChromeAndCursors(buildSmoke: BuildSmoke): Promise<void> {
   );
 }
 
-/** The game image dialog normalizes, previews, saves and refuses executable formats. */
-async function checkGameImage(buildSmoke: BuildSmoke): Promise<void> {
+/** The project image dialog normalizes, previews, saves and refuses executable formats. */
+async function checkProjectImage(buildSmoke: BuildSmoke): Promise<void> {
   const { wc, check, project, waitFor } = buildSmoke;
   const { core } = buildSmoke.ctx;
   // Exercise local image normalization and the typed persistence boundary. The native
   // picker itself remains a foreground manual gate; this uses an owned synthetic file.
-  await wc.executeJavaScript(`document.querySelector('nav [data-game="${project.name}"] .sidebar-game-menu')?.focus()`);
+  await wc.executeJavaScript(
+    `document.querySelector('nav [data-project-row="${project.name}"] .sidebar-project-menu')?.focus()`,
+  );
   wc.sendInputEvent({ type: "keyDown", keyCode: "Down" });
   wc.sendInputEvent({ type: "keyUp", keyCode: "Down" });
-  await waitFor(`!!document.querySelector('[data-game-action="cover"]')`);
-  await wc.executeJavaScript(`document.querySelector('[data-game-action="cover"]')?.click()`);
+  await waitFor(`!!document.querySelector('[data-project-action="cover"]')`);
+  await wc.executeJavaScript(`document.querySelector('[data-project-action="cover"]')?.click()`);
   check(
-    "game image dialog opens with the existing cover",
+    "project image dialog opens with the existing cover",
     await waitFor(
-      `!!document.querySelector('[aria-label="Choose game image"]') && document.querySelector('.game-cover-preview img')?.naturalWidth > 0`,
+      `!!document.querySelector('[aria-label="Choose project image"]') && document.querySelector('.project-cover-preview img')?.naturalWidth > 0`,
     ),
   );
   await wc.executeJavaScript(
-    `(async()=>{const c=document.createElement('canvas');c.width=32;c.height=16;const ctx=c.getContext('2d');ctx.fillStyle='#839fb5';ctx.fillRect(0,0,32,16);const blob=await new Promise(resolve=>c.toBlob(resolve,'image/png'));const data=new DataTransfer();data.items.add(new File([blob],'fixture-cover.png',{type:'image/png'}));const input=document.querySelector('[aria-label="Choose game image"]');input.files=data.files;input.dispatchEvent(new Event('change',{bubbles:true}));})()`,
+    `(async()=>{const c=document.createElement('canvas');c.width=32;c.height=16;const ctx=c.getContext('2d');ctx.fillStyle='#839fb5';ctx.fillRect(0,0,32,16);const blob=await new Promise(resolve=>c.toBlob(resolve,'image/png'));const data=new DataTransfer();data.items.add(new File([blob],'fixture-cover.png',{type:'image/png'}));const input=document.querySelector('[aria-label="Choose project image"]');input.files=data.files;input.dispatchEvent(new Event('change',{bubbles:true}));})()`,
   );
   check(
-    "game image is normalized and previewed before save",
+    "project image is normalized and previewed before save",
     await waitFor(
-      `document.querySelector('.game-cover-preview img')?.naturalWidth===256 && Array.from(document.querySelectorAll('[role="dialog"] button')).some(b=>b.textContent==='Save image'&&!b.disabled)`,
+      `document.querySelector('.project-cover-preview img')?.naturalWidth===256 && Array.from(document.querySelectorAll('[role="dialog"] button')).some(b=>b.textContent==='Save image'&&!b.disabled)`,
     ),
   );
   await wc.executeJavaScript(
     `Array.from(document.querySelectorAll('[role="dialog"] button')).find(b=>b.textContent==='Save image')?.click()`,
   );
   check(
-    "game image save persists through IPC and closes the dialog",
+    "project image save persists through IPC and closes the dialog",
     (await waitFor(
-      `!document.querySelector('[aria-label="Choose game image"]') && document.querySelector('nav [data-game="${project.name}"] img')?.naturalWidth===256`,
-    )) && (await core.games.presentation(project.name)).cover?.kind === "image",
+      `!document.querySelector('[aria-label="Choose project image"]') && document.querySelector('nav [data-project-row="${project.name}"] img')?.naturalWidth===256`,
+    )) && (await core.projects.presentation(project.name)).cover?.kind === "image",
     await wc.executeJavaScript(`document.querySelector('[role="dialog"] [role="alert"]')?.textContent ?? ''`),
   );
   check(
-    "game image IPC refuses executable image formats",
+    "project image IPC refuses executable image formats",
     await wc.executeJavaScript(
-      `window.studio.updateGame(${JSON.stringify(project.name)},{cover:{kind:'image',dataUrl:'data:image/svg+xml,<svg/>'}}).then(()=>false,()=>true)`,
+      `window.studio.updateProject(${JSON.stringify(project.name)},{cover:{kind:'image',dataUrl:'data:image/svg+xml,<svg/>'}}).then(()=>false,()=>true)`,
     ),
   );
 }
 
-/** A rendered game for the overlay checks, with Live selected and visible. */
+/** A rendered project for the overlay checks, with Live selected and visible. */
 async function checkOverlayFixture(buildSmoke: BuildSmoke): Promise<void> {
   const { wc, check, project, waitFor } = buildSmoke;
   const { preview, previewBoundsSeen } = buildSmoke.ctx;
   // Earlier checks intentionally use an empty scaffold, whose DOM empty state
-  // hides native bounds. Give overlay acceptance a genuinely rendered game.
-  await fs.writeFile(path.join(project.dir, "src", "main.js"), COMPUTER_SMOKE_GAME);
+  // hides native bounds. Give overlay acceptance a genuinely rendered project.
+  await fs.writeFile(path.join(project.dir, "src", "main.js"), COMPUTER_SMOKE_PROJECT);
   await wc.executeJavaScript(`window.studio.loadPreview(${JSON.stringify(project.name)})`);
   await wc.executeJavaScript(`document.querySelector('[data-stage-action="live"]')?.click()`);
   check(
@@ -2494,7 +2498,7 @@ async function checkOverlayFixture(buildSmoke: BuildSmoke): Promise<void> {
   await wc.capturePage();
   await sleep(SETTLE_MS);
   check(
-    "overlay checks start with a visible native game",
+    "overlay checks start with a visible native project",
     (previewBoundsSeen.last?.width ?? 0) > 0,
     JSON.stringify({
       bounds: previewBoundsSeen.last,
@@ -2505,7 +2509,7 @@ async function checkOverlayFixture(buildSmoke: BuildSmoke): Promise<void> {
   );
 }
 
-/** The model picker opens above the native game and closes cleanly. */
+/** The model picker opens above the native project and closes cleanly. */
 async function checkModelPickerOverlay(buildSmoke: BuildSmoke): Promise<void> {
   const { wc, check, waitFor } = buildSmoke;
   const { previewBoundsSeen } = buildSmoke.ctx;
@@ -2516,7 +2520,7 @@ async function checkModelPickerOverlay(buildSmoke: BuildSmoke): Promise<void> {
   );
   await sleep(SETTLE_MS);
   check(
-    "chat model picker keeps native game visible",
+    "chat model picker keeps native project visible",
     (previewBoundsSeen.last?.width ?? 0) > 0,
     JSON.stringify(previewBoundsSeen.last),
   );
@@ -2561,7 +2565,7 @@ async function checkModelPickerOverlay(buildSmoke: BuildSmoke): Promise<void> {
   await wc.capturePage();
   await sleep(SETTLE_MS);
   check(
-    "context panel leaves native game visible",
+    "context panel leaves native project visible",
     (previewBoundsSeen.last?.width ?? 0) > 0,
     JSON.stringify(previewBoundsSeen.last),
   );
@@ -2579,7 +2583,7 @@ async function checkContextPanelOverlay(buildSmoke: BuildSmoke): Promise<void> {
   await wc.capturePage();
   await sleep(SETTLE_MS);
   check(
-    "overlapping panel still yields native game bounds",
+    "overlapping panel still yields native project bounds",
     (previewBoundsSeen.last as { width: number } | null)?.width === 0,
     JSON.stringify(previewBoundsSeen.last),
   );
@@ -2589,7 +2593,7 @@ async function checkContextPanelOverlay(buildSmoke: BuildSmoke): Promise<void> {
   await wc.capturePage();
   await sleep(SETTLE_MS);
   check(
-    "moving panel off Live restores game without closing it",
+    "moving panel off Live restores project without closing it",
     (previewBoundsSeen.last?.width ?? 0) > 0,
     JSON.stringify(previewBoundsSeen.last),
   );
@@ -2628,7 +2632,7 @@ async function runComputerSmoke(smoke: Smoke): Promise<void> {
   );
 }
 
-/** The computer smoke's fixture game, open in the window, and the host calls it drives. */
+/** The computer smoke's fixture project, open in the window, and the host calls it drives. */
 interface ComputerSmoke extends Smoke {
   project: { name: string; dir: string };
   runId: string;
@@ -2643,19 +2647,19 @@ type Seen = Record<string, unknown>;
 type DirectorSeen = Record<string, any>;
 
 /**
- * The computer tool over a real hidden window (computer use, 2026-09-07): a fixture game with a map picker
+ * The computer tool over a real hidden window (computer use, 2026-09-07): a fixture project with a map picker
  * on I, a click that chooses the map, W that moves the player — driven end to end
  * through engine.delegate with a scripted contractor, exactly as a run's builder is.
  */
 async function openComputerSmoke(smoke: Smoke): Promise<ComputerSmoke> {
   const { wc } = smoke;
   const { core } = smoke.ctx;
-  const project = await core.games.scaffold("computer-smoke", { title: "Computer smoke" });
-  await fs.writeFile(path.join(project.dir, "src", "main.js"), COMPUTER_SMOKE_GAME);
+  const project = await core.projects.scaffold("computer-smoke", { title: "Computer smoke" });
+  await fs.writeFile(path.join(project.dir, "src", "main.js"), COMPUTER_SMOKE_PROJECT);
   const runId = "run_computer_smoke";
-  // The builder's screen shows on its part's node in Builds: open this game on a run whose part
+  // The builder's screen shows on its part's node in Builds: open this project on a run whose part
   // "build" is at work, with the stage on Builds.
-  const smokeThread = await core.threadForGame(project.name);
+  const smokeThread = await core.threadForProject(project.name);
   const part = { runId, project: project.name, facetId: "build", facetTitle: "Smoke builder", iteration: 1 };
   await core.append(
     [
@@ -2676,7 +2680,7 @@ async function openComputerSmoke(smoke: Smoke): Promise<ComputerSmoke> {
   return { ...smoke, project, runId, waitFor, callHost: hostCaller(core) };
 }
 
-/** The game state a `computer state` call printed, parsed; the raw text when it would not parse. */
+/** The project state a `computer state` call printed, parsed; the raw text when it would not parse. */
 function stateOf(result: unknown): Record<string, unknown> {
   const text = typeof result === "string" ? result : String((result as { text?: string })?.text ?? "");
   const start = text.indexOf("{");
@@ -2805,7 +2809,7 @@ async function driveComputer(computerSmoke: ComputerSmoke, request: DelegateRequ
   results.zoom = await computer({ action: "zoom", region: "380,200,580,400" });
   results.camera = await computer({ action: "camera", text: "top" });
   results.screens = core.agentScreens();
-  // WebGPU inside an offscreen worker window, versus the live view — games may be WebGPU.
+  // WebGPU inside an offscreen worker window, versus the live view — projects may be WebGPU.
   const gpuProbe = `(async () => { const secure = isSecureContext; if (!navigator.gpu) return { secure, gpu: false }; const adapter = await navigator.gpu.requestAdapter().catch(() => null); if (!adapter) return { secure, gpu: true, adapter: false }; const device = await adapter.requestDevice().catch(() => null); const canvas = document.createElement("canvas"); const ctx = canvas.getContext("webgpu"); return { secure, gpu: true, adapter: true, device: !!device, canvasContext: !!ctx, features: [...adapter.features].length }; })()`;
   const handle = results.screens && (results.screens as Array<{ handle: string }>)[0]?.handle;
   results.workerGpu = handle
@@ -2841,7 +2845,7 @@ function checkComputerTool({ check }: ComputerSmoke, results: Seen): void {
   check("WebGPU in the live view (informational)", true, JSON.stringify(results.liveGpu));
   check("WebGPU in an offscreen worker window (informational)", true, JSON.stringify(results.workerGpu));
   check(
-    "game pages retain a secure origin in Live and worker views",
+    "project pages retain a secure origin in Live and worker views",
     (results.liveGpu as { secure?: boolean })?.secure === true &&
       (results.workerGpu as { secure?: boolean })?.secure === true,
   );
@@ -2877,7 +2881,7 @@ function checkComputerTool({ check }: ComputerSmoke, results: Seen): void {
   );
   const s3 = results.state3 as Record<string, unknown>;
   check(
-    "holding W moves the player (the game's own update loop saw the key)",
+    "holding W moves the player (the project's own update loop saw the key)",
     Number((s3.player as { x?: number })?.x) > 0.3,
     JSON.stringify(s3.player),
   );
@@ -2964,11 +2968,11 @@ async function checkSetupReplay({ project, runId, callHost, check }: ComputerSmo
   );
 }
 
-/** A WebGPU game in an offscreen worker window: it renders, it captures, it plays. */
+/** A WebGPU project in an offscreen worker window: it renders, it captures, it plays. */
 async function runWebGpuSession({ callHost, ctx }: ComputerSmoke): Promise<Seen> {
   const { core } = ctx;
-  const gpuProject = await core.games.scaffold("webgpu-smoke", { title: "WebGPU smoke" });
-  await fs.writeFile(path.join(gpuProject.dir, "src", "main.js"), COMPUTER_SMOKE_WEBGPU_GAME);
+  const gpuProject = await core.projects.scaffold("webgpu-smoke", { title: "WebGPU smoke" });
+  await fs.writeFile(path.join(gpuProject.dir, "src", "main.js"), COMPUTER_SMOKE_WEBGPU_PROJECT);
   const gpu: Seen = {};
   core.engines.register(
     scriptedCodex(async (request) => {
@@ -3009,7 +3013,7 @@ async function runWebGpuSession({ callHost, ctx }: ComputerSmoke): Promise<Seen>
 function checkWebGpuWorker({ check }: ComputerSmoke, gpu: Seen): void {
   const g0 = gpu.state0 as Record<string, unknown>;
   check(
-    "a WebGPU game runs in the offscreen window (backend webgpu, frames advancing)",
+    "a WebGPU project runs in the offscreen window (backend webgpu, frames advancing)",
     g0.backend === "webgpu" && Number(g0.frame) > 0 && !(g0 as { error?: unknown }).error,
     JSON.stringify(g0).slice(0, 220),
   );
@@ -3027,7 +3031,7 @@ function checkWebGpuWorker({ check }: ComputerSmoke, gpu: Seen): void {
     asText(gpu.capture).slice(0, 220),
   );
   check(
-    "no console errors in the WebGPU game",
+    "no console errors in the WebGPU project",
     /none/.test(asText(gpu.console)),
     `${asText(gpu.console).slice(0, 200)} | first rejection: ${String(gpu.firstStack).slice(0, 700)}`,
   );
@@ -3041,9 +3045,9 @@ function checkWebGpuWorker({ check }: ComputerSmoke, gpu: Seen): void {
 async function checkScriptedDirector(computerSmoke: ComputerSmoke): Promise<void> {
   const { wc, waitFor } = computerSmoke;
   const { core } = computerSmoke.ctx;
-  const dirProject = await core.games.scaffold("director-smoke", { title: "Director smoke" });
-  await fs.writeFile(path.join(dirProject.dir, "src", "main.js"), COMPUTER_SMOKE_GAME);
-  const dirThread = await core.threadForGame(dirProject.name);
+  const dirProject = await core.projects.scaffold("director-smoke", { title: "Director smoke" });
+  await fs.writeFile(path.join(dirProject.dir, "src", "main.js"), COMPUTER_SMOKE_PROJECT);
+  const dirThread = await core.threadForProject(dirProject.name);
   await wc.executeJavaScript(`localStorage.setItem("studio.activeThread", ${JSON.stringify(dirThread)})`);
   wc.reload();
   await waitFor(`!!document.querySelector('nav [data-thread]')`, 15_000);
@@ -3130,7 +3134,7 @@ async function directNight(
 /** What the director saw and did during the night. */
 function checkDirectorNight({ check }: ComputerSmoke, dir: DirectorSeen): void {
   check(
-    "the director's window shows the integration worktree with the game running in it",
+    "the director's window shows the integration worktree with the project running in it",
     /the window now shows integration/.test(asText(dir.look)) &&
       (dir.state?.maps as { activeId?: string })?.activeId === "street",
     `${asText(dir.look).slice(0, 120)} | ${JSON.stringify(dir.state).slice(0, 160)}`,
@@ -3172,7 +3176,7 @@ function checkDirectorLanding(
     "finish landed the integration branch in the live folder",
     dirFinished?.landed === true &&
       existsSync(path.join(dirProjectDir, "src", "sign.js")) &&
-      /is live in the game folder/.test(dir.finished ?? ""),
+      /is live in the project folder/.test(dir.finished ?? ""),
     `${JSON.stringify({ landed: dirFinished?.landed, stoppedBecause: dirFinished?.stoppedBecause })} | ${String(dir.finished).slice(0, 160)}`,
   );
   check(

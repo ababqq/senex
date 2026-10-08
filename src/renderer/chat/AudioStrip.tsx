@@ -5,7 +5,7 @@
 import { type RefObject, useEffect, useRef, useState } from "react";
 import { Pause, Play } from "lucide-react";
 import { MINUTE_MS, SECOND_MS } from "../../shared/duration.ts";
-import type { ProjectAsset } from "../../shared/game-assets.ts";
+import type { ProjectAsset } from "../../shared/project-assets.ts";
 import { previewBytes } from "../asset-bytes.ts";
 import { assetTitle } from "../asset-names.ts";
 import { Icon } from "../ui/icons.tsx";

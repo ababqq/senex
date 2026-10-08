@@ -29,13 +29,13 @@ const { version } = require("./package.json");
 const PRODUCT_NAME = "Genex";
 const EXECUTABLE_NAME = "genex";
 const HOMEPAGE = "https://github.com/genex-games/genex-desktop";
-const SUMMARY = "Self-improving AI game studio";
+const SUMMARY = "Self-improving AI project studio";
 /** The Linux desktop entry's generic name, beside the product name. */
-const GENERIC_NAME = "Game studio";
+const GENERIC_NAME = "Project studio";
 /** Who the packages name as their authors. */
 const AUTHORS = "Genex contributors";
 const DESCRIPTION =
-  "A desktop studio where coding agents build three.js games, run them in a live preview, judge the result and improve their own harness.";
+  "A desktop studio where coding agents build three.js projects, run them in a live preview, judge the result and improve their own harness.";
 // Renditions of the 1024x1024 app icon master: .icns for macOS, .png for Linux, .ico for Windows.
 const ICON = path.join(__dirname, "build", "icon");
 /** The install window's 660x400 art; appdmg picks up the @2x file beside it for Retina. */
@@ -47,7 +47,7 @@ const DMG_APPLICATIONS_X = 495;
 const DMG_ICON_SIZE = 128;
 /** What the app refuses to start without on Linux: the process sandbox and code search. */
 const LINUX_DEPENDS = ["bubblewrap", "socat", "ripgrep"];
-const LINUX_CATEGORIES = ["Development", "Game"];
+const LINUX_CATEGORIES = ["Development", "Project"];
 /** The Windows installer's file name, the same for every version so a download link can stay put. */
 const WINDOWS_SETUP_EXE = "Genex-Setup.exe";
 /** Only with a WINDOWS_SIGN_* certificate, parameters or hook; otherwise unsigned. */
@@ -55,7 +55,7 @@ const windowsSign = windowsSigning(process.env);
 /** Only with MACOS_SIGN_IDENTITY (and the notarytool API key); otherwise ad-hoc once packaged. */
 const macSign = macSigning(process.env, APP_BUNDLE_ID);
 /** Why macOS asks before the app's agents read or write in a protected folder. */
-const folderAccess = (where) => `Genex's agents build and run games in the folders you choose, including ${where}.`;
+const folderAccess = (where) => `Genex's agents build and run projects in the folders you choose, including ${where}.`;
 
 module.exports = {
   packagerConfig: {

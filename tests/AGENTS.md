@@ -23,8 +23,8 @@ through the JS API imports `@typescript/typescript6`.
 ## Helpers (`helpers/`)
 
 - `core-lite.ts`: a real `StudioCore` after `init()` without the harness or engines. Its folders
-  are real paths: the development containment check refuses a games root reached through a link
-  (macOS `/var` → `/private/var`), so a test passing its own `gamesRoot` hands it a `realpath`.
+  are real paths: the development containment check refuses a projects root reached through a link
+  (macOS `/var` → `/private/var`), so a test passing its own `projectsRoot` hands it a `realpath`.
 - `resources.ts`: the read-only resources folder a core needs. Import it, not `studio-rig.ts`,
   when you only need resources: anything that reaches the rig runs in the serial rig group.
 - `studio-rig.ts`: the full rig with the harness loop; slow and sequential (L3).
@@ -56,7 +56,7 @@ then those paths rely on the rig suites and the source gates in the allowlisted 
 
 ## Fixtures (`fixtures/`)
 
-`harness-ok/` is a minimal harness, `games/` holds code-shape samples, `asset-previews/` holds
+`harness-ok/` is a minimal harness, `projects/` holds code-shape samples, `asset-previews/` holds
 format samples, `transcripts/` holds recorded provider streams. Keep fixtures small and synthetic.
 
 ## Electron runners (`e2e/`)

@@ -1,7 +1,7 @@
-/** Model headers the app has read (`projectModelRigs`), kept by game and file so a remounted card knows at once. */
+/** Model headers the app has read (`projectModelRigs`), kept by project and file so a remounted card knows at once. */
 import { useState } from "react";
 import { assetExtension } from "../shared/asset-preview.ts";
-import type { ProjectAsset } from "../shared/game-assets.ts";
+import type { ProjectAsset } from "../shared/project-assets.ts";
 import { foldMotions, motionOwner, type FoldedMotions, type ModelRig } from "../shared/model-rig.ts";
 import { useAsyncEffect } from "./use-async-effect.ts";
 
@@ -43,7 +43,7 @@ export async function loadRigs(project: string, files: readonly string[]): Promi
   return knownRigs(project, files.filter(hasRig)) ?? [];
 }
 
-/** The rigs of these files in the game folder, or null until they are known. */
+/** The rigs of these files in the project folder, or null until they are known. */
 export function useModelRigs(project: string, files: readonly string[]): ModelRig[] | null {
   const models = files.filter(hasRig);
   const key = models.join("\n");
@@ -69,8 +69,8 @@ export function useModelRigs(project: string, files: readonly string[]): ModelRi
   return state?.key === key ? state.rigs : null;
 }
 
-/** The game's newest drawn model that an animation file moves, from everything the game holds; null when none. */
-export async function ownerInGame(project: string, clip: ModelRig): Promise<ProjectAsset | null> {
+/** The project's newest drawn model that an animation file moves, from everything the project holds; null when none. */
+export async function ownerInProject(project: string, clip: ModelRig): Promise<ProjectAsset | null> {
   const listed = await window.studio.projectAssets(project).catch(() => null);
   const models = (listed?.assets ?? [])
     .filter((asset) => hasRig(asset.file))

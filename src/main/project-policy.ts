@@ -1,11 +1,11 @@
-/** Where a development launch may keep its games: only below the profile's own games root. */
+/** Where a development launch may keep its projects: only below the profile's own projects root. */
 import path from "node:path";
 import { lstat, realpath } from "node:fs/promises";
 import { isBelow } from "../substrate/paths.ts";
 
 /** Why a development project is refused. */
 const MESSAGE = {
-  outsideRoot: (project: string) => `Project is outside the owned development games root: ${project}`,
+  outsideRoot: (project: string) => `Project is outside the owned development projects root: ${project}`,
   alias: (project: string) => `Project alias is not allowed: ${project}`,
 } as const;
 

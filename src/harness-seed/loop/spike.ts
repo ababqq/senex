@@ -46,7 +46,7 @@ const RECIPE_SKETCH_CHARS = 6_000;
 /** The longest name a spike's preview, thread and facet may take. */
 const SPIKE_NAME_CHARS = 60;
 
-/** A game's shape as a spike reads it: where it serves from, what builds it, its entry. */
+/** A project's shape as a spike reads it: where it serves from, what builds it, its entry. */
 type SpikeShape = Partial<Pick<ProjectShape, "serve" | "build" | "main">>;
 
 /** Where a spike's page lives (spikeLocation). */
@@ -112,7 +112,7 @@ export function spikeCandidates<C extends Pick<Check, "id" | "kind"> & { hard?: 
 /**
  * The five keys the studio's own page carries. A spike page is served by the studio like any
  * other page, so it gets the vendored copies with no install and no bundler — and it gets them
- * spelled out here rather than told to copy a block out of a game whose index.html may be a
+ * spelled out here rather than told to copy a block out of a project whose index.html may be a
  * bundler's output, or may not exist as source at all.
  */
 export const SPIKE_IMPORT_MAP = [
@@ -132,11 +132,11 @@ export const SPIKE_IMPORT_MAP = [
 /**
  * Where a spike's page lives, and what the studio loads to look at it.
  *
- * On the template (and on any game the studio serves as written) that is `spike/` in the
- * workspace root. A game with a build serves its output folder, and a page written into the
+ * On the template (and on any project the studio serves as written) that is `spike/` in the
+ * workspace root. A project with a build serves its output folder, and a page written into the
  * source tree is never reached: `public/` is the one folder every bundler the studio has met
  * copies verbatim into that output, so the page goes there and is served at `spike/<id>.html`
- * all the same. A game with no build that still serves a subfolder gets the page in it.
+ * all the same. A project with no build that still serves a subfolder gets the page in it.
  */
 export function spikeLocation({
   id,
@@ -163,7 +163,8 @@ export function spikeLocation({
     if (!shape?.serve) {
       return {
         ...at("spike"),
-        refused: "this game builds into an output folder the studio cannot name, so a spike page could not be served",
+        refused:
+          "this project builds into an output folder the studio cannot name, so a spike page could not be served",
       };
     }
     return at("public/spike");
@@ -201,20 +202,20 @@ export function spikeBrief({
   build?: string | null;
 }): string {
   return [
-    `You are building a SPIKE inside Autopilot run ${run.runId} — a throwaway mini-scene that proves ONE technique against ONE check, in isolation from the game. Nothing you write here ships; the technique does.`,
+    `You are building a SPIKE inside Autopilot run ${run.runId} — a throwaway mini-page that proves ONE technique against ONE check, in isolation from the project. Nothing you write here ships; the technique does.`,
     ``,
-    `GAME GOAL (context only): ${run.goal}`,
+    `PROJECT GOAL (context only): ${run.goal}`,
     `FACET (context only): ${spec.title} — ${spec.intent.slice(0, CLIP_BRIEF)}`,
     ``,
     `THE ONE CHECK TO MAKE PASS:`,
     renderChecks([check]),
     ``,
     `BUILD EXACTLY THIS:`,
-    `- ${page}: a page that carries this import map verbatim and loads ./${script.split("/").pop()} as a module. The studio serves this page itself, so the map's five keys resolve from its vendored three with no install and no bundler:\n${importMap}`,
-    `- ${script}: builds ONLY the subsystem the check is about, with objects tagged (userData.tag) and cameras { default${check.camera && check.camera !== "default" ? `, ${check.camera}` : ""} } registered. Register them by calling installStudio({ scene, renderer, camera, player, cameras }) — import it from ${contract} if this game keeps the contract module there; if that import does not resolve, leave it out and just render: the studio puts its own code on every page it serves, so the harness can still see and photograph what your page draws.`,
+    `- ${page}: a page that carries this import map verbatim (it is for a canvas or 3D technique; a DOM technique simply never imports three) and loads ./${script.split("/").pop()} as a module. The studio serves this page itself, so the map's five keys resolve from its vendored three with no install and no bundler:\n${importMap}`,
+    `- ${script}: builds ONLY the subsystem the check is about — real elements for a DOM technique, objects tagged (userData.tag) for a canvas or 3D one — with views { default${check.camera && check.camera !== "default" ? `, ${check.camera}` : ""} } registered. Register them by calling installStudio({ probes, views, scene, renderer, camera }) — import it from ${contract} if this project keeps the contract module there; if that import does not resolve, leave it out and just render: the studio puts its own code on every page it serves, so the harness can still see and photograph what your page draws.`,
     ownShape
-      ? `- Do NOT edit the game: nothing under its own source folders, not its entry, not its page. The spike lives in ${page.slice(0, page.lastIndexOf("/"))}/ only, plus spike/VERDICT.md${build ? `. \`${build}\` must still build this game exactly as it does now — do not change what it does` : ""}.`
-      : `- Do NOT edit src/, index.html or any file of the game. The spike lives in ${page.slice(0, page.lastIndexOf("/"))}/ only.`,
+      ? `- Do NOT edit the project: nothing under its own source folders, not its entry, not its page. The spike lives in ${page.slice(0, page.lastIndexOf("/"))}/ only, plus spike/VERDICT.md${build ? `. \`${build}\` must still build this project exactly as it does now — do not change what it does` : ""}.`
+      : `- Do NOT edit src/, index.html or any file of the project. The spike lives in ${page.slice(0, page.lastIndexOf("/"))}/ only.`,
     tried.length ? `` : "",
     tried.length
       ? `TECHNIQUES ALREADY TRIED IN THE FACET AND KNOWN TO FAIL THIS CHECK — do not repeat them:\n${tried.map((t) => `- ${t}`).join("\n")}`
@@ -231,7 +232,7 @@ export function spikeBrief({
     `## Intent`,
     `<2–5 sentences: what the technique does and why the naive approach fails, with the numbers>`,
     `## Sketch`,
-    "```js\n<the core of the technique, 10–40 lines, plain three.js>\n```",
+    "```js\n<the core of the technique, 10–40 lines, plain JavaScript (three.js for a 3D technique)>\n```",
     `## Port`,
     `<how to apply it in the facet's own files: which module, what to tag, what to expose>`,
     ``,
@@ -463,7 +464,7 @@ async function delegatedSpikeBuild(spike: SpikeRun, turn: ReturnType<typeof spik
         ...(handle ? { handle } : {}),
       },
       // A spike had no ownership at all on either engine: the brief said "do not edit the
-      // game" and nothing enforced it. Its seam is its own folder and the verdict file.
+      // project" and nothing enforced it. Its seam is its own folder and the verdict file.
       ownership: {
         facetId,
         owns: [location.dir, "spike/VERDICT.md"],
@@ -604,11 +605,11 @@ async function keepRecipe(spike: SpikeRun): Promise<Recipe> {
       parsed.port ||
       `Port ${location.script} into the facet's own module; keep the tags and the camera the check names.`,
     evidence: { run: run.runId, project: run.project, facet: spec.id, iteration, spike: id, check: check.id },
-    // Proven in one game: project-scoped until it wins in another.
+    // Proven in one project: project-scoped until it wins in another.
     project: run.project,
   }) as Recipe;
   if (parsed.title) recipe.title = parsed.title.slice(0, CLIP_QUOTE);
-  // Tonight's round uses the technique either way; keeping it for later games is learning.
+  // Tonight's round uses the technique either way; keeping it for later projects is learning.
   if (await learningOn(ctx)) await saveRecipe(ctx.workspace, recipe);
   return recipe;
 }

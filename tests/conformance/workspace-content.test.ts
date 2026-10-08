@@ -44,7 +44,7 @@ test("a docs-only change leaves the source stamp alone, never the full one", asy
   const dir = await mkdtemp(path.join(os.tmpdir(), "content-stamp-docs-"));
   try {
     await promisify(execFile)("git", ["init", dir]);
-    await writeFile(path.join(dir, "index.html"), "game");
+    await writeFile(path.join(dir, "index.html"), "project");
     const before = await workspaceContentStamps(dir);
     assert.ok(before.all && before.source);
     // A research-and-plan turn: a plan under docs/ and notes in Markdown, nothing the preview shows.
@@ -54,8 +54,8 @@ test("a docs-only change leaves the source stamp alone, never the full one", asy
     const planned = await workspaceContentStamps(dir);
     assert.notEqual(planned.all, before.all, "the chat still learns the folder changed");
     assert.equal(planned.source, before.source, "a plan is nothing the preview can show");
-    await writeFile(path.join(dir, "index.html"), "game, changed");
-    assert.notEqual((await workspaceContentStamps(dir)).source, before.source, "game sources still count");
+    await writeFile(path.join(dir, "index.html"), "project, changed");
+    assert.notEqual((await workspaceContentStamps(dir)).source, before.source, "project sources still count");
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
@@ -65,13 +65,13 @@ test("one walk answers both stamps, and the full one is the single stamp", async
   const dir = await mkdtemp(path.join(os.tmpdir(), "content-stamp-split-"));
   try {
     await promisify(execFile)("git", ["init", dir]);
-    await writeFile(path.join(dir, "index.html"), "game");
+    await writeFile(path.join(dir, "index.html"), "project");
     await mkdir(path.join(dir, "docs"));
     await writeFile(path.join(dir, "docs/fight-plan.md"), "# Plan");
     const stamps = await workspaceContentStamps(dir);
     assert.equal(stamps.all, await workspaceContentStamp(dir));
     assert.ok(stamps.source && stamps.source !== stamps.all);
-    // A folder of documents only has no game source to stamp: unknown, so the preview check runs.
+    // A folder of documents only has no project source to stamp: unknown, so the preview check runs.
     await rm(path.join(dir, "index.html"));
     assert.equal((await workspaceContentStamps(dir)).source, null);
     await symlink("/etc/hosts", path.join(dir, "external"));

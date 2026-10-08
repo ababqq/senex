@@ -14,7 +14,7 @@ import { enforceOwnership, reviewAttempt } from "../../src/harness-seed/loop/rev
 import { unversionedNested } from "../../src/harness-seed/loop/gauntlet.ts";
 import { unionMergeMain } from "../../src/harness-seed/loop/merge.ts";
 import { STUDIO_AS } from "../../src/harness-seed/loop/repo.ts";
-import { readProjectShape } from "../../src/substrate/game-workspace.ts";
+import { readProjectShape } from "../../src/substrate/project-workspace.ts";
 import { runSpike } from "../../src/harness-seed/loop/spike.ts";
 import { ctxRecorder } from "../helpers/ctx-recorder.ts";
 import { fixtureGit } from "../helpers/snapshot-fixtures.ts";
@@ -65,7 +65,7 @@ describe("a spike's commit message, through a real shell", () => {
     const check = { id: "jump-arc", kind: "vision", camera: "default" };
     const outcome = await runSpike(recorder.ctx, {
       run: { runId: "run_q", project: "pong", engine: "claude-code" },
-      spec: { id: "feel", title: "Game feel", intent: "weighty", checks: [check] },
+      spec: { id: "feel", title: "Project feel", intent: "weighty", checks: [check] },
       check,
       iteration: 1,
       facetThreadId: "facet-thread",
@@ -84,7 +84,7 @@ describe("a spike's commit message, through a real shell", () => {
 
 /**
  * M3: a file name is the contractor's to choose, a commit hash comes back from a tool, and a
- * game's own studio.json names its entry. Each reached `/bin/sh -c` inside double quotes or bare.
+ * project's own studio.json names its entry. Each reached `/bin/sh -c` inside double quotes or bare.
  */
 const HOSTILE_FILE = "a$(touch PWNED)`touch PWNED2`.js";
 const ran = async (dir: string) => (await readdir(dir)).filter((name) => name.startsWith("PWNED"));
@@ -209,17 +209,20 @@ describe("hostile names and hashes on the loop's command lines (M3)", () => {
     assert.deepEqual(await ran(worktree), []);
   });
 
-  it("a game's studio.json cannot name an entry that is not a plain relative path", async () => {
+  it("a project's studio.json cannot name an entry that is not a plain relative path", async () => {
     for (const main of ["src/main.js; touch PWNED", "/etc/passwd", "../outside.js", "src/$(x).js", "a\nb.js"]) {
       const dir = await tmpDir("studio-shape-main-");
       await writeFile(path.join(dir, "studio.json"), JSON.stringify({ entry: "index.html", main }));
       assert.equal((await readProjectShape(dir)).main, "src/main.js", JSON.stringify(main));
     }
     const dir = await tmpDir("studio-shape-main-");
-    await writeFile(path.join(dir, "studio.json"), JSON.stringify({ entry: "index.html", main: "game/Main Scene.js" }));
+    await writeFile(
+      path.join(dir, "studio.json"),
+      JSON.stringify({ entry: "index.html", main: "project/Main Scene.js" }),
+    );
     assert.equal(
       (await readProjectShape(dir)).main,
-      "game/Main Scene.js",
+      "project/Main Scene.js",
       "an ordinary name with a space still counts",
     );
   });

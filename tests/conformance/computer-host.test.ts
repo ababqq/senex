@@ -1,7 +1,7 @@
 /**
  * The computer tool's host (computer use, 2026-09-07) through the real core over the fake preview: a builder's
  * delegation carries `computer` beside `capture`; both load the workspace through the served
- * entry (a game with its own build is built first — the skate-prod night lost every worker
+ * entry (a project with its own build is built first — the skate-prod night lost every worker
  * frame to `src/main.ts` served as text); the window stays loaded between actions; every
  * action updates the coalesced agent screen; the playtester gets the same tool.
  */
@@ -101,7 +101,7 @@ function scriptedPort(answers: Array<unknown>, options: { loadError?: string | n
   let index = 0;
   const port = {
     async load() {
-      return "game://x/index.html";
+      return "project://x/index.html";
     },
     async reload() {},
     async screenshot() {
@@ -129,7 +129,7 @@ function scriptedPort(answers: Array<unknown>, options: { loadError?: string | n
     status() {
       return {
         project: "x",
-        url: "game://x/index.html",
+        url: "project://x/index.html",
         crashed: options.crashed === true,
         unresponsive: false,
         loadError: options.loadError ?? null,
@@ -151,7 +151,7 @@ function scriptedPort(answers: Array<unknown>, options: { loadError?: string | n
 }
 
 describe("booted means booted", () => {
-  it("reads the shim's snapshot, and never mistakes the shim's own facade for a game's contract", () => {
+  it("reads the shim's snapshot, and never mistakes the shim's own facade for a project's contract", () => {
     // The shim answers first, and it is the only signal that measures the PAGE's own boot.
     const shim = probe({
       __studioClock: {
@@ -192,7 +192,7 @@ describe("booted means booted", () => {
     const facade = probe({ __studio: { __shim: true, state: () => ({ frame: 0 }) } });
     assert.equal(facade.via, "none");
     assert.equal(facade.ready, false);
-    // A game whose state() is not there yet is booting, not attached.
+    // A project whose state() is not there yet is booting, not attached.
     const missing = probe({ __studio: { state: () => ({ __missing: true }) } });
     assert.equal(missing.via, "contract");
     assert.equal(missing.ready, false);
@@ -228,7 +228,7 @@ describe("booted means booted", () => {
     assert.equal(out.ms, 2_000);
     assert.equal(out.via, "shim");
     // A page that says it failed is a build defect, reported the moment it says so.
-    const dead = scriptedPort([booting({ phase: "failed", reason: "the game's boot threw: THREE is not defined" })]);
+    const dead = scriptedPort([booting({ phase: "failed", reason: "the project's boot threw: THREE is not defined" })]);
     const stopped = await awaitReady(dead.port, { timeoutMs: 2_000, now: dead.now, sleep: dead.sleep });
     assert.equal(stopped.timedOut, false);
     assert.equal(stopped.phase, "failed");
@@ -265,7 +265,7 @@ describe("booted means booted", () => {
     assert.equal(result.gesture.done, true);
     assert.deepEqual(result.gesture.reasons, ["the title screen waits for a click"]);
     assert.equal(result.timedOut, true);
-    // A page that never asks is never clicked into: the knock is a real click in a real game.
+    // A page that never asks is never clicked into: the knock is a real click in a real project.
     const quiet = scriptedPort([booting()]);
     await awaitReady(quiet.port, { timeoutMs: 4_000, now: quiet.now, sleep: quiet.sleep });
     assert.equal(quiet.inputs.length, 0);
@@ -347,7 +347,7 @@ describe("the computer tool's host", () => {
     // studio's own shadow, so the folder the user owns keeps whatever dist/ they built there.
     assert.ok(rig.preview.loadRoot?.includes(path.join("scratch", "builds")), rig.preview.loadRoot ?? "no root");
     assert.ok(await stat(path.join(rig.preview.loadRoot!, "index.html")), "the build ran before the window loaded");
-    assert.equal(await stat(path.join(dir, "dist")).catch(() => null), null, "and not inside the game folder");
+    assert.equal(await stat(path.join(dir, "dist")).catch(() => null), null, "and not inside the project folder");
     const shot = answers.shot as { text: string; images?: Array<{ mimeType: string }> };
     assert.match(shot.text, /s1_screen\.jpg/);
     assert.equal(shot.images?.[0]?.mimeType, "image/jpeg", "a screenshot comes back as a picture");
@@ -381,7 +381,11 @@ describe("the computer tool's host", () => {
       act?: { deed: string };
     };
     assert.equal(first.label, "Plaza");
-    assert.deepEqual(first.act, { deed: "load" }, "the first picture is the game opening, as a code the graph words");
+    assert.deepEqual(
+      first.act,
+      { deed: "load" },
+      "the first picture is the project opening, as a code the graph words",
+    );
     assert.equal(first.role, "builder");
     assert.equal(first.facetId, "plaza");
     assert.ok(first.jpeg.length > 0);
@@ -403,7 +407,7 @@ describe("the computer tool's host", () => {
   it("replays the requested-state setup before the first look and says when it did not land", async () => {
     const rig = await startRig({ replies: [] });
     rigs.push(rig);
-    const project = await rig.core.games.scaffold("setup-smoke", { title: "setup" });
+    const project = await rig.core.projects.scaffold("setup-smoke", { title: "setup" });
     const dir = project.dir;
     rig.preview.next = { version: 1, frame: 0, phase: "playing", maps: { activeId: "street" } };
     const api = rig.core.api() as unknown as Record<string, (p: unknown) => Promise<unknown>>;
@@ -433,7 +437,7 @@ describe("the computer tool's host", () => {
       "the setup ran before the agent's first action",
     );
     assert.match(text(first), /REQUESTED STATE NOT REACHED: maps\.activeId is not "macba"/);
-    // A game that lands on the state gets no note.
+    // A project that lands on the state gets no note.
     rig.preview.next = { version: 1, frame: 0, phase: "playing", maps: { activeId: "macba" } };
     rig.preview.inputs.length = 0;
     await api["engine.delegate"]!({
@@ -448,7 +452,7 @@ describe("the computer tool's host", () => {
   it("a capture says which cameras it proved, and which camera a dead debugCamera left on screen", async () => {
     const rig = await startRig({ replies: [] });
     rigs.push(rig);
-    const project = await rig.core.games.scaffold("camera-smoke", { title: "camera" });
+    const project = await rig.core.projects.scaffold("camera-smoke", { title: "camera" });
     rig.preview.cameraNames = ["default", "top"];
     // The page never switches: whatever debugCamera is asked, state().camera stays "default".
     rig.preview.next = { version: 1, frame: 0, phase: "playing", camera: "default" };
@@ -482,7 +486,7 @@ describe("the computer tool's host", () => {
   it("photographs the surface the worker asked for, and names it in the answer (M4.5)", async () => {
     const rig = await startRig({ replies: [] });
     rigs.push(rig);
-    const project = await rig.core.games.scaffold("surface-smoke", { title: "surface" });
+    const project = await rig.core.projects.scaffold("surface-smoke", { title: "surface" });
     const api = rig.core.api() as unknown as Record<string, (p: unknown) => Promise<unknown>>;
     // A zoom that records the surface it was asked for; `zoom` gains its options in lane A.
     const zooms: Array<Record<string, unknown> | undefined> = [];
@@ -591,7 +595,7 @@ describe("the computer tool's host", () => {
       { previewPoolMax: 0, createHeadlessPreview: async () => makeFakePreview() },
     );
     rigs.push(rig);
-    const project = await rig.core.games.scaffold("borrow-smoke", { title: "borrow" });
+    const project = await rig.core.projects.scaffold("borrow-smoke", { title: "borrow" });
     const api = rig.core.api() as unknown as Record<string, (p: unknown) => Promise<unknown>>;
     const threadId = rig.core.mainThread;
     const handles: string[] = [];
@@ -617,7 +621,7 @@ describe("the computer tool's host", () => {
   it("hands the playtester the same tool beside its shorthands, and the scout a read-only one", async () => {
     const rig = await startRig({ replies: [] });
     rigs.push(rig);
-    const project = await rig.core.games.scaffold("play-smoke", { title: "play" });
+    const project = await rig.core.projects.scaffold("play-smoke", { title: "play" });
     const api = rig.core.api() as unknown as Record<string, (p: unknown) => Promise<unknown>>;
     const names: string[][] = [];
     let readOnly: boolean[] = [];
@@ -626,7 +630,7 @@ describe("the computer tool's host", () => {
       readOnly.push(request.readOnly === true);
       const shot = await request.onLiveTool!("computer", { action: "screenshot" });
       assert.ok(typeof shot !== "string" && shot.images?.length, "the playtester sees the picture");
-      const legacy = await request.onLiveTool!("game_state", {});
+      const legacy = await request.onLiveTool!("project_state", {});
       assert.match(text(legacy), /^state:/);
       return { ok: true, engine: "codex", turns: 1, usage: {}, sessionId: "p", summary: "{}" };
     });
@@ -667,9 +671,9 @@ describe("the computer tool's host", () => {
 });
 
 describe("what a load waits for", () => {
-  /** A scaffolded game whose studio.json declares how long it takes to boot. */
-  async function bootGame(rig: Rig, name: string, bootMs: number): Promise<{ dir: string; name: string }> {
-    const project = await rig.core.games.scaffold(name, { title: name });
+  /** A scaffolded project whose studio.json declares how long it takes to boot. */
+  async function bootProject(rig: Rig, name: string, bootMs: number): Promise<{ dir: string; name: string }> {
+    const project = await rig.core.projects.scaffold(name, { title: name });
     const file = path.join(project.dir, "studio.json");
     const meta = JSON.parse(await readFile(file, "utf8")) as Record<string, unknown>;
     await writeFile(file, JSON.stringify({ ...meta, bootMs }, null, 2));
@@ -679,7 +683,7 @@ describe("what a load waits for", () => {
   it("photographs a page that never reported itself ready, and says so — a note, not a refusal", async () => {
     const rig = await startRig({ replies: [] });
     rigs.push(rig);
-    const game = await bootGame(rig, "slow-boot", 1_000);
+    const project = await bootProject(rig, "slow-boot", 1_000);
     // The page carries the shim and keeps saying it is still booting.
     rig.preview.evaluations.push({ match: "__studioClock", value: booting() });
     const api = rig.core.api() as unknown as Record<string, (p: unknown) => Promise<unknown>>;
@@ -691,8 +695,8 @@ describe("what a load waits for", () => {
     await api["engine.delegate"]!({
       engine: "codex",
       prompt: "build",
-      project: game.name,
-      selfCapture: { project: game.name, root: game.dir, runId: "run_b", facetId: "build", iteration: 1 },
+      project: project.name,
+      selfCapture: { project: project.name, root: project.dir, runId: "run_b", facetId: "build", iteration: 1 },
     });
     // Refusing here would skip the setup script, the screen and every frame — exactly the
     // shape this milestone exists for would go unlooked-at.
@@ -708,11 +712,11 @@ describe("what a load waits for", () => {
   it("answers preview.ready and preview.gesture over the substrate RPC — host calls, not agent tools", async () => {
     const rig = await startRig({ replies: [] });
     rigs.push(rig);
-    const game = await bootGame(rig, "ready-rpc", 1_000);
+    const project = await bootProject(rig, "ready-rpc", 1_000);
     const api = rig.core.api() as unknown as Record<string, (p: unknown) => Promise<unknown>>;
     assert.ok(api["preview.ready"], "preview.ready resolves through core.api()");
     assert.ok(api["preview.gesture"], "preview.gesture resolves through core.api()");
-    await api["preview.load"]!({ project: game.name });
+    await api["preview.load"]!({ project: project.name });
     rig.preview.evaluations.push({
       match: "__studioClock",
       value: booting({ ready: true, phase: "ready", pageMs: 240, attached: true }),
@@ -740,12 +744,12 @@ describe("what a load waits for", () => {
     );
   });
 
-  it("answers game.attached from the page it just served — the live half of game.validate", async () => {
+  it("answers project.attached from the page it just served — the live half of project.validate", async () => {
     const rig = await startRig({ replies: [] });
     rigs.push(rig);
-    const game = await bootGame(rig, "attach-rpc", 1_000);
+    const project = await bootProject(rig, "attach-rpc", 1_000);
     const api = rig.core.api() as unknown as Record<string, (p: unknown) => Promise<unknown>>;
-    assert.ok(api["game.attached"], "game.attached resolves through core.api()");
+    assert.ok(api["project.attached"], "project.attached resolves through core.api()");
     rig.preview.evaluations.push({
       match: "__studioClock",
       value: booting({ ready: true, phase: "ready", attached: true }),
@@ -762,7 +766,7 @@ describe("what a load waits for", () => {
     const port = rig.preview as unknown as { attachReport?: () => Promise<Record<string, unknown> | null> };
 
     // A port that cannot answer the question does not get to imply the page was reached.
-    const blind = (await api["game.attached"]!({ project: game.name })) as Report;
+    const blind = (await api["project.attached"]!({ project: project.name })) as Report;
     assert.equal(blind.ok, false);
     assert.equal(blind.contract, "none");
     assert.equal(blind.renders, 0);
@@ -782,7 +786,7 @@ describe("what a load waits for", () => {
       reason: null,
     });
     try {
-      const attached = (await api["game.attached"]!({ project: game.name, root: game.dir })) as Report;
+      const attached = (await api["project.attached"]!({ project: project.name, root: project.dir })) as Report;
       assert.equal(attached.ok, true, "a page the hook attached to is judgeable without the two lines");
       assert.equal(attached.contract, "attached");
       assert.equal(attached.reach, "import-map");
@@ -792,7 +796,7 @@ describe("what a load waits for", () => {
 
       // A page nothing reached at all: the word, not a guess.
       port.attachReport = async () => ({ contract: "none", reason: "no renderer has drawn since the page loaded" });
-      const nothing = (await api["game.attached"]!({ project: game.name })) as Report;
+      const nothing = (await api["project.attached"]!({ project: project.name })) as Report;
       assert.equal(nothing.ok, false);
       assert.equal(nothing.contract, "none");
       assert.equal(nothing.reason, "no renderer has drawn since the page loaded");
@@ -804,10 +808,10 @@ describe("what a load waits for", () => {
   it("refuses a page that says it failed to boot, and one that has left the address the studio serves", async () => {
     const rig = await startRig({ replies: [] });
     rigs.push(rig);
-    const game = await bootGame(rig, "dead-boot", 1_000);
+    const project = await bootProject(rig, "dead-boot", 1_000);
     rig.preview.evaluations.push({
       match: "__studioClock",
-      value: booting({ phase: "failed", reason: "the game's boot threw: Cannot read properties of undefined" }),
+      value: booting({ phase: "failed", reason: "the project's boot threw: Cannot read properties of undefined" }),
     });
     const api = rig.core.api() as unknown as Record<string, (p: unknown) => Promise<unknown>>;
     let captured = "";
@@ -818,14 +822,14 @@ describe("what a load waits for", () => {
     await api["engine.delegate"]!({
       engine: "codex",
       prompt: "build",
-      project: game.name,
-      selfCapture: { project: game.name, root: game.dir, runId: "run_d", facetId: "build", iteration: 1 },
+      project: project.name,
+      selfCapture: { project: project.name, root: project.dir, runId: "run_d", facetId: "build", iteration: 1 },
     });
-    assert.match(captured, /your build failed to load: the game's boot threw: Cannot read properties of undefined/);
+    assert.match(captured, /your build failed to load: the project's boot threw: Cannot read properties of undefined/);
 
-    // A game that navigates to its own dev server has walked out of the studio's sight: the
+    // A project that navigates to its own dev server has walked out of the studio's sight: the
     // shim, the clock and the cameras are all on the page the studio served, not on that one.
-    const stray = await bootGame(rig, "stray-boot", 1_000);
+    const stray = await bootProject(rig, "stray-boot", 1_000);
     rig.preview.evaluations.length = 0;
     rig.preview.evaluations.push({ match: "__studioClock", value: booting({ ready: true, phase: "ready" }) });
     const status = rig.preview.status.bind(rig.preview);
@@ -844,7 +848,7 @@ describe("what a load waits for", () => {
     rig.preview.status = status;
     assert.match(
       escaped,
-      /your build failed to load: the page left game:\/\/stray-boot for http:\/\/localhost:5173, which the studio does not serve/,
+      /your build failed to load: the page left project:\/\/stray-boot for http:\/\/localhost:5173, which the studio does not serve/,
     );
   });
 });

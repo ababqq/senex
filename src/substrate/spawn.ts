@@ -85,7 +85,7 @@ const packagedSeccomp = sandboxPackage.includes(`app.asar${path.sep}`)
 export interface SandboxPolicy {
   /** Domains reachable through srt's filtering proxy. Empty = no outbound network. */
   allowedDomains: string[];
-  /** localhost binding/connecting (Ollama, the game bundle server). */
+  /** localhost binding/connecting (Ollama, the project bundle server). */
   allowLocalBinding: boolean;
   allowWrite: string[];
   allowRead: string[];
@@ -122,7 +122,7 @@ export interface RunResult {
 }
 
 export interface SandboxOptions {
-  /** Writable roots: the harness workspace and the games root. */
+  /** Writable roots: the harness workspace and the projects root. */
   writableRoots: string[];
   /**
    * Dedicated scratch directory. It becomes `TMPDIR` for every spawned process, so tools that
@@ -348,28 +348,28 @@ function literalGlob(dir: string): string {
 }
 
 /**
- * Claude Code's `.claude` folder in every game, as write denies for the harness and its commands:
- * a session started in a game loads its settings and hooks from there, so no agent process may
- * plant them. On macOS a glob per folder (every game under the games root, made later too, and
- * each game kept elsewhere) in any case, existing or not, with the folder's own path escaped
+ * Claude Code's `.claude` folder in every project, as write denies for the harness and its commands:
+ * a session started in a project loads its settings and hooks from there, so no agent process may
+ * plant them. On macOS a glob per folder (every project under the projects root, made later too, and
+ * each project kept elsewhere) in any case, existing or not, with the folder's own path escaped
  * ({@link literalGlob}). sandbox-runtime expands a glob, and srt-win makes a placeholder for a
  * missing path, so on Windows (and Linux) only the folders that exist now are named; there the
- * host's own refusals (`game.write`, landing, promotion) stand alone for a folder not made yet.
+ * host's own refusals (`project.write`, landing, promotion) stand alone for a folder not made yet.
  */
 export function claudeFolderDenyWrites(
-  gamesRoot: string,
-  gameDirs: readonly string[],
+  projectsRoot: string,
+  projectDirs: readonly string[],
   platform: NodeJS.Platform = process.platform,
   exists: (p: string) => boolean = existsSync,
 ): string[] {
   if (platform !== StudioPlatform.Mac) {
-    const folders = [...new Set(gameDirs.map((dir) => path.join(path.resolve(dir), ".claude")))];
+    const folders = [...new Set(projectDirs.map((dir) => path.join(path.resolve(dir), ".claude")))];
     return folders.filter((folder) => exists(folder));
   }
-  const root = path.resolve(gamesRoot);
-  const others = gameDirs.map((dir) => path.resolve(dir)).filter((dir) => path.dirname(dir) !== root);
-  const games = [path.join(literalGlob(root), "*"), ...others.map(literalGlob)];
-  return [...new Set(games.map((game) => path.join(game, CLAUDE_FOLDER_GLOB)))];
+  const root = path.resolve(projectsRoot);
+  const others = projectDirs.map((dir) => path.resolve(dir)).filter((dir) => path.dirname(dir) !== root);
+  const projects = [path.join(literalGlob(root), "*"), ...others.map(literalGlob)];
+  return [...new Set(projects.map((project) => path.join(project, CLAUDE_FOLDER_GLOB)))];
 }
 
 export class ProcessSandbox {
@@ -432,7 +432,7 @@ export class ProcessSandbox {
 
   /**
    * Open another folder the agent may write. Idempotent, and a no-op when `dir` already sits
-   * inside a writable root (the default library covers `~/AI Games/...`).
+   * inside a writable root (the default library covers `~/AI Projects/...`).
    */
   allowWrite(dir: string): void {
     const resolved = path.resolve(dir);
@@ -445,7 +445,7 @@ export class ProcessSandbox {
   }
 
   /**
-   * Deny writing more paths from the next process on (a game's `.claude` folder, once the game is
+   * Deny writing more paths from the next process on (a project's `.claude` folder, once the project is
    * adopted). A process already running keeps the policy it started with.
    */
   denyWrite(paths: readonly string[]): void {

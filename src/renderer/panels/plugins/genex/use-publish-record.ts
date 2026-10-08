@@ -1,5 +1,5 @@
 /**
- * The Publish dialog's record of a game on Genex: re-read on open and on a timer that quickens
+ * The Publish dialog's record of a project on Genex: re-read on open and on a timer that quickens
  * while an attempt runs, the one press under way, and the files Publish uploads, listed on request.
  * One Publish press lists the files (or reuses a fresh list) and publishes exactly those.
  */
@@ -24,7 +24,7 @@ const words = (e: unknown): string => (e instanceof Error ? e.message : String(e
 export const Pressing = { None: "none", Publish: "publish", Files: "files", Action: "action" } as const;
 export type Pressing = (typeof Pressing)[keyof typeof Pressing];
 
-/** The game's publish record, the press under way and the files Publish uploads. */
+/** The project's publish record, the press under way and the files Publish uploads. */
 export function usePublishRecord(plugin: PluginInfo, project: string | null) {
   const [state, setState] = useState<GenexPublishState | null>(null);
   const [error, setError] = useState("");
@@ -34,7 +34,7 @@ export function usePublishRecord(plugin: PluginInfo, project: string | null) {
   const [files, setFiles] = useState<ExportReview | null>(null);
   const listedAt = useRef(0);
   const id = plugin.manifest.id;
-  const game = project ?? "";
+  const entry = project ?? "";
   const refresh = useCallback(async (): Promise<void> => {
     try {
       const args = { operation: GenexPublishStatusOperation.Status };
@@ -73,7 +73,7 @@ export function usePublishRecord(plugin: PluginInfo, project: string | null) {
   /** The files Publish would upload now, listed again unless the shown list is fresh. */
   const currentFiles = async (): Promise<ExportReview> => {
     if (files && Date.now() - listedAt.current < FILES_FRESH_MS) return files;
-    const listed = await window.studio.genexPublishReview(game);
+    const listed = await window.studio.genexPublishReview(entry);
     listedAt.current = Date.now();
     setFiles(listed);
     return listed;
@@ -92,6 +92,6 @@ export function usePublishRecord(plugin: PluginInfo, project: string | null) {
     listFiles: (): Promise<void> => run(Pressing.Files, currentFiles),
     /** Publish under `title`: the press is the consent to exactly the listed files. */
     publish: (title: string): Promise<void> =>
-      run(Pressing.Publish, async () => window.studio.genexPublish(game, await currentFiles(), title)),
+      run(Pressing.Publish, async () => window.studio.genexPublish(entry, await currentFiles(), title)),
   };
 }

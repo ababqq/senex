@@ -1,11 +1,11 @@
 # Conversation and build lifecycle
 
-A game chat message is input to the game's conversation: the chat's own session answers it, leads
+A project chat message is input to the project's conversation: the chat's own session answers it, leads
 a build it launches, and goes on after the build with the run's controls. It is not a request to
 create a run. A separate read-only coordinator answers only where no lead of the chat's own led
 ([the coordinator, a fallback](#the-coordinator-a-fallback)). Studio's app-wide chat bypasses both
-and uses tool-free model completion with conversation and recorded Studio activity. Historical game
-runs in an older Studio thread must not bind a new Studio question to that game's coordinator.
+and uses tool-free model completion with conversation and recorded Studio activity. Historical project
+runs in an older Studio thread must not bind a new Studio question to that project's coordinator.
 
 The failure this addresses: with Autopilot enabled — the switch the user now reads as
 **Loop** (the redesigned composer groups it under Mode), while the harness keeps the word (`start_autopilot`, `AutopilotCommission`,
@@ -44,7 +44,7 @@ request to wait for the remaining workers.
   such a marker. Two run delegations carry none and are still recorded as the chat's session: the
   classic integrator without an integration worktree and a base build with no project folder. One
   run delegation is the chat's on purpose: a waking night's lead whose director grant says
-  `chatSession` sits in the game folder and continues the chat's own session, so the host keeps its
+  `chatSession` sits in the project folder and continues the chat's own session, so the host keeps its
   session as `contractor` and the harness writes its `contractor_session`
   ([one session](#live-chat-during-a-build)). `run_status` reads the builders' capability facts
   (plugins, account state, connectors); its recorded conversation revision remains separate from
@@ -135,22 +135,22 @@ There is no global sidebar Stop control or confirmation sheet. Escape remains sc
 composer and a chat-only turn. Wrapping up uses `finish_run` through `studio:run.finish`, which
 refuses a run that is no longer running. A worker the director stops
 mid-round keeps its work: the round is committed to its own ref,
-`refs/studio/runs/<runId>/attempts/<facet>/<n>-stopped` (a ref, never a branch — the game's
+`refs/studio/runs/<runId>/attempts/<facet>/<n>-stopped` (a ref, never a branch — the project's
 `git branch` and `git tag` lists stay the user's), its worktree is left standing, and it is
 neither judged nor rolled back; the reason names the director, never the user.
 
 "Run the project" after a run (director follow-up, 2026-09-07): `show_build` puts a build in the
-user's window — `live` (the game folder), `integration` (the run's merged head, from
+user's window — `live` (the project folder), `integration` (the run's merged head, from
 `run_finished.integrationHead` or the journal, loaded from a worktree of its own) or a commit —
 for a running, finished or paused run alike; `land_build` merges the integration head (or a
-commit) into the game folder and shows it, for a finished or paused run only (a running run
+commit) into the project folder and shows it, for a finished or paused run only (a running run
 lands through `finish_run`). Either loads Live only for a message the person sent that is still
 unanswered (the host's note, whatever id the harness names) and only while Live, holding that
-game, is out of their sight: such a message cannot tell "show me" from "change the title", and a
+project, is out of their sight: such a message cannot tell "show me" from "change the title", and a
 chat's own session once showed its edit into the Live the person watched. Otherwise the build is offered to
-Live's Reload by commit, and a landing lands and offers the game folder. Both refuse plainly: no integration branch yet, a dirty game folder,
+Live's Reload by commit, and a landing lands and offers the project folder. Both refuse plainly: no integration branch yet, a dirty project folder,
 a contractor building in it — never the chat's own session that asks, which holds the folder only
-while it waits for the answer (`landBuild` `asker`) — or a repository inside the game the studio
+while it waits for the answer (`landBuild` `asker`) — or a repository inside the project the studio
 was never given consent to version. A finished run is never "inactive" for these two.
 
 The run and chat have separate status lanes. Chat completion cannot clear a worker's status.
@@ -169,7 +169,7 @@ A message sent while the chat's own turn works — the chat's own session (a Loo
 night it led, too) or a run's coordinator, whichever answers the chat — is delivered into that
 turn instead of waiting for it to end. The queue decides what joins, the host how the session takes it, and the log
 records where it was read. Build steering (`steer_run`, `worker_steer`, the director's inbox) is
-unchanged: while a run of this chat or its game is starting or running nothing is steered into a
+unchanged: while a run of this chat or its project is starting or running nothing is steered into a
 chat turn; messages go to the night's lead ([live chat](#live-chat-during-a-build)) or wait.
 
 - **What joins.** The runner of the processed message gets a steer handle (`loop/message-queue.ts`
@@ -245,23 +245,23 @@ it builds…" instead of "Sends when the build finishes…" (renderer `chat/live
 - **One session.** The lead is the chat's own contractor session, not a second one
   (`loop/director/lead-session.ts`, words in `lead-session-prompts.ts`). `runDirector` seats it
   (`leadSeat`, on a Resume too) on the chat's bookmark — its latest `contractor_session`, which a
-  chat turn now records with its model — when its engine, game and model are the lead's
+  chat turn now records with its model — when its engine, project and model are the lead's
   (`continuesChat`; a bookmark without a model counts as the same). With no bookmark the lead opens
   a session that becomes the chat's; with one on another engine or model it keeps a session of its
   own (on a Resume, the journal's when `director.lead.chatSession` is false) and leaves the
   bookmark alone. A fresh lead session — none to resume, one lost, a later turn with none — is told
   the chat's latest 20 messages first (`freshChat`), then its brief and the digest; reference stills
   reach a fresh session and the lead's first turn.
-  The delegation names no `cwd` (the game folder), is `readOnly`, and its director grant's `root` is
+  The delegation names no `cwd` (the project folder), is `readOnly`, and its director grant's `root` is
   the integration worktree, with `chatSession` when it is the chat's. The host honours that grant
-  (`#leadRoot`) only for a `readOnly` delegation in this game's live folder, and only for a root
+  (`#leadRoot`) only for a `readOnly` delegation in this project's live folder, and only for a root
   whose real path is below its run's own folder — `scratch/autopilot/<runId>/`, a real directory,
   never a link to another run's — in the same repository (`--git-common-dir`), of a run the host's
-  records say is this game's: started (`run_registered`, `run_started`) in a chat of this game and
-  in no other game's, since `snapshot.worktree` can put any game's worktree under any run id. The
+  records say is this project's: started (`run_registered`, `run_started`) in a chat of this project and
+  in no other project's, since `snapshot.worktree` can put any project's worktree under any run id. The
   engine, the window, capture, computer and reads get that checked real path, never the name the
-  harness sent; a lead reads only that worktree of the run's folder, beside the game folder and the
-  run's own artifacts. Its lock is that worktree, not the game folder, so the chat's other turns
+  harness sent; a lead reads only that worktree of the run's folder, beside the project folder and the
+  run's own artifacts. Its lock is that worktree, not the project folder, so the chat's other turns
   there and Make it live go on while it thinks; a turn refused because the lock is held
   (`DelegationRefusal.FolderBusy`, the error's `code`) is asked again after a wait, and a first turn
   refused for good ends as a failed turn rather than the night's crash (`wake.ts` `askSession`). The
@@ -286,11 +286,11 @@ it builds…" instead of "Sends when the build finishes…" (renderer `chat/live
   merge when it stops, and the lead integrates that worker. A session that leaves a conflict hunk
   in any file it was to resolve (`markersLeft`) — done, unfinished or stopped — commits nothing:
   the merge is aborted, the worker fails naming the files, and `integrate` refuses it
-  (`unresolvedOf`). Changes no worker made in the integration worktree (a game that builds in
+  (`unresolvedOf`). Changes no worker made in the integration worktree (a project that builds in
   place) are set aside for a lead before a merge or a playtest of integration (`setAsideStrays`: a
   commit over the integration head on `refs/studio/runs/<runId>/set-aside/<stamp>`, then a reset),
   and the answer says what was kept where. For a lead a single worker starts on a fork that does
-  not run (its repair; a loop worker is still refused), a playtest of the game folder plays a
+  not run (its repair; a loop worker is still refused), a playtest of the project folder plays a
   worktree at its commit, and a merged build that does not run is answered in the lead's words.
   After the close the chat goes on in it with its hands back
   ([after the build](#after-the-build-the-same-session)), and a Resume leads in it again.
@@ -376,10 +376,10 @@ message on another engine is another session's; it and anything else are
   the message does not move the turn to its planner (`turn-loop.ts` `turnModel`), and a throttled
   turn never falls back to another engine (`delegated-turn.ts` `fallsBack`).
 - **Its hands back.** It is an ordinary chat turn (`runDelegatedTurn`) resuming the chat's
-  bookmark in the game folder, no longer read-only: each of its turns, while that night is the
+  bookmark in the project folder, no longer read-only: each of its turns, while that night is the
   chat's latest, opens with a note in place of "pick up where you left off" (`afterNightNote`) — the
   build is over, how it ended, what it keeps.
-  After a finished night with Loop off (Auto) requested work is its own, done in the game folder
+  After a finished night with Loop off (Auto) requested work is its own, done in the project folder
   like any chat change (preview health pass and all): no `continue_build`, no builder follow-up, no
   new run. With Loop on it goes to the same run, reopened (below).
 - **The run's controls, live.** The delegation carries `runControls {runId, messageId}`; the host
@@ -456,7 +456,7 @@ message on another engine is another session's; it and anything else are
   refused plan sets none.
   The night keeps its runId, plan, workers and defects nobody owns; this same session leads it
   (`leadSeat`; after the coordinator's reopen, the lead a Resume would seat); it forks from the
-  game folder as it is now when the finished build is in it, else from the finished build
+  project folder as it is now when the finished build is in it, else from the finished build
   (`reopenCommits`); its first digest reads THE BUILD GOES ON AT, the earlier workers are the
   finished build's, and new workers join the same Builds graph. The renderer counts its time from
   the reopen (`RunExecution.openedAt`), forgets the first close until the next one (`forgetClose`,
@@ -497,7 +497,7 @@ that does not serve the same session. The long turn's removal does not take it
 Codex and Claude coordinators use a stable scratch directory and a separate persisted native
 session per chat/provider (`coordinator_<engine>`). They read project context and call every
 host-owned control tool; they cannot write worker files. To the user the coordinator is this
-game's chat, never "Studio". It receives the builders' capability facts instead of instructions
+project's chat, never "Studio". It receives the builders' capability facts instead of instructions
 for tools it cannot call, so it distinguishes builder access from its own run controls. It gets
 the saved plan, progress and conversation, with what a night's lead said in the chat. Requested
 work on a paused run uses `resume_run`, recording the latest instruction before the saved journal
@@ -537,7 +537,7 @@ the durable row replaces the bubble exactly (`renderer/chat/pending-sends.ts`). 
 plan review, and `listAllEvents` returns only ids at or below one taken when the pass starts, so
 the renderer's single cursor cannot skip a row committed to a thread it already read.
 
-Rewinding a game chat to a message is a projection, never a truncation (`shared/chat-rewind.ts`).
+Rewinding a project chat to a message is a projection, never a truncation (`shared/chat-rewind.ts`).
 Any handled or delivered message can be the target, and a bubble with no queue record (older
 chats, a note to a build) by its own event id. `rewindChat` refuses while the chat has a send or
 a plan being written, or, with no build running, a turn, delegation or completion, and while a
@@ -564,7 +564,7 @@ ids recorded before the rewind (run mirrors' always, rewound or not). Held follo
 through the queue and return to the composer with the message. The harness `rewind` action
 (capability `rewind`) only resets the in-memory Loop mood board.
 
-Before each processed message main saves the game folder: `events.append` starts the checkpoint
+Before each processed message main saves the project folder: `events.append` starts the checkpoint
 and `turn.begin` waits for it (30 s at most; a late one is not kept), so the queue lock is never
 held, and the folder after each answer is saved too. `chat-checkpoints.ts` reads the folder
 through a private index with executable Git configuration disabled. It preserves raw file
@@ -618,10 +618,10 @@ queue (and its coordinator after), the chat freed before the learning pass, a cr
 before the close — each answered after by the chat's own session — and Stop during the pass; `harness-incidents.test.ts` (LC rows) covers what a resumed lead is told, the
 tool-call guard, owed words, the wake cap, the release races and a picture among messages.
 `director-one-session.test.ts` (S1–S13) covers one session: the chat's session leading its night
-read-only in the game folder and answering after the close in the same session with the run's
+read-only in the project folder and answering after the close in the same session with the run's
 controls and no coordinator (Claude and Codex), a chat session that cannot be resumed, a merge
 conflict given to a worker, a conflict worker that leaves markers, the studio's hands for a lead
-(strays set aside, the game folder played from a worktree), showing, landing and changing the game
+(strays set aside, the project folder played from a worktree), showing, landing and changing the project
 after a finished night, a paused night a question leaves alone and an instruction resumes with
 the same lead, a message sent during that resuming reply held for the resumed night, Stop in that
 window keeping it paused, and a message naming no engine or another engine (S7b, S10b: with Loop
@@ -645,7 +645,7 @@ command's result's Loop (`reportCommissions`); `chat-feedback.test.ts` one row p
 and links too, and the run's controls (only for the chat's own session, the asker's own hold, a
 dirty folder, another run); `harness-incidents.test.ts`
 OS1–OS6 the markers a conflict worker leaves, strays set aside, a first turn refused while the
-lead's lock is held, and a landing over the game folder's uncommitted changes (named, blamed on
+lead's lock is held, and a landing over the project folder's uncommitted changes (named, blamed on
 nobody, a merge of the user's own under way never undone), and a run started again after a close of its own (a crashed reopen still
 closes, and a loop crash under it too, RO3; its inbox from the ask on, RO2 after a replay and
 beside a lead's record of the same words); RO1 a reopened build's outcomes, RO4 its picks, RO5–RO5e
@@ -656,21 +656,21 @@ paid model calls.
 
 ### Intake approval before a run exists
 
-Before a run exists, a Loop message goes to an ordinary contractor session in the game folder
+Before a run exists, a Loop message goes to an ordinary contractor session in the project folder
 (the Auto chat's brief, tools, capture and host tools) with the launch tool (`start_autopilot`,
 or `start_unattended_run`) and `ask_user` bridged in. It answers, researches, writes plans or
-edits the game itself and launches a build only when the ask is to build or substantially change
-the game (`loop/launch-prompts.ts`): Loop grants a build budget, not an obligation. A wish for speed
-does not make a new game a contained change. Before it launches, the session must know what the
-game is and how it should look, from the conversation, attached stills or the game in the folder;
+edits the project itself and launches a build only when the ask is to build or substantially change
+the project (`loop/launch-prompts.ts`): Loop grants a build budget, not an obligation. A wish for speed
+does not make a new project a contained change. Before it launches, the session must know what the
+project is and how it should look, from the conversation, attached stills or the project in the folder;
 when either is missing it asks one `ask_user` question with a recommended answer, even when the user
 asks for speed, and launches after the answer (the question the write-less interviewer used to
 ask). The direct engines' briefing (`turn-prompts.ts`) carries the same rule. A recorded
-question is asked (after the preview health pass when game sources changed); a recorded launch
+question is asked (after the preview health pass when project sources changed); a recorded launch
 starts from the folder as the session left it; a turn that records neither is reported like an
-Auto chat build. A non-launching turn that changed game sources takes the preview health pass and a
+Auto chat build. A non-launching turn that changed project sources takes the preview health pass and a
 `build_observation`; one that only wrote docs/ or Markdown (a plan, research notes) takes neither
-(`game.contentStamp` `split`: both stamps from one walk). The health pass waits on the page's own
+(`project.contentStamp` `split`: both stamps from one walk). The health pass waits on the page's own
 readiness (`preview.ready` with `gesture: false`, so the user's window is never clicked): up to
 the project's boot budget (15 s by default) for a page that signals readiness, the old short grace
 for one that signals nothing, and the old settle only when the host cannot answer.

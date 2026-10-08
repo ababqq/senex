@@ -79,7 +79,7 @@ export const contextLabel = (tokens: number) =>
 const ROLE_NAMES: Record<RoleKey, string> = { planner: "Main agent", builder: "Workers", judge: "Reviewers" };
 const ROLE_INFO: Partial<Record<RoleKey, string>> = {
   builder: "Workers build the parts of the plan, several at once.",
-  judge: "Reviewers test every result and decide when the game is done.",
+  judge: "Reviewers test every result and decide when the project is done.",
 };
 
 /** Up/Down/Home/End move focus between the rows of one panel, like a menu. */
@@ -300,7 +300,7 @@ function RolesView({
 
 /**
  * A job's model list beside the panel: to its right, else its left, else above. Over a running
- * game, the game steps aside while the list is open (native-bounds.ts). Escape is the menu's
+ * project, the project steps aside while the list is open (native-bounds.ts). Escape is the menu's
  * one-step escape; Left goes back to the jobs.
  */
 function JobList({

@@ -7,9 +7,9 @@
 // biome-ignore-all lint/correctness/noInnerDeclarations: installProbe is serialized with toString() into the page
 /**
  * The init-script payload. `page.addInitScript` runs it in the page's OWN JavaScript context before
- * any page script executes, so cross-origin is irrelevant and the game needs no cooperation, no SDK
+ * any page script executes, so cross-origin is irrelevant and the project needs no cooperation, no SDK
  * and no rebuild: audio, WebGL, errors, pointer lock and fullscreen are captured by patching the
- * constructors before the game can reach them. `probeInitSource()` is what the driver injects: one
+ * constructors before the project can reach them. `probeInitSource()` is what the driver injects: one
  * self-contained expression with no free variables.
  */
 
@@ -100,15 +100,15 @@ export type ProbeState = {
   /**
    * THE CLICK-TO-LOCK DOOR. `requested` counts real `requestPointerLock()`
    * calls; `grantedNatively` means the browser actually locked; `shimmed` means
-   * it refused and the probe engaged a synthetic lock so the game could be
-   * entered anyway. All three are reported so a reader can tell a game that was
+   * it refused and the probe engaged a synthetic lock so the project could be
+   * entered anyway. All three are reported so a reader can tell a project that was
    * never asked about pointer lock from one the probe had to fake its way past.
    */
   pointerLock: {
     requested: number;
     grantedNatively: boolean;
     shimmed: boolean;
-    /** Whether the synthetic lock is held right now (a game may exit it). */
+    /** Whether the synthetic lock is held right now (a project may exit it). */
     locked: boolean;
     firstRequestAtMs: number | null;
     engagedAtMs: number | null;
@@ -118,7 +118,7 @@ export type ProbeState = {
      * the synthetic lock is held. Three counters because they answer three
      * different questions, and the first cut's single one (`movesRouted`,
      * genex-prober/1) answered none of them: it counted only events the
-     * fallback had patched, so `0` read as "no look input reached the game" on
+     * fallback had patched, so `0` read as "no look input reached the project" on
      * a run whose camera swept 158°.
      *
      * `movesWhileLocked` — every mousemove / pointermove / pointerrawupdate
@@ -127,7 +127,7 @@ export type ProbeState = {
      * browser delivered with non-zero movementX/movementY of its own.
      * `deltasSupplied` — the ones that arrived with zero movement while the
      * cursor had moved, which the fallback filled in from consecutive
-     * positions. A game's camera can turn on `deltasNative` alone, and on the
+     * positions. A project's camera can turn on `deltasNative` alone, and on the
      * measured bare run it did.
      */
     movesWhileLocked: number;
@@ -137,8 +137,8 @@ export type ProbeState = {
      * `navigator.userActivation.isActive` at the FIRST `requestPointerLock()`
      * call — `null` when the API is absent. A request made with no activation
      * is refused for every real player too, which is the fact that separates a
-     * headless refusal (the shim's case) from a defect in the game. Also
-     * counted per request as `requestsWithActivation`, since a game may ask
+     * headless refusal (the shim's case) from a defect in the project. Also
+     * counted per request as `requestsWithActivation`, since a project may ask
      * once at boot and again on a click.
      */
     userActivationAtRequest: boolean | null;
@@ -150,7 +150,7 @@ export type ProbeState = {
      * delivered-look verdict reads. It exists because the camera SAMPLES cannot
      * carry that question: the first cut's buffer took the first 4,000 frames
      * and refused the rest, the snapshot handed over the last 1,200 of THOSE,
-     * and on any game past 4,000 frames the verdict read a fixed mid-run slice
+     * and on any project past 4,000 frames the verdict read a fixed mid-run slice
      * (MEASURED on two hosted bundles: page-ms 163,879–202,052 of a 352,643 ms
      * run; 177,088–240,160 of 379,498) while its sentences claimed the
      * post-lock period. A camera that turned on the directions drag and froze
@@ -161,12 +161,12 @@ export type ProbeState = {
      * `sweepDeg` is the unwrapped range of the ground heading over EVERY
      * post-lock sample. `mouseSweepDeg` is the same range over only the steps
      * that followed a locked move event by at most `windowMs` — the half that
-     * can be called delivery, because A/D-turn games, a follow camera swinging
-     * behind a walking character and a game's own idle pan all move the
+     * can be called delivery, because A/D-turn projects, a follow camera swinging
+     * behind a walking character and a project's own idle pan all move the
      * heading with zero mouse input. `mouseStepsUnattributable` counts steps
      * that followed a move but spanned more than the window (a sampler slower
      * than the window cannot say what inside the step was the mouse), so a
-     * zero here on a slow run is legible as the sampler's, not the game's.
+     * zero here on a slow run is legible as the sampler's, not the project's.
      */
     look: {
       windowMs: number;
@@ -188,9 +188,9 @@ export type ProbeState = {
    * `fullscreenchange`, never inferred from a promise resolving;
    * `userActivationAtRequest` is read INSIDE the first call, because a
    * request with no activation is refused for every real player and that is
-   * the fact that separates a headless refusal from a defect in the game.
+   * the fact that separates a headless refusal from a defect in the project.
    * No shim, deliberately: one would mask exactly that defect. Zero measured
-   * games have asked so far; the first that does will say so here, and a
+   * projects have asked so far; the first that does will say so here, and a
    * shim is built only against a run showing `requested > 0` with activation
    * live.
    */
@@ -205,7 +205,7 @@ export type ProbeState = {
   };
   /**
    * The camera read from the engine's view-matrix uploads. `seen: false` means no three.js-shaped
-   * view matrix was ever uploaded (a 2D game, or a renderer the hook cannot see into). `samples` are
+   * view matrix was ever uploaded (a 2D project, or a renderer the hook cannot see into). `samples` are
    * the newest `retained` of `frames` (a ring), oldest first.
    */
   camera: {
@@ -285,15 +285,15 @@ export function installProbe() {
      * THE CAMERA, READ FROM THE ENGINE INSTEAD OF INFERRED FROM PIXELS.
      *
      * Three attempts at deciding "did W go forward" from screenshots failed on
-     * a real game: whole-frame expansion was unusable on 6 of 8 keys, the lower
+     * a real project: whole-frame expansion was unusable on 6 of 8 keys, the lower
      * band turned out to be the player's car welded to the viewport (0.9
      * correlation, zero shift), and the side bands scored 0.34-0.67 on a dark
      * night scene — too weak to call without manufacturing a verdict.
      *
      * This is exact instead. It is UNIVERSAL because it hooks WebGL, not the
-     * game: every three.js renderer uploads a `viewMatrix` uniform once per
-     * frame, whatever the game's structure, bundler or framework. Nothing is
-     * required of the game and no global `THREE` needs to exist.
+     * project: every three.js renderer uploads a `viewMatrix` uniform once per
+     * frame, whatever the project's structure, bundler or framework. Nothing is
+     * required of the project and no global `THREE` needs to exist.
      *
      * The view matrix is told apart from the projection matrix by `m[15]`: an
      * affine world-to-camera transform has 1 there, a perspective projection
@@ -441,14 +441,14 @@ export function installProbe() {
   /**
    * THE SHIM THAT GETS THE PROBE THROUGH A CLICK-TO-LOCK DOOR.
    *
-   * MEASURED 2026-09-04 on a first-person village: the game's only entrance was
+   * MEASURED 2026-09-04 on a first-person village: the project's only entrance was
    * a full-screen overlay whose click handler called `requestPointerLock()` and
    * which hid ONLY on `pointerlockchange`. Headless Chromium never grants
-   * pointer lock, the promise rejected, the game swallowed the rejection, and
+   * pointer lock, the promise rejected, the project swallowed the rejection, and
    * the prober clicked that overlay 17 times over 395s while the scene ran
    * perfectly behind a 94%-opaque blur. `l2.input_changes_state` and
    * `l2.no_soft_lock_5min` both failed, every judge frame was the menu, and
-   * `camera.samples` held exactly one entry — the spawn position. The game was
+   * `camera.samples` held exactly one entry — the spawn position. The project was
    * complete and correct.
    *
    * First-person plus click-to-lock is the DEFAULT for the vendored
@@ -510,7 +510,7 @@ export function installProbe() {
     }
   }
 
-  /** Shadow the three surfaces a locked game reads. Runs once, on first refusal. */
+  /** Shadow the three surfaces a locked project reads. Runs once, on first refusal. */
   function plInstall() {
     if (plInstalled) return;
     plInstalled = true;
@@ -522,7 +522,7 @@ export function installProbe() {
     } catch (e) {
       D.notes.push("pointer-lock shim could not shadow document.pointerLockElement: " + e);
     }
-    // A game that exits the lock (Escape, a pause menu) must get its overlay back.
+    // A project that exits the lock (Escape, a pause menu) must get its overlay back.
     try {
       var origExit = typeof document.exitPointerLock === "function" ? document.exitPointerLock : null;
       document.exitPointerLock = () => {
@@ -543,12 +543,12 @@ export function installProbe() {
       /* leave the real one in place */
     }
     /**
-     * MOVEMENT. A locked game steers from `movementX`/`movementY`. The first
+     * MOVEMENT. A locked project steers from `movementX`/`movementY`. The first
      * cut of this comment said a CDP-dispatched mousemove carries neither
      * ("Input.dispatchMouseEvent has no field for them, so Blink leaves them at
      * 0") and that premise is FALSE: Blink derives movementX/Y from consecutive
      * event positions, CDP-dispatched or not. MEASURED 2026-09-04 on the bare
-     * village run — the game's own `player.js` read `movementX` off `mousemove`,
+     * village run — the project's own `player.js` read `movementX` off `mousemove`,
      * the fallback below fired for zero events, and the camera samples show the
      * yaw sweeping 158° across the soak. `movesRouted: 0` meant "the fallback
      * was never needed" and was read as the opposite, which is why the three
@@ -556,13 +556,13 @@ export function installProbe() {
      *
      * The fallback stays for the event that arrives with ZERO movement while
      * the cursor position changed, filled in from the positions the events do
-     * carry, at CAPTURE phase on window so the game's own handlers see the
+     * carry, at CAPTURE phase on window so the project's own handlers see the
      * patched event. The reported value WINS when it is non-zero: a browser
      * that supplies real movement is not second-guessed.
      *
      * THREE EVENT TYPES, not one: the vendored `FollowCamera` reads `movementX`
      * off a `pointermove` listener bound to the canvas, so a `mousemove`-only
-     * patch was dead code for exactly the controller we ship, and a game that
+     * patch was dead code for exactly the controller we ship, and a project that
      * wants unthrottled deltas listens to `pointerrawupdate`. Chromium fires
      * all three for one physical move, and the position-delta fallback must
      * track the last position PER TYPE — shared, the first type to fire would
@@ -733,9 +733,9 @@ export function installProbe() {
               return v;
             },
             /**
-             * RESOLVED, never re-thrown. We just granted a lock, so a game that
+             * RESOLVED, never re-thrown. We just granted a lock, so a project that
              * awaits the promise must not take its error path — the two would
-             * disagree about the same fact. A game that ignores the promise (the
+             * disagree about the same fact. A project that ignores the promise (the
              * measured one did) sees no difference either way.
              */
             (err) => {
@@ -767,15 +767,15 @@ export function installProbe() {
 
   // ---------------------------------------------------------------- fullscreen
   /**
-   * THE FULLSCREEN DOOR, WATCHED AND NEVER OPENED FOR THE GAME. The mirror of
+   * THE FULLSCREEN DOOR, WATCHED AND NEVER OPENED FOR THE PROJECT. The mirror of
    * the pointer-lock patch above with the shim left out: count the asks, read
    * the activation state inside the call, record how the browser answered,
-   * and read `document.fullscreenElement` afterwards for the grant. A game
+   * and read `document.fullscreenElement` afterwards for the grant. A project
    * that gates its overlay on `fullscreenchange` the way the village gated
    * its on `pointerlockchange` would sit at that overlay for the whole run —
    * and the scorecard's `requires.fullscreen` plus `demoteForFullscreen`
-   * (verdicts.ts) make that legible as a door, not as a game that ignored
-   * input. The `webkit` alias is patched too, because a game written against
+   * (verdicts.ts) make that legible as a door, not as a project that ignored
+   * input. The `webkit` alias is patched too, because a project written against
    * a compatibility snippet calls whichever exists.
    */
   var FS = D.fullscreen;
@@ -813,10 +813,10 @@ export function installProbe() {
         ret = orig.apply(this, arguments);
       } catch (e) {
         fsRefused(name + " threw: " + e);
-        throw e; // the game sees exactly what the browser did
+        throw e; // the project sees exactly what the browser did
       }
       if (ret && typeof ret.then === "function") {
-        // Observed on both branches and handed back UNCHANGED: the game's own
+        // Observed on both branches and handed back UNCHANGED: the project's own
         // `.then`/`.catch` run on the same promise, so a rejection it handles
         // is still counted here and still reaches it.
         try {
@@ -917,7 +917,7 @@ export function installProbe() {
             }
           }
         } catch (e) {
-          /* never break the game's own upload */
+          /* never break the project's own upload */
         }
         return origWriteBuffer.apply(this, arguments);
       };
@@ -959,7 +959,7 @@ export function installProbe() {
     var isWebgl = kind === "webgl" || kind === "webgl2" || kind === "experimental-webgl";
     if (isWebgl) {
       // Forced so the drawing buffer survives compositing, which is what lets the
-      // sampler below read the frame from outside the game's own render callback.
+      // sampler below read the frame from outside the project's own render callback.
       patched = attrs ? Object.assign({}, attrs) : {};
       patched.preserveDrawingBuffer = true;
     }
@@ -991,7 +991,7 @@ export function installProbe() {
        *
        * The first attempt picked "the affine matrix uploaded most often in a
        * frame", reasoning that every object shares the view matrix. Measured on
-       * a real game that heuristic never fired once: peak repeat count was 1
+       * a real project that heuristic never fired once: peak repeat count was 1
        * across 87,876 affine uploads, because the per-object modelViewMatrix
        * arrives first and fills any bounded buffer before the shared one shows
        * up. A cap cannot be raised out of that; the premise was wrong.
@@ -1029,7 +1029,7 @@ export function installProbe() {
             pending = Array.prototype.slice.call(value);
           }
         } catch (e) {
-          /* never break the game's own render */
+          /* never break the project's own render */
         }
         return origUniformMatrix4fv.apply(this, arguments);
       };
@@ -1198,7 +1198,7 @@ export function installProbe() {
           }
         }
       } catch (e) {
-        /* observing must never break the game */
+        /* observing must never break the project */
       }
       return out;
     };
@@ -1344,8 +1344,8 @@ export function installProbe() {
   function sampleFrame(t) {
     // Back off when sampling is expensive. On a heavy scene under a software
     // rasteriser the drawImage readback is not free, and the probe must never be
-    // the reason a game looks slow.
-    // Proportional, not a step: on a game where the readback costs ~900ms a fixed
+    // the reason a project looks slow.
+    // Proportional, not a step: on a project where the readback costs ~900ms a fixed
     // 120ms floor still means the probe is most of the frame budget. Capped so the
     // series never goes so sparse that it stops being a time series.
     var minInterval = Math.min(1000, Math.max(SAMPLE_MIN_INTERVAL_MS, sampleCostMs * 4));
@@ -1557,7 +1557,7 @@ export function installProbe() {
           resourceErrors: D.resourceErrors,
           canvases: D.canvases,
           // `seen: false` means no three.js-shaped view matrix was ever
-          // uploaded — a 2D-canvas game, or a renderer that does not use one.
+          // uploaded — a 2D-canvas project, or a renderer that does not use one.
           // That is reported, never defaulted to an origin at zero. `samples`
           // are the NEWEST `retained` of `frames` (a ring), oldest first;
           // `firstSampleT` is the first sample ever taken, which the ring may
@@ -1591,7 +1591,7 @@ export function installProbe() {
           // Whether the probe had to fake its way past a click-to-lock door.
           // Read by `l1.builds_and_boots` and by the two L2 demotions.
           pointerLock: D.pointerLock,
-          // Whether the game asked for fullscreen, and how the browser
+          // Whether the project asked for fullscreen, and how the browser
           // answered. Read by `requires.fullscreen` and `demoteForFullscreen`.
           fullscreen: D.fullscreen,
         }),

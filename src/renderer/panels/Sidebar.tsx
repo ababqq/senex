@@ -1,14 +1,14 @@
-/** One game, one row. The chrome and navigation stay put; only the game list scrolls. */
+/** One project, one row. The chrome and navigation stay put; only the project list scrolls. */
 import type { ComponentPropsWithRef, JSX, ReactNode, RefObject } from "react";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { type ReadyUpdate, UpdateAction } from "../../shared/app-update.ts";
 import { ThreadKind } from "../../shared/event-log.ts";
 import { statusWords, UPDATE_WORDS } from "../words.ts";
-import type { ConversationRecord, GameProject, ThreadMeta } from "../types.ts";
+import type { ConversationRecord, Project, ThreadMeta } from "../types.ts";
 import { Dot, IconButton } from "../ui/kit.tsx";
 import { Icon, type IconName } from "../ui/icons.tsx";
 import { GenexLogo } from "../ui/GenexLogo.tsx";
-import { GameAvatar } from "../ui/GameAvatar.tsx";
+import { ProjectAvatar } from "../ui/ProjectAvatar.tsx";
 import { Shortcut } from "../ui/Shortcut.tsx";
 import { Tooltip, TooltipTrigger, TooltipContent } from "../ui/tooltip.tsx";
 import {
@@ -21,17 +21,17 @@ import {
 import { NotificationsMenu } from "./NotificationsMenu.tsx";
 import type { Notice } from "../notifications.ts";
 import type { LaunchInSidebar } from "../state/launch.ts";
-import { sidebarGames } from "../state/threads.ts";
+import { sidebarProjects } from "../state/threads.ts";
 
 interface Props {
   threads: ConversationRecord[];
-  games: GameProject[];
+  projects: Project[];
   activeThreadId: string | null;
   activeProject: string | null;
   /** Home is open: nothing is selected, and the wordmark is where it is. */
   atHome: boolean;
   onHome: () => void;
-  /** A game home is starting: a placeholder row until it is made, then its own row, selected and working. */
+  /** A project home is starting: a placeholder row until it is made, then its own row, selected and working. */
   launching: LaunchInSidebar;
   building: ReadonlySet<string>;
   busyThreads: ReadonlySet<string>;
@@ -46,13 +46,13 @@ interface Props {
   pluginsOpen: boolean;
   onPlugins: () => void;
   stagedCount: number;
-  onNewGame: () => void;
+  onNewProject: () => void;
   onSelectThread: (threadId: string) => void;
-  onSelectGame: (project: string) => void;
-  onRenameGame: (game: GameProject) => void;
-  onPinGame: (game: GameProject) => void;
-  onDeleteGame: (game: GameProject) => void;
-  onChangeCover: (game: GameProject) => void;
+  onSelectProject: (project: string) => void;
+  onRenameProject: (project: Project) => void;
+  onPinProject: (project: Project) => void;
+  onDeleteProject: (project: Project) => void;
+  onChangeCover: (project: Project) => void;
   /** A new version of the app waiting for a restart or a download, or null. */
   update: ReadyUpdate | null;
   /** Quit and relaunch into it; false when main did not (the person kept a run going). */
@@ -90,9 +90,9 @@ function Hint({
 /** How long after the last scroll the list's scrollbar stays shown. */
 const SCROLL_SETTLE_MS = 800;
 
-/** The games in the sidebar's order (`sidebarGames`). */
-function useSortedGames(games: GameProject[], threads: ConversationRecord[]): GameProject[] {
-  return useMemo(() => sidebarGames(games, threads), [games, threads]);
+/** The projects in the sidebar's order (`sidebarProjects`). */
+function useSortedProjects(projects: Project[], threads: ConversationRecord[]): Project[] {
+  return useMemo(() => sidebarProjects(projects, threads), [projects, threads]);
 }
 
 /**
@@ -113,31 +113,31 @@ function useScrollState(nav: RefObject<HTMLElement | null>) {
 }
 
 export function Sidebar(props: Props): JSX.Element {
-  const { threads, games, activeThreadId } = props;
-  const studio = threads.find((thread) => meta(thread).kind !== ThreadKind.Game);
+  const { threads, projects, activeThreadId } = props;
+  const studio = threads.find((thread) => meta(thread).kind !== ThreadKind.Project);
   const harnessOpen = !!studio && studio.id === activeThreadId;
   const nav = useRef<HTMLElement>(null);
   const { scrolled, onScroll } = useScrollState(nav);
-  const sorted = useSortedGames(games, threads);
+  const sorted = useSortedProjects(projects, threads);
   return (
     <nav
       ref={nav}
       data-pane="rail"
       id="studio-sidebar"
       aria-label="Main navigation"
-      className="game-sidebar"
+      className="project-sidebar"
       data-scrolled={scrolled}
     >
       <SidebarTop {...props} studio={studio} harnessOpen={harnessOpen} />
       <div className="sidebar-list">
         <div className="sidebar-scroll" data-sidebar-scroll onScroll={(event) => onScroll(event.currentTarget)}>
-          <div className="sidebar-games">
-            {sorted.map((game, index) => (
-              <Fragment key={game.name}>
+          <div className="sidebar-projects">
+            {sorted.map((project, index) => (
+              <Fragment key={project.name}>
                 {props.launching.placeholder && index === firstUnpinned(sorted) ? (
                   <LaunchRow title={props.launching.title} />
                 ) : null}
-                <SidebarGame {...props} game={game} harnessOpen={harnessOpen} />
+                <SidebarProject {...props} project={project} harnessOpen={harnessOpen} />
               </Fragment>
             ))}
             {props.launching.placeholder && firstUnpinned(sorted) === sorted.length ? (
@@ -157,27 +157,27 @@ export function Sidebar(props: Props): JSX.Element {
   );
 }
 
-/** Where a new game's row goes: after the pinned ones. */
-const firstUnpinned = (sorted: GameProject[]): number => {
-  const index = sorted.findIndex((game) => !game.pinned);
+/** Where a new project's row goes: after the pinned ones. */
+const firstUnpinned = (sorted: Project[]): number => {
+  const index = sorted.findIndex((project) => !project.pinned);
   return index === -1 ? sorted.length : index;
 };
 
-/** The game home is starting, selected and working, until it is made and has its own row. */
+/** The project home is starting, selected and working, until it is made and has its own row. */
 function LaunchRow({ title }: { title: string | null }): JSX.Element {
   return (
-    <div className="sidebar-game" data-launching data-active="true" data-busy="true">
-      <div className="sidebar-game-select" aria-current="page">
-        <span className="game-avatar game-avatar-pending" aria-hidden="true" />
+    <div className="sidebar-project" data-launching data-active="true" data-busy="true">
+      <div className="sidebar-project-select" aria-current="page">
+        <span className="project-avatar project-avatar-pending" aria-hidden="true" />
         <span className={`min-w-0 flex-1 truncate ${title ? "" : "text-ink-3"}`}>{title ?? "Naming…"}</span>
         <span className="sr-only">Working</span>
       </div>
-      <GameRowEnd busy pinned={false} />
+      <ProjectRowEnd busy pinned={false} />
     </div>
   );
 }
 
-/** Relaunch to update, over the foot of the game list while a downloaded version waits. */
+/** Relaunch to update, over the foot of the project list while a downloaded version waits. */
 function SidebarUpdate({ update, onRestart }: { update: ReadyUpdate; onRestart: () => Promise<boolean> }): JSX.Element {
   const [restarting, setRestarting] = useState(false);
   const restart = (): void => {
@@ -206,7 +206,7 @@ function SidebarUpdate({ update, onRestart }: { update: ReadyUpdate; onRestart: 
   );
 }
 
-/** Download Genex X, over the foot of the game list while a release Linux installs by hand waits. */
+/** Download Genex X, over the foot of the project list while a release Linux installs by hand waits. */
 function SidebarDownload({ update, onDownload }: { update: ReadyUpdate; onDownload: () => void }): JSX.Element {
   return (
     <div className="sidebar-footer">
@@ -220,47 +220,47 @@ function SidebarDownload({ update, onDownload }: { update: ReadyUpdate; onDownlo
   );
 }
 
-/** A game's row, open on its primary (else first) chat; busy while it builds or a chat works. */
-function SidebarGame({
-  game,
+/** A project's row, open on its primary (else first) chat; busy while it builds or a chat works. */
+function SidebarProject({
+  project,
   threads,
   building,
   busyThreads,
   activeProject,
   launching,
   harnessOpen,
-  onSelectGame,
-  onRenameGame,
-  onPinGame,
-  onDeleteGame,
+  onSelectProject,
+  onRenameProject,
+  onPinProject,
+  onDeleteProject,
   onChangeCover,
-}: Props & { game: GameProject; harnessOpen: boolean }): JSX.Element {
-  const chats = threads.filter((thread) => meta(thread).project === game.name && !meta(thread).archived);
-  const thread = chats.find((chat) => chat.id === game.primaryThreadId) ?? chats[0];
-  // The game home is launching keeps its placeholder's look: selected and working.
-  const launched = launching.project === game.name;
-  const busy = launched || building.has(game.name) || chats.some((chat) => busyThreads.has(chat.id));
-  const active = launched || activeProject === game.name;
+}: Props & { project: Project; harnessOpen: boolean }): JSX.Element {
+  const chats = threads.filter((thread) => meta(thread).project === project.name && !meta(thread).archived);
+  const thread = chats.find((chat) => chat.id === project.primaryThreadId) ?? chats[0];
+  // The project home is launching keeps its placeholder's look: selected and working.
+  const launched = launching.project === project.name;
+  const busy = launched || building.has(project.name) || chats.some((chat) => busyThreads.has(chat.id));
+  const active = launched || activeProject === project.name;
   return (
-    <GameRow
-      game={game}
+    <ProjectRow
+      project={project}
       threadId={thread?.id}
       active={active && !harnessOpen}
       busy={busy}
-      onSelect={() => onSelectGame(game.name)}
-      onRename={() => onRenameGame(game)}
-      onPin={() => onPinGame(game)}
-      onDelete={() => onDeleteGame(game)}
-      onCover={() => onChangeCover(game)}
+      onSelect={() => onSelectProject(project.name)}
+      onRename={() => onRenameProject(project)}
+      onPin={() => onPinProject(project)}
+      onDelete={() => onDeleteProject(project)}
+      onCover={() => onChangeCover(project)}
     />
   );
 }
 
-/** The fixed top: the toggle, the brand with search and notifications, the rooms, the games heading. */
+/** The fixed top: the toggle, the brand with search and notifications, the rooms, the projects heading. */
 function SidebarTop({
   studio,
   harnessOpen,
-  games,
+  projects,
   threads,
   busyThreads,
   threadStatus,
@@ -274,7 +274,7 @@ function SidebarTop({
   pluginsOpen,
   onPlugins,
   stagedCount,
-  onNewGame,
+  onNewProject,
   onSelectThread,
   atHome,
   onHome,
@@ -310,14 +310,14 @@ function SidebarTop({
         <div className="sidebar-brand-actions">
           <IconButton
             icon="search"
-            label="Search games"
-            title="Search games · ⌘K"
+            label="Search projects"
+            title="Search projects · ⌘K"
             className="sidebar-icon"
             onClick={onSearch}
           />
           <NotificationsMenu
             items={notices}
-            games={games}
+            projects={projects}
             threads={threads}
             onOpen={onOpenNotice}
             onRead={onReadNotices}
@@ -326,9 +326,9 @@ function SidebarTop({
         </div>
       </div>
       <div className="sidebar-nav">
-        <Hint label="New game" shortcut="⌘N">
-          <NavRow icon="new-game" aria-keyshortcuts="Meta+N Control+N" onClick={onNewGame}>
-            New game
+        <Hint label="New project" shortcut="⌘N">
+          <NavRow icon="new-project" aria-keyshortcuts="Meta+N Control+N" onClick={onNewProject}>
+            New project
           </NavRow>
         </Hint>
         <NavRow icon="plugins" aria-label="Plugins" current={pluginsOpen} onClick={onPlugins}>
@@ -357,21 +357,21 @@ function SidebarTop({
           Settings
         </NavRow>
       </div>
-      <div className="sidebar-games-heading">
-        <span>Games</span>
+      <div className="sidebar-projects-heading">
+        <span>Projects</span>
         <IconButton
           icon="plus"
-          label="Create game"
-          title="Create game · ⌘N"
+          label="Create project"
+          title="Create project · ⌘N"
           className="sidebar-icon"
-          onClick={onNewGame}
+          onClick={onNewProject}
         />
       </div>
     </div>
   );
 }
 
-/** New game, Plugins, Harness and Settings: one stack of equal rows. */
+/** New project, Plugins, Harness and Settings: one stack of equal rows. */
 function NavRow({
   icon,
   current = false,
@@ -394,11 +394,11 @@ function NavRow({
   );
 }
 
-/** The end of a game row: the working dot while it works, else the pin when pinned. */
-function GameRowEnd({ busy, pinned }: { busy: boolean; pinned: boolean | undefined }) {
+/** The end of a project row: the working dot while it works, else the pin when pinned. */
+function ProjectRowEnd({ busy, pinned }: { busy: boolean; pinned: boolean | undefined }) {
   if (busy) {
     return (
-      <span className="sidebar-game-status" aria-hidden="true">
+      <span className="sidebar-project-status" aria-hidden="true">
         <Dot tone="busy" />
       </span>
     );
@@ -411,8 +411,8 @@ function GameRowEnd({ busy, pinned }: { busy: boolean; pinned: boolean | undefin
   );
 }
 
-function GameRow({
-  game,
+function ProjectRow({
+  project,
   threadId,
   active,
   busy,
@@ -422,7 +422,7 @@ function GameRow({
   onDelete,
   onCover,
 }: {
-  game: GameProject;
+  project: Project;
   threadId?: string;
   active: boolean;
   busy: boolean;
@@ -435,47 +435,53 @@ function GameRow({
   const [open, setOpen] = useState(false);
   // The row's end is one slot: the working dot, else the pin — and ⋯ in their place on hover.
   return (
-    <div className="sidebar-game" data-game={game.name} data-active={active} data-busy={busy} data-menu-open={open}>
+    <div
+      className="sidebar-project"
+      data-project-row={project.name}
+      data-active={active}
+      data-busy={busy}
+      data-menu-open={open}
+    >
       <button
         type="button"
-        data-project={game.name}
+        data-project={project.name}
         data-thread={threadId}
         aria-current={active ? "page" : undefined}
-        title={game.pathLabel}
-        className="sidebar-game-select"
+        title={project.pathLabel}
+        className="sidebar-project-select"
         onClick={onSelect}
       >
-        <GameAvatar cover={game.cover} active={active} gameKey={game.name} />
-        <span className="min-w-0 flex-1 truncate">{game.title}</span>
+        <ProjectAvatar cover={project.cover} active={active} projectKey={project.name} />
+        <span className="min-w-0 flex-1 truncate">{project.title}</span>
         {busy && <span className="sr-only">Working</span>}
       </button>
-      <GameRowEnd busy={busy} pinned={game.pinned} />
+      <ProjectRowEnd busy={busy} pinned={project.pinned} />
       <DropdownMenu open={open} onOpenChange={setOpen}>
         <Tooltip>
           <TooltipTrigger asChild>
             <DropdownMenuTrigger asChild>
-              <button type="button" className="sidebar-game-menu" aria-label={`Actions for ${game.title}`}>
+              <button type="button" className="sidebar-project-menu" aria-label={`Actions for ${project.title}`}>
                 <Icon name="more" />
               </button>
             </DropdownMenuTrigger>
           </TooltipTrigger>
-          <TooltipContent side="right">Game actions</TooltipContent>
+          <TooltipContent side="right">Project actions</TooltipContent>
         </Tooltip>
         <DropdownMenuContent align="start" side="right" className="w-48">
-          <DropdownMenuItem data-game-action="rename" onSelect={onRename}>
+          <DropdownMenuItem data-project-action="rename" onSelect={onRename}>
             <Icon name="rename" />
             Rename
           </DropdownMenuItem>
-          <DropdownMenuItem data-game-action="pin" onSelect={onPin}>
+          <DropdownMenuItem data-project-action="pin" onSelect={onPin}>
             <Icon name="pin" />
-            {game.pinned ? "Unpin" : "Pin"}
+            {project.pinned ? "Unpin" : "Pin"}
           </DropdownMenuItem>
-          <DropdownMenuItem data-game-action="cover" onSelect={onCover}>
+          <DropdownMenuItem data-project-action="cover" onSelect={onCover}>
             <Icon name="image" />
             Change image…
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem data-game-action="delete" disabled={busy} onSelect={onDelete} className="text-red">
+          <DropdownMenuItem data-project-action="delete" disabled={busy} onSelect={onDelete} className="text-red">
             <Icon name="trash" />
             Delete…
           </DropdownMenuItem>

@@ -68,8 +68,8 @@ it("connection status tracks a delegated response through revocation and clears 
   let pending: Promise<unknown> | undefined;
   try {
     const project = "connection-activity";
-    await rig.core.games.scaffold(project);
-    const threadId = await rig.core.createGameThread(project);
+    await rig.core.projects.scaffold(project);
+    const threadId = await rig.core.createProjectThread(project);
     await rig.core.mcp.save(connector(), {}, { trust: true });
     rig.core.engines.register({
       id: "bonsai",
@@ -122,9 +122,9 @@ it("connection status tracks a delegated response through revocation and clears 
 it("connector calls wait for host consent unless the user grants the exact tool", async () => {
   const rig = await startRig({ replies: [] });
   try {
-    const project = "consent-game";
-    await rig.core.games.scaffold(project);
-    const threadId = await rig.core.createGameThread(project);
+    const project = "consent-project";
+    await rig.core.projects.scaffold(project);
+    const threadId = await rig.core.createProjectThread(project);
     await rig.core.mcp.save(connector({ toolPolicy: {} }), {}, { trust: true });
     await rig.core.mcp.toolsFor(project);
     const call = rig.core
@@ -161,8 +161,8 @@ it("one connector becomes the same tool on Claude Code, on Codex and in the loca
   const rig = await startRig({ replies: [] });
   try {
     const project = "connected";
-    await rig.core.games.scaffold(project);
-    const threadId = await rig.core.createGameThread(project);
+    await rig.core.projects.scaffold(project);
+    const threadId = await rig.core.createProjectThread(project);
     // The trust the native dialog grants, granted here directly: no test ever opens a dialog.
     await rig.core.mcp.save(connector(), {}, { trust: true });
     const api = rig.core.api() as unknown as Record<string, (input: any) => Promise<any>>;
@@ -252,8 +252,8 @@ it("an image answer is carried and counted, and a failing tool is reported as a 
   const rig = await startRig({ replies: [] });
   try {
     const project = "connected-images";
-    await rig.core.games.scaffold(project);
-    const threadId = await rig.core.createGameThread(project);
+    await rig.core.projects.scaffold(project);
+    const threadId = await rig.core.createProjectThread(project);
     await rig.core.mcp.save(connector(), {}, { trust: true });
     const api = rig.core.api() as unknown as Record<string, (input: any) => Promise<any>>;
     rig.core.engines.register({
@@ -298,8 +298,8 @@ it("the sessions with a narrower job never receive a connector tool", async () =
   const rig = await startRig({ replies: [] });
   try {
     const project = "narrow";
-    await rig.core.games.scaffold(project);
-    const threadId = await rig.core.createGameThread(project);
+    await rig.core.projects.scaffold(project);
+    const threadId = await rig.core.createProjectThread(project);
     await rig.core.mcp.save(connector(), {}, { trust: true });
     const api = rig.core.api() as unknown as Record<string, (input: any) => Promise<any>>;
     const seen: Array<{ label: string; tools: string[]; prompt: string }> = [];
@@ -340,7 +340,7 @@ it("the sessions with a narrower job never receive a connector tool", async () =
     // the Auto chat gets.
     assert.equal(seen[1]!.tools.includes("echo__echo"), true, "a Loop chat reaches the connector");
 
-    // A candidate's tool registry is the optimizer's, and it is built from the game tools alone.
+    // A candidate's tool registry is the optimizer's, and it is built from the project tools alone.
     const candidate = await createToolRegistry(
       { workspace: rig.core.layout.harnessWs, call: (name: string, args: any) => api[name]!(args) } as never,
       { candidateId: "trusted", project },
@@ -359,8 +359,8 @@ it("agents may use connectors and may not change them", async () => {
   const rig = await startRig({ replies: [] });
   try {
     const project = "no-mutation";
-    await rig.core.games.scaffold(project);
-    const threadId = await rig.core.createGameThread(project);
+    await rig.core.projects.scaffold(project);
+    const threadId = await rig.core.createProjectThread(project);
     await rig.core.mcp.save(connector(), {}, { trust: true });
     const api = rig.core.api() as unknown as Record<string, (input: any) => Promise<any>>;
 
@@ -450,8 +450,8 @@ it("a plugin ships its own MCP server: started with it, fed on fd 3, and gone wh
   const rig = await startRig({ replies: [] });
   try {
     const project = "plugged";
-    await rig.core.games.scaffold(project);
-    const threadId = await rig.core.createGameThread(project);
+    await rig.core.projects.scaffold(project);
+    const threadId = await rig.core.createProjectThread(project);
     // A node test run has no OS encryption, so the one boundary the host reads a plugin credential
     // through is stubbed here. Everything else on the path — the gate, the pipe, the child — is real.
     const services = rig.core.pluginServices;
@@ -557,8 +557,8 @@ it("bundled main Genex MCP joins an existing chat after account unlock on every 
   const rig = await startRig({ replies: [] });
   try {
     const project = "genex-existing-chat";
-    await rig.core.games.scaffold(project);
-    const threadId = await rig.core.createGameThread(project);
+    await rig.core.projects.scaffold(project);
+    const threadId = await rig.core.createProjectThread(project);
     const declared = rig.core.plugins
       .list()
       .find((p) => p.manifest.id === "genex")!
@@ -635,8 +635,8 @@ it("the Genex Blender server waits for its endpoint and never disables the local
   const rig = await startRig({ replies: [] });
   try {
     const project = "modelled";
-    await rig.core.games.scaffold(project);
-    const threadId = await rig.core.createGameThread(project);
+    await rig.core.projects.scaffold(project);
+    const threadId = await rig.core.createProjectThread(project);
     // The bundled manifest's own requirement, as the registry sees it.
     const declared = rig.core.plugins
       .list()

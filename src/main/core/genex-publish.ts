@@ -1,5 +1,5 @@
 /**
- * Publish pressed in Studio's own Publish dialog. Studio draws that dialog: it names the game and
+ * Publish pressed in Studio's own Publish dialog. Studio draws that dialog: it names the project and
  * offers the exact files that would go online, and its Publish press uploads exactly those, so the
  * press is the person's consent and neither the native dialog nor a chat card asks again. A plugin panel's or toolbar's
  * request for the same action is only relayed by the main frame, so it still goes through the
@@ -11,7 +11,7 @@ import type { StudioCore } from "../studio-core.ts";
 
 /** Why Publish is refused before Genex is asked anything. */
 const MESSAGE = {
-  NoGame: "Open a game to publish it",
+  NoProject: "Open a project to publish it",
   GenexUnavailable: "Turn on Genex Tools to publish",
   NoFileList: "Review the files before publishing",
 } as const;
@@ -38,12 +38,12 @@ const isExportReview = (review: unknown): review is ExportReview =>
   "excluded" in review &&
   isFileList(review.excluded);
 
-/** The game the dialog names, bound as Studio allows it to be opened, while Studio's Genex is on. */
+/** The project the dialog names, bound as Studio allows it to be opened, while Studio's Genex is on. */
 async function dialogBinding(core: DialogCore, project: unknown): Promise<PluginBinding> {
-  if (typeof project !== "string" || !project) throw new Error(MESSAGE.NoGame);
+  if (typeof project !== "string" || !project) throw new Error(MESSAGE.NoProject);
   if (!core.plugins.list().some(isUsableGenex)) throw new Error(MESSAGE.GenexUnavailable);
   const binding = await core.pluginBinding(project);
-  if (!binding) throw new Error(MESSAGE.NoGame);
+  if (!binding) throw new Error(MESSAGE.NoProject);
   return binding;
 }
 

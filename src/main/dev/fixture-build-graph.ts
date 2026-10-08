@@ -142,7 +142,7 @@ async function finished(night: Night): Promise<EventData[]> {
       landingResult: {
         verified: false,
         how: "health",
-        line: "Made live after a health check. No judge compared it with the game you had.",
+        line: "Made live after a health check. No judge compared it with the project you had.",
       },
     }),
   ];

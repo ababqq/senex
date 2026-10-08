@@ -1,6 +1,6 @@
 /**
- * A game started from home: the first message, on its way to the game it makes. Home sends it;
- * the game is named, made and opened (`launchGame` in `studio.ts`); then the game's own chat sends
+ * A project started from home: the first message, on its way to the project it makes. Home sends it;
+ * the project is named, made and opened (`launchProject` in `studio.ts`); then the project's own chat sends
  * the message as if it had been typed there, so every route a message can take (a plan to review,
  * a Loop, pictures) stays the chat's. While a launch is out the shell shows the chat and stage it
  * is becoming. A launch that fails gives its words back to home.
@@ -12,9 +12,9 @@ import type { ComposerExtras } from "../ui/PromptBar.tsx";
 
 /** Where a launch stands. */
 export const LaunchPhase = {
-  /** The model is naming the game. */
+  /** The model is naming the project. */
   Naming: "naming",
-  /** The game is being made and its chat opened. */
+  /** The project is being made and its chat opened. */
   Opening: "opening",
   /** The chat is open and waits to send the message. */
   Opened: "opened",
@@ -23,7 +23,7 @@ export const LaunchPhase = {
 } as const;
 export type LaunchPhase = (typeof LaunchPhase)[keyof typeof LaunchPhase];
 
-/** One game being started from home. */
+/** One project being started from home. */
 export interface Launch {
   id: string;
   text: string;
@@ -41,7 +41,7 @@ export interface LaunchState {
   /** A failed launch's words, waiting for home's composer to take them back. */
   returned: { text: string } | null;
   /**
-   * The last game a launch opened, and when its message left home: the stage's Planner keeps
+   * The last project a launch opened, and when its message left home: the stage's Planner keeps
    * writing from that moment after the launch is over, so the page never starts again.
    */
   planning: { project: string; at: number } | null;
@@ -69,7 +69,7 @@ export function launchNamed(state: LaunchState, id: string, title: string): Laun
   return { ...state, launch: { ...state.launch, phase: LaunchPhase.Opening, title } };
 }
 
-/** The game is made: the sidebar lists it under its own row from now on, while its chat opens. */
+/** The project is made: the sidebar lists it under its own row from now on, while its chat opens. */
 export function launchMade(state: LaunchState, id: string, project: string): LaunchState {
   if (!current(state, id)) return state;
   return { ...state, launch: { ...state.launch, project } };
@@ -99,7 +99,7 @@ export function launchFinished(state: LaunchState, id: string): LaunchState {
   return current(state, id) ? { ...state, launch: null } : state;
 }
 
-/** The game could not be made: the launch is over, and its words go back to home. */
+/** The project could not be made: the launch is over, and its words go back to home. */
 export function launchFailed(state: LaunchState, id: string): LaunchState {
   return current(state, id) ? { ...state, launch: null, returned: { text: state.launch.text } } : state;
 }
@@ -109,16 +109,16 @@ export function returnTaken(state: LaunchState): LaunchState {
   return state.returned ? { ...state, returned: null } : state;
 }
 
-/** How the sidebar shows a launch: one row, a placeholder until its game is listed, then the game's own. */
+/** How the sidebar shows a launch: one row, a placeholder until its project is listed, then the project's own. */
 export interface LaunchInSidebar {
-  /** The placeholder row stands in for a game not made (or not listed) yet. */
+  /** The placeholder row stands in for a project not made (or not listed) yet. */
   placeholder: boolean;
   title: string | null;
-  /** The listed game the launch is becoming: its row looks selected and working. */
+  /** The listed project the launch is becoming: its row looks selected and working. */
   project: string | null;
 }
 
-/** The sidebar's one row for a launch, given which games the library lists. */
+/** The sidebar's one row for a launch, given which projects the library lists. */
 export function launchInSidebar(launch: Launch | null, listed: (project: string) => boolean): LaunchInSidebar {
   if (!launch) return { placeholder: false, title: null, project: null };
   const project = launch.project && listed(launch.project) ? launch.project : null;

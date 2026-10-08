@@ -16,7 +16,7 @@ export interface PlayableCheckpoint {
   requiredGoals: number;
 }
 
-/** Preserve the first verified milestone and the newest recoverable one without rewriting a game. */
+/** Preserve the first verified milestone and the newest recoverable one without rewriting a project. */
 export async function keepCheckpoint(night: Night, head: string): Promise<void> {
   const goals = night.state.goals;
   if (!goals) return;
@@ -40,7 +40,7 @@ export async function keepCheckpoint(night: Night, head: string): Promise<void> 
   if (first)
     await night.decision(
       `Verified checkpoint ${head}: ${verifiedGoals.join(", ")}. Remaining requirements are not yet verified.`,
-      "A verified checkpoint is saved. You can ask to show this build now; Stop keeps it recoverable without overwriting your game.",
+      "A verified checkpoint is saved. You can ask to show this build now; Stop keeps it recoverable without overwriting your project.",
     );
   await night.saveJournal();
 }

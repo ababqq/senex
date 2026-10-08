@@ -1,4 +1,4 @@
-/** Harness RPC: previews — load, look, drive and measure a game in a window. */
+/** Harness RPC: previews — load, look, drive and measure a project in a window. */
 import { readFile } from "node:fs/promises";
 import { HostMethod, type HarnessHostHandlers, type HarnessParams } from "../../shared/harness-api.ts";
 import { availableMemory } from "../../substrate/hardware.ts";
@@ -66,7 +66,7 @@ export function previewRpc(core: StudioCore, x: CoreInternals) {
       screenshot(core, x, p),
     ),
     // What the page holds outside the canvas: a DOM menu, an HTML HUD, a loader. The evidence
-    // pass reads it to decide which surface to photograph, and the check that says a game's
+    // pass reads it to decide which surface to photograph, and the check that says a project's
     // UI is primary reads the same numbers. A port that cannot see outside the canvas answers
     // the null-ish shape rather than null, so a caller reads one thing.
     [HostMethod.PreviewPageUi]: routed(async (p: HarnessParams<typeof HostMethod.PreviewPageUi>) => {
@@ -80,7 +80,7 @@ export function previewRpc(core: StudioCore, x: CoreInternals) {
     [HostMethod.PreviewCall]: routed(async (p: HarnessParams<typeof HostMethod.PreviewCall>) =>
       x.previews.preview(p.handle).studioCall(String(p.method), p.arg),
     ),
-    // `scene` checks: arbitrary read-only JS over the game's own
+    // `scene` checks: arbitrary read-only JS over the project's own
     // three.js graph. The result is untrusted JSON, size-capped by the port.
     [HostMethod.PreviewEvaluate]: routed(async (p: HarnessParams<typeof HostMethod.PreviewEvaluate>) => {
       const port = x.previews.preview(p?.handle);
@@ -117,9 +117,9 @@ export function previewRpc(core: StudioCore, x: CoreInternals) {
     [HostMethod.PreviewGesture]: routed(async (p: HarnessParams<typeof HostMethod.PreviewGesture>) =>
       unlockGesture(x.previews.preview(p?.handle), gesturePoint(p), p?.keys),
     ),
-    // What the person's own window is showing right now: their game folder, or a build they
+    // What the person's own window is showing right now: their project folder, or a build they
     // chose to play. `status()` carries the project but not the root, and the root is the whole
-    // difference between "your game folder" and "that build".
+    // difference between "your project folder" and "that build".
     [HostMethod.PreviewShowing]: async () => x.servedRoots.get(LIVE_HANDLE) ?? null,
     [HostMethod.PreviewObserve]: routed(async (p: HarnessParams<typeof HostMethod.PreviewObserve>) =>
       observeBuild(x.previews.preview(p?.handle)),
@@ -209,7 +209,7 @@ async function screenshot(core: StudioCore, x: CoreInternals, p: HarnessParams<t
   // Stats ride along with the JPEG so the critic gets a ground truth the image cannot
   // lie about; a preview without the capability still yields the picture, stats null.
   // `surface` asks for the whole page, the canvas, or whichever the preview judges the
-  // game to live on. `page: true` is its permanent alias — an installed harness
+  // project to live on. `page: true` is its permanent alias — an installed harness
   // workspace is an agent-editable copy of the seed and may keep sending it for ever.
   const asked: CaptureSurface = p?.surface ?? (p?.page ? "page" : "canvas");
   const shot = await captureSurface(preview, quality, asked);
@@ -270,7 +270,7 @@ async function acquire(x: CoreInternals, p: HarnessParams<typeof HostMethod.Prev
 }
 
 async function capacity(core: StudioCore, x: CoreInternals) {
-  // Memory rides along (director, 2026-09-07): six windows of a big game is not a number the pool
+  // Memory rides along (director, 2026-09-07): six windows of a big project is not a number the pool
   // knows; whoever starts workers reads the free memory beside the free slots.
   const memory = await availableMemory();
   try {

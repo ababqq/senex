@@ -22,13 +22,13 @@ describe("the studio log", () => {
   it("writes timestamped lines by source, with credentials, the home folder and emails removed", async () => {
     const dir = path.join(await tmpDir(), "logs");
     const log = openStudioLog(dir, { home: HOME, now: at });
-    log.write("harness", `spawn failed in ${HOME}/AI Games/pong with Bearer ${KEY}`);
+    log.write("harness", `spawn failed in ${HOME}/AI Projects/pong with Bearer ${KEY}`);
     log.write("main", "signed in as someone@example.com");
     log.close();
     const text = readFileSync(path.join(dir, "studio.log"), "utf8");
     assert.equal(
       text,
-      "2026-09-24T10:00:00.000Z [harness] spawn failed in ~/AI Games/pong with Bearer [redacted]\n" +
+      "2026-09-24T10:00:00.000Z [harness] spawn failed in ~/AI Projects/pong with Bearer [redacted]\n" +
         "2026-09-24T10:00:00.000Z [main] signed in as [email]\n",
     );
     // Windows reports no POSIX mode bits; the log sits in the user's own profile there.
@@ -89,7 +89,7 @@ function sources(overrides: Partial<DiagnosticsSources> = {}): DiagnosticsSource
     os: { platform: "darwin", arch: "arm64", release: "25.6.0" },
     paths: {
       userData: `${HOME}/Library/Application Support/AI Game Studio`,
-      gamesRoot: `${HOME}/AI Games`,
+      projectsRoot: `${HOME}/AI Projects`,
       log: `${HOME}/Library/Application Support/AI Game Studio/logs/studio.log`,
     },
     home: HOME,
@@ -102,7 +102,7 @@ function sources(overrides: Partial<DiagnosticsSources> = {}): DiagnosticsSource
       },
       { id: "ollama", label: "Ollama", status: { code: "not_running", detail: "Start Ollama" } },
     ],
-    logTail: () => [`2026-09-24T10:00:00.000Z [harness] failed in ${HOME}/AI Games/pong`],
+    logTail: () => [`2026-09-24T10:00:00.000Z [harness] failed in ${HOME}/AI Projects/pong`],
     ...overrides,
   };
 }
@@ -115,12 +115,12 @@ describe("Copy diagnostics", () => {
       "Electron 43.4.1, Chrome 140.0, Node 24.18.0",
       "darwin 25.6.0 arm64",
       "Data: ~/Library/Application Support/AI Game Studio",
-      "Games: ~/AI Games",
+      "Projects: ~/AI Projects",
       "Claude Code: ready",
       "CLI ready 2.1.0",
       "login isolated",
       "Ollama: not_running (Start Ollama)",
-      "[harness] failed in ~/AI Games/pong",
+      "[harness] failed in ~/AI Projects/pong",
     ])
       assert.ok(text.includes(expected), `missing ${JSON.stringify(expected)} in\n${text}`);
   });

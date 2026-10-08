@@ -48,7 +48,7 @@ export function pluginsRpc(core: StudioCore, x: CoreInternals) {
       const { tools, guidance } = core.plugins.snapshot();
       return { tools, guidance, revision: x.toolRegistryRevision };
     },
-    /** What this game's builders can use, for a conversation that cannot call it (the local coordinator). */
+    /** What this project's builders can use, for a conversation that cannot call it (the local coordinator). */
     [HostMethod.CapabilitiesDescribe]: async (p) =>
       (await x.capabilityFacts(p.threadId, p.project, CapabilityAudience.Conversation)).text,
     [HostMethod.PluginsInvoke]: async (p) => {

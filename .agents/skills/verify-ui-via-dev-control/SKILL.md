@@ -20,7 +20,7 @@ Inspect ownership/status before reusing a profile. Preserve active user work. Le
 sessions running and retain their state. The stop/clean steps below apply only to disposable
 sessions created for your automated check. See the
 [field guide](../../../docs/STUDIO-DEVELOPER-FIELD-GUIDE.md#run-an-owned-development-profile).
-Use owned profiles instead of `npm start` or the normal profile/`~/AI Games`.
+Use owned profiles instead of `npm start` or the normal profile/`~/AI Projects`.
 
 CLI: `scripts/studio-dev.ts` (parser in `scripts/studio-dev/args.ts`). Operations and their
 limits: `src/main/dev/protocol.ts`. Every command prints JSON (after npm's two header lines).
@@ -34,13 +34,13 @@ npm run studio:dev -- snapshot --profile ui-check                # controls, sta
 npm run studio:dev -- snapshot --profile ui-check --scope '[data-stage-view]' --limit 40
 npm run studio:dev -- ui --profile ui-check --json '{"method":"click","params":{"selector":"[data-stage-action=\"assets\"]"}}'
 npm run studio:dev -- capture --profile ui-check --surface desktop --name after
-npm run studio:dev -- logs --profile ui-check --surface desktop  # also game|core|harness|stdout|stderr
+npm run studio:dev -- logs --profile ui-check --surface desktop  # also project|core|harness|stdout|stderr
 npm run studio:dev -- stop --profile ui-check
 npm run studio:dev -- clean --profile ui-check                   # disposable state only
 ```
 
 Pick the fixture that already shows the surface (`app-basics`, `chat-history`, `run-controls`,
-`sidebar`, `build-history`, `game-surface`, ...). Changing source makes the session stale:
+`sidebar`, `build-history`, `project-surface`, ...). Changing source makes the session stale:
 `restart --profile ui-check` rebuilds with the same fixture. `start --reuse` reopens a stopped one.
 
 ## Requests
@@ -62,8 +62,8 @@ Templates (one per request; `--request FILE` also works):
 {"method":"key","params":{"surface":"desktop","key":"Enter","code":"Enter"}}
 {"method":"select","params":{"selector":"select[aria-label=\"Build history\"]","value":"<runId from snapshot>"}}
 {"method":"scroll","params":{"surface":"desktop","deltaX":0,"deltaY":600,"selector":"[data-chat-scroll]"}}
-{"method":"game.input","params":{"actions":[{"type":"tap","keys":["ArrowRight"]},{"type":"wait","ms":300}]}}
-{"method":"game.state","params":{}}
+{"method":"project.input","params":{"actions":[{"type":"tap","keys":["ArrowRight"]},{"type":"wait","ms":300}]}}
+{"method":"project.state","params":{}}
 ```
 
 ## Evidence

@@ -1,9 +1,9 @@
 /**
  * The stage's views, and when Live may change. While the person watches Live only they change it:
- * a night's new build, a change to the game folder and a build found broken each mark Reload
+ * a night's new build, a change to the project folder and a build found broken each mark Reload
  * instead (`liveBehindOf`), and Reload applies it. What waits while Live is out of sight is
  * applied at once (`appliesUnseen`), so Live is current when they come back. The one automatic
- * swap is the empty scaffold's: it has no game to lose, so the night's first healthy build shows.
+ * swap is the empty scaffold's: it has no project to lose, so the night's first healthy build shows.
  */
 
 import { LiveBehindReason, type LiveBehindEvent } from "../shared/live-behind.ts";
@@ -72,17 +72,17 @@ export interface LiveBehind {
   reason: LiveBehindReason;
   /** A builder's own words about the change, when it left some. */
   note: string | null;
-  /** The build Reload plays: the one main holds, or the night's newest; null for the game folder. */
+  /** The build Reload plays: the one main holds, or the night's newest; null for the project folder. */
   head: string | null;
   /** Main holds this change (`live.behind`), so Reload asks main for it. */
   held: boolean;
 }
 
 /**
- * What Reload offers now. Main's change comes first: it is what the studio did to the game or
+ * What Reload offers now. Main's change comes first: it is what the studio did to the project or
  * what the lead chose to show. Then a healthy build of the night nobody is showing — nobody asked
  * for it, so only one a health pass says runs; merged is not checked. Then, when the build on the
- * stage was found not to run, the way back to the game folder.
+ * stage was found not to run, the way back to the project folder.
  */
 export function liveBehindOf(now: {
   waiting: LiveBehindEvent | null;
@@ -99,26 +99,26 @@ export function liveBehindOf(now: {
 /** What the stage shows, as far as the rules below care. */
 export interface StageWatch {
   view: StageView;
-  /** The game stage is on screen (not Studio, not the plugins page). */
+  /** The project stage is on screen (not Studio, not the plugins page). */
   visible: boolean;
-  /** Live shows the empty scaffold's placeholder, not a game. */
+  /** Live shows the empty scaffold's placeholder, not a project. */
   showEmpty: boolean;
 }
 
-/** Whether the person is watching a game in Live: then only they change it. */
+/** Whether the person is watching a project in Live: then only they change it. */
 export const watchingLive = (stage: StageWatch): boolean =>
   stage.visible && stage.view === StageView.Live && !stage.showEmpty;
 
 /**
  * Whether what waits for Live (anything but a night's newest build, which only ever waits for
- * the person) goes in without asking: nobody is watching a game in Live.
+ * the person) goes in without asking: nobody is watching a project in Live.
  */
 export function appliesUnseen(behind: LiveBehind | null, stage: StageWatch): boolean {
   if (!behind || watchingLive(stage)) return false;
   return behind.held || behind.reason === LiveBehindReason.Broken;
 }
 
-/** The empty scaffold's exception: its placeholder has no game to lose, so the night's first healthy build shows. */
+/** The empty scaffold's exception: its placeholder has no project to lose, so the night's first healthy build shows. */
 export function firstBuildShows(offer: BuildOffer | null, stage: StageWatch): boolean {
   const onPlaceholder = stage.visible && stage.view === StageView.Live && stage.showEmpty;
   return offer?.healthy === true && onPlaceholder;

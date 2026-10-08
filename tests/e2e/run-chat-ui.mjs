@@ -147,7 +147,10 @@ try {
   started = true;
   descriptor = JSON.parse(fs.readFileSync(path.join(root, `.studio-dev/profiles/${profile}/controller.json`), "utf8"));
   await check("permission question stays reachable and submits only after explicit confirmation", async () => {
-    await until(async () => (await snap()).text.includes("Use the new moon texture in this game?"), "question visible");
+    await until(
+      async () => (await snap()).text.includes("Use the new moon texture in this project?"),
+      "question visible",
+    );
     assert.equal((await snap()).stage.stageView, "builds", "an active run opens the Builds panel");
     // Claude's own cards (a command, then a plan) and the plugin's wait one at a time, in the order
     // they were asked, the rest counted instead of stacked into a scroll of their own.
@@ -192,7 +195,7 @@ try {
     const plan = '[data-pending-questions] [data-chat-question]:has(input[value="default"])';
     await clickQuestion(plan + ' input[value="default"]');
     await clickQuestion(plan + ' button[type="submit"]');
-    await showing("Use the new moon texture in this game?", "");
+    await showing("Use the new moon texture in this project?", "");
     const form = '[data-pending-questions] [data-chat-question]:has(input[value="decline"])';
     await clickQuestion(form + ' input[value="decline"]');
     await clickQuestion(form + ' button[type="submit"]');
@@ -247,7 +250,7 @@ try {
   await check("generated image loads, opens a modal and opens the project Assets view", async () => {
     await op("click", { selector: "[data-stage-action=live]" });
     await until(async () => (await snap()).stage.stageView === "live", "native Live visible");
-    await op("game.state");
+    await op("project.state");
     await scroll(-350);
     await pause(300);
     await until(async () => (await snap()).images.some((i) => i.alt === "Asset preview" && i.loaded), "image preview");
@@ -335,7 +338,7 @@ try {
       limit: 20,
     });
     assert.match(build.text, /\d+[hms](?: \d+[ms])?up to 30m$/, "the build's clock is in the conversation");
-    await op("type", { selector: '[aria-label="Prompt"]', text: "Keep this game idea", replace: true });
+    await op("type", { selector: '[aria-label="Prompt"]', text: "Keep this project idea", replace: true });
     await pause(CLOCK_WINDOW_MS);
     assert.equal(
       (await snap()).performance.ChatConversation.commits,
@@ -348,7 +351,7 @@ try {
     await until(
       async () =>
         (await snap()).state.room === "build" &&
-        (await snap()).controls.find((c) => c.label === "Prompt")?.value === "Keep this game idea",
+        (await snap()).controls.find((c) => c.label === "Prompt")?.value === "Keep this project idea",
       "draft restored",
     );
     assert.ok((await snap()).chat.total < 160);
@@ -373,7 +376,7 @@ try {
     await capture("streaming");
     await op("key", { surface: "desktop", key: "1", code: "Digit1", modifiers: ["Meta"] });
     await until(async () => (await snap()).state.room === "build", "switch during stream");
-    assert.equal((await snap()).chat.streaming, false, "another game never shows the Studio reply");
+    assert.equal((await snap()).chat.streaming, false, "another project never shows the Studio reply");
     await op("click", { selector: 'nav [data-thread="studio"]' });
     await until(
       async () => (await snap()).state.room === "studio" && (await snap()).text.includes("Fixture Studio reply:"),
@@ -399,10 +402,10 @@ try {
       selector: `[data-chat-entry]:nth-child(3 of [data-chat-entry$=":user"]) [aria-label="${rewind}"]`,
     });
     const dialog = '[data-testid="rewind-dialog"]';
-    await until(async () => (await snap()).text.includes("a build changed the game after this message"), "why");
+    await until(async () => (await snap()).text.includes("a build changed the project after this message"), "why");
     const shown = await op("snapshot", { surface: "desktop", scope: dialog, limit: 20 });
-    assert.match(shown.text, /Only the conversation rewinds: a build changed the game after this message/);
-    assert.doesNotMatch(shown.text, /Restore game files/, "no switch when the files cannot come back");
+    assert.match(shown.text, /Only the conversation rewinds: a build changed the project after this message/);
+    assert.doesNotMatch(shown.text, /Restore project files/, "no switch when the files cannot come back");
     assert.ok(
       shown.controls.some((c) => c.text === "Rewind chat" && !c.disabled),
       "the button still rewinds the chat",

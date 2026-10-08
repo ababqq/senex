@@ -91,7 +91,7 @@ describe("git command lines in the harness seed", () => {
     for (const prose of [
       'say("Never git push, never edit outside this worktree.")',
       "say(`run \\`git merge ${sha}\\` in your worktree, then \\`git add -A\\` and \\`git commit\\``)",
-      'say("a git worktree of the game")',
+      'say("a git worktree of the project")',
       'say("fix it in your worktree (git log shows what came in)")',
       "fail(`git failed in facet ${id}: ${command}`)",
       "// git reset --hard\nconst x = 1;",

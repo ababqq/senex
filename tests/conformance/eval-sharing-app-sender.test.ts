@@ -429,7 +429,7 @@ describe("where rows go (hostile input)", () => {
 });
 
 describe("which events end a build", () => {
-  it("names a chat turn by its thread and message, and a run by its id and game", () => {
+  it("names a chat turn by its thread and message, and a run by its id and project", () => {
     assert.deepEqual(
       finishedBuildRef({ type: UiEvent.CoordinatorHandled, payload: { threadId: "t1", messageId: "m1" } }),
       { threadId: "t1", messageId: "m1" },

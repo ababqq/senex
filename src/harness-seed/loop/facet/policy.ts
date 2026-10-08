@@ -8,7 +8,7 @@ import { clip, CLIP_QUOTE, CLIP_REASON } from "../text.ts";
 import { isPlainRecord } from "../json.ts";
 import type { AnyRecord } from "../../types/harness.d.ts";
 
-/** Frames an evidence pass takes along its drive, so a judge sees the game move, not one still. */
+/** Frames an evidence pass takes along its drive, so a judge sees the project move, not one still. */
 export const MOTION_FRAMES = 6;
 
 /** How long a follow-up turn on the same session (a review fix, a regression fix) may take. */
@@ -26,7 +26,7 @@ const RETIRED_CHECKS_KEPT = 12;
  * THE POLICY (M4.10): the eight thresholds a director may set for one worker, and nothing else.
  * They are the shape of the work — how many questions a judge may grow, how long a gap stands
  * before the brief makes it mandatory, how many polished builds pass before the move is —
- * and a night on a game the harness has never seen is exactly when they are wrong. What is NOT
+ * and a night on a project the harness has never seen is exactly when they are wrong. What is NOT
  * here is deliberate: MAX_WOBBLES, MAX_STUCK_ANSWERS, FIX_STUCK_LOSSES, RUNG_MISSES
  * (round-judgement.ts), ITERATION_HEADROOM and MAX_PROMPT_IMAGES are the harness's patience with
  * a judge and a clock, not a plan's choice.

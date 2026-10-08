@@ -27,7 +27,7 @@ export interface BriefInput {
 
 /** The line every brief ends on: a build nobody can judge is a loss. */
 const JUDGEABLE = [
-  `When you are done, make sure the game still loads and window.__studio still works —`,
+  `When you are done, make sure the project still loads and window.__studio still works —`,
   `a build that cannot be judged counts as a loss.`,
 ];
 
@@ -59,9 +59,10 @@ function barLine(run: BriefRun): string {
 /** How much the first playable should reach for, by the length of the night. */
 function ambitionFor(run: BriefRun): string {
   const hours = (run.budgets?.wallClockMs ?? 0) / HOUR_MS;
-  if (hours >= 8) return "This is a long run: a world with a readable fantasy, not a mechanic demo.";
-  if (hours >= 4) return "A complete loop plus a visual identity.";
-  return "One verb and one look, pushed as far as the clock allows.";
+  if (hours >= 8)
+    return "This is a long run: a product with a clear purpose and its workflows complete, not a single-screen demo.";
+  if (hours >= 4) return "One complete workflow plus a visual identity.";
+  return "One workflow and one look, pushed as far as the clock allows.";
 }
 
 /** The goal, the project and the bar: the head every brief shares. */
@@ -71,15 +72,15 @@ function briefHead(run: BriefRun): string[] {
 
 function firstPlayableBrief(run: BriefRun): string {
   return [
-    `You are in an unattended run (${run.runId}), iteration 1 — the first playable.`,
+    `You are in an unattended run (${run.runId}), iteration 1 — the first working version.`,
     ``,
     ...briefHead(run),
     ambitionFor(run),
     ``,
-    `Build the first playable version. Architecture is yours. It must load, expose window.__studio,`,
-    `and look like a game from the default camera toward that feeling/bar — AAA/photoreal if that is`,
-    `what was asked. A cube on a plane is not a game.`,
-    `Sample input in update() from ctx.keys / ctx.look so the critic can drive WASD while paused.`,
+    `Build the first working version. Architecture is yours. It must load, expose window.__studio,`,
+    `and look like a product from the default view toward that feeling/bar — as polished as the`,
+    `reference if one was given. A heading and an unstyled form is not a product.`,
+    `Use real elements and ordinary event handlers so the critic can click, type and Tab through it while paused.`,
     ...JUDGEABLE,
   ].join("\n");
 }
@@ -91,10 +92,10 @@ function integrationBrief(run: BriefRun, iteration: number, biggestGap: string):
     ...briefHead(run),
     ``,
     `The clock is in its last stretch. Do not add systems. Glue what exists: visual consistency,`,
-    `leftover feel, the camera, the one verb. The last blind gap was:`,
+    `leftover rough edges, the first screen, the one workflow. The last blind gap was:`,
     biggestGap,
     ``,
-    `When you are done, make sure the game still loads and window.__studio still works.`,
+    `When you are done, make sure the project still loads and window.__studio still works.`,
   ].join("\n");
 }
 

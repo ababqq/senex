@@ -66,7 +66,7 @@ export type ChromiumSwitch = readonly [name: string, value: string];
 /**
  * Switches a test launch needs before the app is ready. The self test and the smoke park a shown
  * window off the visible desktop; Windows' native occlusion tracking would call it hidden and stop
- * requestAnimationFrame, freezing the game under test. A normal launch never changes Chromium.
+ * requestAnimationFrame, freezing the project under test. A normal launch never changes Chromium.
  */
 export function testLaunchChromiumSwitches(launch: {
   platform: NodeJS.Platform;

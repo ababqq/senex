@@ -1,7 +1,7 @@
 /**
  * Hardware detection & model fit.
  *
- * "Weak local model produces garbage games" is a listed corner case; the honest answer is to
+ * "Weak local model produces garbage projects" is a listed corner case; the honest answer is to
  * know the machine and say what it can actually run, rather than letting the user discover it
  * after a 20 GB download and a night of bad output.
  *

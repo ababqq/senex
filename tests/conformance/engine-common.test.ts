@@ -54,7 +54,7 @@ it("reports a build cut short as an outcome that keeps what it did", () => {
     "codex",
     { stopReason: "deadline", errorText: "time budget exhausted" },
     {
-      summary: "half a game",
+      summary: "half a project",
       usage,
       turns: 4,
       startedAt: Date.now() - 1_000,
@@ -70,7 +70,7 @@ it("reports a build cut short as an outcome that keeps what it did", () => {
   assert.ok(typeof durationMs === "number" && durationMs >= 1_000);
   assert.deepEqual(rest, {
     ok: false,
-    summary: "half a game",
+    summary: "half a project",
     usage,
     turns: 4,
     engine: "codex",

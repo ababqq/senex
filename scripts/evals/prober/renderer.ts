@@ -1,8 +1,8 @@
 /**
  * Which renderer the probe's Chromium draws with (S5). Headless Chromium with ANGLE on Metal first:
- * frame rates measured there say something about the game. When the GPU launch fails the probe falls
+ * frame rates measured there say something about the project. When the GPU launch fails the probe falls
  * back to SwiftShader, a faithful but slow software rasteriser, and the frame-rate rows stop gating
- * (`gates: false`) because a software frame rate cannot be attributed to the game. The mode actually
+ * (`gates: false`) because a software frame rate cannot be attributed to the project. The mode actually
  * used is read back from the page's WebGL renderer string, never assumed from the flags.
  */
 import { RendererMode } from "../vocabulary.ts";

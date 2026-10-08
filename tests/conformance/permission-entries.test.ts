@@ -23,7 +23,7 @@ const permission = (id: number, payload: Record<string, unknown>) =>
 const asked = (id: number, requestId: string) =>
   permission(id, {
     requestId,
-    project: "game",
+    project: "project",
     threadId: "t1",
     tool: "Bash",
     title: "Claude wants to run npm install",
@@ -33,7 +33,7 @@ const asked = (id: number, requestId: string) =>
     state: "pending",
   });
 const settled = (id: number, requestId: string, fields: Record<string, unknown>) =>
-  permission(id, { requestId, project: "game", threadId: "t1", tool: "Bash", input: {}, ...fields });
+  permission(id, { requestId, project: "project", threadId: "t1", tool: "Bash", input: {}, ...fields });
 
 describe("tool_permission entries", () => {
   it("is one pending card until its settled row arrives, then that card's outcome", () => {
@@ -60,7 +60,7 @@ describe("tool_permission entries", () => {
   it("keeps the question it first showed: a later row with its id changes only how it ended", () => {
     const forged = permission(2, {
       requestId: "r1",
-      project: "game",
+      project: "project",
       threadId: "t1",
       tool: "Bash",
       title: "Claude wants to run ls",

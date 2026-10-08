@@ -1,6 +1,6 @@
 import path from "node:path";
 import { isBelow, toPosixRelative } from "../substrate/paths.ts";
-import type { AssetWorkspace } from "./game-assets.ts";
+import type { AssetWorkspace } from "./project-assets.ts";
 
 const MAX_LISTED_WORKSPACES = 32;
 

@@ -17,7 +17,7 @@ import { useCoveredByHome } from "./HomeScreen.tsx";
 import { StagePreview } from "./store-leaves.tsx";
 import type { WorkspaceProps } from "./use-shell.ts";
 
-/** The stage beside the chat: a game's preview, or Studio's review when the Studio chat is open. */
+/** The stage beside the chat: a project's preview, or Studio's review when the Studio chat is open. */
 export const WorkspaceStage = memo(function WorkspaceStage({
   app,
   chrome,
@@ -29,7 +29,7 @@ export const WorkspaceStage = memo(function WorkspaceStage({
   const { stageView } = useLayoutView();
   const engines = useEngines((s) => s.list);
   const { activeThreadId, room, project, activeStatus } = threadsView;
-  const { games, rootLabel, runsRoot } = useStageLibrary();
+  const { projects, rootLabel, runsRoot } = useStageLibrary();
   const covered = useCoveredByHome();
   const stageVisible = room === Room.Build && !chrome.pluginsOpen && !welcoming && !covered;
   const { beside } = views;
@@ -46,12 +46,12 @@ export const WorkspaceStage = memo(function WorkspaceStage({
             status={activeStatus?.status ?? ""}
             threadId={room === Room.Build ? activeThreadId : threadsView.stageThreadId}
             runsRoot={runsRoot}
-            games={games}
+            projects={projects}
             project={project}
             visible={stageVisible}
             sidebarOverlay={chrome.drawerCovers}
             engines={engines}
-            gamesRootLabel={rootLabel}
+            projectsRootLabel={rootLabel}
             view={stageView}
             onView={views.chooseStageView}
             onNotice={app.notify}
@@ -63,16 +63,16 @@ export const WorkspaceStage = memo(function WorkspaceStage({
       {room === Room.Studio && ready && (
         <div className="absolute inset-0 flex">
           <StudioReview
-            games={games}
+            projects={projects}
             onStagedCount={countStaged}
-            onOpenGame={navigation.selectGame}
-            onNewGame={navigation.newGame}
-            onStartBuilding={() => navigation.returnToGame(true)}
+            onOpenProject={navigation.selectProject}
+            onNewProject={navigation.newProject}
+            onStartBuilding={() => navigation.returnToProject(true)}
             onPlayCommit={(name, commit) => {
               void window.studio
                 .showBuild(name, commit)
                 .then(() => {
-                  navigation.selectGame(name);
+                  navigation.selectProject(name);
                   views.showLive();
                 })
                 .catch(notifyProblem(app.notify));

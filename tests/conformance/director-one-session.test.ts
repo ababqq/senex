@@ -1,6 +1,6 @@
 /**
  * One session through the real core and harness (loop/director/lead-session.ts): a waking night
- * launched from a chat is led by that chat's own contractor session — resumed in the game folder,
+ * launched from a chat is led by that chat's own contractor session — resumed in the project folder,
  * read-only, leading the integration worktree it reads — and the chat goes on in the same session
  * once the night closes, with its hands back and the run's controls (loop/after-night.ts); with Loop
  * on it reopens a finished build — the same run, led by the same session (loop/reopen-run.ts). A
@@ -130,15 +130,15 @@ function sessionEngine(
   return { histories, requests };
 }
 
-/** A game with its chat, on a rig with windows to lend: two are the lead's, the rest its workers'. */
-async function gameChat(name: string, windows = 3) {
+/** A project with its chat, on a rig with windows to lend: two are the lead's, the rest its workers'. */
+async function projectChat(name: string, windows = 3) {
   const rig = await startRig(
     { replies: [] },
     { previewPoolMax: windows, createHeadlessPreview: async () => makeFakePreview() },
   );
   rigs.push(rig);
-  const project = await rig.core.games.scaffold(name, { title: name });
-  const threadId = await rig.core.threadForGame(project.name);
+  const project = await rig.core.projects.scaffold(name, { title: name });
+  const threadId = await rig.core.threadForProject(project.name);
   return { rig, project, threadId };
 }
 
@@ -223,10 +223,10 @@ async function chatBookmark(rig: Rig, threadId: string): Promise<string | undefi
 
 for (const engine of ["claude-code", "codex"]) {
   describe(`one session on ${engine}`, () => {
-    it("S1. the chat's own session leads the night it launched, read-only in the game folder, and the chat goes on in it after the close", {
+    it("S1. the chat's own session leads the night it launched, read-only in the project folder, and the chat goes on in it after the close", {
       timeout: RIG_TIMEOUT_MS,
     }, async () => {
-      const { rig, project, threadId } = await gameChat(`one-session-${engine}`);
+      const { rig, project, threadId } = await projectChat(`one-session-${engine}`);
       const results: Record<string, any> = {};
       let leadTurns = 0;
       const { histories, requests } = sessionEngine(rig, engine, async (request, kind) => {
@@ -277,7 +277,7 @@ for (const engine of ["claude-code", "codex"]) {
       assert.equal(chatSession, requests.find((r) => r.kind === Kind.Chat)!.sessionId, "the chat's session came first");
       assert.equal(lead[0]!.resume, chatSession, "the lead resumes the chat's own session");
       for (const turn of lead) {
-        assert.equal(await realpath(turn.cwd), await realpath(project.dir), "the lead sits in the game folder");
+        assert.equal(await realpath(turn.cwd), await realpath(project.dir), "the lead sits in the project folder");
         assert.equal(turn.readOnly, true, "and writes nothing while the build runs");
         assert.equal(turn.resume, chatSession, "every turn is that one session");
       }
@@ -308,7 +308,7 @@ for (const engine of ["claude-code", "codex"]) {
       );
       const after = requests.find((r) => r.kind === Kind.After)!.request;
       assert.equal(after.resume, chatSession, "answered by the same session");
-      assert.equal(await realpath(after.cwd), await realpath(project.dir), "in the game folder");
+      assert.equal(await realpath(after.cwd), await realpath(project.dir), "in the project folder");
       assert.notEqual(after.readOnly, true, "with its hands back");
       for (const tool of ["run_status", "show_build", "land_build"])
         assert.ok(toolNames(after).includes(tool), `${tool} in ${toolNames(after).join(", ")}`);
@@ -330,7 +330,7 @@ for (const engine of ["claude-code", "codex"]) {
     it("S1b. the lead builds with its own hands: it commits a split in the integration worktree, a worker builds on that commit, and both land", {
       timeout: RIG_TIMEOUT_MS,
     }, async () => {
-      const { rig, project, threadId } = await gameChat(`own-hands-${engine}`);
+      const { rig, project, threadId } = await projectChat(`own-hands-${engine}`);
       const results: Record<string, any> = {};
       let leadTurns = 0;
       const { requests } = sessionEngine(rig, engine, async (request, kind) => {
@@ -392,11 +392,11 @@ for (const engine of ["claude-code", "codex"]) {
 }
 
 describe("a lead whose chat session cannot be resumed", () => {
-  it("S2. starts fresh in the game folder with the chat so far, the brief and the digest, and becomes the chat's session", {
+  it("S2. starts fresh in the project folder with the chat so far, the brief and the digest, and becomes the chat's session", {
     timeout: RIG_TIMEOUT_MS,
   }, async () => {
     const engine = "claude-code";
-    const { rig, project, threadId } = await gameChat("one-session-lost");
+    const { rig, project, threadId } = await projectChat("one-session-lost");
     const prompts: string[] = [];
     let leadTurns = 0;
     const { requests } = sessionEngine(rig, engine, async (request, kind) => {
@@ -424,7 +424,7 @@ describe("a lead whose chat session cannot be resumed", () => {
       "the chat's session is tried first",
     );
     assert.equal(lead[1]!.resume, undefined, "then a fresh one");
-    assert.equal(await realpath(lead[1]!.cwd), await realpath(project.dir), "in the game folder too");
+    assert.equal(await realpath(lead[1]!.cwd), await realpath(project.dir), "in the project folder too");
     const fresh = prompts[1]!;
     const at = [
       "THE CHAT SO FAR",
@@ -459,7 +459,7 @@ describe("a merge conflict goes to a worker", () => {
     timeout: RIG_TIMEOUT_MS,
   }, async () => {
     const engine = "codex";
-    const { rig, project } = await gameChat("one-session-conflict", 4);
+    const { rig, project } = await projectChat("one-session-conflict", 4);
     const results: Record<string, any> = {};
     let leadTurns = 0;
     const { requests } = sessionEngine(rig, engine, async (request, kind) => {
@@ -540,7 +540,7 @@ describe("a conflict worker that leaves conflict markers", () => {
     timeout: RIG_TIMEOUT_MS,
   }, async () => {
     const engine = "codex";
-    const { rig, project } = await gameChat("one-session-markers", 4);
+    const { rig, project } = await projectChat("one-session-markers", 4);
     const results: Record<string, any> = {};
     let leadTurns = 0;
     sessionEngine(rig, engine, async (request, kind) => {
@@ -610,11 +610,11 @@ describe("a conflict worker that leaves conflict markers", () => {
 });
 
 describe("the studio's hands for a lead that writes nothing", () => {
-  it("S5. what no worker made in the build it leads is set aside on a ref, a playtest of the game folder plays a copy of its commit, and each answer speaks to a lead", {
+  it("S5. what no worker made in the build it leads is set aside on a ref, a playtest of the project folder plays a copy of its commit, and each answer speaks to a lead", {
     timeout: RIG_TIMEOUT_MS,
   }, async () => {
     const engine = "codex";
-    const { rig, project } = await gameChat("one-session-hands", 4);
+    const { rig, project } = await projectChat("one-session-hands", 4);
     const results: Record<string, any> = {};
     let leadTurns = 0;
     sessionEngine(rig, engine, async (request, kind) => {
@@ -624,13 +624,13 @@ describe("the studio's hands for a lead that writes nothing", () => {
         const root = request.director!.root;
         if (leadTurns === 1) {
           await call("plan", plan(["sky"]));
-          results.gameHead = await git(project.dir, ["rev-parse", "HEAD"]);
+          results.projectHead = await git(project.dir, ["rev-parse", "HEAD"]);
           results.playedLive = text(await call("playtest", { target: "live", ask: "does the plaza load?" }));
-          // The user edits the game folder mid-build: a copy of its commit would not be what they see.
+          // The user edits the project folder mid-build: a copy of its commit would not be what they see.
           await writeFile(path.join(project.dir, "mine.txt"), "the user's own edit\n");
           results.liveDirty = text(await call("playtest", { target: "live", ask: "does the plaza load?" }));
           await rm(path.join(project.dir, "mine.txt"));
-          // A game that builds in place leaves files no worker made in the build the lead leads.
+          // A project that builds in place leaves files no worker made in the build the lead leads.
           await writeFile(path.join(root, "built.txt"), "made by a build\n");
           results.started = json(await call("worker_start", single("sky", "src/sky.js")));
           return;
@@ -672,15 +672,15 @@ describe("the studio's hands for a lead that writes nothing", () => {
       .catch(() => {});
     const finished = await nightClosed(rig, "the night whose lead the studio lent its hands");
 
-    // The game folder is played from a worktree of its commit, never in place.
+    // The project folder is played from a worktree of its commit, never in place.
     assert.doesNotMatch(results.playedLive, /does not run|uncommitted/, results.playedLive);
     assert.ok(
       results.playCwd.includes(path.join("autopilot", runId, "play-")),
       `the playtester sat in a worktree of the run: ${results.playCwd}`,
     );
     assert.notEqual(results.playCwd, await realpath(project.dir));
-    assert.equal(results.playHead, results.gameHead, "at the game folder's commit");
-    assert.match(results.liveDirty, /the game folder has uncommitted changes/, results.liveDirty);
+    assert.equal(results.playHead, results.projectHead, "at the project folder's commit");
+    assert.match(results.liveDirty, /the project folder has uncommitted changes/, results.liveDirty);
     assert.match(results.liveDirty, /playtest integration or a worker instead/);
     // What no worker made: told at worker_start in a lead's words, kept aside at integrate.
     assert.equal(results.started.started, "sky", JSON.stringify(results.started));
@@ -701,11 +701,11 @@ describe("the studio's hands for a lead that writes nothing", () => {
 });
 
 describe("the same agent after the build", () => {
-  it("S6. after a finished night the chat's own session shows the build, lands it, and makes a change in the game folder itself", {
+  it("S6. after a finished night the chat's own session shows the build, lands it, and makes a change in the project folder itself", {
     timeout: RIG_TIMEOUT_MS,
   }, async () => {
     const engine = "codex";
-    const { rig, project, threadId } = await gameChat("after-night-hands");
+    const { rig, project, threadId } = await projectChat("after-night-hands");
     const results: Record<string, any> = {};
     let leadTurns = 0;
     const { requests } = sessionEngine(rig, engine, async (request, kind) => {
@@ -720,7 +720,7 @@ describe("the same agent after the build", () => {
         const status = JSON.parse(text(await call("worker_status", {}))) as Array<{ id: string; state: string }>;
         if (results.integrated || !status.some((w) => w.id === "sky" && w.state !== "running")) return;
         results.integrated = json(await call("integrate", { worker: "sky" }));
-        // Left beside the game folder: the user lands it from the chat.
+        // Left beside the project folder: the user lands it from the chat.
         results.finished = text(await call("finish", { summary: "a dusk sky", land: "no" }));
         return;
       }
@@ -735,11 +735,11 @@ describe("the same agent after the build", () => {
         results.folderWhenShown = await readFile(path.join(project.dir, "src", "sky.js"), "utf8").catch(() => null);
         return;
       }
-      if (request.prompt.includes("put it in my game again")) {
+      if (request.prompt.includes("put it in my project again")) {
         results.refused = await call("land_build", {}).then(text, (err: Error) => `refused: ${err.message}`);
         return;
       }
-      if (request.prompt.includes("put it in my game")) {
+      if (request.prompt.includes("put it in my project")) {
         results.landed = await call("land_build", {}).then(text, (err: Error) => `refused: ${err.message}`);
         return;
       }
@@ -754,7 +754,7 @@ describe("the same agent after the build", () => {
       engine,
       autopilot: { frames: FRAMES },
     });
-    const finished = await nightClosed(rig, "the night left beside the game folder");
+    const finished = await nightClosed(rig, "the night left beside the project folder");
     assert.equal(finished.landed, false, String(finished.stoppedBecause));
     const chatSession = requests.find((r) => r.kind === Kind.Chat)!.sessionId;
 
@@ -763,22 +763,22 @@ describe("the same agent after the build", () => {
     await rig.core.previewStageVisible(false);
     await answered(rig, threadId, "show me what you built", engine, 2, "msg_s6_show");
     assert.match(results.shown, /Live, on the right of the chat, now shows the run's build/, results.shown);
-    assert.equal(results.folderWhenShown, null, "showing it left the game folder as it was");
+    assert.equal(results.folderWhenShown, null, "showing it left the project folder as it was");
 
-    await answered(rig, threadId, "put it in my game", engine, 3, "msg_s6_land");
+    await answered(rig, threadId, "put it in my project", engine, 3, "msg_s6_land");
     assert.match(
       results.landed,
-      /Landed [0-9a-f]{10} in the game folder \(merged\); Live now shows it/,
+      /Landed [0-9a-f]{10} in the project folder \(merged\); Live now shows it/,
       results.landed,
     );
     assert.equal(await readFile(path.join(project.dir, "src", "sky.js"), "utf8"), "export const sky = 'dusk';\n");
 
     await answered(rig, threadId, "make the sky pink", engine, 4);
-    assert.equal(results.pinkAt, await realpath(project.dir), "the change is made in the game folder itself");
+    assert.equal(results.pinkAt, await realpath(project.dir), "the change is made in the project folder itself");
     assert.equal(await readFile(path.join(project.dir, "src", "sky.js"), "utf8"), "export const sky = 'pink';\n");
 
-    // Landing refuses a game folder with edits of its own, as it always has.
-    await answered(rig, threadId, "put it in my game again", engine, 5);
+    // Landing refuses a project folder with edits of its own, as it always has.
+    await answered(rig, threadId, "put it in my project again", engine, 5);
     assert.match(results.refused, /^refused: .*uncommitted/, results.refused);
     assert.equal(await readFile(path.join(project.dir, "src", "sky.js"), "utf8"), "export const sky = 'pink';\n");
 
@@ -807,7 +807,7 @@ describe("the same agent after the build", () => {
     timeout: RIG_TIMEOUT_MS,
   }, async () => {
     const engine = "claude-code";
-    const { rig, threadId } = await gameChat("after-night-resume");
+    const { rig, threadId } = await projectChat("after-night-resume");
     const results: Record<string, any> = {};
     const leadPrompts: string[] = [];
     let workerStarted = false;
@@ -994,7 +994,7 @@ describe("the same agent after the build: the resume it asks for, and the sessio
     timeout: RIG_TIMEOUT_MS,
   }, async () => {
     const engine = "claude-code";
-    const { rig, threadId } = await gameChat("after-night-resuming");
+    const { rig, threadId } = await projectChat("after-night-resuming");
     const leadPrompts: string[] = [];
     const started = { worker: false };
     const night = pausedNight(leadPrompts, started);
@@ -1076,7 +1076,7 @@ describe("the same agent after the build: the resume it asks for, and the sessio
     timeout: RIG_TIMEOUT_MS,
   }, async () => {
     const engine = "claude-code";
-    const { rig, threadId } = await gameChat("after-night-stopped-resume");
+    const { rig, threadId } = await projectChat("after-night-stopped-resume");
     const leadPrompts: string[] = [];
     const started = { worker: false };
     const night = pausedNight(leadPrompts, started);
@@ -1122,7 +1122,7 @@ describe("the same agent after the build: the resume it asks for, and the sessio
     timeout: RIG_TIMEOUT_MS,
   }, async () => {
     const engine = "claude-code";
-    const { rig, threadId } = await gameChat("after-night-resume-on-loop");
+    const { rig, threadId } = await projectChat("after-night-resume-on-loop");
     const leadPrompts: string[] = [];
     const started = { worker: false };
     const night = pausedNight(leadPrompts, started);
@@ -1155,7 +1155,7 @@ describe("the same agent after the build: the resume it asks for, and the sessio
     timeout: RIG_TIMEOUT_MS,
   }, async () => {
     const engine = "codex";
-    const { rig, threadId } = await gameChat("after-night-engines");
+    const { rig, threadId } = await projectChat("after-night-engines");
     let leadTurns = 0;
     const { requests } = sessionEngine(rig, engine, async (request, kind) => {
       const call = (name: string, args: Record<string, unknown>) => request.onLiveTool!(name, args);
@@ -1212,7 +1212,7 @@ describe("the same agent after the build: the resume it asks for, and the sessio
     timeout: RIG_TIMEOUT_MS,
   }, async () => {
     const engine = "codex";
-    const { rig, threadId } = await gameChat("after-night-engines-on-loop");
+    const { rig, threadId } = await projectChat("after-night-engines-on-loop");
     const first = landingNight("sky", false);
     const { requests } = sessionEngine(rig, engine, async (request, kind) => {
       if (kind === Kind.Lead) return first(request);
@@ -1242,7 +1242,7 @@ describe("the same agent after the build: the resume it asks for, and the sessio
     timeout: RIG_TIMEOUT_MS,
   }, async () => {
     const engine = "codex";
-    const { rig, threadId } = await gameChat("after-night-coordinator-reopens");
+    const { rig, threadId } = await projectChat("after-night-coordinator-reopens");
     let night = landingNight("sky", false);
     let part = "sky";
     const { requests } = sessionEngine(rig, engine, async (request, kind) => {
@@ -1300,7 +1300,7 @@ const REOPEN_OFFERED = ["reopen_run", "start_autopilot", "ask_user"];
 /** What S11 saw from inside its sessions: the offer, and where the reopened night stood. */
 interface ReopenSeen {
   offered?: string[];
-  /** The game folder's HEAD when the reopened night's lead first woke: its starting point. */
+  /** The project folder's HEAD when the reopened night's lead first woke: its starting point. */
   folderHead?: string;
   /** The reopened night's worker: the commit it started on, and the sky it found there. */
   workerHead?: string;
@@ -1309,11 +1309,11 @@ interface ReopenSeen {
   reopenedPrompts: string[];
 }
 
-/** The reopened night's lead, seen: every prompt it is given, and the game folder's HEAD when it first wakes. */
-async function seeReopenedLead(gameDir: string, request: DelegateRequest, seen: ReopenSeen): Promise<void> {
+/** The reopened night's lead, seen: every prompt it is given, and the project folder's HEAD when it first wakes. */
+async function seeReopenedLead(projectDir: string, request: DelegateRequest, seen: ReopenSeen): Promise<void> {
   seen.reopenedPrompts.push(request.prompt);
   // The reopened night took its starting point before its lead's first turn.
-  seen.folderHead ??= await git(gameDir, ["rev-parse", "HEAD"]);
+  seen.folderHead ??= await git(projectDir, ["rev-parse", "HEAD"]);
 }
 
 /** The reopened night's worker, seen: the commit it starts on, and the sky it finds there. */
@@ -1326,7 +1326,7 @@ async function seeReopenedWorker(request: DelegateRequest, seen: ReopenSeen): Pr
  * S11's sessions: a night that lands the sky; the chat after it, which paints the sky pink itself and
  * then records the reopen for enemies; and the night reopened, which builds them.
  */
-function reopenedNights(gameDir: string, seen: ReopenSeen) {
+function reopenedNights(projectDir: string, seen: ReopenSeen) {
   // The reopened night works to its ask (a goal commission, golden-boot-glory): its lead plans for it first.
   const nights = [landingNight("sky", false), landingNight("enemies", false)];
   let night = 0;
@@ -1342,7 +1342,7 @@ function reopenedNights(gameDir: string, seen: ReopenSeen) {
   return async (request: DelegateRequest, kind: Kind) => {
     const reopened = night === 1;
     if (kind === Kind.Lead) {
-      if (reopened) await seeReopenedLead(gameDir, request, seen);
+      if (reopened) await seeReopenedLead(projectDir, request, seen);
       return nights[night]?.(request);
     }
     if (kind === Kind.Worker) {
@@ -1361,11 +1361,11 @@ async function leaveStaleSteer(rig: Rig, threadId: string, runId: unknown, words
 }
 
 describe("the same agent after the build: a finished build reopened with Loop on", () => {
-  it("S11. an ask for more with Loop 2 h reopens the same run with a fresh budget, led by the same session, hearing the chat from the ask on and forking from the game folder as it is now", {
+  it("S11. an ask for more with Loop 2 h reopens the same run with a fresh budget, led by the same session, hearing the chat from the ask on and forking from the project folder as it is now", {
     timeout: RIG_TIMEOUT_MS,
   }, async () => {
     const engine = "codex";
-    const { rig, project, threadId } = await gameChat("after-night-reopen");
+    const { rig, project, threadId } = await projectChat("after-night-reopen");
     const seen: ReopenSeen = { reopenedPrompts: [] };
     const { requests, histories } = sessionEngine(rig, engine, reopenedNights(project.dir, seen));
     const first = await launchedAndClosed(rig, threadId, engine);
@@ -1373,7 +1373,7 @@ describe("the same agent after the build: a finished build reopened with Loop on
     const chatSession = requests.find((r) => r.kind === Kind.Chat)?.sessionId ?? "";
     const firstLeads = requests.filter((r) => r.kind === Kind.Lead).length;
 
-    // Loop off: the session makes the change in the game folder itself, and nothing reopens.
+    // Loop off: the session makes the change in the project folder itself, and nothing reopens.
     await answered(rig, threadId, "make the sky pink", engine, 2);
     assert.equal(await readFile(path.join(project.dir, "src", "sky.js"), "utf8"), "export const sky = 'pink';\n");
     await leaveStaleSteer(rig, threadId, first.runId, "old note");
@@ -1399,7 +1399,7 @@ describe("the same agent after the build: a finished build reopened with Loop on
     assert.match(opening, /THE BUILD GOES ON AT/);
     assert.match(opening, /THE USER SAYS[\s\S]*add enemies/);
     assert.ok(!seen.reopenedPrompts.some((p) => p.includes("old note")), "a steer from before the ask is not told");
-    assert.equal(seen.workerHead, seen.folderHead, "the new worker forks from the game folder as it is now");
+    assert.equal(seen.workerHead, seen.folderHead, "the new worker forks from the project folder as it is now");
     assert.equal(seen.workerSky, "export const sky = 'pink';\n", "with the change made after the night");
 
     const second = customEvents(log, "run_finished")[1] ?? {};
@@ -1437,7 +1437,7 @@ describe("the same agent after the build: a start over or a question with Loop o
     timeout: RIG_TIMEOUT_MS,
   }, async () => {
     const engine = "codex";
-    const { rig, threadId } = await gameChat("after-night-start-over");
+    const { rig, threadId } = await projectChat("after-night-start-over");
     const first = landingNight("sky", false);
     let offered: string[] | null = null;
     const { requests } = sessionEngine(rig, engine, async (request, kind) => {
@@ -1473,7 +1473,7 @@ describe("the same agent after the build: a start over or a question with Loop o
     timeout: RIG_TIMEOUT_MS,
   }, async () => {
     const engine = "codex";
-    const { rig, threadId } = await gameChat("after-night-question-on-loop");
+    const { rig, threadId } = await projectChat("after-night-question-on-loop");
     const first = landingNight("sky", false);
     let offered: string[] | null = null;
     const { requests } = sessionEngine(rig, engine, async (request, kind) => {

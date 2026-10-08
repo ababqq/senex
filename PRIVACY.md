@@ -5,9 +5,9 @@ application. Connected providers, plugins and the hosted Genex service have sepa
 
 ## Local storage
 
-Games remain in the selected games folder. The application profile holds conversation events,
+Projects remain in the selected projects folder. The application profile holds conversation events,
 model usage, run evidence, screenshots, installed harness instructions, proposals, plugin data
-and settings. Game and harness Git snapshots retain earlier file versions. Deleting a visible
+and settings. Project and harness Git snapshots retain earlier file versions. Deleting a visible
 message or disconnecting a service does not erase those versions.
 
 Provider sign-ins belong to their CLI or account integration. Studio stores its own plugin and
@@ -17,7 +17,7 @@ with the user's access; process isolation is not a security sandbox.
 
 Conversation history, recovery snapshots and plugin data have no automatic expiry. Diagnostic
 log rotation is bounded separately. Removal of a plugin preserves its data; replacing it with
-another source has a separate erase operation. Back up the profile and games before manually
+another source has a separate erase operation. Back up the profile and projects before manually
 deleting them. Deletion of local data does not delete a provider's or hosted service's records.
 
 ## Network and model use
@@ -42,7 +42,7 @@ undo a remote action or recall data already sent.
 
 | Feature | Needs |
 | --- | --- |
-| Creating, opening, previewing, checking and exporting games | Nothing beyond a model below; exports are static web bundles |
+| Creating, opening, previewing, checking and exporting projects | Nothing beyond a model below; exports are static web bundles |
 | Local models | [Ollama](https://ollama.com) running on this Mac, or a Bonsai model downloaded in Settings (Apple Silicon) |
 | Claude models | [Claude Code](https://code.claude.com/docs/en/setup), installed separately and signed in with a Claude subscription |
 | ChatGPT/Codex models | The [Codex CLI](https://developers.openai.com/codex/cli/), installed separately; **Connect ChatGPT** signs in through your browser |
@@ -57,7 +57,7 @@ Subscription limits apply; there is no fallback to API-key billing, and an ambie
 bundled Genex CLI runs with its crash reporting off unless you set `GENEX_TELEMETRY`;
 `DO_NOT_TRACK` and `GENEX_DISABLE_SENTRY` are passed on to it.
 
-Opening a folder does not authorize its Claude settings or hooks. The Open Game trust checkbox
+Opening a folder does not authorize its Claude settings or hooks. The Open Project trust checkbox
 is an explicit choice because hooks can run commands with the user's access. Interactive
 permission modes and native plugins have broader reach than unattended sandboxed workers.
 
@@ -65,7 +65,7 @@ permission modes and native plugins have broader reach than unattended sandboxed
 
 Export uses declared public paths, excludes private directories and credential file types,
 refuses symlinks and stops if a scanned file contains a credential Studio knows. This is not a
-universal detector for every secret. Host-created game snapshots exclude `.env` and `.env.*`;
+universal detector for every secret. Host-created project snapshots exclude `.env` and `.env.*`;
 secrets already present in repository history still require independent cleanup.
 
 A plugin's staged upload requires a second review showing every included and excluded file.

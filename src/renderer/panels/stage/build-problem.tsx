@@ -1,6 +1,6 @@
 import { sameSnapshot } from "../../state/snapshot-equality.ts";
 /**
- * A game that builds itself can fail to build, and until now that reached the game's console
+ * A project that builds itself can fail to build, and until now that reached the project's console
  * and nobody else: the stage went black with no sentence on it. This watches for that and says it.
  */
 import type { JSX } from "react";
@@ -10,10 +10,10 @@ import { Button } from "../../ui/Button.tsx";
 import { TOAST_WORDS } from "../../words.ts";
 import { type Notify, notifyProblem, ToastTone } from "../../state/toasts.ts";
 
-/** How often the stage asks whether the game's own build is broken. */
+/** How often the stage asks whether the project's own build is broken. */
 const BUILD_TICK_MS = 2_500;
 
-/** The game's build problem, polled while a game is open, and installing its packages when that is the fix. */
+/** The project's build problem, polled while a project is open, and installing its packages when that is the fix. */
 export function useBuildProblem(
   project: string | null,
   loadLive: (target: string, load: () => Promise<unknown>) => Promise<unknown>,
@@ -27,8 +27,8 @@ export function useBuildProblem(
   const [installLines, setInstallLines] = useState<string[] | null>(null);
   useEffect(() => {
     setBuildProblem(null);
-    // What another game's install printed is not this game's trouble, and the strip labels these
-    // lines with whichever package manager the game on screen uses.
+    // What another project's install printed is not this project's trouble, and the strip labels these
+    // lines with whichever package manager the project on screen uses.
     setInstallLines(null);
     if (!project) return;
     let cancelled = false;
@@ -39,7 +39,7 @@ export function useBuildProblem(
         .then((problem) => {
           if (cancelled) return;
           setBuildProblem((current) => (sameSnapshot(current, problem) ? current : problem));
-          // Once the game builds, the install that failed is history: it must not come back above
+          // Once the project builds, the install that failed is history: it must not come back above
           // the next build that breaks. (A build still failing keeps it — it is why it fails.)
           if (!problem) setInstallLines(null);
         })
@@ -86,7 +86,7 @@ function troubleWords(problem: BuildProblem): string {
 }
 
 /**
- * What the stage says when a game that builds itself did not build. The words are the stage's,
+ * What the stage says when a project that builds itself did not build. The words are the stage's,
  * not the toolchain's: the payload carries the command and the first three lines it printed,
  * and those stay behind "Details" where a command belongs.
  */
@@ -106,19 +106,19 @@ export function BuildTrouble({
   return (
     <div data-build-problem className="flex shrink-0 flex-col gap-1.5 border-b border-line bg-surface px-3 py-2.5">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-body-sm font-medium text-ink">The game didn’t build</span>
+        <span className="text-body-sm font-medium text-ink">The project didn’t build</span>
         <span className="min-w-32 flex-1 text-xs leading-relaxed text-ink-3">{troubleWords(problem)}</span>
         {problem.needsInstall && problem.install ? (
           <Button
             aria-label="Install packages"
-            title="Download the packages this game needs"
+            title="Download the packages this project needs"
             disabled={installing}
             onClick={onInstall}
           >
             {installing ? "Installing…" : "Install packages"}
           </Button>
         ) : (
-          <Button variant="ghost" aria-label="Try the build again" title="Build the game again" onClick={onReload}>
+          <Button variant="ghost" aria-label="Try the build again" title="Build the project again" onClick={onReload}>
             Try again
           </Button>
         )}

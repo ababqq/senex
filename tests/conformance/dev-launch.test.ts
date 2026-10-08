@@ -29,11 +29,11 @@ test("owned profiles reject traversal, aliases, copied ownership, silent reuse a
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   for (const rel of ["..", "../normal", "/tmp", "a/../b", "a//b"]) assert.throws(() => safeChild(root, rel));
   fs.symlinkSync(os.tmpdir(), path.join(root, "alias"));
-  assert.throws(() => safeChild(root, "alias/games"), /symlink/);
+  assert.throws(() => safeChild(root, "alias/projects"), /symlink/);
   const a = allocateProfile(root, "a", "fixture", "app-basics");
   const b = allocateProfile(root, "b", "fixture", "app-basics");
   assert.notEqual(a.core, b.core);
-  assert.notEqual(a.games, b.games);
+  assert.notEqual(a.projects, b.projects);
   assert.throws(() => allocateProfile(root, "a", "fixture", "app-basics"), /reuse/);
   assert.throws(() => allocateProfile(root, "a", "live", null, true), /change provider/);
   fs.writeFileSync(
@@ -54,7 +54,7 @@ test("closed controller schema rejects privileged fields, eval, unbounded work a
     { method: "click", params: { selector: "button", webContentsId: 1 } },
     { method: "trace.start", params: { traceId: "trace", durationMs: 600000, categories: ["*"] } },
     {
-      method: "game.input",
+      method: "project.input",
       params: {
         actions: [
           { type: "wait", ms: 8000 },

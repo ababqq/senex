@@ -83,10 +83,10 @@ describe("playtest shorthands", () => {
   it("reads a missing state as missing, and cuts a long one", async () => {
     const { ctx } = await context(await tmpDir("playtest-"));
     assert.equal(
-      await runPlaytestTool(PlaytestTool.GameState, {}, fakeWindow(null).port, ctx),
+      await runPlaytestTool(PlaytestTool.ProjectState, {}, fakeWindow(null).port, ctx),
       'state: {"__missing":true}',
     );
-    const long = await runPlaytestTool(PlaytestTool.GameState, {}, fakeWindow({ s: "x".repeat(5_000) }).port, ctx);
+    const long = await runPlaytestTool(PlaytestTool.ProjectState, {}, fakeWindow({ s: "x".repeat(5_000) }).port, ctx);
     assert.equal(String(long).length, "state: ".length + PLAYTEST_LIMITS.stateChars);
   });
 
@@ -110,7 +110,7 @@ describe("playtest shorthands", () => {
 
   it("tells the model the same limits it enforces", () => {
     const byName = new Map(PLAYTEST_TOOLS.map((tool) => [tool.name, JSON.stringify(tool)]));
-    assert.deepEqual([...byName.keys()], ["press_keys", "look", "click", "screenshot", "game_state", "wait"]);
+    assert.deepEqual([...byName.keys()], ["press_keys", "look", "click", "screenshot", "project_state", "wait"]);
     assert.match(byName.get(PlaytestTool.PressKeys) ?? "", /default 400, max 8000/);
     assert.match(byName.get(PlaytestTool.Wait) ?? "", /max 5000/);
   });

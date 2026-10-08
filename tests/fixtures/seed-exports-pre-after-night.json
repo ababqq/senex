@@ -13,7 +13,7 @@
     "loop/model-roles.ts": ["BONSAI_ENGINE","BRIDGE_TOOL_CMD","CLAUDE_CODE_ENGINE","CLAUDE_CODE_MODELS","CODEX_ENGINE","CODEX_MODELS","DELEGATED_ENGINES","ENGINE_LABELS","ENGINE_MODELS","EngineId","FABLE","OPUS","ROLES","RoleKey","SOL","TERRA","describeRoles","engineLabel","hasSessionRoles","isDelegated","modelOn","modelsFor","normalizeRoles","plannerModel","resolveRoles","roleEffort","roleEngine","roleName","supportsSessions","toolCall","toolSyntax","withRoles"],
     "loop/run-events.ts": ["EventKind","ExecutionStatus","FAILURE_LOG_EVERY_MS","InterviewMode","JournalPhase","REFERENCE_MIN_STILLS","ReferenceKind","RunEvent","RunMode","RunState","SteeringSource","appendRun","logFailure","resetFailureLog","saveJournal","writeRunArtifact"],
     "loop/turn-record.ts": ["TurnStatus","TurnStop","sayInTurn"],
-    "loop/text.ts": ["CLIP_BRIEF","CLIP_DETAIL","CLIP_GAME_TITLE","CLIP_QUOTE","CLIP_REASON","clip","clipMarked","hasText","sharesStem"],
+    "loop/text.ts": ["CLIP_BRIEF","CLIP_DETAIL","CLIP_PROJECT_TITLE","CLIP_QUOTE","CLIP_REASON","clip","clipMarked","hasText","sharesStem"],
     "loop/run-dispatch.ts": ["chooseRunner","handleRunStart","nightRefusal","resumeRun"],
     "loop/studio-state.ts": ["RunnerKind","StatusLane","heldRuns"],
     "loop/time.ts": ["CANCEL_POLL_MS","HOUR_MS","MINUTE_MS","SECOND_MS","minutes","sleep","sleepUnlessCancelled"],

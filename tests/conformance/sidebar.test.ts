@@ -10,7 +10,7 @@
  *     every class and every `var(--…)` the ported files use against `theme.css`.
  *   · the rail is where `run-agentic-readiness` types and clicks. The selector gate keeps the
  *     handles `docs/agent/feature-map.md` names.
- *   · the plan's vocabulary table says the section reads GAMES, that no destructive control hides
+ *   · the plan's vocabulary table says the section reads PROJECTS, that no destructive control hides
  *     behind a hover, and that the mono eyebrows and counters go.
  */
 import assert from "node:assert/strict";
@@ -109,29 +109,29 @@ describe("the rail's theme tokens", () => {
   });
 });
 
-describe("the game library's navigation", () => {
-  it("keeps stable game and Studio locators", () => {
+describe("the project library's navigation", () => {
+  it("keeps stable project and Studio locators", () => {
     assert.match(sidebar, /data-thread="studio"/);
     assert.match(sidebar, /data-thread=\{threadId\}/);
-    assert.match(sidebar, /data-project=\{game\.name\}/);
+    assert.match(sidebar, /data-project=\{project\.name\}/);
     assert.match(sidebar, /<nav\b/);
   });
   it("has a keyboard-reachable overflow and confirmation before removal", () => {
     assert.match(sidebar, /DropdownMenuTrigger asChild/);
     assert.match(sidebar, /aria-label=\{`Actions for/);
-    assert.match(theme, /sidebar-game:focus-within \.sidebar-game-menu/);
-    assert.match(read("src/renderer/panels/GameDialogs.tsx"), /files and conversation history stay/);
+    assert.match(theme, /sidebar-project:focus-within \.sidebar-project-menu/);
+    assert.match(read("src/renderer/panels/ProjectDialogs.tsx"), /files and conversation history stay/);
   });
-  it("keeps New game and search above the scrolling library", () => {
+  it("keeps New project and search above the scrolling library", () => {
     assert.match(sidebar, /sidebar-fixed/);
     assert.match(sidebar, /data-sidebar-scroll/);
-    assert.match(sidebar, />\s*New game\s*</);
-    assert.match(sidebar, /label="Create game"[^>]*onClick=\{onNewGame\}/);
-    assert.match(sidebar, /<span>Games<\/span>/);
+    assert.match(sidebar, />\s*New project\s*</);
+    assert.match(sidebar, /label="Create project"[^>]*onClick=\{onNewProject\}/);
+    assert.match(sidebar, /<span>Projects<\/span>/);
     assert.doesNotMatch(sidebar, /New chat in|toggleFolder|<ChatRow/);
   });
   it("uses shared keyboard search rather than an inline filter", () => {
-    const search = read("src/renderer/panels/GameSearchDialog.tsx");
+    const search = read("src/renderer/panels/ProjectSearchDialog.tsx");
     assert.match(search, /role="combobox"/);
     assert.match(search, /aria-activedescendant/);
     assert.match(search, /role="listbox"/);

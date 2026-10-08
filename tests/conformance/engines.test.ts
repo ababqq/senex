@@ -495,8 +495,8 @@ describe("what one night of judging leaves behind", () => {
     // Tonight's verdicts, in the one stable directory: the old transcript goes, the new stays.
     await write("-private-var-folders-T-studio-judge-sessions", "old.jsonl", 30 * 24 * 60 * 60_000);
     await write("-private-var-folders-T-studio-judge-sessions", "tonight.jsonl", 60_000);
-    // A game the user actually built in, older than any of it: never ours to delete.
-    await write("-Users-me-ai-games-wreckage", "session.jsonl", 90 * 24 * 60 * 60_000);
+    // A project the user actually built in, older than any of it: never ours to delete.
+    await write("-Users-me-ai-projects-wreckage", "session.jsonl", 90 * 24 * 60 * 60_000);
     assert.ok(old < Date.now());
     return home;
   }
@@ -505,15 +505,15 @@ describe("what one night of judging leaves behind", () => {
     const home = await seedHome();
     const removed = await sweepJudgeTranscripts(home);
     const left = (await readdir(path.join(home, "projects"))).sort();
-    assert.deepEqual(left, ["-Users-me-ai-games-wreckage", "-private-var-folders-T-studio-judge-sessions"]);
+    assert.deepEqual(left, ["-Users-me-ai-projects-wreckage", "-private-var-folders-T-studio-judge-sessions"]);
     assert.deepEqual(await readdir(path.join(home, "projects", "-private-var-folders-T-studio-judge-sessions")), [
       "tonight.jsonl",
     ]);
-    assert.deepEqual(await readdir(path.join(home, "projects", "-Users-me-ai-games-wreckage")), ["session.jsonl"]);
+    assert.deepEqual(await readdir(path.join(home, "projects", "-Users-me-ai-projects-wreckage")), ["session.jsonl"]);
     assert.equal(
       removed.filter((entry) => entry.includes("wreckage")).length,
       0,
-      "a game's own transcripts are not housekeeping",
+      "a project's own transcripts are not housekeeping",
     );
     // A week is the window, so last night's verdicts are still there to read in the morning.
     assert.ok(JUDGE_TRANSCRIPT_TTL_MS >= 7 * 24 * 60 * 60_000);

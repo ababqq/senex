@@ -31,13 +31,13 @@ import type {
   ShimMode,
 } from "../vocabulary.ts";
 
-/** A frame the prober witnessed: after the entrance and first render, on the game's origin (Rule 18). */
+/** A frame the prober witnessed: after the entrance and first render, on the project's origin (Rule 18). */
 export interface FrameRef {
   path: string;
   /** Milliseconds after the page was opened. */
   atMs: number;
   phase: ProbePhase;
-  /** The origin the frame was taken on; a frame off the game's origin is never evidence. */
+  /** The origin the frame was taken on; a frame off the project's origin is never evidence. */
   origin: string;
   width: number;
   height: number;
@@ -45,8 +45,8 @@ export interface FrameRef {
 
 /** Everything a grader may see: witnessed frames and bounded console and network summaries. */
 export interface EvidenceRefs {
-  /** The origin the game was served on; a frame on any other origin is never evidence. */
-  gameOrigin: string;
+  /** The origin the project was served on; a frame on any other origin is never evidence. */
+  projectOrigin: string;
   frames: FrameRef[];
   consoleSummaryPath: string;
   networkSummaryPath: string;
@@ -103,9 +103,9 @@ export interface BootProbeResult {
   frames: FrameRef[];
 }
 
-/** What the quick probe may spend and how it enters the game. */
+/** What the quick probe may spend and how it enters the project. */
 export interface QuickProbeOptions extends BootProbeOptions {
-  /** How long the game must run without an uncaught error (`l1.no_errors_60s`). */
+  /** How long the project must run without an uncaught error (`l1.no_errors_60s`). */
   noErrorsMs: number;
   /** Where frames and summaries are written. */
   evidenceDir: string;

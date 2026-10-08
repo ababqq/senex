@@ -1,6 +1,6 @@
 /**
  * The host's Claude Code permission settings: the mode new chats start in, the rules saved by
- * game, and the models Auto is unavailable for. Loaded once, and again whenever the host says they
+ * project, and the models Auto is unavailable for. Loaded once, and again whenever the host says they
  * changed (`permissions.changed`). Main owns them; this is only a view.
  */
 import { useEffect, useState } from "react";

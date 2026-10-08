@@ -94,12 +94,12 @@ export const DIRECTOR_TOOLS: LiveToolSpec[] = [
         },
         kind: {
           type: "string",
-          description: `What kind of game this is, one of: ${KIND_NAMES.join(", ")}. The harness drives that kind's controls before every judgement and puts only the checks it can pass on the board; declare nothing and it assumes nothing.`,
+          description: `What kind of project this is, one of: ${KIND_NAMES.join(", ")}. The harness drives that kind's controls before every judgement and puts only the checks it can pass on the board; declare nothing and it assumes nothing.`,
         },
         play_script: {
           type: "string",
           description:
-            'The controls the harness drives before every judgement, when the kind\'s own script is wrong for this game: JSON array of [{"type":"hold","keys":["w"],"ms":800},{"type":"look","dx":56,"dy":-8},{"type":"click","x":480,"y":300},{"type":"drag","fromX":100,"fromY":100,"x":300,"y":200}].',
+            'The controls the harness drives before every judgement, when the kind\'s own script is wrong for this project: JSON array of [{"type":"hold","keys":["w"],"ms":800},{"type":"look","dx":56,"dy":-8},{"type":"click","x":480,"y":300},{"type":"drag","fromX":100,"fromY":100,"x":300,"y":200}].',
         },
       },
       required: ["summary", "workers"],
@@ -108,7 +108,7 @@ export const DIRECTOR_TOOLS: LiveToolSpec[] = [
   {
     name: DirectorTool.WorkerStart,
     description:
-      "Start a background builder with its own git worktree and hidden preview. loop (default): build, gather evidence, check, compare blindly, accept or roll back; repeat until done passes or budget ends, committing accepted builds. Supply 2–4 measurable done outcomes. single: one session, committed without a judge; you assess it. Returns a worker id — use wait and worker_status. One area a player can name per worker, on files of its own; start every independent area, up to the workers run_status allows at once.",
+      "Start a background builder with its own git worktree and hidden preview. loop (default): build, gather evidence, check, compare blindly, accept or roll back; repeat until done passes or budget ends, committing accepted builds. Supply 2–4 measurable done outcomes. single: one session, committed without a judge; you assess it. Returns a worker id — use wait and worker_status. One area a user can name per worker, on files of its own; start every independent area, up to the workers run_status allows at once.",
     parameters: {
       type: "object",
       properties: {
@@ -142,7 +142,7 @@ export const DIRECTOR_TOOLS: LiveToolSpec[] = [
         owns: {
           type: "string",
           description:
-            'Comma-separated files, folders or globs this worker owns — its seam (src/plaza.js, src/world/, "src/ui/*.tsx", "app/**/hud.*"). In a glob * and ? stop at a slash and ** crosses them; a pattern containing * or ? must be QUOTED, because on Codex this arrives as a shell command line and an unquoted glob is expanded before the studio sees it. Edits elsewhere are reverted by the reviewer; empty means src/ on the studio\'s template, and everything but the entry, the contract and index.html in a game of its own — name a seam whenever more than one worker runs.',
+            'Comma-separated files, folders or globs this worker owns — its seam (src/plaza.js, src/world/, "src/ui/*.tsx", "app/**/hud.*"). In a glob * and ? stop at a slash and ** crosses them; a pattern containing * or ? must be QUOTED, because on Codex this arrives as a shell command line and an unquoted glob is expanded before the studio sees it. Edits elsewhere are reverted by the reviewer; empty means src/ on the studio\'s template, and everything but the entry, the contract and index.html in a project of its own — name a seam whenever more than one worker runs.',
         },
         owns_main: {
           type: "string",
@@ -172,7 +172,7 @@ export const DIRECTOR_TOOLS: LiveToolSpec[] = [
         move: {
           type: "string",
           description:
-            "loop only: the ONE structural change this worker builds first, in a sentence — what the game IS afterwards. The harness hands it to the builder as THE MOVE of the iteration and a build without it loses. Give it, or the harness's own planner will invent one.",
+            "loop only: the ONE structural change this worker builds first, in a sentence — what the project IS afterwards. The harness hands it to the builder as THE MOVE of the iteration and a build without it loses. Give it, or the harness's own planner will invent one.",
         },
         milestones: {
           type: "string",
@@ -186,21 +186,21 @@ export const DIRECTOR_TOOLS: LiveToolSpec[] = [
         setup: {
           type: "string",
           description:
-            'JSON: the state its window and its judges open on — {"actions":[{"type":"tap","keys":["i"]},{"type":"click","x":480,"y":300,"px":true}],"verify":{"path":"maps.activeId","equals":"macba"},"note":"…"} or {"demo":"name","verify":{…}}. Default: the run\'s setup.',
+            'JSON: the state its window and its judges open on — {"actions":[{"type":"tap","keys":["g"]},{"type":"click","x":480,"y":300,"px":true}],"verify":{"path":"route","equals":"#/settings"},"note":"…"} or {"demo":"name","verify":{…}}. Default: the run\'s setup.',
         },
         kind: {
           type: "string",
-          description: `What kind of game this part is, when it differs from the run's: ${KIND_NAMES.join(", ")}. Default: the kind the plan declared.`,
+          description: `What kind of project this part is, when it differs from the run's: ${KIND_NAMES.join(", ")}. Default: the kind the plan declared.`,
         },
         critic: {
           type: "string",
           description:
-            "Which critic reviews this part every round: screen for a UI or HUD part (is it readable, does it say the game's state, does every action answer on screen), place for a world a player stands in. Default: the kind's.",
+            "Which critic reviews this part every round: screen for software a person reads and operates (is it readable, does it say the project's state, does every action answer on screen), place for a world a person moves through. Default: the kind's.",
         },
         traits: {
           type: "string",
           description:
-            "Comma-separated game traits the harness adds its own checks for: hud, mouseLook, keyboardMove. Only what you name is added — an unnamed trait is not declared false, it is simply not measured.",
+            "Comma-separated project traits the harness adds its own checks for: ui, navigation, typing, mouseLook, keyboardMove. Only what you name is added — an unnamed trait is not declared false, it is simply not measured.",
         },
         policy: {
           type: "string",
@@ -242,7 +242,7 @@ export const DIRECTOR_TOOLS: LiveToolSpec[] = [
         move: {
           type: "string",
           description:
-            "The next rung of its ladder, in a sentence — what the game IS after this iteration. It becomes THE MOVE of the worker's next iteration (mandatory), ahead of the rest of its ladder and of anything the harness would have named.",
+            "The next rung of its ladder, in a sentence — what the project IS after this iteration. It becomes THE MOVE of the worker's next iteration (mandatory), ahead of the rest of its ladder and of anything the harness would have named.",
         },
       },
       required: ["id"],
@@ -279,7 +279,7 @@ export const DIRECTOR_TOOLS: LiveToolSpec[] = [
   {
     name: DirectorTool.Judge,
     description:
-      "Load a build, replay setup with seeded controls for thirty simulated seconds, capture cameras and player eyes, state and console. Optionally score typed checks, ask a vision question or compare blindly with another build. Returns frame paths; read them to inspect the evidence.",
+      "Load a build, replay setup with seeded controls for thirty simulated seconds, capture the declared views, state and console. Optionally score typed checks, ask a vision question or compare blindly with another build. Returns frame paths; read them to inspect the evidence.",
     parameters: {
       type: "object",
       properties: {
@@ -287,7 +287,7 @@ export const DIRECTOR_TOOLS: LiveToolSpec[] = [
         against: {
           type: "string",
           description:
-            "start (the game as the run began, default), none, integration, live, or a worker id — the other side of the blind comparison.",
+            "start (the project as the run began, default), none, integration, live, or a worker id — the other side of the blind comparison.",
         },
         cameras: { type: "string", description: "Comma-separated camera names (default: every registered camera)." },
         checks: {
@@ -338,7 +338,7 @@ export const DIRECTOR_TOOLS: LiveToolSpec[] = [
   {
     name: DirectorTool.Show,
     description:
-      "Offer a build to Live, the game view the user is looking at: integration (default), live, or a worker id. Live never changes under the user: its Reload button lights up and plays the build when they press it. Nothing is changed on disk.",
+      "Offer a build to Live, the project view the user is looking at: integration (default), live, or a worker id. Live never changes under the user: its Reload button lights up and plays the build when they press it. Nothing is changed on disk.",
     parameters: { type: "object", properties: { target: { type: "string" } } },
   },
   {
@@ -364,7 +364,7 @@ export const DIRECTOR_TOOLS: LiveToolSpec[] = [
   {
     name: DirectorTool.Finish,
     description:
-      "Close the run: stop any workers, land the integration branch in the live game folder (land=yes, the default, when it is healthy) or keep it unlanded (land=no), write the report. victory=yes only when you verified the goal was met. Call it before your deadline; an unfinished run lands nothing.",
+      "Close the run: stop any workers, land the integration branch in the live project folder (land=yes, the default, when it is healthy) or keep it unlanded (land=no), write the report. victory=yes only when you verified the goal was met. Call it before your deadline; an unfinished run lands nothing.",
     parameters: {
       type: "object",
       properties: {

@@ -2,7 +2,7 @@
 
 /** The instruction for the one tool-free completion that writes a reviewable plan. */
 export const PLAN_SYSTEM_PROMPT =
-  "Write a concise implementation plan for the requested game or change in the existing conversation. Preserve the previous plan, decisions and completed work; revise only what the latest request changes. This is a planning-only step before explicit user approval. Do not execute work or call tools. State assumptions briefly, list concrete build steps and how to check the result. Do not claim to have inspected files. Return only the plan.";
+  "Write a concise implementation plan for the requested project or change in the existing conversation. Preserve the previous plan, decisions and completed work; revise only what the latest request changes. This is a planning-only step before explicit user approval. Do not execute work or call tools. State assumptions briefly, list concrete build steps and how to check the result. Do not claim to have inspected files. Return only the plan.";
 
 /** The pieces a plan request is written from, each already cut to size. */
 export interface PlanContextParts {
@@ -13,7 +13,7 @@ export interface PlanContextParts {
   recentConversation: string;
   /** The plan this request revises, when there is one. */
   previous?: { plan: string; approved: boolean };
-  /** The current run's state and its saved plan, as JSON, when the game has a run. */
+  /** The current run's state and its saved plan, as JSON, when the project has a run. */
   build?: { state: string; savedPlan: string };
   latestRequest: string;
 }

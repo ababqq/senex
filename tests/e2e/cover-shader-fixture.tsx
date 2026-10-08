@@ -1,17 +1,17 @@
 import { useState } from "react";
 import { createRoot } from "react-dom/client";
-import { GameAvatar } from "../../src/renderer/ui/GameAvatar.tsx";
-import type { GameCover } from "../../src/shared/game-library.ts";
+import { ProjectAvatar } from "../../src/renderer/ui/ProjectAvatar.tsx";
+import type { ProjectCover } from "../../src/shared/project-library.ts";
 import { COVER_LOOKS, OrbFamily } from "../../src/shared/cover-recipe.ts";
 import { createCoverPainter } from "../../src/shared/cover-painter.ts";
 import { coverFragment, COVER_VERTEX } from "../../src/shared/cover-shader.ts";
 declare global {
   interface Window {
     coverFixture: {
-      covers: GameCover[];
+      covers: ProjectCover[];
       unmount: () => void;
       remount: () => void;
-      setCover: (row: number, cover: GameCover) => void;
+      setCover: (row: number, cover: ProjectCover) => void;
       legacySurface: string;
     };
   }
@@ -52,7 +52,7 @@ const ORBS = Object.values(OrbFamily);
  * Rows 0–20: every named look. 21: legacy v2 lens field. 22: legacy v1 sphere. 23: no saved cover.
  * 24–29: more looks. 30–41: every orb family, each in its own hue slot.
  */
-const covers = Array.from({ length: 30 + ORBS.length }, (_, i): GameCover | undefined => {
+const covers = Array.from({ length: 30 + ORBS.length }, (_, i): ProjectCover | undefined => {
   const orb = ORBS[i - 30];
   if (orb) return { kind: "recipe", family: orb, hue: (i - 30) % 9, seed: (i * 97) % 997 };
   if (i === 21)
@@ -62,8 +62,8 @@ const covers = Array.from({ length: 30 + ORBS.length }, (_, i): GameCover | unde
   if (i === 23) return undefined;
   const [family, palette] = COVER_LOOKS[i % COVER_LOOKS.length]!;
   return { kind: "recipe", family, palette, seed: (i * 97) % 997 };
-}) as GameCover[];
-let setRowCover: (row: number, cover: GameCover) => void = () => {};
+}) as ProjectCover[];
+let setRowCover: (row: number, cover: ProjectCover) => void = () => {};
 function App() {
   const [active, setActive] = useState(0);
   const [list, setList] = useState(covers);
@@ -73,15 +73,15 @@ function App() {
       <h1 style={{ fontSize: 16, marginBottom: 16 }}>Cover sphere fixture</h1>
       <div id="rows" style={{ height: 240, overflowY: "auto" }}>
         {list.map((cover, i) => (
-          <div key={i} data-game={`game-${i}`} style={{ display: "flex" }}>
+          <div key={i} data-project-row={`project-${i}`} style={{ display: "flex" }}>
             <button
               id={`row-${i}`}
               onClick={() => setActive(i)}
               aria-current={active === i ? "page" : undefined}
               style={{ display: "flex", alignItems: "center", gap: 12, padding: 8, width: "100%", cursor: "pointer" }}
             >
-              <GameAvatar cover={cover} gameKey={`game-${i}`} active={active === i} />
-              <span>Game {i}</span>
+              <ProjectAvatar cover={cover} projectKey={`project-${i}`} active={active === i} />
+              <span>Project {i}</span>
             </button>
           </div>
         ))}
@@ -90,11 +90,11 @@ function App() {
         id="uploaded"
         style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 20, cursor: "pointer" }}
       >
-        <GameAvatar cover={{ kind: "image", dataUrl: legacyPoster }} />
+        <ProjectAvatar cover={{ kind: "image", dataUrl: legacyPoster }} />
         Uploaded image
       </button>
       <div id="search-cover" style={{ marginTop: 20 }}>
-        <GameAvatar cover={covers[1]} gameKey="game-1" className="search-cover" />
+        <ProjectAvatar cover={covers[1]} projectKey="project-1" className="search-cover" />
       </div>
     </main>
   );

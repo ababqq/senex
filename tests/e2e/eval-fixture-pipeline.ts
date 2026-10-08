@@ -5,11 +5,11 @@
  *
  * - Lanes A/D launch the built app (`dist/`) as the real Electron smoke sub-runner with
  *   `--studio-eval-lane --studio-eval-fixture`, so the app's scripted fixture engines answer. Those
- *   engines never edit a game, so this driver stands in for the agent's edits once the app has
- *   seeded and reported the game: it writes a calibration game over it ("calibration games stand
+ *   engines never edit a project, so this driver stands in for the agent's edits once the app has
+ *   seeded and reported the project: it writes a calibration project over it ("calibration projects stand
  *   in for outputs").
  * - Lanes B/C run the stub CLIs through `campaign run`'s own machine runner: each replays a
- *   recorded, redacted stream with its receive timing and writes the recorded game.
+ *   recorded, redacted stream with its receive timing and writes the recorded project.
  * - Canaries and grades are served from sandboxed copies and probed by the real quick prober when
  *   Chromium launches; otherwise probing is skipped as a typed `scripted` mode (a stand-in that
  *   reads the seeded defect from the served files) and everything else still runs.
@@ -18,7 +18,7 @@
  *   facet; a synthetic calibration covers exactly their pins.
  *
  * Then the version axis: the same lane on a base and a candidate app build, where the candidate's
- * seeded defect is a boot-breaking variant of the case's fixture game. `check` must exit with the
+ * seeded defect is a boot-breaking variant of the case's fixture project. `check` must exit with the
  * regression or probable code and name the cell, and the ledger must validate and pass the guard.
  */
 import { execFile } from "node:child_process";
@@ -100,7 +100,7 @@ const run = promisify(execFile);
 export const ProbeMode = { Chromium: "chromium", Scripted: "scripted" } as const;
 export type ProbeMode = (typeof ProbeMode)[keyof typeof ProbeMode];
 
-/** The case every fixture campaign builds: the recorded games are its known-good mini golf. */
+/** The case every fixture campaign builds: the recorded projects are its known-good mini golf. */
 const CASE_ID = "mini-golf";
 /** The Genex fixture lane the version axis runs on. */
 const VERSION_LANE = "fixture-genex";
@@ -116,8 +116,8 @@ const APP_REF = { Base: "base", Candidate: "cand" } as const;
 const MIN_REPLAY_SPAN_MS = 1000;
 /** The model the fixture graders are pinned to: the fixture engines' own model id. */
 const FIXTURE_GRADER_MODEL = "fixture-v1";
-/** The calibration game every fixture output stands in with. */
-const GAME_FIXTURE = path.join("tests", "fixtures", "evals", "calibration", "known-good-mini-golf");
+/** The calibration project every fixture output stands in with. */
+const PROJECT_FIXTURE = path.join("tests", "fixtures", "evals", "calibration", "known-good-mini-golf");
 /** The candidate's seeded defect: an uncaught error before the first frame (the prober's boot failure, §8.1). */
 const SEEDED_BREAK_TEXT = "seeded boot break";
 const SEEDED_BREAK = `queueMicrotask(() => {\n  throw new Error("${SEEDED_BREAK_TEXT}");\n});\n`;
@@ -198,7 +198,7 @@ async function chromiumMissing(): Promise<string | null> {
   }
 }
 
-/** Whether a served game carries the candidate's seeded defect. */
+/** Whether a served project carries the candidate's seeded defect. */
 async function seededBreak(root: string): Promise<boolean> {
   const code = await readFile(path.join(root, "main.js"), "utf8").catch(() => "");
   return code.includes(SEEDED_BREAK_TEXT);
@@ -262,7 +262,7 @@ function scriptedProbes(serve: ServeSnapshot) {
       rendererMode: options.rendererMode,
       servedVia: options.servedVia ?? ServedVia.AsIs,
       evidence: {
-        gameOrigin: new URL(url).origin,
+        projectOrigin: new URL(url).origin,
         frames,
         consoleSummaryPath,
         networkSummaryPath,
@@ -299,9 +299,9 @@ function probers(mode: ProbeMode, paths: EvalsPaths) {
 
 // ── the fixture agent and graders ───────────────────────────────────────────────────────
 
-/** Write the calibration game over a seeded Genex game; the candidate's non-canary games carry the seeded break. */
+/** Write the calibration project over a seeded Genex project; the candidate's non-canary projects carry the seeded break. */
 async function writeStandIn(repo: string, dir: string, broken: boolean): Promise<void> {
-  const source = path.join(repo, GAME_FIXTURE);
+  const source = path.join(repo, PROJECT_FIXTURE);
   await copyFile(path.join(source, "index.html"), path.join(dir, "index.html"));
   const code = await readFile(path.join(source, "main.js"), "utf8");
   await writeFile(path.join(dir, "main.js"), broken ? `${SEEDED_BREAK}${code}` : code);
@@ -318,14 +318,14 @@ async function folderInside(root: string, dir: string): Promise<boolean> {
 
 /**
  * The lane runner: `campaign run`'s machine runner (the app for A/D, the stubs for B/C), then, for a
- * Genex run the app reported, the stand-in for the agent's edits in the game it seeded.
+ * Genex run the app reported, the stand-in for the agent's edits in the project it seeded.
  */
 function fixtureRunner(world: { repo: string; identity: Identity; userHome: string; paths: EvalsPaths }): LaneRunner {
   const machine = systemLaneRunner(evalsLayout(world.paths.home), async () => null, world.userHome);
   return async (request: LaneRunRequest): Promise<LaneRunResult> => {
     const result = await machine(request);
     const genex = request.lane.agent === EvalAgent.GenexApp && result.harnessFailure === null;
-    // The agent edits its game in the lane root, while the run is still live there.
+    // The agent edits its project in the lane root, while the run is still live there.
     if (!genex || !(await folderInside(request.laneRoot, result.artifacts.projectDir))) return result;
     const candidate = request.appBuild?.sha === world.identity.candidateSha;
     await writeStandIn(world.repo, result.artifacts.projectDir, candidate && request.evalCase.id !== CANARY_CASE_ID);
@@ -603,7 +603,7 @@ async function pipelineCampaign(world: World): Promise<string | null> {
   await checkCollected(world, id, fixtureLanes, fixtureLanes.length);
   const graded = await cli(world, [EvalCommand.Grade, id, "--quick", "--live"], [0]);
   const builds = await checkGraded(world, id);
-  for (const row of builds) expect(world, bootOutcome(row) === 1, `${row.runId}: the recorded game did not boot`);
+  for (const row of builds) expect(world, bootOutcome(row) === 1, `${row.runId}: the recorded project did not boot`);
   const pairwise = Number(graded.output.find((line) => line.startsWith("pairwise "))?.split(" ")[1] ?? 0);
   expect(world, pairwise > 0, "no pairwise rows were judged");
   const report = await cli(world, [EvalCommand.Report, id], [0, 1]);

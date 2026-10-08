@@ -79,7 +79,7 @@ const nativeVisible = () =>
   win.contentView.children.some(
     (view) => view.webContents && view.webContents !== wc && view.getVisible() && view.getBounds().width > 0,
   );
-/** Where the native game view paints over the page, in the page's own pixels. */
+/** Where the native project view paints over the page, in the page's own pixels. */
 const nativeBounds = () =>
   win.contentView.children.find((view) => view.webContents && view.webContents !== wc)?.getBounds() ?? null;
 const TOOLTIP = '[data-slot="tooltip-content"]';
@@ -109,22 +109,25 @@ async function acceptance() {
     const initial = await js(`JSON.stringify({...document.querySelector('[data-studio-state]').dataset})`);
     await click('[aria-label="Prompt"]');
     await wc.debugger.sendCommand("Input.insertText", { text: "Keep this unsent idea" });
-    // Live shows the game once its page has loaded and settled, a moment after the window is ready.
+    // Live shows the project once its page has loaded and settled, a moment after the window is ready.
     for (let n = 0; n < 200 && !nativeVisible(); n++) await wait(50);
-    check("fixture has a native Live game", nativeVisible());
-    // The native game view paints over the whole page, tooltips included: a tooltip that reached
-    // over the stage would be cut off where the game begins, so it keeps beside it.
+    check("fixture has a native Live project", nativeVisible());
+    // The native project view paints over the whole page, tooltips included: a tooltip that reached
+    // over the stage would be cut off where the project begins, so it keeps beside it.
     await hover('[aria-label="Chat actions"]');
     const tip = await openTooltip();
-    const game = nativeBounds();
-    check("a tooltip beside Live keeps off the native game", tip && game && !overlaps(tip, game), { tip, game });
+    const project = nativeBounds();
+    check("a tooltip beside Live keeps off the native project", tip && project && !overlaps(tip, project), {
+      tip,
+      project,
+    });
     await hover('[aria-label="Prompt"]');
     await until(`!document.querySelector('${TOOLTIP}')`);
     await capture("sidebar");
     const nav = await js(`Array.from(document.querySelectorAll('.sidebar-action')).map(e=>e.textContent.trim())`);
     check(
-      "Settings is fourth after New game, Plugins and Harness",
-      nav.slice(0, 4).join("|") === "New game|Plugins|Harness|Settings",
+      "Settings is fourth after New project, Plugins and Harness",
+      nav.slice(0, 4).join("|") === "New project|Plugins|Harness|Settings",
       nav,
     );
     await click('[aria-label="Settings"]');
@@ -133,7 +136,7 @@ async function acceptance() {
       await until(`document.querySelector('#settings-tab-providers')?.getAttribute('aria-selected')==='true'`),
     );
     check("dialog initially focuses selected tab", await js(`document.activeElement.id==='settings-tab-providers'`));
-    check("modal hides native game", !nativeVisible());
+    check("modal hides native project", !nativeVisible());
     check(
       "both provider controls are present",
       await js(
@@ -165,7 +168,7 @@ async function acceptance() {
       );
     const providersBounds = await bounds();
     const sectionBounds = [];
-    for (const section of ["games", "appearance", "local", "providers", "harness", "permissions"]) {
+    for (const section of ["projects", "appearance", "local", "providers", "harness", "permissions"]) {
       await click("#settings-tab-" + section);
       sectionBounds.push({ section, bounds: await bounds() });
     }
@@ -223,7 +226,7 @@ async function acceptance() {
         `!document.querySelector('[data-testid="settings-dialog"]') && document.activeElement.getAttribute('aria-label')==='Settings'`,
       ),
     );
-    check("native game returns after dismissal", nativeVisible());
+    check("native project returns after dismissal", nativeVisible());
     await click('[aria-label="Settings"]');
     check(
       "reopening hydrates current download",

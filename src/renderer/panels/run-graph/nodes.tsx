@@ -362,7 +362,7 @@ function StartFace({
   return <NodeFace src={src} fill={Fill.Flat} name="You asked" word={`“${goal}”`} tone={Tone.Muted} glyph={null} />;
 }
 
-/** What you asked: the game's starting still and the prompt. */
+/** What you asked: the project's starting still and the prompt. */
 export function StartNode({
   run,
   base,
@@ -397,19 +397,19 @@ export function StartNode({
   );
 }
 
-/** Where the run's assets have got to, in one line: failures first, then work in hand, then the game. */
+/** Where the run's assets have got to, in one line: failures first, then work in hand, then the project. */
 export function assetsStatus(jobs: AssetInfo[]): { text: string; tone: Tone } {
   const made = jobs.filter((job) => job.state === AssetCardState.Delivered);
   const failed = jobs.filter((job) => job.state === AssetCardState.Failed).length;
   const making = jobs.length - made.length - failed;
-  const inGame = made.filter((job) => job.inGame).length;
-  const known = made.filter((job) => job.inGame !== undefined).length;
+  const inProject = made.filter((job) => job.inProject).length;
+  const known = made.filter((job) => job.inProject !== undefined).length;
   if (failed) return { text: `${failed} failed`, tone: Tone.Red };
   if (making) return { text: `Making ${making}`, tone: Tone.Accent };
   if (!known) return { text: `${made.length} delivered`, tone: Tone.Muted };
-  if (inGame === made.length) return { text: `${inGame} in game`, tone: Tone.Green };
-  if (inGame) return { text: `${inGame} of ${made.length} in game`, tone: Tone.Orange };
-  return { text: "Not in game yet", tone: Tone.Orange };
+  if (inProject === made.length) return { text: `${inProject} in project`, tone: Tone.Green };
+  if (inProject) return { text: `${inProject} of ${made.length} in project`, tone: Tone.Orange };
+  return { text: "Not in project yet", tone: Tone.Orange };
 }
 
 /** The glyph the assets tile wears for each tone of its status; the other tones wear none. */

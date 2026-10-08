@@ -217,8 +217,8 @@ test("views of a run share one feed and one event listener; the last view takes 
     for (const listener of listeners) listener({ type, payload } as UiEvent);
   };
   const feeds = createRunSummaryFeeds(studio, 0);
-  const offFirst = feeds.subscribe("game", "r1", () => {});
-  const offSecond = feeds.subscribe("game", "r1", () => {});
+  const offFirst = feeds.subscribe("project", "r1", () => {});
+  const offSecond = feeds.subscribe("project", "r1", () => {});
   await flush();
   assert.equal(listeners.size, 1);
   assert.equal(feeds.size, 1);
@@ -229,8 +229,8 @@ test("views of a run share one feed and one event listener; the last view takes 
   emit("run.summary.changed", { runId: "r1" });
   await flush();
   assert.equal(asked.length, before + 1);
-  assert.deepEqual(asked.at(-1)!.slice(0, 2), ["game", "r1"]);
-  emit("preview.identity", { project: "game", head: null, state: "loaded", error: null });
+  assert.deepEqual(asked.at(-1)!.slice(0, 2), ["project", "r1"]);
+  emit("preview.identity", { project: "project", head: null, state: "loaded", error: null });
   await flush();
   assert.equal(asked.length, before + 1, "a preview change patches the summary without a fetch");
   offFirst();
@@ -239,7 +239,7 @@ test("views of a run share one feed and one event listener; the last view takes 
   offSecond();
   assert.equal(listeners.size, 0);
   assert.equal(feeds.size, 0);
-  feeds.subscribe("game", "r1", () => {});
+  feeds.subscribe("project", "r1", () => {});
   await flush();
   assert.equal(asked.at(-1)![2], null, "a new feed starts from the whole graph");
 });
@@ -278,20 +278,20 @@ test("a preview change patches every view at once; one pushed during a fetch out
   let release!: () => void;
   const preview = (project: string, head: string) => ({ project, head, state: "loaded", error: null });
   const replies = [
-    async () => ({ ...summary([event("a")], 0), preview: preview("game", "h1") }),
+    async () => ({ ...summary([event("a")], 0), preview: preview("project", "h1") }),
     () =>
       new Promise<RunSummary>((resolve) => {
-        release = () => resolve({ ...summary([event("a")], 0), preview: preview("game", "h1") });
+        release = () => resolve({ ...summary([event("a")], 0), preview: preview("project", "h1") });
       }),
   ];
   const feed = new RunSummaryFeed({ fetch: () => replies.shift()!() });
   const seen: RunSummary[] = [];
   feed.subscribe((value) => seen.push(value));
   await flush();
-  feed.previewChanged(preview("game", "h2"));
+  feed.previewChanged(preview("project", "h2"));
   assert.equal(seen.at(-1)!.preview?.head, "h2");
   feed.invalidate();
-  feed.previewChanged(preview("game", "h3"));
+  feed.previewChanged(preview("project", "h3"));
   release();
   await flush();
   assert.deepEqual(
@@ -300,7 +300,7 @@ test("a preview change patches every view at once; one pushed during a fetch out
   );
 });
 
-test("only a preview of the run's own game, or none, reaches its feed", async () => {
+test("only a preview of the run's own project, or none, reaches its feed", async () => {
   const listeners = new Set<(event: UiEvent) => void>();
   const feeds = createRunSummaryFeeds(
     {
@@ -310,13 +310,13 @@ test("only a preview of the run's own game, or none, reaches its feed", async ()
     0,
   );
   const seen: RunSummary[] = [];
-  feeds.subscribe("game", "r1", (value) => seen.push(value));
+  feeds.subscribe("project", "r1", (value) => seen.push(value));
   await flush();
   const emit = (payload: unknown) => {
     for (const listener of listeners) listener({ type: "preview.identity", payload } as UiEvent);
   };
   emit({ project: "other", head: "x", state: "loaded", error: null });
-  assert.equal(seen.length, 1, "another game's preview is ignored");
+  assert.equal(seen.length, 1, "another project's preview is ignored");
   emit(null);
   assert.equal(seen.length, 2);
   assert.equal(seen[1]!.preview, null);

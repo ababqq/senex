@@ -344,7 +344,7 @@ function piUsage(assistant: PiAssistant): Usage {
  * Node's fetch (undici) kills any response that stays *silent* for 300 seconds
  * (`bodyTimeout`), surfacing the opaque `TypeError: terminated`. Ollama's tool-call parser
  * buffers a whole call server-side before emitting it, so while a model writes one big
- * write_file call — a 27B model authoring a full game is ~5 minutes of arguments at
+ * write_file call — a 27B model authoring a full project is ~5 minutes of arguments at
  * ~10 tok/s — the wire carries nothing and the timeout fires mid-turn. Long silent phases
  * (prompt eval on a huge context) hit the same wall. Local generations are legitimately
  * unbounded and the Stop button, not a transport default, is the clock. pi-ai lets us

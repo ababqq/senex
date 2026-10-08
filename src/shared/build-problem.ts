@@ -1,7 +1,7 @@
 /**
- * Why the stage cannot show a game that builds itself.
+ * Why the stage cannot show a project that builds itself.
  *
- * Until now a failed build reached exactly two places: the game's own console, and the agent
+ * Until now a failed build reached exactly two places: the project's own console, and the agent
  * loop. The user saw a black rectangle and no sentence (`studio-core.ts` set `loadError` and no
  * renderer file read it). This is that sentence's payload — structured, so the stage owns the
  * words and this file owns none of them.

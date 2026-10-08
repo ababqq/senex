@@ -5,6 +5,7 @@
   "checkClass": "characters",
   "kind": "craft",
   "pack": "characters",
+  "appKinds": ["graphics"],
   "note": "Everything alive stands on the ground: its world bbox bottom sits within a few centimetres of the top of the walkable mesh.",
   "intent": "A figure floating five centimetres above the floor, or sunk into it, is the fastest way to break the illusion, and it happens whenever an object is placed by its centre instead of its base. Place by the base: sample the ground height at the x,z, then set y so the group's bounding-box minimum lands on it. On uneven terrain, raycast down against the walkable mesh rather than assuming a plane. Give every standing thing a contact shadow or a darkened patch under it — the eye reads contact from the shadow before it reads it from the geometry.",
   "check": {

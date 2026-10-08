@@ -4,7 +4,7 @@ import { retainSpan, type OperationSpan } from "./director/timing.ts";
  * The director (director, 2026-09-07) — the run as one agent's decisions, not a program's phases.
  *
  * Before this, a run was a fixed pipeline: scout → planner → base → N facet loops → merge →
- * ledger → integration facet → land. The pipeline never looked at the game; the loops decided
+ * ledger → integration facet → land. The pipeline never looked at the project; the loops decided
  * everything by rule (fair share, spikes, replans), and the one model that saw the whole run
  * — the planner — saw it once, before anything was built. Runs built the wrong map, split one
  * scene six ways and blamed one facet for another's regression, because no one was in charge.
@@ -35,7 +35,7 @@ import { retainSpan, type OperationSpan } from "./director/timing.ts";
  * with time left, one wrap-up — stays behind `run.directorLoop: "turn"` for one release.
  *
  * On the wake loop the lead IS its chat's own session (one session, director/lead-session.ts): it
- * sits in the game folder and builds with its own hands in the integration worktree it leads, by
+ * sits in the project folder and builds with its own hands in the integration worktree it leads, by
  * its full path, committing there beside the workers it hands parallel parts to — a merge conflict
  * goes to a worker of its own — and the chat goes on in the same session after the close. The long
  * turn keeps a separate director whose cwd is the integration worktree.
@@ -150,7 +150,7 @@ const LEAD_PARTS = [
 /**
  * Does a night on this loop seat a lead that is its chat's own session (one session)? The wake
  * loop does — unless a part it depends on is a kept copy from before one session, which would tell a
- * lead in the game folder to edit and commit in its worktree: then a director with its own hands
+ * lead in the project folder to edit and commit in its worktree: then a director with its own hands
  * leads, in the integration worktree with its memory file, as it did before.
  */
 export function seatsLead(loop: DirectorLoop): boolean {
@@ -205,7 +205,7 @@ function runTools(loop: DirectorLoop, night: Night): LiveToolSpec[] {
 
 /**
  * One turn of the director's own session, on its own engine and model. A lead that is its chat's
- * own session (one session, director/lead-session.ts) sits in the game folder — no `cwd` — seated
+ * own session (one session, director/lead-session.ts) sits in the project folder — no `cwd` — seated
  * as a lead (`readOnly`, which the host reads as the lead's seat, not a lock); its grant names the
  * integration worktree it leads and builds in (`root`). A long turn's director works in that worktree.
  */
@@ -328,12 +328,12 @@ async function resumeWords(night: Night): Promise<string | null> {
 }
 
 /**
- * What the director stands on before its first turn. A game the user brought that cannot be
+ * What the director stands on before its first turn. A project the user brought that cannot be
  * judged is made judgeable first (M2.6). Once that has worked it is never redone — the commit is
  * on the branch a resumed night stands on — but an attempt that failed (a session limit
  * mid-wiring, say) is worth one more try, since a night that gives up on this one is blind for
  * the rest of its hours. A night from scratch builds its starting point first — once per run: a
- * resumed run stands on the one it already has. (The two are exclusive: an own-shape game is
+ * resumed run stands on the one it already has. (The two are exclusive: an own-shape project is
  * never from scratch.)
  */
 async function prepareTheStart(night: Night): Promise<{ contract: AnyRecord | null; startingPoint: AnyRecord | null }> {
@@ -363,7 +363,8 @@ function openingBrief(
   start: AnyRecord,
   loop: DirectorLoop,
 ): string {
-  const { capacity, finalDeadline, gameLessons, integrationWorktree, lead, nestedRepos, ownShape, run, shape } = night;
+  const { capacity, finalDeadline, projectLessons, integrationWorktree, lead, nestedRepos, ownShape, run, shape } =
+    night;
   const { softDeadline, state } = night;
   return directorBrief({
     run,
@@ -379,10 +380,10 @@ function openingBrief(
     nestedRepos,
     startingPoint: start.startingPoint,
     startObserved: Boolean(state.startEvidence),
-    gameLessons,
+    projectLessons,
     contract: start.contract,
     loop,
-    lead: lead ? { gameFolder: lead.folder } : null,
+    lead: lead ? { projectFolder: lead.folder } : null,
   });
 }
 

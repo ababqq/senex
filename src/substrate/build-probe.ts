@@ -2,7 +2,7 @@
  * One structured look at a loaded build: does the simulation move, and is anything drawn?
  *
  * The two checks cover each other's blind spots. `__studio.state()` can report a healthy
- * frame counter over a screen that renders nothing, and a game without the studio contract
+ * frame counter over a screen that renders nothing, and a project without the studio contract
  * can still be visibly alive. So a missing `__studio` alone never fails the probe, headless
  * runs (no pixel capability) never earn a black verdict, and a black canvas fails
  * regardless of what the contract claims.

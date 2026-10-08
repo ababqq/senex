@@ -1,7 +1,7 @@
 /**
  * Image operations on stills the preview already took or was handed: crop, diff, stats, resize
  * and the side-by-side pair a judge compares. Plain functions over Electron's `nativeImage`;
- * {@link GamePreview} exposes them as methods.
+ * {@link ProjectPreview} exposes them as methods.
  */
 import { nativeImage } from "electron";
 import { computePixelDiff, computePixelStats, type PixelDiff, type PixelStats } from "../substrate/pixel-stats.ts";

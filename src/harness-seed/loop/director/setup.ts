@@ -1,6 +1,6 @@
 /**
- * The night's first steps, before the director's session opens: making somebody's own game
- * judgeable (`installContract`) and building the starting point of a game with nothing in it
+ * The night's first steps, before the director's session opens: making somebody's own project
+ * judgeable (`installContract`) and building the starting point of a project with nothing in it
  * (`buildStartingPoint`) — and before both, `prepareNight`, which builds the night itself.
  */
 
@@ -9,8 +9,8 @@ import { gatherEvidence } from "../evidence.ts";
 import { commitAll, GIT, gitAt, gitlinks, headOf, resetClean, shortSha } from "../git.ts";
 import { HostMethod } from "../host-methods.ts";
 import { AttachedContract, StudioContract } from "../page-contract.ts";
-import { readDeclaredGame } from "../kinds.ts";
-import { appendLedger, ledgerFromEvents, loadGameLessons, readLedger } from "../ledger.ts";
+import { readDeclaredApp } from "../kinds.ts";
+import { appendLedger, ledgerFromEvents, loadProjectLessons, readLedger } from "../ledger.ts";
 import { writeWorktreeFile } from "../library.ts";
 import { roleEffort, roleEngine, RoleKey } from "../model-roles.ts";
 import { engineLimitOf, isEngineLimit } from "../outage.ts";
@@ -42,10 +42,10 @@ export const SERVES_LEAD = true;
 
 /** A wiring job is minutes of work, not a stage of the night: it never takes more than this. */
 const CONTRACT_SESSION_MAX_MS = 20 * MINUTE_MS;
-/** The shape a game has when the studio made it: the template's page and entry, no build step. */
+/** The shape a project has when the studio made it: the template's page and entry, no build step. */
 const TEMPLATE_SHAPE = { entry: "index.html", main: "src/main.js", build: null };
-/** What kind of game this is for the ledger, when its shape does not say. */
-const GameShapeKind = { OwnScript: "own-script", StudioTemplate: "studio-template" } as const;
+/** What kind of project this is for the ledger, when its shape does not say. */
+const ProjectShapeKind = { OwnScript: "own-script", StudioTemplate: "studio-template" } as const;
 
 /**
  * What a night learns from the session before it: its journal and the director's memory file — the
@@ -71,41 +71,41 @@ async function readPriorNight(ctx: HarnessCtx, threadId: string, run: Run, resum
 }
 
 /**
- * What kind of game this is and whose shape it has, on the run record before anything is
+ * What kind of project this is and whose shape it has, on the run record before anything is
  * judged (M4.4): the judges, the briefs and the artefact-class filter all read them from there.
  * A resumed night restores the kind its first session declared; a fresh night reads back what
- * an earlier night wrote into the game's own studio.json, which is the durable declaration
+ * an earlier night wrote into the project's own studio.json, which is the durable declaration
  * across nights. Without it the director wrote that block and nothing ever read it: a second
- * night on a declared board game drove mouse-look and WASD before every judgement, and no board
+ * night on a declared board project drove mouse-look and WASD before every judgement, and no board
  * carried a HUD, look or movement check.
  */
-async function declareRunGame(ctx: HarnessCtx, run: Run, ownShape: boolean, priorJournal: AnyRecord | null) {
+async function declareRunApp(ctx: HarnessCtx, run: Run, ownShape: boolean, priorJournal: AnyRecord | null) {
   run.ownShape = ownShape;
   run.genres = Array.isArray(run.genres) ? run.genres : [];
-  if (!run.game)
-    run.game =
-      priorJournal?.director?.plan?.game ??
-      priorJournal?.run?.game ??
-      (await readDeclaredGame(ctx, run.project).catch(() => null));
+  if (!run.app)
+    run.app =
+      priorJournal?.director?.plan?.app ??
+      priorJournal?.run?.app ??
+      (await readDeclaredApp(ctx, run.project).catch(() => null));
 }
 
 /**
- * What earlier nights on this exact game cost (loop/ledger.ts). Loaded once: the brief carries
- * the top five, every worker's BRIEF.md carries the same five (through `run.gameLessons`), and
+ * What earlier nights on this exact project cost (loop/ledger.ts). Loaded once: the brief carries
+ * the top five, every worker's BRIEF.md carries the same five (through `run.projectLessons`), and
  * the records behind them are what warns a dry run about a check nobody has ever been able to
- * read. A game with no ledger yet simply gets nothing.
+ * read. A project with no ledger yet simply gets nothing.
  *
- * A game whose earlier nights ran before this ledger existed has none of them written down, and
+ * A project whose earlier nights ran before this ledger existed has none of them written down, and
  * would pay for every one of their lessons again. Its own thread still holds them, so the first
  * night here reads that log back into the same records (`ledgerFromEvents`) before it asks what
- * this game has taught. Once only — after this the file is not empty — and never fatal: a night
+ * this project has taught. Once only — after this the file is not empty — and never fatal: a night
  * that cannot read its own past still runs, it just starts blank.
  */
-async function loadPriorLedger(ctx: HarnessCtx, threadId: string, run: Run, gameKind: string) {
+async function loadPriorLedger(ctx: HarnessCtx, threadId: string, run: Run, appKind: string) {
   const priorLedger = await readLedger(ctx.workspace, run.project!).catch((): LedgerRecord[] => []);
   if (priorLedger.length === 0) {
     const past = await ctx.call(HostMethod.EventsList, { threadId }).catch(() => []);
-    const replayed = ledgerFromEvents(Array.isArray(past) ? past : [], { game: run.project, gameKind }).filter(
+    const replayed = ledgerFromEvents(Array.isArray(past) ? past : [], { project: run.project, appKind }).filter(
       (record) => record.runId !== run.runId,
     );
     for (const record of replayed) await appendLedger(ctx.workspace, run.project, record).catch(() => {});
@@ -229,19 +229,19 @@ async function announceRunStart(
   });
 }
 
-/** The game, ready: scaffolded if new, on the current contract, loaded in the studio window. Answers its folder. */
-async function readyTheGame(night: Night): Promise<string> {
+/** The project, ready: scaffolded if new, on the current contract, loaded in the studio window. Answers its folder. */
+async function readyTheProject(night: Night): Promise<string> {
   const { ctx, decision, run } = night;
-  await ctx.call(HostMethod.GameScaffold, { name: run.project, title: run.project });
-  const upgraded = await ctx.call(HostMethod.GameUpgradeContract, { project: run.project }).catch(() => null);
+  await ctx.call(HostMethod.ProjectScaffold, { name: run.project, title: run.project });
+  const upgraded = await ctx.call(HostMethod.ProjectUpgradeContract, { project: run.project }).catch(() => null);
   if (upgraded?.upgraded)
     await decision(
       `upgraded src/studio.js to the v2 contract (the previous copy is kept as ${upgraded.backup})`,
-      "updated the game's connection to the studio so this build's work can be checked",
+      "updated the project's connection to the studio so this build's work can be checked",
     );
   await ctx.call(HostMethod.PreviewLoad, { project: run.project }).catch(() => {});
-  const games = await ctx.call(HostMethod.GameList, {}).catch(() => []);
-  const projectDir = games.find((g: AnyRecord) => g.name === run.project)?.dir ?? null;
+  const projects = await ctx.call(HostMethod.ProjectList, {}).catch(() => []);
+  const projectDir = projects.find((g: AnyRecord) => g.name === run.project)?.dir ?? null;
   if (!projectDir) throw new Error(`project ${run.project} has no folder`);
   return projectDir;
 }
@@ -415,9 +415,9 @@ function nightCounters(): Pick<NightData, "logSeq" | "waitSeq" | "tonight" | "le
     logSeq: 0,
     waitSeq: 0,
     /**
-     * The game's ledger (loop/ledger.ts) — not `state.ledger`, which is this run's own list of
+     * The project's ledger (loop/ledger.ts) — not `state.ledger`, which is this run's own list of
      * defects nobody owns. Every outcome the night produces — a judged round, a stopped round, a
-     * builder the fork gate refused, the close itself — is appended to the game's own file in
+     * builder the fork gate refused, the close itself — is appended to the project's own file in
      * the studio's state as it happens (`remember`), so a night killed by a quit still teaches
      * the next one. Writes are chained rather than fired in parallel: five workers finishing a
      * round in the same second must land as five lines, in order.
@@ -429,20 +429,20 @@ function nightCounters(): Pick<NightData, "logSeq" | "waitSeq" | "tonight" | "le
   };
 }
 
-/** The game as the night finds it: its shape, its kind, and whether it can be judged at all. */
-async function gameAtStart(ctx: HarnessCtx, run: Run) {
+/** The project as the night finds it: its shape, its kind, and whether it can be judged at all. */
+async function appAtStart(ctx: HarnessCtx, run: Run) {
   const descriptor =
-    (await ctx.call(HostMethod.GameList, {}).catch(() => [])).find((g) => g.name === run.project) ?? null;
+    (await ctx.call(HostMethod.ProjectList, {}).catch(() => [])).find((g) => g.name === run.project) ?? null;
   const ownShape = descriptor?.built === true;
   const shape = descriptor?.shape ?? TEMPLATE_SHAPE;
-  /** What kind of game this is, for the ledger: a check that never measures on a Phaser game may measure fine on the template. */
-  const gameKind =
-    (shape as Partial<ProjectShape>)?.kind ?? (ownShape ? GameShapeKind.OwnScript : GameShapeKind.StudioTemplate);
-  return { ownShape, shape, gameKind };
+  /** What kind of project this is, for the ledger: a check that never measures on a Phaser project may measure fine on the template. */
+  const appKind =
+    (shape as Partial<ProjectShape>)?.kind ?? (ownShape ? ProjectShapeKind.OwnScript : ProjectShapeKind.StudioTemplate);
+  return { ownShape, shape, appKind };
 }
 
 /**
- * Can this game be judged at all? A page that never loads the studio contract has no state(),
+ * Can this project be judged at all? A page that never loads the studio contract has no state(),
  * no cameras and no capture: every judge answers "the build does not run", the fork gate refuses
  * every builder, and `judge against=start` has no "before". launchFromIntake already asked the
  * folder (`run.readiness`); a night started any other way — the run IPC, a resume — asks here.
@@ -451,12 +451,12 @@ async function gameAtStart(ctx: HarnessCtx, run: Run) {
  */
 async function contractIsMissing(ctx: HarnessCtx, run: Run, ownShape: boolean): Promise<boolean> {
   const readiness =
-    run.readiness ?? (await ctx.call(HostMethod.GameValidate, { project: run.project }).catch(() => null));
+    run.readiness ?? (await ctx.call(HostMethod.ProjectValidate, { project: run.project }).catch(() => null));
   return ownShape && readiness?.contract === StudioContract.Missing;
 }
 
 /**
- * Where the night stands in the game's history: the starting point the user had (a snapshot of
+ * Where the night stands in the project's history: the starting point the user had (a snapshot of
  * the folder) and, on a resume, where this session picks the branch up. They are the same commit
  * on a first session and must not be on a resume: a resumed night that called its fork point
  * "the base" found "nothing beyond the starting point" at the close and hid eight merges from
@@ -481,7 +481,7 @@ async function startingCommits(ctx: HarnessCtx, run: Run, priorJournal: AnyRecor
 
 /**
  * The integration worktree, forked from where the night stands. Worktrees are detached: removing
- * one leaves its commits unreferenced. A ref in the game's repo keeps the night's integration
+ * one leaves its commits unreferenced. A ref in the project's repo keeps the night's integration
  * reachable whatever happens to the worktree (a run once lost 122 files of merged work to
  * teardown because nothing pointed at the head).
  */
@@ -500,7 +500,7 @@ async function openIntegration(night: Night, forkCommit: string | null): Promise
 
 /**
  * Everything a night knows before its first tool call, as one object: the run and its clock, the
- * game's shape and ledger, the starting point and the integration worktree forked from it, the
+ * project's shape and ledger, the starting point and the integration worktree forked from it, the
  * report, `state` and the journal. Every function of the night is put on it (`bindNight`) before
  * the first of them runs, so the setup below calls them the way the rest of the night does.
  *
@@ -534,32 +534,32 @@ export async function prepareNight(
     totalMs: run.budgets?.wallClockMs ?? DEFAULT_WALL_CLOCK_MS,
   });
   const { started, softDeadline, finalDeadline } = clock;
-  const { ownShape, shape, gameKind } = await gameAtStart(ctx, run);
-  await declareRunGame(ctx, run, ownShape, priorJournal);
+  const { ownShape, shape, appKind } = await appAtStart(ctx, run);
+  await declareRunApp(ctx, run, ownShape, priorJournal);
   const capacity = await ctx.call(HostMethod.PreviewCapacity, {}).catch(() => null);
   const contractMissing = await contractIsMissing(ctx, run, ownShape);
-  const priorLedger = await loadPriorLedger(ctx, threadId, run, gameKind);
-  const gameLessons = await loadGameLessons(ctx.workspace, run.project).catch(() => []);
-  run.gameLessons = gameLessons;
+  const priorLedger = await loadPriorLedger(ctx, threadId, run, appKind);
+  const projectLessons = await loadProjectLessons(ctx.workspace, run.project).catch(() => []);
+  run.projectLessons = projectLessons;
   const report = nightReport(run, resume ? await earlierReport(ctx, threadId, run.runId) : null);
   await announceRunStart(ctx, threadId, run, { resume, liveChat }, capacity);
 
-  // A game that came with its own shape is photographed BEFORE the studio touches it: the
+  // A project that came with its own shape is photographed BEFORE the studio touches it: the
   // scaffold and the contract upgrade below write the studio's own files into the folder, and
   // a "start" gathered after them is a picture of the template, not of the night's before.
-  // (A game on the studio template has nothing to lose that way, and pays no second pass.)
+  // (A project on the studio template has nothing to lose that way, and pays no second pass.)
   let startEvidence = ownShape ? await lookAtStart("iter_000_before") : null;
-  const projectDir = await readyTheGame(night);
+  const projectDir = await readyTheProject(night);
   const { liveHead, baseCommit, forkCommit } = await startingCommits(ctx, run, priorJournal);
   if (!startEvidence) startEvidence = await observeStart(night);
-  // A night from scratch: the game is still the empty scaffold. Nothing can be judged against
+  // A night from scratch: the project is still the empty scaffold. Nothing can be judged against
   // it, no worker may fork from it, and the first thing this run owes the user is a starting
-  // point (the base stage below). An own-shape game is never this: it has a game already.
+  // point (the base stage below). An own-shape project is never this: it has a project already.
   const fromScratch = !ownShape && startEvidence?.emptyScene === true;
   const integrationWorktree = await openIntegration(night, forkCommit);
   const memoryFile = path.join(integrationWorktree, ".studio", "DIRECTOR.md");
   await restoreMemory(night, integrationWorktree, memoryRestored ? priorMemory : null);
-  // The user's game may carry its own git repositories (a nested repo is a bare pointer in the
+  // The user's project may carry its own git repositories (a nested repo is a bare pointer in the
   // studio's history and empty in a worktree until the studio copies it in).
   const nestedRepos = forkCommit ? await gitlinks(ctx, { project: run.project }, forkCommit) : [];
   const facts: NightFacts = {
@@ -589,9 +589,9 @@ export async function prepareNight(
     shape,
     capacity,
     contractMissing,
-    gameKind,
+    appKind,
     priorLedger,
-    gameLessons,
+    projectLessons,
     report,
     projectDir,
     baseCommit,
@@ -617,7 +617,7 @@ export async function prepareNight(
   return night;
 }
 
-/** One look at the live game folder, as the run's "before". Null unless it can be observed. */
+/** One look at the live project folder, as the run's "before". Null unless it can be observed. */
 export async function lookAtStart(night: Night, labelPrefix?: string) {
   const { ctx, run } = night;
   try {
@@ -701,7 +701,7 @@ async function commitPreparation(night: Night, message: string, labels: { commit
 
 /**
  * A committed preparation becomes the night's start: what workers fork from, what "start" means
- * to a judge, the console it is forgiven (the user's own game already logs what it logs; nobody
+ * to a judge, the console it is forgiven (the user's own project already logs what it logs; nobody
  * in this run introduced those), and the head the ref protects. A base stage's commit is one of
  * the run's own starting points as well.
  */
@@ -731,14 +731,14 @@ async function resetUnfinished(night: Night, commit: string | null, changed: str
 
 /**
  * A second opinion, before a whole session is spent on wiring (M4.2b). `readiness.contract`
- * is a judgement about SOURCES; `game.attached` loads the served page and reports what the
+ * is a judgement about SOURCES; `project.attached` loads the served page and reports what the
  * studio actually managed to attach to on it. A page the studio can attach to on its own
  * needs no wiring session at all — and a page that does need one is only wired once the same
  * call says so.
  */
 export async function pageAttaches(night: Night) {
   const { ctx, run } = night;
-  const report = await ctx.call(HostMethod.GameAttached, { project: run.project }).catch(() => null);
+  const report = await ctx.call(HostMethod.ProjectAttached, { project: run.project }).catch(() => null);
   return report?.ok === true && report.contract !== AttachedContract.None;
 }
 
@@ -767,17 +767,17 @@ async function sayContract(night: Night, commit: string | null, error: string | 
       ? `the studio contract is wired into ${shape?.main ?? "the entry"} and committed (${shortSha(commit)}); it is the run's starting point and what \`judge against=start\` compares with`
       : `the studio contract could not be wired in (${error}): the director must do it by hand before any worker can start`,
     commit
-      ? "your game is connected to the studio now, so this build's work can be compared with the game you had"
-      : "the studio could not add its connection to your game, so the lead is doing it by hand before any builder starts",
+      ? "your project is connected to the studio now, so this build's work can be compared with the project you had"
+      : "the studio could not add its connection to your project, so the lead is doing it by hand before any builder starts",
   );
 }
 
 /**
- * The first step of a night on a game the user brought that never loads the studio contract
+ * The first step of a night on a project the user brought that never loads the studio contract
  * (M2.6). Without it the run is blind: `window.__studio` is missing, so every evidence pass
  * reports a build that does not run, the fork gate refuses every builder, and `judge
  * against=start` can only answer "the other build could not be observed" — which is what the
- * first real night on somebody's own game actually did, while its lead spent the opening hour
+ * first real night on somebody's own project actually did, while its lead spent the opening hour
  * hand-wiring the contract itself.
  *
  * One session, with the base builder's own-shape wording (`contractBrief`), in the run's own
@@ -789,18 +789,18 @@ async function sayContract(night: Night, commit: string | null, error: string | 
 export async function installContract(night: Night) {
   const { ctx, decision, journal, note, pageAttaches, patientEvidence, run, saveJournal, shape, shotsOf } = night;
   const { softDeadline, withLease, writeVerdict, integrationWorktree } = night;
-  ctx.setStatus(`run ${run.runId} · making the game judgeable`);
+  ctx.setStatus(`run ${run.runId} · making the project judgeable`);
   // The sources said nothing installs the contract. If the running page says otherwise, the
   // night keeps its hour: nothing is wired, nothing is committed, and the brief says so.
   if (await pageAttaches()) {
     journal.contract = { commit: null, ok: true, attached: true, error: null };
-    note("the studio attaches to this game's page on its own — no wiring session was needed");
+    note("the studio attaches to this project's page on its own — no wiring session was needed");
     await saveJournal();
     return journal.contract;
   }
   await decision(
-    `this game's page never loads the studio contract: wiring it into ${shape?.main ?? "the entry"} in the integration worktree before anything is planned`,
-    "your game doesn't have the studio's connection yet, so the studio is adding it before anything else",
+    `this project's page never loads the studio contract: wiring it into ${shape?.main ?? "the entry"} in the integration worktree before anything is planned`,
+    "your project doesn't have the studio's connection yet, so the studio is adding it before anything else",
   );
   const session = await prepareInWorktree(night, {
     prompt: contractBrief({ run, projectLabel: run.project, shape }),
@@ -811,9 +811,9 @@ export async function installContract(night: Night) {
     unfinished: "the session did not finish",
   });
   const changed = await worktreeChanges(night, `director:${run.runId}:contract`);
-  // The proof is the game answering, not the session saying it wired it: an evidence pass
+  // The proof is the project answering, not the session saying it wired it: an evidence pass
   // drives window.__studio, so it cannot pass on a page that never installed it. No scaffold
-  // exemption — this is somebody's real game, and it drew something before the studio arrived.
+  // exemption — this is somebody's real project, and it drew something before the studio arrived.
   const wired = session.ok && Boolean(changed);
   const attachedNow = wired ? await pageAttaches() : false;
   const evidence = wired
@@ -830,8 +830,8 @@ export async function installContract(night: Night) {
       commit: `director:${run.runId}:contract-commit`,
       head: `director:${run.runId}:contract-head`,
     });
-    // The run's "before" is the game the user brought plus the studio's connection, and
-    // nothing else — the fairest comparison a night on somebody's own game can have.
+    // The run's "before" is the project the user brought plus the studio's connection, and
+    // nothing else — the fairest comparison a night on somebody's own project can have.
     await adoptAsStart(night, commit, evidence, { base: false });
   } else if (session.ok) error = contractFailure(changed, evidence, attachedNow);
   await resetUnfinished(night, commit, changed, `director:${run.runId}:contract-reset`);
@@ -893,12 +893,12 @@ async function sayStartingPoint(night: Night, commit: string | null, error: stri
       : `the starting point could not be built (${error}): the director starts on the empty scaffold and must make it run itself before any worker can`,
     commit
       ? `the starting point is ready${journal.base.empty ? " — an empty world the builders will fill" : ""}`
-      : "the starting point could not be built, so the lead makes the game run itself before any builder starts",
+      : "the starting point could not be built, so the lead makes the project run itself before any builder starts",
   );
 }
 
 /**
- * A new game is an empty scaffold: no camera can photograph it, the fork gate refuses every
+ * A new project is an empty scaffold: no camera can photograph it, the fork gate refuses every
  * worker forked from it, and every judge answers "renders effectively black". The classic
  * pipeline always built a shared base before the facets forked; a director's night gets the
  * same stage — one builder session in the run's own integration worktree, one look allowed to
@@ -914,8 +914,8 @@ export async function buildStartingPoint(night: Night) {
   await appendRun(RunEvent.AutopilotBaseStarted, {});
   ctx.setStatus(`run ${run.runId} · building the starting point`);
   await decision(
-    "this game is an empty project: building the starting point every worker forks from, before the director's session opens",
-    "this game is empty, so the studio is building the starting point first",
+    "this project is an empty project: building the starting point every worker forks from, before the director's session opens",
+    "this project is empty, so the studio is building the starting point first",
   );
   const session = await prepareInWorktree(night, {
     prompt: startingPointPrompt(night, budget),

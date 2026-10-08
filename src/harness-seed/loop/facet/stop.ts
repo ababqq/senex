@@ -13,7 +13,7 @@ const COMMIT_SUBJECT_CHARS = 100;
 /**
  * The round the run stopped, recorded as stopped. What is on disk is committed and bookmarked
  * on `refs/studio/runs/<run>/attempts/<facet>/<n>-stopped`, the worktree is left standing, and
- * no verdict is spent: an evidence pass would photograph a half-written game, the judge would
+ * no verdict is spent: an evidence pass would photograph a half-written project, the judge would
  * keep the incumbent, and the rollback would erase work nobody asked to lose.
  */
 export async function finishStoppedRound(

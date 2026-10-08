@@ -1,7 +1,7 @@
 /**
  * The stub CLIs a raw fixture lane (B/C) runs instead of a provider's (§13.8): executables in
  * `tests/fixtures/evals/bin`, named after the CLI they stand in for (`<binary>-stub`), that replay a
- * recorded, redacted stream with its receive timing and write the recorded game. A fixture lane is
+ * recorded, redacted stream with its receive timing and write the recorded project. A fixture lane is
  * pinned to them here, so no fixture lane ever resolves the machine's own CLI; every other lane
  * keeps the app's CLI discovery.
  */

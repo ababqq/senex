@@ -69,7 +69,7 @@ export async function buildChallenger(loop: FacetLoop, round: FacetRound): Promi
   // "stopped" is the engine's word for "somebody aborted this worktree", and the only
   // somebody who can is the run — the director pulling a worker off, or the user through it.
   // The turn ended mid-edit, so there is nothing here to judge: an evidence pass would
-  // photograph a half-written game, the verdict would read "broken", the circuit breaker
+  // photograph a half-written project, the verdict would read "broken", the circuit breaker
   // would take a strike for it, and the rollback would erase work nobody asked to lose. One
   // night lost four first-round iterations exactly that way and told the owner they had
   // stopped them. Instead: commit what is on disk, keep it on the round's `…-stopped` ref, leave
@@ -138,8 +138,8 @@ function selfCapture({ facet, facetSetup, handle, run }: FacetLoop, round: Facet
 
 /**
  * The seam, as the hook and the locks read it (M4.6). `template: false` says this is the user's
- * own game: no wiring block to pass through, and the build output the shape names stays
- * writable so the game's own build still runs.
+ * own project: no wiring block to pass through, and the build output the shape names stays
+ * writable so the project's own build still runs.
  */
 function ownership({ facet, ownShape, ownsMain, shape, spec }: FacetLoop): AnyRecord {
   return {

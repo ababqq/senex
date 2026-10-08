@@ -140,8 +140,8 @@ try {
     await until(async () => (await snap(i)).state.sidebarOpen === "true", "sidebar restored");
     assertSamePlace(show, hide, "the chat header's toggle keeps the sidebar's place");
   });
-  await check("Studio shows its own chat beside Activity and preserves unsent game text", async () => {
-    await op(i, "type", { selector: '[aria-label="Prompt"]', text: "Unsent game idea", replace: true });
+  await check("Studio shows its own chat beside Activity and preserves unsent project text", async () => {
+    await op(i, "type", { selector: '[aria-label="Prompt"]', text: "Unsent project idea", replace: true });
     await op(i, "click", { selector: 'nav [data-thread="studio"]' });
     await until(
       async () => (await snap(i)).state.room === "studio" && (await snap(i)).controls.some((c) => c.label === "Prompt"),
@@ -149,15 +149,15 @@ try {
     );
     await snap(i, '[data-testid="review-panel"]');
     assert.equal((await snap(i)).controls.find((c) => c.label === "Prompt").value, "");
-    assert.ok(!(await snap(i)).controls.some((c) => c.label === "Export game"));
+    assert.ok(!(await snap(i)).controls.some((c) => c.label === "Export project"));
     await op(i, "type", { selector: '[aria-label="Prompt"]', text: "Unsent Studio question", replace: true });
     await capture(i, "studio-chat-review");
     await op(i, "key", { surface: "desktop", key: "1", code: "Digit1", modifiers: ["Meta"] });
     await until(
       async () => (await snap(i)).state.activeThread === i.identity.selection.activeThread,
-      "return to same game chat",
+      "return to same project chat",
     );
-    assert.equal((await snap(i)).controls.find((c) => c.label === "Prompt").value, "Unsent game idea");
+    assert.equal((await snap(i)).controls.find((c) => c.label === "Prompt").value, "Unsent project idea");
     await op(i, "type", { selector: '[aria-label="Prompt"]', text: "", replace: true });
   });
   await check("Plugins opens as a page and preserves workspace keyboard navigation", async () => {
@@ -184,29 +184,29 @@ try {
     await until(async () => (await snap(i)).state.room === "build", "Plugins closed");
   });
   await check("chat title editing cancels with Escape and preserves the original", async () => {
-    await op(i, "click", { selector: '[data-chat-header] button[aria-label^="Rename game:"]' });
-    await until(async () => (await snap(i)).controls.some((c) => c.label === "Game name"), "rename input");
+    await op(i, "click", { selector: '[data-chat-header] button[aria-label^="Rename project:"]' });
+    await until(async () => (await snap(i)).controls.some((c) => c.label === "Project name"), "rename input");
     await op(i, "type", {
-      selector: '[data-chat-header] input[aria-label="Game name"]',
+      selector: '[data-chat-header] input[aria-label="Project name"]',
       text: "Discard this edit",
       replace: true,
     });
     await op(i, "key", { surface: "desktop", key: "Escape", code: "Escape" });
     await until(
-      async () => (await snap(i)).controls.some((c) => c.label === "Rename game: Fixture Game"),
+      async () => (await snap(i)).controls.some((c) => c.label === "Rename project: Fixture Project"),
       "original title",
     );
   });
-  // Every fixture model names a game started from home the same (`fixture-engines.ts`).
+  // Every fixture model names a project started from home the same (`fixture-engines.ts`).
   const made = { title: "Tiny Island Fishing", project: "tiny-island-fishing" };
   await check(
-    "New game is home: its first message makes a folder, and search opens its only conversation",
+    "New project is home: its first message makes a folder, and search opens its only conversation",
     async () => {
       await op(i, "key", { surface: "desktop", key: "n", code: "KeyN", modifiers: ["Meta"] });
       await until(async () => (await snap(i)).state.room === "home", "home");
       await until(async () => (await snap(i)).activeTag === "TEXTAREA", "home's composer focused");
-      assert.ok(!(await snap(i)).controls.some((c) => c.label === "Game name"), "no New game dialog");
-      await capture(i, "new-game-home");
+      assert.ok(!(await snap(i)).controls.some((c) => c.label === "Project name"), "no New project dialog");
+      await capture(i, "new-project-home");
       await op(i, "type", {
         selector: '[data-home-composer] [aria-label="Prompt"]',
         text: "A snowy temple to explore",
@@ -216,62 +216,62 @@ try {
       await until(async () => (await snap(i)).state.project === made.project, "new folder selected");
       await until(async () => (await snap(i)).state.room !== "home", "new conversation");
       const first = (await snap(i)).state.activeThread;
-      await op(i, "click", { selector: '[aria-label="Search games"]' });
-      await op(i, "type", { selector: 'input[aria-label="Search games"]', text: "zzqxv", replace: true });
-      await until(async () => (await snap(i)).text.includes("No games for"), "no results");
-      await op(i, "type", { selector: 'input[aria-label="Search games"]', text: "tiny", replace: true });
+      await op(i, "click", { selector: '[aria-label="Search projects"]' });
+      await op(i, "type", { selector: 'input[aria-label="Search projects"]', text: "zzqxv", replace: true });
+      await until(async () => (await snap(i)).text.includes("No projects for"), "no results");
+      await op(i, "type", { selector: 'input[aria-label="Search projects"]', text: "tiny", replace: true });
       await until(
-        async () => (await snap(i, "#game-search-results")).controls.some((c) => c.text?.includes(made.title)),
+        async () => (await snap(i, "#project-search-results")).controls.some((c) => c.text?.includes(made.title)),
         "search result",
       );
-      await capture(i, "game-search");
+      await capture(i, "project-search");
       await op(i, "key", { surface: "desktop", key: "Enter", code: "Enter" });
       await until(async () => !(await snap(i)).controls.some((c) => c.label === "Close search"), "result opened");
       assert.equal((await snap(i)).state.activeThread, first);
-      await op(i, "click", { selector: 'nav [data-project="fixture-game"]' });
+      await op(i, "click", { selector: 'nav [data-project="fixture-project"]' });
     },
   );
   await check("pin, rename and delete menu preserve files and update the library", async () => {
     await op(i, "click", { selector: `[aria-label="Actions for ${made.title}"]` });
-    await capture(i, "game-actions");
-    await op(i, "click", { selector: '[data-game-action="pin"]' });
+    await capture(i, "project-actions");
+    await op(i, "click", { selector: '[data-project-action="pin"]' });
     await until(
       async () =>
         (await snap(i, "nav")).controls.filter((c) => c.thread && c.thread !== "studio")[0]?.text === made.title,
       "pin moved first",
     );
     await op(i, "click", { selector: `[aria-label="Actions for ${made.title}"]` });
-    await op(i, "click", { selector: '[data-game-action="rename"]' });
+    await op(i, "click", { selector: '[data-project-action="rename"]' });
     await op(i, "type", { selector: '[role="dialog"] input', text: "Snow Temple II", replace: true });
     await op(i, "click", { selector: '[role="dialog"] button[type="submit"]' });
     await until(async () => (await snap(i, "nav")).text.includes("Snow Temple II"), "name saved");
     await op(i, "click", { selector: '[aria-label="Actions for Snow Temple II"]' });
-    await op(i, "click", { selector: '[data-game-action="cover"]' });
+    await op(i, "click", { selector: '[data-project-action="cover"]' });
     await capture(i, "image-preview");
     await op(i, "key", { surface: "desktop", key: "Escape", code: "Escape" });
     await until(async () => !(await snap(i)).controls.some((c) => c.label === "Close"), "image dialog closed");
     await op(i, "click", { selector: `nav [data-project="${made.project}"]` });
-    await until(async () => (await snap(i)).state.project === made.project, "game selected before removal");
+    await until(async () => (await snap(i)).state.project === made.project, "project selected before removal");
     await op(i, "click", { selector: '[aria-label="Actions for Snow Temple II"]' });
-    await op(i, "click", { selector: '[data-game-action="delete"]' });
-    await capture(i, "delete-game");
+    await op(i, "click", { selector: '[data-project-action="delete"]' });
+    await capture(i, "delete-project");
     assert.match((await snap(i, '[role="dialog"]')).text, /files and conversation history stay/);
     await op(i, "key", { surface: "desktop", key: "Tab", code: "Tab" });
-    await op(i, "click", { selector: '[role="dialog"] button[data-delete-game]' });
-    await until(async () => !(await snap(i, "nav")).text.includes("Snow Temple II"), "game removed");
-    assert.ok(fs.existsSync(path.join(i.identity.roots.games, made.project, "studio.json")), "folder is retained");
-    // Intentionally flipped (2026-10-01): removing the game on the stage used to open Studio; it opens home.
+    await op(i, "click", { selector: '[role="dialog"] button[data-delete-project]' });
+    await until(async () => !(await snap(i, "nav")).text.includes("Snow Temple II"), "project removed");
+    assert.ok(fs.existsSync(path.join(i.identity.roots.projects, made.project, "studio.json")), "folder is retained");
+    // Intentionally flipped (2026-10-01): removing the project on the stage used to open Studio; it opens home.
     await until(
       async () => (await snap(i)).state.room === "home" && (await snap(i)).state.project === "",
-      "removed game leaves active workspace",
+      "removed project leaves active workspace",
     );
     assert.ok(
-      !(await snap(i)).controls.some((c) => c.label === "Game to review"),
-      "the activity feed has no game selector",
+      !(await snap(i)).controls.some((c) => c.label === "Project to review"),
+      "the activity feed has no project selector",
     );
-    await op(i, "click", { selector: 'nav [data-project="fixture-game"]' });
+    await op(i, "click", { selector: 'nav [data-project="fixture-project"]' });
   });
-  await check("only the brand, search and New game remain above a scrolled library", async () => {
+  await check("only the brand, search and New project remain above a scrolled library", async () => {
     await capture(i, "sidebar-default");
     await op(i, "scroll", { surface: "desktop", selector: "[data-sidebar-scroll]", deltaX: 0, deltaY: 540 });
     await until(async () => {
@@ -283,7 +283,7 @@ try {
       }
     }, "scrolled state");
     await capture(i, "sidebar-scrolled");
-    await op(i, "click", { selector: '[aria-label="Search games"]' });
+    await op(i, "click", { selector: '[aria-label="Search projects"]' });
     await until(
       async () =>
         (await snap(i)).controls.some((c) => c.label === "Close search") && (await snap(i)).activeTag === "INPUT",
@@ -307,7 +307,7 @@ try {
   await capture(i, "build");
   await op(i, "click", { selector: 'nav [data-thread="studio"]' });
   await until(async () => (await snap(i)).state.room === "studio", "Review");
-  await check("an empty Activity says what Harness is and leads back to the game", async () => {
+  await check("an empty Activity says what Harness is and leads back to the project", async () => {
     // Activity loads after the room opens; the empty state is what it settles on.
     await until(
       async () => /A self-improving harness/.test((await snap(i, '[data-testid="review-panel"]')).text),
@@ -372,7 +372,7 @@ try {
     await op(history, "click", { selector: 'nav [data-thread="studio"]' });
     await until(async () => (await snap(history)).state.room === "studio", "Studio");
     await op(history, "key", { surface: "desktop", key: "1", code: "Digit1", modifiers: ["Meta"] });
-    await until(async () => (await snap(history)).state.room === "build", "game workspace");
+    await until(async () => (await snap(history)).state.room === "build", "project workspace");
     assert.equal((await snap(history)).stage.stageView, "builds");
     assert.equal((await snap(history)).stage.selectedRun, selected);
   });

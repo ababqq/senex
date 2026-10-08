@@ -1,6 +1,6 @@
 /**
  * Building a snapshot copy for grading (`scripts/evals/grade/build-copy.ts`, §8.2–8.3): the
- * read-only snapshot is cloned into a writable copy; a game with no build (or with its `dist/`
+ * read-only snapshot is cloned into a writable copy; a project with no build (or with its `dist/`
  * already there) is served as-is; one with a build script and no output is installed with
  * `npm ci --ignore-scripts` (registry-only network) and built with the network off; a failed
  * rebuild is typed, never "did not boot"; an unchanged manifest reuses a built neighbour's
@@ -19,7 +19,7 @@ import {
   manifestDigest,
 } from "../../scripts/evals/grade/build-copy.ts";
 import { NoBuild, ServedVia } from "../../scripts/evals/vocabulary.ts";
-import { REGISTRY_DOMAIN } from "../../src/main/game-build.ts";
+import { REGISTRY_DOMAIN } from "../../src/main/project-build.ts";
 import type { RunRequest, RunResult } from "../../src/substrate/spawn.ts";
 import { closeBeforeCleanup, tmpDir } from "../helpers/tmp.ts";
 
@@ -100,7 +100,7 @@ async function exists(file: string): Promise<boolean> {
 }
 
 describe("snapshot copy builder", () => {
-  it("serves a no-build game as-is from the copy, without running anything", async () => {
+  it("serves a no-build project as-is from the copy, without running anything", async () => {
     const base = await tmpDir("eval-copy-");
     const snap = await snapshot(base, "snap", { "index.html": "<title>t</title>", "src/main.txt": "m" });
     const fake = fakeRunner();
@@ -123,7 +123,7 @@ describe("snapshot copy builder", () => {
     assert.equal(result.servedDir, null);
   });
 
-  it("serves a built game's existing dist as-is", async () => {
+  it("serves a built project's existing dist as-is", async () => {
     const base = await tmpDir("eval-copy-dist-");
     const snap = await snapshot(base, "snap", {
       "package.json": BUILT_PACKAGE,
@@ -284,7 +284,7 @@ describe("snapshot copy builder", () => {
     });
   }
 
-  it("opens a Genex game with its local-test query", async () => {
+  it("opens a Genex project with its local-test query", async () => {
     const base = await tmpDir("eval-copy-genex-");
     const pkg = JSON.stringify({ name: "g", dependencies: { "@genex-ai/embed-sdk": "1.0.0" } });
     const snap = await snapshot(base, "snap", { "package.json": pkg, "index.html": '<script src="/m.js"></script>' });

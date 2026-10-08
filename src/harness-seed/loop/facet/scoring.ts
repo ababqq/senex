@@ -252,7 +252,7 @@ function playWorthIt(scoring: Scoring, playChecks: Check[]): boolean {
 
 /**
  * Enough of the clock is left for a play session. The integration facet always gets its play
- * session (WP6): it is the only judgeable build of the merged game, and the deadline reserved
+ * session (WP6): it is the only judgeable build of the merged project, and the deadline reserved
  * six minutes for it.
  */
 function timeToPlay({ role, deadline, budgetMs }: Scoring): boolean {

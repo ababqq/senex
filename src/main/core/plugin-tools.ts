@@ -7,7 +7,7 @@ import { consentAudience, priorConsentDecline } from "./consent-audience.ts";
 import { PluginConsentDeclined, type PluginMcpLaunch } from "../../substrate/plugins/registry.ts";
 import { containedReal } from "../../substrate/paths.ts";
 import { finishedPayload, roleOf, startedPayload } from "../plugin-activity.ts";
-import type { PluginToolStartedPayload } from "../../shared/game-assets.ts";
+import type { PluginToolStartedPayload } from "../../shared/project-assets.ts";
 import {
   type PluginBinding,
   type PluginConsentBy,
@@ -63,7 +63,7 @@ export const PLUGIN_MCP_SHARED = "_shared";
 /** Why a plugin's MCP server cannot start, as the connector panel and the agent read it. */
 const MESSAGE = {
   exportConfirmation: "Review the files that will be uploaded. Approve only if this staged copy is ready to share.",
-  connectorConversation: "Connector calls require a game conversation for consent",
+  connectorConversation: "Connector calls require a project conversation for consent",
   connectorConfirmation: "Allow this connector action? It may read or change data in the connected service.",
   unlockFirst: "Unlock this plugin's account first.",
   setSettingFirst: (key: string) => `Set "${key}" in this plugin's settings first.`,
@@ -216,7 +216,7 @@ export class PluginToolService {
    */
   async #planning(project: string, threadId: string | undefined, runId?: string): Promise<boolean> {
     if (!threadId) return false;
-    const binding: PluginBinding = { project, directory: this.#core.games.dirFor(project), threadId };
+    const binding: PluginBinding = { project, directory: this.#core.projects.dirFor(project), threadId };
     return this.#x.planning(await consentAudience(this.#core, binding, runId));
   }
 
@@ -367,7 +367,7 @@ export class PluginToolService {
     };
     const asking: PluginBinding = {
       project: binding.project,
-      directory: this.#core.games.dirFor(binding.project),
+      directory: this.#core.projects.dirFor(binding.project),
       ...(binding.threadId ? { threadId: binding.threadId } : {}),
     };
     if (outlivesTurn) this.#x.pluginCallAttribution.set(asking, { lead: true });
@@ -491,7 +491,7 @@ export class PluginToolService {
         await mkdir(home, { recursive: true, mode: 0o700 });
         if (pluginId === GENEX_PLUGIN_ID) {
           // A tools workspace, exactly as the asset adapter seeds one: the CLI then keeps its own
-          // bookkeeping here instead of in the game folder or the user's home.
+          // bookkeeping here instead of in the project folder or the user's home.
           await mkdir(path.join(dir, ".genex"), { recursive: true, mode: 0o700 });
           await writeFile(
             path.join(dir, ".genex", "workspace.json"),

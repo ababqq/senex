@@ -11,7 +11,11 @@ test("one activity trail preserves chronology without swallowing replies, failur
     { kind: "assistant", id: "d", text: "The optional texture is missing." },
     { kind: "system", id: "e", tag: "ERROR", text: "Cannot save" },
     { kind: "action", id: "f", tag: "ASK", action: "consent", text: "Allow access?", pending: true },
-    { kind: "assets", id: "g", delivery: { project: "game", source: "Images", jobId: "cover", at: "now", files: [] } },
+    {
+      kind: "assets",
+      id: "g",
+      delivery: { project: "project", source: "Images", jobId: "cover", at: "now", files: [] },
+    },
     { kind: "tools", id: "h", rows: [{ key: "build", icon: "run", label: "Run build", state: "unknown" }] },
     { kind: "user", id: "i", text: "Try again" },
   ]);
@@ -77,7 +81,7 @@ test("current tools change the live heading without masking decisions or replies
   );
   assert.equal(
     currentWorkLabel({ phase: "thinking", label: "Thinking" }, run, false, tool("Editing", "running")),
-    "Editing the game",
+    "Editing the project",
   );
   assert.equal(
     currentWorkLabel({ phase: "thinking", label: "Thinking" }, run, false, tool("Reading", "succeeded")),

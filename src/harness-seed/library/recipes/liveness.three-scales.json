@@ -5,6 +5,7 @@
   "checkClass": "liveness",
   "kind": "craft",
   "pack": "liveness",
+  "appKinds": ["graphics"],
   "note": "A real place has large, medium and small objects; a frame of only buildings and mud is missing two of the three scales.",
   "intent": "A frame of houses and mud is missing two thirds of what the eye uses to read depth and size. Build all three scales deliberately: a handful of large masses over four metres (buildings, trees, a barn, a rock outcrop), a dozen medium objects between one and four metres (carts, fences, doors, troughs, bushes), and thirty or more small things under a metre (buckets, tools, stones, pots, boots, rope). The small scale is what tells the player how big everything else is, and it is the one builds always skip.",
   "check": {

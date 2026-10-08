@@ -102,7 +102,7 @@ export interface RowInput {
   transcriptSha256: string | null;
   /** The run's evidence folder's `hashDir` (a canary's boot frames); null when none was kept. */
   evidenceSha256: string | null;
-  /** What `validateGameDir` says of the stop-time snapshot; unknown without one. */
+  /** What `validateProjectDir` says of the stop-time snapshot; unknown without one. */
   validate: CheckResult;
   supersededBy: string | null;
   campaignVoid: CampaignVoidReason | null;
@@ -285,7 +285,7 @@ function notesOf(input: RowInput, effort: Pinned<string>): NoteCode[] {
   return notes;
 }
 
-/** The stop-time snapshot's no-build, or `no-entry` when the run never made a game folder (Rule 22). */
+/** The stop-time snapshot's no-build, or `no-entry` when the run never made a project folder (Rule 22). */
 function noBuildOf(snapshot: SnapshotFacts | null): NoBuild | null {
   return snapshot ? snapshot.noBuild : NoBuild.NoEntry;
 }

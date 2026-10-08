@@ -78,7 +78,7 @@ const NEVER_LOCK: ReadonlyArray<RegExp> = [
 /**
  * Is this file one the locks must leave writable? `neverLock` names directory PREFIXES (or
  * exact paths) matched against the accumulated relative path — a shape's serve directory may
- * be nested (`packages/game/out`), so matching the last path segment would never see it.
+ * be nested (`packages/project/out`), so matching the last path segment would never see it.
  */
 export function neverLocked(rel: string, neverLock: readonly string[] = []): boolean {
   const file = String(rel ?? "");
@@ -240,7 +240,7 @@ async function readRecord(file: string, writeBits: number): Promise<LockRecord |
     // Not through a link, not a FIFO, not unbounded (M4): the marker is the contractor's to replace.
     const parsed = JSON.parse((await readRegularFile(file, MAX_MARKER_BYTES)).toString("utf8")) as LockRecord;
     if (!Array.isArray(parsed?.files)) return null;
-    // Legacy game markers are untrusted and regain only owner write. Host records
+    // Legacy project markers are untrusted and regain only owner write. Host records
     // preserve all write bits taken by this lock, including crash recovery.
     return {
       ...parsed,
@@ -282,19 +282,19 @@ export async function reapplyLocks(cwd: string, record: LockRecord | null): Prom
 /**
  * The sentence the contractor reads, so a locked file is a rule and not a puzzle to solve.
  * Two wordings, for the two worlds a worker builds in (M4.6): the studio's own template has a
- * FACET WIRING block in its entry, and a game the user brought has no such thing — its entry
+ * FACET WIRING block in its entry, and a project the user brought has no such thing — its entry
  * belongs to whoever owns it, whole. The Claude side says the same in `ownershipReason`.
  */
 export function ownershipBriefing(ownership: Ownership): string {
   const entry = entryFiles(ownership);
   if (ownership.template === false) {
-    const seam = ownership.owns.length ? ownership.owns.join(", ") : "the files this part of the game needs";
+    const seam = ownership.owns.length ? ownership.owns.join(", ") : "the files this part of the project needs";
     return [
-      `FILE OWNERSHIP — this game is the user's own, and your seam in it is ${seam}${ownership.ownsMain ? `, plus ${entry.main}, ${entry.studio} and index.html` : `, plus its own NOTES file. ${entry.main}, ${entry.studio} and index.html belong to whoever owns the entry`}.`,
+      `FILE OWNERSHIP — this project is the user's own, and your seam in it is ${seam}${ownership.ownsMain ? `, plus ${entry.main}, ${entry.studio} and index.html` : `, plus its own NOTES file. ${entry.main}, ${entry.studio} and index.html belong to whoever owns the entry`}.`,
       "Files outside it that already exist have been made read-only on purpose. That is the rule, not a mistake and not a permissions bug:",
       "do not `chmod` it away, do not `sudo`, do not copy-edit-replace. If the work genuinely needs a file outside your seam, say so in your summary and",
       "leave it alone — the studio will re-lock anything you unlock, and an edit you sneak past it is an edit the reviewer will revert.",
-      "Lockfiles, build output and bundler caches are left writable, so `npm install` and the game's own build still run.",
+      "Lockfiles, build output and bundler caches are left writable, so `npm install` and the project's own build still run.",
     ].join(" ");
   }
   const owns = ownership.owns.length ? ownership.owns.join(", ") : "the files for this facet";

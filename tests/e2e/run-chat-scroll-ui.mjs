@@ -58,7 +58,7 @@ const child = spawn(resolveElectron(), fixtureElectronArgs([driver]), {
     STUDIO_CHAT_SCROLL_BUNDLE: bundle,
     STUDIO_CHAT_SCROLL_EVIDENCE: evidence,
     STUDIO_CHAT_SCROLL_BUILD: flavor,
-    STUDIO_CHAT_SCROLL_GAME: path.resolve("tests/fixtures/gpu-load.html"),
+    STUDIO_CHAT_SCROLL_PROJECT: path.resolve("tests/fixtures/gpu-load.html"),
   },
 });
 const timer = setTimeout(() => child.kill("SIGKILL"), RUN_TIMEOUT_MS);

@@ -43,7 +43,7 @@ async function readGltfJson(target: string, ext: string): Promise<unknown> {
 }
 
 /**
- * The rig of one GLB or glTF in the game folder at `root` (already a real path): null for another
+ * The rig of one GLB or glTF in the project folder at `root` (already a real path): null for another
  * format, a path that leaves the folder, a link, anything but a regular file, or a malformed header.
  */
 export async function readModelRig(root: string, file: unknown): Promise<ModelRig | null> {

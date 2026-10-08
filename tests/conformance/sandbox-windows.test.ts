@@ -178,7 +178,7 @@ describe("Windows sandbox: identity and files", { skip: SKIP, timeout: TEST_TIME
   });
 
   it("a folder opened later becomes writable after one regrant", async () => {
-    const later = path.join(realpathSync.native(await tmpDir("genex-sandbox-later-")), "game");
+    const later = path.join(realpathSync.native(await tmpDir("genex-sandbox-later-")), "project");
     await mkdir(later, { recursive: true });
     sandbox.allowWrite(later);
     const result = await sandbox.run({ command: "printf later > late.txt", cwd: later, timeoutMs: RUN_TIMEOUT_MS });

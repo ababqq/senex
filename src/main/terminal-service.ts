@@ -25,7 +25,7 @@ const MESSAGE = {
   closed: "This terminal session has closed.",
   inputTooLarge: "Terminal input is too large. Paste a smaller selection.",
   stopFirst: "Stop this terminal before closing its session.",
-  commandRunning: "A command is already running for this game. Wait for it to finish or stop it.",
+  commandRunning: "A command is already running for this project. Wait for it to finish or stop it.",
 } as const;
 
 /** What the terminal host utility tells main. */

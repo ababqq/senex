@@ -5,6 +5,7 @@
   "checkClass": "characters",
   "kind": "craft",
   "pack": "characters",
+  "appKinds": ["graphics"],
   "note": "With three or more enemies their bounding sizes are not all identical — identical capsules read as one blob repeated.",
   "intent": "Three identical figures read as three copies of one asset, not as three people. Vary what the silhouette shows at distance: overall height by ten per cent or so, build (shoulder width, girth), and one piece of readable dressing per figure — a hat, a pack, a cloak, a tool carried. Drive all of it from a per-figure seed so the crowd is reproducible, and vary the idle phase too, so they do not breathe in unison. Colour variation alone does not change the silhouette and does not answer this.",
   "check": {

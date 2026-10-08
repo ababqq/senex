@@ -48,7 +48,7 @@ const wholeMinutes = (ms: number): number => Math.max(1, Math.round(ms / MINUTE_
  * A round is started only when what is left covers a whole one of this worker's own rounds,
  * with this much headroom. The clock used to be the only gate — "is there any time left?" —
  * and one night's five round-two workers all began a round they could not finish: the build
- * turn was cut mid-edit, the half-written game was judged as a partial, three of them lost,
+ * turn was cut mid-edit, the half-written project was judged as a partial, three of them lost,
  * and the morning counted those rounds as undone.
  */
 export const ITERATION_HEADROOM = 1.25;

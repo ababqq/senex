@@ -1,8 +1,8 @@
 /**
- * Shared sidebar and chat; the active conversation selects the game stage or Studio review.
+ * Shared sidebar and chat; the active conversation selects the project stage or Studio review.
  *
  * App owns only its UI: the compact drawer, which room is up, the dialogs. What the studio knows
- * — games, conversations, the log, engines, plugins — is in the stores (`state/`), fed by one
+ * — projects, conversations, the log, engines, plugins — is in the stores (`state/`), fed by one
  * subscription that is wired before React mounts. The shell's hooks and parts live in `shell/`:
  * `useShell` wires chrome, navigation, stage views, notifications and the keyboard; `AppSidebar`,
  * `Workspace` and `WorkspaceStage` draw them.
@@ -101,8 +101,8 @@ export function App(): JSX.Element {
         firstAsks={firstAsks}
         onEnterProject={navigation.enterProject}
         onSelectThread={navigation.selectThread}
-        onSelectGame={navigation.selectGame}
-        onRemoveGame={navigation.removeGame}
+        onSelectProject={navigation.selectProject}
+        onRemoveProject={navigation.removeProject}
       />
       {welcoming && (
         <Onboarding

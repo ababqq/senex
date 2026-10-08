@@ -13,15 +13,15 @@ import type { McpConnectorView, McpTestResult, McpToolSummary } from "./mcp.ts";
 import type { McpConnectorDraft } from "./mcp-import.ts";
 import type { ConversationRecord, EventEnvelope, SnapshotRecord } from "./event-log.ts";
 import type { EngineDescriptor } from "./engine-descriptor.ts";
-import type { FolderInspection, GameLocation, GameName, GameNameRequest, GameProject } from "./game-project.ts";
+import type { FolderInspection, ProjectLocation, ProjectName, ProjectNameRequest, Project } from "./project-folder.ts";
 import type { BuildProblem, InstallResult } from "./build-problem.ts";
 import type { NightReview } from "./run-review.ts";
 import type { CodexLoginState } from "./codex-login.ts";
 import type { ClaudeLoginState } from "./claude-login.ts";
-import type { ProjectAsset, ProjectAssets } from "./game-assets.ts";
+import type { ProjectAsset, ProjectAssets } from "./project-assets.ts";
 import type { ModelRig } from "./model-rig.ts";
 import type { UiEvent } from "./ui-events.ts";
-import type { GameFile } from "./game-file.ts";
+import type { ProjectFile } from "./project-file.ts";
 import type { ChatFileLink, ChatFileOpenOutside, ChatFileRef } from "./chat-files.ts";
 import type { ReferenceFrame } from "./protocol.ts";
 import type { ProviderUsageReport } from "./provider-usage.ts";
@@ -36,20 +36,20 @@ export type { ProjectAsset, ProjectAssets };
 export interface Bootstrap {
   threadId: string;
   layout: Record<string, string>;
-  /** `~/AI Games` as a human reads it — the renderer never sees absolute paths. */
-  gamesRootLabel: string;
+  /** `~/AI Projects` as a human reads it — the renderer never sees absolute paths. */
+  projectsRootLabel: string;
   /** capabilities: what the loaded harness claimed in its ready handshake — [] until ready. */
   harness: { state: string; version: string | null; capabilities: string[] };
   threads: ConversationRecord[];
   events: EventEnvelope[];
   /** Where `events()` continues from: every thread's head when `events` was read. */
   eventsCursor?: string | null;
-  games: GameProject[];
+  projects: Project[];
   engines: EngineDescriptor[];
   /** Current host state, independent of the bounded notification tail. */
   threadStatus?: Record<string, { status: string; since: number }>;
   /**
-   * Builders working right now, by game: how many. A reload reads which games are building from
+   * Builders working right now, by project: how many. A reload reads which projects are building from
    * here, since the `delegation.*` events that announced them were before it.
    */
   activeDelegations: Record<string, number>;
@@ -136,7 +136,7 @@ export interface StudioApi {
   ): Promise<import("./context.ts").ContextSettings>;
   studioSkills(): Promise<Array<{ name: string; text: string; description: string }>>;
   providerSkills(): Promise<import("./provider-skills.ts").ProviderSkillInventory[]>;
-  /** The skills and commands one game's folder gives its builders. */
+  /** The skills and commands one project's folder gives its builders. */
   projectSkills(project: string): Promise<import("./provider-skills.ts").ProjectSkillInventory>;
   /** A plugin skill's whole text: an inline skill's, or a file skill's file or one of its references. */
   pluginSkillText(id: string, name: string, file?: string): Promise<string>;
@@ -155,10 +155,10 @@ export interface StudioApi {
     project?: string,
   ): Promise<{ images?: Array<{ label: string; dataUrl: string }>; message?: string; ticket?: string }>;
   pluginAction(id: string, name: string, args: unknown, project?: string, ticket?: string): Promise<unknown>;
-  /** The files Publish would put online for a game, for Studio's Publish dialog to show. Uploads nothing. */
+  /** The files Publish would put online for a project, for Studio's Publish dialog to show. Uploads nothing. */
   genexPublishReview(project: string): Promise<ExportReview>;
   /**
-   * Publish the game to the Genex gallery from Studio's Publish dialog: its Publish press approved
+   * Publish the project to the Genex gallery from Studio's Publish dialog: its Publish press approved
    * the files in `review`; `title` is the name players see.
    */
   genexPublish(project: string, review: ExportReview, title?: string): Promise<void>;
@@ -174,7 +174,7 @@ export interface StudioApi {
   pluginConsent(consentId: string, approved: boolean): Promise<{ resolved: boolean }>;
 
   /**
-   * Claude Code permissions for game chats. Studio UI only (main-frame guarded); the harness has
+   * Claude Code permissions for project chats. Studio UI only (main-frame guarded); the harness has
    * no equivalent, so no agent can change its own mode or answer its own request.
    */
   permissions(): Promise<PermissionSettingsView>;
@@ -182,7 +182,7 @@ export interface StudioApi {
   setPermissionMode(threadId: string | null, mode: PermissionMode): Promise<PermissionSettingsView>;
   /** The user's answer to a `tool_permission` card; `resolved` is false once it is no longer waiting. */
   answerPermission(requestId: string, answer: ToolPermissionAnswer): Promise<{ resolved: boolean }>;
-  /** Stop allowing a saved "always allow" rule for a game. */
+  /** Stop allowing a saved "always allow" rule for a project. */
   forgetPermission(project: string, rule: string): Promise<PermissionSettingsView>;
 
   /**
@@ -239,13 +239,13 @@ export interface StudioApi {
     operation: "hold" | "edit" | "remove",
     text?: string,
   ): Promise<void>;
-  /** What rewinding the chat to a message (its bubble's event and queue ids) would do to the game files. */
+  /** What rewinding the chat to a message (its bubble's event and queue ids) would do to the project files. */
   rewindPreview(
     threadId: string,
     eventId: string,
     messageId: string,
   ): Promise<import("./chat-rewind.ts").RewindPreview>;
-  /** Rewind the chat to just before that message; `files` also puts the game files back. */
+  /** Rewind the chat to just before that message; `files` also puts the project files back. */
   rewindChat(
     threadId: string,
     eventId: string,
@@ -257,30 +257,30 @@ export interface StudioApi {
   threadEvents(threadId: string): Promise<EventEnvelope[]>;
   chatPage(threadId: string, before?: string): Promise<import("./chat-history.ts").ChatPage>;
   threads(): Promise<ConversationRecord[]>;
-  newGameThread(project?: string): Promise<ConversationRecord>;
-  threadForGame(project: string): Promise<ConversationRecord>;
+  newProjectThread(project?: string): Promise<ConversationRecord>;
+  threadForProject(project: string): Promise<ConversationRecord>;
   renameThread(threadId: string, title: string): Promise<ConversationRecord>;
   compactThread(threadId: string, options?: { engine?: string; model?: string }): Promise<boolean>;
-  archiveGame(project: string): Promise<boolean>;
+  archiveProject(project: string): Promise<boolean>;
   engines(): Promise<EngineDescriptor[]>;
   /** Plan limits of each signed-in subscription; reading them never starts a turn. */
   providerUsage(): Promise<ProviderUsageReport[]>;
   hardware(): Promise<HardwareReport>;
-  games(): Promise<GameProject[]>;
-  /** A new game in a fresh folder of its own: in the games folder, or inside `parent` when the user chose one. */
-  /** `provisional`: the title waits for the game's first idea (`GameName.provisional`). */
-  createGame(title: string, options?: { parent?: string; provisional?: boolean }): Promise<GameProject>;
-  /** A name for a game started from its first request, by the model picked for it; never fails for want of a model. */
-  nameGame(request: GameNameRequest): Promise<GameName>;
+  projects(): Promise<Project[]>;
+  /** A new project in a fresh folder of its own: in the projects folder, or inside `parent` when the user chose one. */
+  /** `provisional`: the title waits for the project's first idea (`ProjectName.provisional`). */
+  createProject(title: string, options?: { parent?: string; provisional?: boolean }): Promise<Project>;
+  /** A name for a project started from its first request, by the model picked for it; never fails for want of a model. */
+  nameProject(request: ProjectNameRequest): Promise<ProjectName>;
   /**
-   * Create game's location: the native folder dialog, answered with the folder checked as
+   * Create project's location: the native folder dialog, answered with the folder checked as
    * creating there will be. Resolves to null when cancelled; a refused folder rejects with why.
    */
-  pickGameLocation(): Promise<GameLocation | null>;
-  /** Settings → Games: asks for a folder for new games; resolves to its label, or null when cancelled. */
-  chooseGamesRoot(): Promise<string | null>;
-  updateGame(project: string, patch: import("./game-library.ts").GameUpdate): Promise<GameProject>;
-  removeGame(project: string): Promise<void>;
+  pickProjectLocation(): Promise<ProjectLocation | null>;
+  /** Settings → Projects: asks for a folder for new projects; resolves to its label, or null when cancelled. */
+  chooseProjectsRoot(): Promise<string | null>;
+  updateProject(project: string, patch: import("./project-library.ts").ProjectUpdate): Promise<Project>;
+  removeProject(project: string): Promise<void>;
   snapshots(): Promise<SnapshotRecord[]>;
   selfChanges(): Promise<{ changes: SelfChange[]; staged: StagedProposal[] }>;
   studioActivity(): Promise<import("./studio-activity.ts").StudioActivityItem[]>;
@@ -335,7 +335,7 @@ export interface StudioApi {
   terminalList(): Promise<import("./terminal.ts").TerminalSession[]>;
   terminalAccessibility(): Promise<boolean>;
   terminalOpen(project: string): Promise<import("./terminal.ts").TerminalSession>;
-  /** Run one command a chat reply offered, in the game's folder, as its own terminal session. */
+  /** Run one command a chat reply offered, in the project's folder, as its own terminal session. */
   terminalRun(project: string, command: string): Promise<import("./terminal.ts").TerminalSession>;
   terminalAttach(id: string): Promise<void>;
   terminalInput(id: string, data: string): Promise<void>;
@@ -358,7 +358,7 @@ export interface StudioApi {
   /** The Dock badge: how much work waits on the person. Zero clears it. */
   setBadge(count: number): Promise<boolean>;
   rollback(snapshotId: string): Promise<boolean>;
-  /** Take back one learned change, leaving every later change and the game lessons in place. */
+  /** Take back one learned change, leaving every later change and the project lessons in place. */
   undoChange(snapshotId: string): Promise<{ file: string }>;
   loadPreview(project: string): Promise<string>;
   buildPreview(
@@ -371,26 +371,26 @@ export interface StudioApi {
     frames: Array<{ label: string; mimeType: string; data: string }>;
     skipped: Array<{ file: string; why: string }>;
   }>;
-  /** Everything under the game's `assets/` and `public/assets/`, with where each file came from. */
+  /** Everything under the project's `assets/` and `public/assets/`, with where each file came from. */
   previewProjectAsset(p: {
     project: string;
     file: string;
     maxBytes?: number;
   }): Promise<{ mimeType: string; data: Uint8Array<ArrayBuffer> }>;
-  /** Which delivered files the game folder holds now; a build's files arrive when it lands. */
+  /** Which delivered files the project folder holds now; a build's files arrive when it lands. */
   presentProjectAssets(p: { project: string; files: string[] }): Promise<string[]>;
   /** What these GLB and glTF files hold, read from their headers: meshes, clips and bones; other files are skipped. */
   projectModelRigs(p: { project: string; files: string[] }): Promise<ModelRig[]>;
   projectAssets(project: string): Promise<ProjectAssets>;
   /**
-   * One image from inside the game, contained and byte-sniffed. `maxPx` asks for a thumbnail;
+   * One image from inside the project, contained and byte-sniffed. `maxPx` asks for a thumbnail;
    * `scope: "genex-inspection"` reads the one saved frame of the named job instead.
    */
   readProjectAsset(p: {
     project: string;
     file: string;
     maxPx?: number;
-    scope?: "game" | "genex-inspection";
+    scope?: "project" | "genex-inspection";
     jobId?: string;
   }): Promise<{ mimeType: string; data: string } | null>;
   runFeedback(p: {
@@ -404,13 +404,13 @@ export interface StudioApi {
     label?: string;
   }): Promise<{ ok: true }>;
   playSnapshot(snapshotId: string, project: string): Promise<{ dir: string; snapshotId: string }>;
-  /** A run's build (its integration head, any commit) in the user's window, from a worktree; the game folder is untouched. */
+  /** A run's build (its integration head, any commit) in the user's window, from a worktree; the project folder is untouched. */
   showBuild(project: string, commit: string): Promise<{ dir: string; commit: string }>;
-  /** Merge a build into the live game folder and show it. */
+  /** Merge a build into the live project folder and show it. */
   landBuild(project: string, commit: string): Promise<{ commit: string; how: "merged" | "already" }>;
   /**
-   * Where the native game view sits (zero while anything covers it), and whether the person is
-   * watching a game in Live under whatever briefly covers it (`stage.ts` `watchingLive`).
+   * Where the native project view sits (zero while anything covers it), and whether the person is
+   * watching a project in Live under whatever briefly covers it (`stage.ts` `watchingLive`).
    */
   /** The stage slot's rectangle, and the window size it was measured in (main carries it through resizes). */
   previewBounds(bounds: {
@@ -421,32 +421,32 @@ export interface StudioApi {
     watching: boolean;
     viewport?: { width: number; height: number };
   }): Promise<boolean>;
-  /** The Live game's sound switch; main decides when Live is actually heard. */
-  previewSound(request: import("./game-sound.ts").GameSoundRequest): Promise<boolean>;
+  /** The Live project's sound switch; main decides when Live is actually heard. */
+  previewSound(request: import("./project-sound.ts").ProjectSoundRequest): Promise<boolean>;
   /** Reload the stage. `retry` is the build-failure strip's "Try again": build it again from scratch. */
   reloadPreview(options?: { retry?: boolean }): Promise<boolean>;
-  /** Stop: take the Live game off its view, so it runs no scripts, frames or sound until Play. */
+  /** Stop: take the Live project off its view, so it runs no scripts, frames or sound until Play. */
   stopPreview(): Promise<boolean>;
-  /** Play a stopped Live game again: the same page, from the top. */
+  /** Play a stopped Live project again: the same page, from the top. */
   playPreview(): Promise<boolean>;
-  /** Full screen: the window goes full screen with the Live game over all of it; holding Esc, or its exit button, ends it. */
+  /** Full screen: the window goes full screen with the Live project over all of it; holding Esc, or its exit button, ends it. */
   previewFullScreen(): Promise<boolean>;
-  /** What waits for this game's Live Reload and the build Live shows, as `live.behind` says it: read on mount. */
+  /** What waits for this project's Live Reload and the build Live shows, as `live.behind` says it: read on mount. */
   liveBehind(project: string): Promise<LiveBehindEvent>;
   previewState(): Promise<unknown>;
   /** Whose page Live holds, whether it is still navigating, and whether its requests have settled. */
   previewLive(): Promise<{
     project: string | null;
     navigating: boolean;
-    /** The person stopped the game (`stopPreview`): Live holds no page until Play. */
+    /** The person stopped the project (`stopPreview`): Live holds no page until Play. */
     stopped: boolean;
     loadError: string | null;
     crashed: boolean;
     page: { complete: boolean; resources: number; state: Record<string, unknown> | null } | null;
   }>;
-  /** Why the stage cannot show this game's own build; null when the last build was fine. */
+  /** Why the stage cannot show this project's own build; null when the last build was fine. */
   buildProblem(project: string): Promise<BuildProblem | null>;
-  /** Install this game's packages — the one action that reaches the network, on the user's press. */
+  /** Install this project's packages — the one action that reaches the network, on the user's press. */
   installPackages(project: string): Promise<InstallResult>;
   startRun(spec: {
     project: string;
@@ -472,7 +472,7 @@ export interface StudioApi {
   /** `key` names the suggestion the person saw; the index alone names whatever sits there now. */
   acceptProposal(index: number, key?: { at?: string; skill?: string }): Promise<{ skill: string }>;
   discardProposal(index: number, reason?: string, key?: { at?: string; skill?: string }): Promise<boolean>;
-  exportGame(project: string): Promise<{ dir: string; files: number; included: string[]; excluded: string[] }>;
+  exportProject(project: string): Promise<{ dir: string; files: number; included: string[]; excluded: string[] }>;
   modelInstallStatus(): Promise<import("./model-install.ts").ModelInstallJob | null>;
   /** Install Claude Code or Codex with its vendor's own installer, or join the install already running. */
   cliInstall(provider: string): Promise<import("./cli-install.ts").CliInstallJob>;
@@ -490,9 +490,9 @@ export interface StudioApi {
   /** Delete a downloaded local model (Bonsai or Ollama) from this Mac. */
   removeModel(model: string): Promise<boolean>;
   revealProject(project: string, file?: string): Promise<boolean>;
-  /** A file the chat names, from that chat's game folder or its run's unlanded build. */
-  readGameFile(threadId: string, path: string): Promise<GameFile>;
-  revealGameFile(threadId: string, path: string): Promise<boolean>;
+  /** A file the chat names, from that chat's project folder or its run's unlanded build. */
+  readProjectFile(threadId: string, path: string): Promise<ProjectFile>;
+  revealProjectFile(threadId: string, path: string): Promise<boolean>;
   /** Which names the chat wrote are files on this computer, and how each opens (null: not a file). */
   resolveChatFiles(threadId: string, refs: ChatFileRef[]): Promise<Array<ChatFileLink | null>>;
   /** Opens a file the chat named in its app, or shows it; `problem` when no app opened it. */
@@ -505,11 +505,11 @@ export interface StudioApi {
    * as `pathLabel`, never as the path it holds here.
    */
   pickProject(): Promise<string | null>;
-  /** What a folder holds — games in it and one level down, how each runs, what would stop a night. Writes nothing. */
+  /** What a folder holds — projects in it and one level down, how each runs, what would stop a night. Writes nothing. */
   inspectFolder(dir: string): Promise<FolderInspection>;
   /**
-   * Open a folder as a game: the Open Game sheet's button, and the first thing that writes.
-   * `versionNested` is the consent the row carried — the studio may make the game inside this
+   * Open a folder as a project: the Open Project sheet's button, and the first thing that writes.
+   * `versionNested` is the consent the row carried — the studio may make the project inside this
    * folder part of its history when a build goes live.
    */
   adoptFolder(
@@ -521,8 +521,8 @@ export interface StudioApi {
       title?: string;
       trustProjectSettings?: boolean;
     },
-  ): Promise<GameProject>;
-  openProject(name: string): Promise<GameProject>;
+  ): Promise<Project>;
+  openProject(name: string): Promise<Project>;
   /** The transient UI events main pushes (`shared/ui-events.ts`); narrow on `type` to read the payload. */
   onEvent(listener: (event: UiEvent) => void): () => void;
 }
@@ -554,6 +554,6 @@ export type {
   InstallResult,
   SnapshotRecord,
   FolderInspection,
-  GameLocation,
-  GameProject,
+  ProjectLocation,
+  Project,
 };

@@ -56,7 +56,7 @@ import { DEFAULT_SOAK_SEED, soakPhase, soakWindows, SPEC_SOAK_MS } from "./phase
 import { stillnessThreshold } from "./phases/soak-rows.ts";
 import { ACK_WINDOW_MS } from "./phases/verbs.ts";
 import { budgetSentence, isUnresponsive, planSoak, probeBudgetMs, shouldRunLook } from "./probe-budget.ts";
-import { evidenceFrames, type QuickObservation, quickGameplay } from "./quick-rows.ts";
+import { evidenceFrames, type QuickObservation, quickInteraction } from "./quick-rows.ts";
 import { PROBER_VERSION } from "./types.ts";
 import { cameraSanity, gateFor, isScored, type JudgeEvidenceVerdict, judgeEvidence } from "./verdicts.ts";
 
@@ -114,7 +114,7 @@ async function enter(run: FullRun): Promise<Entered> {
 
 /**
  * A SECOND CHANCE AT THE ENTRANCE, on the same signals, after directions and ack: a loading screen
- * can outlast the first search, and a finished game once scored 1/8 behind a "PLAY THE HOLE" card the
+ * can outlast the first search, and a finished project once scored 1/8 behind a "PLAY THE HOLE" card the
  * first look ran too early to see. When it gets the probe in, the post-entrance baseline is taken now
  * and applies from the interact phase on.
  */
@@ -194,7 +194,7 @@ function quickObservation(
 ): QuickObservation {
   const events = run.ctx.page.events();
   return {
-    gameOrigin: run.ctx.gameOrigin,
+    projectOrigin: run.ctx.projectOrigin,
     endAtMs: run.ctx.page.elapsedMs(),
     noErrorsMs: SPEC_ERROR_WINDOW_MS,
     firstRenderMs: boot.firstRenderMs,
@@ -248,19 +248,19 @@ async function observe(run: FullRun, options: FullProbeOptions, plan: Plan): Pro
 }
 
 /** Whether the witnessed frames are worth judging; the page→run offset is unmeasured, so the phase clause decides. */
-function evidenceVerdict(o: FullObservation, gameplay: { reached: boolean; why: string }): JudgeEvidenceVerdict {
+function evidenceVerdict(o: FullObservation, interaction: { reached: boolean; why: string }): JudgeEvidenceVerdict {
   const last = o.quick.snapshots.length ? o.quick.snapshots[o.quick.snapshots.length - 1] : null;
   return judgeEvidence({
     frames: o.quick.frames.map((f) => f.record),
     firstRafPageMs: rafOf(last).firstT,
     firstRenderRunMs: o.quick.firstRenderMs,
     pageToRunOffsetMs: null,
-    gameplayReached: gameplay,
+    interactionReached: interaction,
     cameraSanity: cameraSanity(last?.camera?.samples ?? []),
   });
 }
 
-/** What the run's own machinery changed, for a reader of the scorecard: never a verdict on the game. */
+/** What the run's own machinery changed, for a reader of the scorecard: never a verdict on the project. */
 function runNotes(run: FullRun, plan: Plan, o: FullObservation): string[] {
   const { ctx } = run;
   const soakPlannedMs = o.soak?.plannedMs ?? 0;
@@ -287,7 +287,7 @@ function fullResult(run: FullRun, options: FullProbeOptions, plan: Plan, o: Full
   const summaries = writeSummaries(dir, o.quick.events);
   const frames = evidenceFrames(o.quick);
   const evidence: EvidenceRefs = {
-    gameOrigin: o.quick.gameOrigin,
+    projectOrigin: o.quick.projectOrigin,
     frames: frames.map((f) => f.ref),
     consoleSummaryPath: summaries.console,
     networkSummaryPath: summaries.network,
@@ -316,7 +316,7 @@ function fullResult(run: FullRun, options: FullProbeOptions, plan: Plan, o: Full
     soakMs: plan.soakMs,
     soakRanMs: o.soak?.ranMs ?? null,
     seed: plan.seed,
-    judgeEvidence: evidenceVerdict(o, quickGameplay(o.quick)),
+    judgeEvidence: evidenceVerdict(o, quickInteraction(o.quick)),
     scorecardPath,
   };
   const notes = runNotes(run, plan, o);

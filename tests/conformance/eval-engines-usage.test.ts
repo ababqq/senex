@@ -404,7 +404,7 @@ function mirrored(engine: EngineId) {
     core: core as unknown as StudioCore,
     threadId: "chat",
     requestThreadId: "chat",
-    project: "game",
+    project: "project",
     engineId: engine,
     requestedModel: undefined,
     activityScope: { delegationId: "lead", role: SessionActivityRole.Planner },

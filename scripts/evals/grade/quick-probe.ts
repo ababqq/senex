@@ -53,7 +53,7 @@ export const QUICK_NO_ERRORS_MS = 20 * SECOND_MS;
 /** The first-draw wait for a final probe, and for a snapshot in the boot scan (§8.3). */
 export const QUICK_FIRST_DRAW_TIMEOUT_MS = 120 * SECOND_MS;
 export const SCAN_FIRST_DRAW_TIMEOUT_MS = 20 * SECOND_MS;
-/** The no-input window before the entrance, and the one after it on gameplay. */
+/** The no-input window before the entrance, and the one after it on interaction. */
 export const IDLE_BASELINE_MS = 3 * SECOND_MS;
 export const POST_ENTRANCE_BASELINE_MS = 4 * SECOND_MS;
 /**
@@ -110,7 +110,12 @@ export async function withProbePage<T>(
       try {
         const page = await browser.open(url, probeInitSource());
         const frames = createFrameLog(options.evidenceDir ?? null);
-        const ctx = { page, sleep: deps.sleep ?? ((ms: number) => delay(ms)), frames, gameOrigin: new URL(url).origin };
+        const ctx = {
+          page,
+          sleep: deps.sleep ?? ((ms: number) => delay(ms)),
+          frames,
+          projectOrigin: new URL(url).origin,
+        };
         return await work({ browser, launched, ctx });
       } finally {
         await browser.close();
@@ -187,7 +192,7 @@ export interface PlayObservation {
   cursor: { next: number };
 }
 
-/** A no-input baseline on gameplay, taken once the entrance is confirmed. */
+/** A no-input baseline on interaction, taken once the entrance is confirmed. */
 export async function postEntranceBaseline(ctx: PhaseContext, cursor: { next: number }): Promise<PageBaseline> {
   return buildBaseline(BaselineName.PostEntrance, await quietWindow(ctx, cursor, POST_ENTRANCE_BASELINE_MS));
 }
@@ -202,7 +207,7 @@ export async function playPhases(run: ProbeRun): Promise<PlayObservation> {
   const entrance = await entrancePhase(ctx, idleMoved);
   if (entrance.snapshot) run.snapshots.push(entrance.snapshot);
   await captureFrame(ctx, ProbePhase.Entrance, AFTER_GESTURE_LABEL);
-  // The post-entrance window is on gameplay: the camera moving there with no input (an intro flyover)
+  // The post-entrance window is on interaction: the camera moving there with no input (an intro flyover)
   // means camera motion during the bursts witnesses nothing.
   const stillStart = lastCameraSample(await takeSnapshot(run));
   const postBaseline = entrance.verdict.confirmed ? await postEntranceBaseline(ctx, cursor) : null;
@@ -271,7 +276,7 @@ function observation(
 ): QuickObservation {
   const events = run.ctx.page.events();
   return {
-    gameOrigin: run.ctx.gameOrigin,
+    projectOrigin: run.ctx.projectOrigin,
     endAtMs: run.ctx.page.elapsedMs(),
     noErrorsMs: options.noErrorsMs,
     firstRenderMs: boot.firstRenderMs,
@@ -305,7 +310,7 @@ function quickResult(run: ProbeRun, options: QuickProbeOptions, o: QuickObservat
     rendererMode: detectedMode(run),
     servedVia: options.servedVia ?? ServedVia.AsIs,
     evidence: {
-      gameOrigin: o.gameOrigin,
+      projectOrigin: o.projectOrigin,
       frames: evidenceFrames(o).map((f) => f.ref),
       consoleSummaryPath: summaries.console,
       networkSummaryPath: summaries.network,

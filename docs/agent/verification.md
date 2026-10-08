@@ -11,13 +11,13 @@ references describe available checks, not a cumulative checklist.
 | Documentation or instructions only | Review changed guidance and run `npm run verify:context`; no app build or runtime suite. Run focused settings/skill tests when their configuration or adapters change. |
 | Local copy, spacing or color | Inspect rendered fit, relevant states and contrast. No automatic full-suite or composer run. |
 | Bounded behavior, including core or engine logic | Relevant behavioral tests, typecheck affected contracts and affected integration/rig suites; exercise the changed UI interaction when applicable. |
-| Harness or game-template behavior | Red-first incident coverage, `npm run verify:harness`, and affected L3 rig suites. Preserve user harness edits. |
-| Shared UI primitives, theme or overlays | Relevant gallery checks plus representative app consumers, keyboard/focus and native game visibility when affected. |
+| Harness or project-template behavior | Red-first incident coverage, `npm run verify:harness`, and affected L3 rig suites. Preserve user harness edits. |
+| Shared UI primitives, theme or overlays | Relevant gallery checks plus representative app consumers, keyboard/focus and native project visibility when affected. |
 | Development scripts, hooks or runners | Relevant static checks and command selection/prerequisite/failure behavior, using synthetic processes when appropriate. |
 | Broad integration changes or explicit full regression | `npm run verify`; add packaged acceptance when delivery/resources/packaging changes. |
 
 A bounded edit can still cross persistence, lifecycle or provider contracts; cover those
-connections. A gallery cannot prove native game layering. Packaging, live providers and paid
+connections. A gallery cannot prove native project layering. Packaging, live providers and paid
 operations are not implied merely by finishing a task. Feature-specific acceptance applies only
 when its behavior is in scope.
 

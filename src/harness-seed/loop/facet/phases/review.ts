@@ -37,7 +37,7 @@ export async function reviewCode(loop: FacetLoop, round: FacetRound): Promise<Ro
     });
   }
 
-  // Evidence is the expensive half of a round, and photographs a half-written game after a
+  // Evidence is the expensive half of a round, and photographs a half-written project after a
   // stop: the round ends here instead.
   if (await stoppedHere(round.iteration)) return RoundFlow.Stop;
 }
@@ -143,7 +143,7 @@ async function enforceReview(loop: FacetLoop, round: FacetRound, root: string): 
 
 /**
  * A model finding its reviewer flagged as a check made to pass without the work. The flag, not
- * the wording: a word match on "game" read every finding about a game as gaming (P11-F9).
+ * the wording: a word match on "project" read every finding about a project as gaming (P11-F9).
  */
 function isGamingFinding(v: AnyRecord): boolean {
   return v.source === MODEL_FINDING && v.gaming === true;

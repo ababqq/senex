@@ -95,39 +95,39 @@ describe("base deny-read list", () => {
 });
 
 /**
- * A game's `.claude` folder is Claude Code's project settings: the person's own session in the game
+ * A project's `.claude` folder is Claude Code's project settings: the person's own session in the project
  * loads its allow rules and hooks, so no agent process (the harness, its commands, a build) writes
  * it. On macOS a glob per folder covers every case and a folder not made yet; srt-win and Linux
  * expand or create what they are sent, so there only the folders that exist are named.
  */
-describe("the games' .claude folders are write-denied", () => {
-  const games = "/Users/me/AI Games";
-  const kept = ["/Users/me/AI Games/pong", "/Users/me/Projects/racer", "/Users/me/odd[1]/maze"];
+describe("the projects' .claude folders are write-denied", () => {
+  const projects = "/Users/me/AI Projects";
+  const kept = ["/Users/me/AI Projects/pong", "/Users/me/Projects/racer", "/Users/me/odd[1]/maze"];
 
   // POSIX paths: the macOS policy is built where it runs.
-  it("on macOS, by a case-blind glob under the games folder and beside each game kept elsewhere", {
+  it("on macOS, by a case-blind glob under the projects folder and beside each project kept elsewhere", {
     skip: process.platform === "win32",
   }, async () => {
-    const denied = claudeFolderDenyWrites(games, kept, "darwin", () => false);
+    const denied = claudeFolderDenyWrites(projects, kept, "darwin", () => false);
     assert.deepEqual(denied, [
-      "/Users/me/AI Games/*/[.][cC][lL][aA][uU][dD][eE]",
+      "/Users/me/AI Projects/*/[.][cC][lL][aA][uU][dD][eE]",
       "/Users/me/Projects/racer/[.][cC][lL][aA][uU][dD][eE]",
       "/Users/me/odd[[]1]/maze/[.][cC][lL][aA][uU][dD][eE]",
     ]);
     const deny = await macDeny(denied);
     for (const target of [
-      "/Users/me/AI Games/pong/.claude",
-      "/Users/me/AI Games/pong/.CLAUDE/settings.json",
-      "/Users/me/AI Games/new-game/.Claude/hooks/x.sh",
+      "/Users/me/AI Projects/pong/.claude",
+      "/Users/me/AI Projects/pong/.CLAUDE/settings.json",
+      "/Users/me/AI Projects/new-project/.Claude/hooks/x.sh",
       "/Users/me/odd[1]/maze/.claude/settings.json",
     ])
       assert.ok(deny(target), `denied: ${target}`);
-    for (const target of ["/Users/me/AI Games/pong/.claude-notes.md", "/Users/me/AI Games/pong/src/claude.js"])
+    for (const target of ["/Users/me/AI Projects/pong/.claude-notes.md", "/Users/me/AI Projects/pong/src/claude.js"])
       assert.ok(!deny(target), `writable: ${target}`);
   });
 
   /**
-   * Game folders kept elsewhere whose paths sandbox-runtime reads as a glob (reachable by adopting a
+   * Project folders kept elsewhere whose paths sandbox-runtime reads as a glob (reachable by adopting a
    * folder). Each one's `.claude` is denied in any case; `writable` are folders the path's glob
    * reading would have hit instead, which stay alone. `*` and `?` may widen to any one character.
    */
@@ -162,8 +162,8 @@ describe("the games' .claude folders are write-denied", () => {
   ];
 
   for (const row of HOSTILE)
-    it(`on macOS, a game kept in a folder with ${row.name}`, { skip: process.platform === "win32" }, async () => {
-      const denied = claudeFolderDenyWrites(games, [row.dir], "darwin", () => false);
+    it(`on macOS, a project kept in a folder with ${row.name}`, { skip: process.platform === "win32" }, async () => {
+      const denied = claudeFolderDenyWrites(projects, [row.dir], "darwin", () => false);
       const deny = await macDeny(denied);
       for (const target of [
         `${row.dir}/.claude`,
@@ -180,27 +180,27 @@ describe("the games' .claude folders are write-denied", () => {
         assert.ok(!deny(target), `writable: ${target} past ${denied.join(", ")}`);
     });
 
-  it("on macOS, a games folder whose own path reads as a glob keeps its glob for every game", {
+  it("on macOS, a projects folder whose own path reads as a glob keeps its glob for every project", {
     skip: process.platform === "win32",
   }, async () => {
-    const root = "/Users/me/[AI] Games*";
+    const root = "/Users/me/[AI] Projects*";
     const denied = claudeFolderDenyWrites(root, [`${root}/pong`, "/Users/me/work/racer"], "darwin", () => false);
     assert.deepEqual(denied, [
-      "/Users/me/[[]AI] Games?/*/[.][cC][lL][aA][uU][dD][eE]",
+      "/Users/me/[[]AI] Projects?/*/[.][cC][lL][aA][uU][dD][eE]",
       "/Users/me/work/racer/[.][cC][lL][aA][uU][dD][eE]",
     ]);
     const deny = await macDeny(denied);
     for (const target of [`${root}/pong/.claude/settings.json`, `${root}/made-later/.Claude/hooks/x.sh`])
       assert.ok(deny(target), `denied: ${target}`);
-    for (const target of [`${root}/pong/src/main.js`, "/Users/me/A Games*/pong/.claude/settings.json"])
+    for (const target of [`${root}/pong/src/main.js`, "/Users/me/A Projects*/pong/.claude/settings.json"])
       assert.ok(!deny(target), `writable: ${target}`);
   });
 
-  it("on Windows and Linux, only the folders that exist, so nothing is created in a game", () => {
-    const existing = path.join(path.resolve("/Users/me/AI Games/pong"), ".claude");
+  it("on Windows and Linux, only the folders that exist, so nothing is created in a project", () => {
+    const existing = path.join(path.resolve("/Users/me/AI Projects/pong"), ".claude");
     for (const platform of ["win32", "linux"] as const)
       assert.deepEqual(
-        claudeFolderDenyWrites(games, kept, platform, (p) => p === existing),
+        claudeFolderDenyWrites(projects, kept, platform, (p) => p === existing),
         [existing],
         platform,
       );

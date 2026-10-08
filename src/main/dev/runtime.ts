@@ -6,7 +6,7 @@ import { UiEvent } from "../../shared/ui-events.ts";
 /**
  * The developer control's runtime inside a developer launch: a Unix socket that takes one
  * request line per connection from `scripts/studio-dev`, checks its instance and capability,
- * performs the operation against the studio window or the game view, and answers one line.
+ * performs the operation against the studio window or the project view, and answers one line.
  */
 import { app, type BrowserWindow, type WebContents, type WebContentsView } from "electron";
 import fsp from "node:fs/promises";
@@ -44,7 +44,7 @@ import {
 import type { LaunchContext } from "./launch-context.ts";
 import { DevProviders, FIXTURE_VERSION } from "./fixture-kit.ts";
 import type { StudioCore } from "../studio-core.ts";
-import type { GamePreview } from "../preview.ts";
+import type { ProjectPreview } from "../preview.ts";
 import { errorMessage } from "../../shared/errors.ts";
 import { secretRedactor } from "../../shared/redact.ts";
 import { SECOND_MS } from "../../shared/duration.ts";
@@ -92,7 +92,7 @@ interface RuntimeParts {
   ctx: LaunchContext;
   core: StudioCore;
   win: BrowserWindow;
-  preview: GamePreview;
+  preview: ProjectPreview;
   logs: () => unknown[];
   harnessLogs: () => unknown[];
   authVisible: () => boolean;
@@ -130,7 +130,7 @@ export async function startRuntime(
   ctx: LaunchContext,
   core: StudioCore,
   win: BrowserWindow,
-  preview: GamePreview,
+  preview: ProjectPreview,
   logs: () => unknown[],
   harnessLogs: () => unknown[],
   authVisible: () => boolean,
@@ -194,18 +194,18 @@ async function publishIdentity(rt: Runtime): Promise<void> {
   });
 }
 
-/** The webContents a surface names: the studio window, or the game view once a game is loaded. */
+/** The webContents a surface names: the studio window, or the project view once a project is loaded. */
 function surfaceContents(rt: Runtime, surface: DevSurface): WebContents {
   if (surface === DevSurface.Desktop) {
     if (rt.win.isDestroyed()) throw new DevError(DevErrorCode.UnsupportedSurface, "desktop window closed");
     return rt.win.webContents;
   }
-  const view = loadedGameView(rt.preview);
-  if (!view) throw new DevError(DevErrorCode.MissingPrerequisite, "load a game in Live first");
+  const view = loadedProjectView(rt.preview);
+  if (!view) throw new DevError(DevErrorCode.MissingPrerequisite, "load a project in Live first");
   return view.webContents;
 }
 
-function loadedGameView(preview: GamePreview): WebContentsView | null {
+function loadedProjectView(preview: ProjectPreview): WebContentsView | null {
   if (!preview.status().project) return null;
   const view = preview.view;
   if (!view || view.webContents.isDestroyed()) return null;
@@ -238,7 +238,7 @@ async function status(rt: Runtime) {
       electron: app.getPath("userData"),
       session: app.getPath("sessionData"),
       core: ctx.core,
-      games: ctx.games,
+      projects: ctx.projects,
     },
     providers: ctx.providers,
     fixture: ctx.fixture,
@@ -323,11 +323,11 @@ async function perform(rt: Runtime, op: Operation) {
   switch (op.method) {
     case DevMethod.FixtureGraph:
       return fixtureGraph(rt, op.params.action);
-    case DevMethod.GameState:
-      surfaceContents(rt, DevSurface.Game);
+    case DevMethod.ProjectState:
+      surfaceContents(rt, DevSurface.Project);
       return rt.preview.studioState();
-    case DevMethod.GameInput:
-      surfaceContents(rt, DevSurface.Game);
+    case DevMethod.ProjectInput:
+      surfaceContents(rt, DevSurface.Project);
       return rt.preview.input(op.params.actions);
     case DevMethod.WindowResize:
       return resizeWindow(rt, op.params);
@@ -387,8 +387,8 @@ function requestStop(rt: Runtime) {
 type CaptureParams = Extract<Operation, { method: typeof DevMethod.Capture }>["params"];
 
 async function captureSurface(rt: Runtime, params: CaptureParams) {
-  if (params.surface === DevSurface.Game && !gameViewShown(rt.preview))
-    throw new DevError(DevErrorCode.MissingPrerequisite, "select Live to capture the current game surface");
+  if (params.surface === DevSurface.Project && !projectViewShown(rt.preview))
+    throw new DevError(DevErrorCode.MissingPrerequisite, "select Live to capture the current project surface");
   const target = surfaceContents(rt, params.surface);
   const file = await rt.diagnostics.destination(`${params.surface}-${params.name}.png`);
   const image = await target.capturePage(undefined, { stayHidden: true, stayAwake: true });
@@ -407,16 +407,16 @@ async function captureSurface(rt: Runtime, params: CaptureParams) {
 }
 
 type WindowResizeParams = Extract<Operation, { method: typeof DevMethod.WindowResize }>["params"];
-/** Measure how Live's view follows a stepped resize of the studio window; Live must show a game. */
+/** Measure how Live's view follows a stepped resize of the studio window; Live must show a project. */
 function resizeWindow(rt: Runtime, params: WindowResizeParams) {
   const view = rt.preview.view;
-  if (!view || !gameViewShown(rt.preview))
-    throw new DevError(DevErrorCode.UnsupportedSurface, "window.resize needs a game shown in Live");
+  if (!view || !projectViewShown(rt.preview))
+    throw new DevError(DevErrorCode.UnsupportedSurface, "window.resize needs a project shown in Live");
   return measureWindowResize(rt.win, view, params);
 }
 
-/** Is the game view on screen with an area to capture? */
-function gameViewShown(preview: GamePreview): boolean {
+/** Is the project view on screen with an area to capture? */
+function projectViewShown(preview: ProjectPreview): boolean {
   const bounds = preview.view?.getBounds();
   return Boolean(bounds && bounds.width > 0 && bounds.height > 0);
 }
@@ -452,7 +452,7 @@ async function readLogs(rt: Runtime, params: LogsParams) {
 
 async function logEntries(rt: Runtime, surface: DevLogSurface): Promise<unknown[]> {
   if (surface === DevLogSurface.Desktop) return rt.logs();
-  if (surface === DevLogSurface.Game) return rt.preview.consoleEntries();
+  if (surface === DevLogSurface.Project) return rt.preview.consoleEntries();
   if (surface === DevLogSurface.Harness) return rt.harnessLogs();
   return rt.core.listAllEvents(undefined, LOG_SOURCE_LIMIT);
 }
@@ -588,12 +588,12 @@ async function fixtureGraph(
   const sample = async () => (await rt.control.inspect(wc, { performanceOnly: true })).performance;
   const before = await sample();
   const result = await applyGraphFixture(rt.ctx, action, {
-    thread: () => rt.core.threadForGame("fixture-game"),
+    thread: () => rt.core.threadForProject("fixture-project"),
     events: (thread) => rt.core.store.listEvents(thread),
     append: (events, thread) => rt.core.append(events, thread),
     frame: (frame) => rt.core.emit(UiEvent.PreviewFrame, frame),
     close: (frame) => rt.core.emit(UiEvent.PreviewScreen, { ...frame, state: "closed" }),
-    changed: () => rt.core.emit(UiEvent.GameChanged, { project: "fixture-game" }),
+    changed: () => rt.core.emit(UiEvent.ProjectChanged, { project: "fixture-project" }),
   });
   await sleep(FIXTURE_PUBLISH_SETTLE_MS);
   return { ...result, rendererPid: wc.getOSProcessId(), before, after: await sample() };

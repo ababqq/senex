@@ -5,7 +5,7 @@
 import type { PreviewPixelStats, PreviewPort } from "../../substrate/preview-port.ts";
 import { CaptureSurface } from "../../shared/preview-contract.ts";
 
-/** JPEG quality of a look at the game, when the caller names none. */
+/** JPEG quality of a look at the project, when the caller names none. */
 export const DEFAULT_SHOT_QUALITY = 80;
 /** JPEG quality of a crop cut from a judged frame or a resized still, when the caller names none. */
 export const DEFAULT_STILL_QUALITY = 85;
@@ -21,7 +21,7 @@ export const CAMERA_SETTLE_MS = 60;
  *
  * It is deliberately NOT a `PageUi` (`substrate/page-ui.ts`): `viewport: null` says the studio
  * could not look, where `{ width: 0, height: 0 }` would claim it looked and found nothing. The
- * port's own answer is already folded by `readPageUi` inside `GamePreview.pageUi()`, so this
+ * port's own answer is already folded by `readPageUi` inside `ProjectPreview.pageUi()`, so this
  * call passes it through rather than folding a second time. `CaptureSurface` itself is the
  * preview contract's (`shared/preview-contract.ts`); nothing about a surface is re-declared here.
  */

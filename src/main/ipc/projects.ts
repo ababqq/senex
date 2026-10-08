@@ -1,10 +1,10 @@
-/** Folders on this Mac: picking, inspecting, adopting and opening a game, and showing its files. */
+/** Folders on this Mac: picking, inspecting, adopting and opening a project, and showing its files. */
 import path from "node:path";
 import { dialog, shell, type BrowserWindow } from "electron";
 import { containedReal } from "../../substrate/paths.ts";
 import { ChatFileOpen } from "../../shared/chat-files.ts";
 import { isGenexRef } from "../../shared/genex-ref.ts";
-import { gameLocationPickerOptions, projectPickerOptions } from "../project-picker.ts";
+import { projectLocationPickerOptions, projectPickerOptions } from "../project-picker.ts";
 import type { StudioCore } from "../studio-core.ts";
 import type { IpcHandle } from "./registrar.ts";
 
@@ -19,13 +19,13 @@ export interface ProjectsIpcDeps {
   core: StudioCore;
   /** The studio window; null while it is closed. */
   window(): BrowserWindow | null;
-  /** `~/AI Games`, as a human reads it — the renderer never sees absolute paths. */
-  gamesRootLabel(root: string): string;
+  /** `~/AI Projects`, as a human reads it — the renderer never sees absolute paths. */
+  projectsRootLabel(root: string): string;
 }
 
 export function registerProjectsIpc(
   handle: IpcHandle,
-  { core, window: currentWindow, gamesRootLabel }: ProjectsIpcDeps,
+  { core, window: currentWindow, projectsRootLabel }: ProjectsIpcDeps,
 ): void {
   handle("studio:open-url", async (payload) => {
     if (!/^https:\/\//i.test(payload.url ?? "")) throw new Error(MESSAGE.httpsOnly);
@@ -46,10 +46,12 @@ export function registerProjectsIpc(
     return true;
   });
 
-  // Markdown and images the chat names open beside it. Main resolves the name inside that chat's game.
-  handle("studio:game-file.read", async (payload) => core.readGameFile(String(payload.threadId), String(payload.path)));
-  handle("studio:game-file.reveal", async (payload) => {
-    shell.showItemInFolder(await core.revealGameFile(String(payload.threadId), String(payload.path)));
+  // Markdown and images the chat names open beside it. Main resolves the name inside that chat's project.
+  handle("studio:project-file.read", async (payload) =>
+    core.readProjectFile(String(payload.threadId), String(payload.path)),
+  );
+  handle("studio:project-file.reveal", async (payload) => {
+    shell.showItemInFolder(await core.revealProjectFile(String(payload.threadId), String(payload.path)));
     return true;
   });
   // Every other file the chat names opens in its app. The renderer sends the words the chat used;
@@ -74,48 +76,48 @@ export function registerProjectsIpc(
   handle("studio:project.pick", async () => {
     const window = currentWindow();
     if (!window) throw new Error(MESSAGE.noWindow);
-    const result = await dialog.showOpenDialog(window, projectPickerOptions(core.layout.gamesRoot));
+    const result = await dialog.showOpenDialog(window, projectPickerOptions(core.layout.projectsRoot));
     const dir = result.filePaths[0];
     if (result.canceled || !dir) return null;
     // Picking is not opening: the dialog answers *which folder*, and nothing is written until
-    // the Open Game sheet has shown what is in it and the user has pressed its button.
+    // the Open Project sheet has shown what is in it and the user has pressed its button.
     return dir;
   });
 
-  // Create game's location. Choosing is not creating: the answer is checked by its real path, as
+  // Create project's location. Choosing is not creating: the answer is checked by its real path, as
   // creating there will be, so a refused folder is said at once; nothing is written until Create.
-  handle("studio:game.location.pick", async () => {
+  handle("studio:project.location.pick", async () => {
     const window = currentWindow();
     if (!window) throw new Error(MESSAGE.noWindow);
-    const result = await dialog.showOpenDialog(window, gameLocationPickerOptions(core.layout.gamesRoot));
+    const result = await dialog.showOpenDialog(window, projectLocationPickerOptions(core.layout.projectsRoot));
     const dir = result.filePaths[0];
     if (result.canceled || !dir) return null;
-    return core.gameLocation(dir);
+    return core.projectLocation(dir);
   });
 
-  // Settings → Games. New games go to the chosen folder; the ones already made stay where they are.
-  handle("studio:games-root.choose", async () => {
+  // Settings → Projects. New projects go to the chosen folder; the ones already made stay where they are.
+  handle("studio:projects-root.choose", async () => {
     const window = currentWindow();
     if (!window) throw new Error(MESSAGE.noWindow);
     const result = await dialog.showOpenDialog(window, {
-      title: "Folder for new games",
-      defaultPath: path.dirname(core.layout.gamesRoot),
+      title: "Folder for new projects",
+      defaultPath: path.dirname(core.layout.projectsRoot),
       buttonLabel: "Use this folder",
-      message: "Choose an empty folder, or create one. Games you already have stay where they are.",
+      message: "Choose an empty folder, or create one. Projects you already have stay where they are.",
       properties: ["openDirectory", "createDirectory"],
     });
     const dir = result.filePaths[0];
     if (result.canceled || !dir) return null;
-    await core.setGamesRoot(dir);
-    return gamesRootLabel(core.layout.gamesRoot);
+    await core.setProjectsRoot(dir);
+    return projectsRootLabel(core.layout.projectsRoot);
   });
 
   // Looking is not adopting: this reads the folder and writes nothing, so the sheet can show
-  // what is there — including a game one level down — before the user agrees to open it.
+  // what is there — including a project one level down — before the user agrees to open it.
   handle("studio:project.inspect", async (payload) => core.inspectFolder(payload.dir));
 
-  // The sheet's own button. `subdir` is a candidate the inspection listed (the nested game the
-  // studio offers as *the* game); `template` is the answer to "may I write a starter game here";
+  // The sheet's own button. `subdir` is a candidate the inspection listed (the nested project the
+  // studio offers as *the* project); `template` is the answer to "may I write a starter project here";
   // `versionNested` is the consent a row that keeps a folder holding its own repository carries.
   handle("studio:project.adopt", async (payload) =>
     core.adoptProject(payload.dir, {
@@ -128,19 +130,19 @@ export function registerProjectsIpc(
   );
 
   handle("studio:project.open", async (payload) => {
-    const games = await core.games.list();
-    const project = games.find((g) => g.name === payload.name);
+    const projects = await core.projects.list();
+    const project = projects.find((g) => g.name === payload.name);
     if (!project) throw new Error(MESSAGE.unknownProject(payload.name));
     await core.assertProjectAllowed(project.dir);
-    await core.games.touch(project.name);
+    await core.projects.touch(project.name);
     core.sandbox.allowWrite(project.dir);
     return project;
   });
 }
 
-/** What Reveal shows: a retained Genex asset, a file inside the game, or the game's folder. */
+/** What Reveal shows: a retained Genex asset, a file inside the project, or the project's folder. */
 async function revealTarget(core: StudioCore, project: string, file: string | undefined): Promise<string> {
   if (isGenexRef(file)) return core.retainedAssetFile(project, file);
-  const dir = core.games.dirFor(project);
+  const dir = core.projects.dirFor(project);
   return file ? containedReal(dir, file) : dir;
 }

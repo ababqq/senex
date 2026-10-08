@@ -12,7 +12,7 @@ import {
 import { registerSkillsIpc } from "../../src/main/ipc/skills.ts";
 import { createIpcHandle, type IpcResult, type IpcSender } from "../../src/main/ipc-handle.ts";
 import { assertOwnedProject } from "../../src/main/project-policy.ts";
-import { GameWorkspaces } from "../../src/substrate/game-workspace.ts";
+import { ProjectWorkspaces } from "../../src/substrate/project-workspace.ts";
 import { LoginSource } from "../../src/shared/engine-descriptor.ts";
 import { EngineId } from "../../src/shared/providers.ts";
 import { ProviderBuilderUse, type ProjectSkillInventory } from "../../src/shared/provider-skills.ts";
@@ -30,7 +30,7 @@ test("native Codex discovery preserves disabled global skills and excludes proje
         skills: [
           skill,
           { ...skill },
-          { ...skill, name: "project", path: "/game/.agents/skills/project/SKILL.md", scope: "repo" },
+          { ...skill, name: "project", path: "/project/.agents/skills/project/SKILL.md", scope: "repo" },
           { name: "invalid" },
         ],
       },
@@ -113,33 +113,33 @@ async function tree(dir: string): Promise<string[]> {
   return rows;
 }
 
-/** A games root with one game, `demo`, and a folder outside it; the body gets all three. */
-async function withGame<T>(body: (games: string, game: string, outside: string) => Promise<T>): Promise<T> {
-  // Real paths: the development containment check refuses a games root reached through a link (/var).
+/** A projects root with one project, `demo`, and a folder outside it; the body gets all three. */
+async function withProject<T>(body: (projects: string, project: string, outside: string) => Promise<T>): Promise<T> {
+  // Real paths: the development containment check refuses a projects root reached through a link (/var).
   const root = await realpath(await mkdtemp(path.join(os.tmpdir(), "project-skills-")));
-  const games = path.join(root, "games"),
-    game = path.join(games, "demo"),
+  const projects = path.join(root, "projects"),
+    project = path.join(projects, "demo"),
     outside = path.join(root, "outside");
   try {
     await mkdir(path.join(outside, "stolen"), { recursive: true });
     await writeFile(path.join(outside, "stolen", "SKILL.md"), skillFile("Stolen"));
     await writeFile(path.join(outside, "stolen.md"), "Stolen command");
-    await mkdir(path.join(game, ".claude/skills/level-design"), { recursive: true });
-    await writeFile(path.join(game, ".claude/skills/level-design/SKILL.md"), skillFile("Level design"));
-    await mkdir(path.join(game, ".claude/commands"), { recursive: true });
-    await writeFile(path.join(game, ".claude/commands/playtest.md"), "---\ndescription: Play it\n---\nPlay.");
-    await mkdir(path.join(game, ".agents/skills/shaders"), { recursive: true });
-    await writeFile(path.join(game, ".agents/skills/shaders/SKILL.md"), skillFile("Shaders"));
-    return await body(games, game, outside);
+    await mkdir(path.join(project, ".claude/skills/level-design"), { recursive: true });
+    await writeFile(path.join(project, ".claude/skills/level-design/SKILL.md"), skillFile("Level design"));
+    await mkdir(path.join(project, ".claude/commands"), { recursive: true });
+    await writeFile(path.join(project, ".claude/commands/playtest.md"), "---\ndescription: Play it\n---\nPlay.");
+    await mkdir(path.join(project, ".agents/skills/shaders"), { recursive: true });
+    await writeFile(path.join(project, ".agents/skills/shaders/SKILL.md"), skillFile("Shaders"));
+    return await body(projects, project, outside);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
 }
 
-test("a game's project skills and commands are listed with the builders that load them", async () => {
-  await withGame(async (_games, game) => {
-    const before = await tree(game);
-    const { skills, warnings } = await projectSkills(game);
+test("a project's project skills and commands are listed with the builders that load them", async () => {
+  await withProject(async (_projects, project) => {
+    const before = await tree(project);
+    const { skills, warnings } = await projectSkills(project);
     assert.deepEqual(skills, [
       {
         name: "Level design",
@@ -164,64 +164,65 @@ test("a game's project skills and commands are listed with the builders that loa
       },
     ]);
     assert.deepEqual(warnings, []);
-    assert.deepEqual(await tree(game), before);
+    assert.deepEqual(await tree(project), before);
   });
 });
 
 test("one skill folder both builders read is listed once, for both", async () => {
-  await withGame(async (_games, game) => {
-    await rm(path.join(game, ".agents/skills"), { recursive: true });
-    await symlink(path.join(game, ".claude/skills"), path.join(game, ".agents/skills"));
-    const { skills } = await projectSkills(game);
+  await withProject(async (_projects, project) => {
+    await rm(path.join(project, ".agents/skills"), { recursive: true });
+    await symlink(path.join(project, ".claude/skills"), path.join(project, ".agents/skills"));
+    const { skills } = await projectSkills(project);
     const shared = skills.filter((s) => s.name === "Level design");
     assert.equal(shared.length, 1);
     assert.deepEqual(shared[0]?.engines, [EngineId.ClaudeCode, EngineId.Codex]);
   });
 });
 
-/** Hostile game folders: each lists nothing from outside the game and leaves the folder as it was. */
+/** Hostile project folders: each lists nothing from outside the project and leaves the folder as it was. */
 const HOSTILE_PROJECTS: Array<{
   name: string;
-  arrange(game: string, outside: string): Promise<void>;
+  arrange(project: string, outside: string): Promise<void>;
   warns?: boolean;
 }> = [
   {
-    name: "a skill folder linked outside the game",
-    arrange: (game, outside) => symlink(path.join(outside, "stolen"), path.join(game, ".claude/skills/stolen")),
+    name: "a skill folder linked outside the project",
+    arrange: (project, outside) => symlink(path.join(outside, "stolen"), path.join(project, ".claude/skills/stolen")),
   },
   {
-    name: "a SKILL.md linked outside the game",
-    arrange: async (game, outside) => {
-      await mkdir(path.join(game, ".claude/skills/stolen"));
-      await symlink(path.join(outside, "stolen", "SKILL.md"), path.join(game, ".claude/skills/stolen/SKILL.md"));
+    name: "a SKILL.md linked outside the project",
+    arrange: async (project, outside) => {
+      await mkdir(path.join(project, ".claude/skills/stolen"));
+      await symlink(path.join(outside, "stolen", "SKILL.md"), path.join(project, ".claude/skills/stolen/SKILL.md"));
     },
   },
   {
-    name: "a command linked outside the game",
-    arrange: (game, outside) => symlink(path.join(outside, "stolen.md"), path.join(game, ".claude/commands/stolen.md")),
+    name: "a command linked outside the project",
+    arrange: (project, outside) =>
+      symlink(path.join(outside, "stolen.md"), path.join(project, ".claude/commands/stolen.md")),
   },
   {
-    name: "a whole skills root linked outside the game",
-    arrange: async (game, outside) => {
-      await rm(path.join(game, ".agents/skills"), { recursive: true });
-      await symlink(outside, path.join(game, ".agents/skills"));
+    name: "a whole skills root linked outside the project",
+    arrange: async (project, outside) => {
+      await rm(path.join(project, ".agents/skills"), { recursive: true });
+      await symlink(outside, path.join(project, ".agents/skills"));
     },
   },
   {
-    name: "the .claude folder linked outside the game",
-    arrange: async (game, outside) => {
-      await rm(path.join(game, ".claude"), { recursive: true });
+    name: "the .claude folder linked outside the project",
+    arrange: async (project, outside) => {
+      await rm(path.join(project, ".claude"), { recursive: true });
       await mkdir(path.join(outside, "skills", "stolen"), { recursive: true });
       await writeFile(path.join(outside, "skills", "stolen", "SKILL.md"), skillFile("Stolen"));
-      await symlink(outside, path.join(game, ".claude"));
+      await symlink(outside, path.join(project, ".claude"));
     },
   },
   {
     name: "a 300 KiB SKILL.md",
-    arrange: async (game) => {
-      await mkdir(path.join(game, ".claude/skills/huge"));
+    arrange: async (project) => {
+      await mkdir(path.join(project, ".claude/skills/huge"));
       await writeFile(
-        path.join(game, ".claude/skills/huge/SKILL.md"),
+        path.join(project, ".claude/skills/huge/SKILL.md"),
         `${skillFile("Stolen")}\n${"x".repeat(300 * KIB)}`,
       );
     },
@@ -230,16 +231,16 @@ const HOSTILE_PROJECTS: Array<{
 ];
 
 for (const row of HOSTILE_PROJECTS)
-  test(`project skills: ${row.name} is not listed, and the game is left as it was`, async () => {
-    await withGame(async (_games, game, outside) => {
-      await row.arrange(game, outside);
-      const before = await tree(game);
+  test(`project skills: ${row.name} is not listed, and the project is left as it was`, async () => {
+    await withProject(async (_projects, project, outside) => {
+      await row.arrange(project, outside);
+      const before = await tree(project);
       const outsideBefore = await tree(outside);
-      const { skills, warnings } = await projectSkills(game);
+      const { skills, warnings } = await projectSkills(project);
       assert.ok(!skills.some((s) => s.name === "Stolen"), JSON.stringify(skills));
       assert.ok(skills.every((s) => !s.path.startsWith("..") && !path.isAbsolute(s.path)));
       assert.equal(warnings.length > 0, row.warns === true, JSON.stringify(warnings));
-      assert.deepEqual(await tree(game), before);
+      assert.deepEqual(await tree(project), before);
       assert.deepEqual(await tree(outside), outsideBefore);
     });
   });
@@ -263,26 +264,26 @@ test("Claude's global skills say they never reach builders", async () => {
 
 type Listener = (event: IpcSender, payload: unknown) => Promise<IpcResult>;
 
-/** The skills registrar over a real games root, the development containment check and a recorded skillText. */
-function skillsIpc(games: string) {
+/** The skills registrar over a real projects root, the development containment check and a recorded skillText. */
+function skillsIpc(projects: string) {
   const listeners = new Map<string, Listener>();
   const handle = createIpcHandle(
     { handle: (channel, listener) => void listeners.set(channel, listener) },
     { fixture: true, isStudioUi: () => true },
   );
   const reads: unknown[][] = [];
-  const workspace = new GameWorkspaces({
-    root: games,
-    templateDir: games,
-    vendorDir: games,
-    indexFile: path.join(games, "index.json"),
-    userData: games,
+  const workspace = new ProjectWorkspaces({
+    root: projects,
+    templateDir: projects,
+    vendorDir: projects,
+    indexFile: path.join(projects, "index.json"),
+    userData: projects,
   });
   registerSkillsIpc(handle, {
     core: {
-      layout: { harnessWs: games } as never,
-      games: workspace,
-      assertProjectAllowed: (dir: string) => assertOwnedProject(games, dir),
+      layout: { harnessWs: projects } as never,
+      projects: workspace,
+      assertProjectAllowed: (dir: string) => assertOwnedProject(projects, dir),
       plugins: {
         skillText: async (...args: unknown[]) => {
           reads.push(args);
@@ -291,7 +292,7 @@ function skillsIpc(games: string) {
       } as never,
     },
     subscription: () => null,
-    home: () => games,
+    home: () => projects,
   });
   const invoke = (channel: string, payload?: unknown) => {
     const listener = listeners.get(channel);
@@ -301,9 +302,9 @@ function skillsIpc(games: string) {
   return { invoke, reads };
 }
 
-test("studio:skills.project lists the named game's skills", async () => {
-  await withGame(async (games) => {
-    const result = await skillsIpc(games).invoke("studio:skills.project", { project: "demo" });
+test("studio:skills.project lists the named project's skills", async () => {
+  await withProject(async (projects) => {
+    const result = await skillsIpc(projects).invoke("studio:skills.project", { project: "demo" });
     assert.equal(result.ok, true);
     const inventory = (result as { value: ProjectSkillInventory }).value;
     assert.equal(inventory.project, "demo");
@@ -317,8 +318,8 @@ test("studio:skills.project lists the named game's skills", async () => {
 /**
  * Payloads the channel refuses. The name checks hold in every profile; the linked folder is refused
  * only by the development containment root (`executionPolicy.allowedProjectRoot`, set for dev
- * profiles alone), which `skillsIpc` wires in: a normal profile treats a linked game folder as the
- * user's own game. The rows prove the refusal and that nothing is written, not that nothing is read.
+ * profiles alone), which `skillsIpc` wires in: a normal profile treats a linked project folder as the
+ * user's own project. The rows prove the refusal and that nothing is written, not that nothing is read.
  */
 const HOSTILE_PROJECT_PAYLOADS: Array<{ name: string; payload: unknown }> = [
   { name: "no payload", payload: undefined },
@@ -326,25 +327,28 @@ const HOSTILE_PROJECT_PAYLOADS: Array<{ name: string; payload: unknown }> = [
   { name: "a number", payload: { project: 7 } },
   { name: "a traversal", payload: { project: "../outside" } },
   { name: "an absolute path", payload: { project: "/etc" } },
-  { name: "a game folder linked outside the games root, in a development profile", payload: { project: "alias" } },
+  {
+    name: "a project folder linked outside the projects root, in a development profile",
+    payload: { project: "alias" },
+  },
 ];
 
 for (const row of HOSTILE_PROJECT_PAYLOADS)
   test(`studio:skills.project refuses ${row.name} and writes nothing`, async () => {
-    await withGame(async (games, _game, outside) => {
+    await withProject(async (projects, _project, outside) => {
       await mkdir(path.join(outside, ".claude/skills"), { recursive: true });
       await symlink(path.join(outside, "stolen"), path.join(outside, ".claude/skills/stolen"));
-      await symlink(outside, path.join(games, "alias"));
-      const before = await tree(path.dirname(games));
-      const result = await skillsIpc(games).invoke("studio:skills.project", row.payload);
+      await symlink(outside, path.join(projects, "alias"));
+      const before = await tree(path.dirname(projects));
+      const result = await skillsIpc(projects).invoke("studio:skills.project", row.payload);
       assert.equal(result.ok, false, JSON.stringify(result));
-      assert.deepEqual(await tree(path.dirname(games)), before);
+      assert.deepEqual(await tree(path.dirname(projects)), before);
     });
   });
 
 test("studio:plugins.skill reads a plugin skill's text, and refuses a malformed request before any read", async () => {
-  await withGame(async (games) => {
-    const ipc = skillsIpc(games);
+  await withProject(async (projects) => {
+    const ipc = skillsIpc(projects);
     const ok = await ipc.invoke("studio:plugins.skill", { id: "genex", name: "multiplayer", file: "refs/rooms.md" });
     assert.deepEqual(ok, { ok: true, value: "text" });
     assert.deepEqual(await ipc.invoke("studio:plugins.skill", { id: "genex", name: "publishing" }), {

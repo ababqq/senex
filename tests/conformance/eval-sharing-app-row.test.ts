@@ -108,7 +108,7 @@ describe("the field row", () => {
     const extra = {
       ...facts(),
       prompt: "make a platformer",
-      time: { ...facts().time, projectDir: "/Users/studio/AI Games/demo" },
+      time: { ...facts().time, projectDir: "/Users/studio/AI Projects/demo" },
       inApp: { ...facts().inApp, summary: "the night went well" },
     } as FieldRunFacts;
     const result = buildFieldRow(extra, stamp());

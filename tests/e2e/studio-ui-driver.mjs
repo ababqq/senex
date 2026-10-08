@@ -91,10 +91,10 @@ async function acceptance() {
     await until(`!!document.querySelector('nav [data-thread="studio"]')`);
     await click('nav [data-thread="studio"]');
     check(
-      "feed loads runs from both games beyond the bootstrap tail",
+      "feed loads runs from both projects beyond the bootstrap tail",
       await until(`document.querySelectorAll('[data-activity-kind="run"]').length===3`),
     );
-    check("Studio hides native game", !nativeVisible());
+    check("Studio hides native project", !nativeVisible());
     check(
       "Studio composer offers images, one model menu and Send",
       await js(
@@ -110,7 +110,7 @@ async function acceptance() {
     check(
       "suggestions are one review block with plain titles",
       await js(
-        `document.querySelectorAll('[data-suggestion]').length===2 && document.querySelector('[data-suggestions]').textContent.includes('Nothing changes until you apply') && document.querySelector('[data-suggestions]').textContent.includes('Check the player’s view before finishing a scene') && !document.querySelector('[data-suggestions]').textContent.includes('Update facet-decomposition')`,
+        `document.querySelectorAll('[data-suggestion]').length===2 && document.querySelector('[data-suggestions]').textContent.includes('Nothing changes until you apply') && document.querySelector('[data-suggestions]').textContent.includes('Check a narrow window before finishing a screen') && !document.querySelector('[data-suggestions]').textContent.includes('Update facet-decomposition')`,
       ),
     );
     check(
@@ -225,23 +225,23 @@ async function acceptance() {
     check(
       "Apply lands every included suggestion, two of them in one file",
       await until(
-        `!document.querySelector('[data-suggestions]') && ['Check the player’s view before finishing a scene','Leave time to tune difficulty'].every(title=>document.querySelector('[data-studio-learned]').textContent.includes(title))`,
+        `!document.querySelector('[data-suggestions]') && ['Check a narrow window before finishing a screen','Leave time to tune spacing'].every(title=>document.querySelector('[data-studio-learned]').textContent.includes(title))`,
       ),
     );
     const learnedRow = (title) =>
       `[...document.querySelectorAll('[data-activity-kind="improvement"]')].find(row=>row.textContent.includes(${JSON.stringify(title)}))`;
     await js(
-      `${learnedRow("Check the player’s view before finishing a scene")}.querySelector('button[aria-expanded]').setAttribute('data-undo-target','')`,
+      `${learnedRow("Check a narrow window before finishing a screen")}.querySelector('button[aria-expanded]').setAttribute('data-undo-target','')`,
     );
     await click("[data-undo-target]");
     await js(
-      `[...${learnedRow("Check the player’s view before finishing a scene")}.querySelectorAll('button')].find(b=>b.textContent==='Undo this change').setAttribute('data-undo-button','')`,
+      `[...${learnedRow("Check a narrow window before finishing a screen")}.querySelectorAll('button')].find(b=>b.textContent==='Undo this change').setAttribute('data-undo-button','')`,
     );
     await click("[data-undo-button]");
     check(
       "Undo this change takes back that change alone",
       await until(
-        `${learnedRow("Check the player’s view before finishing a scene")}?.textContent.includes('Undone') && !${learnedRow("Leave time to tune difficulty")}.textContent.includes('Undone') && ![...${learnedRow("Check the player’s view before finishing a scene")}.querySelectorAll('button')].some(b=>b.textContent==='Undo this change')`,
+        `${learnedRow("Check a narrow window before finishing a screen")}?.textContent.includes('Undone') && !${learnedRow("Leave time to tune spacing")}.textContent.includes('Undone') && ![...${learnedRow("Check a narrow window before finishing a screen")}.querySelectorAll('button')].some(b=>b.textContent==='Undo this change')`,
       ),
     );
     await click("[data-undo-target]");
@@ -350,26 +350,26 @@ async function acceptance() {
     check(
       "an expanded run says plainly what it delivered",
       await until(
-        `document.querySelector('[data-activity-kind="run"] .disclosure-body[data-open="true"]')?.textContent.includes('Your game is as you left it')`,
+        `document.querySelector('[data-activity-kind="run"] .disclosure-body[data-open="true"]')?.textContent.includes('Your project is as you left it')`,
       ),
     );
     check(
       "an expanded run shows its result and actions, not the technical report",
       await js(
-        `!document.querySelector('[data-activity-kind="run"] [data-testid="run-outcome"]') && !document.querySelector('[data-activity-kind="run"] .disclosure-body button.chat-disclosure') && !!document.querySelector('[aria-label="Open game chat for Ashlands walk"]')`,
+        `!document.querySelector('[data-activity-kind="run"] [data-testid="run-outcome"]') && !document.querySelector('[data-activity-kind="run"] .disclosure-body button.chat-disclosure') && !!document.querySelector('[aria-label="Open project chat for Ashlands walk"]')`,
       ),
     );
     await capture("studio-run-details");
     await type("Keep this Studio draft");
-    await click('[aria-label="Open game chat for Ashlands walk"]');
+    await click('[aria-label="Open project chat for Ashlands walk"]');
     check(
-      "Open game chat navigates to the run’s game",
+      "Open project chat navigates to the run’s project",
       await until(
         `document.querySelector('[data-studio-state]')?.dataset.room==='build' && document.querySelector('[data-chat-header]').textContent.includes('Ashlands walk')`,
       ),
     );
     check(
-      "game composer retains its model and tool controls",
+      "project composer retains its model and tool controls",
       await js(
         `!!document.querySelector('[data-promptbar] [aria-label="Model settings"]') && !document.querySelector('[data-studio-composer]')`,
       ),

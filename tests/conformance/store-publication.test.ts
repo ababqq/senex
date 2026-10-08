@@ -14,7 +14,7 @@ it("a grouped refresh publishes only after every independent read has settled", 
   const second = refreshers.createRefresher(
     () =>
       new Promise<string>((resolve) => {
-        release = () => resolve("games");
+        release = () => resolve("projects");
       }),
     (value) => applied.push(value),
     { publish: batch.publish },
@@ -24,7 +24,7 @@ it("a grouped refresh publishes only after every independent read has settled", 
   assert.deepEqual(applied, []);
   release?.();
   await done;
-  assert.deepEqual(applied, ["threads", "games"]);
+  assert.deepEqual(applied, ["threads", "projects"]);
 });
 
 it("reset drops a completed read that is still waiting for batch publication", async () => {

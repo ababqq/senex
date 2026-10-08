@@ -163,10 +163,10 @@ function parseFrame(value: unknown): FrameRef | null {
 
 /** The evidence references a scorecard carries, with every malformed frame dropped; null when there are none. */
 export function parseEvidenceRefs(value: unknown): EvidenceRefs | null {
-  if (!isRecord(value) || typeof value.gameOrigin !== "string" || !Array.isArray(value.frames)) return null;
+  if (!isRecord(value) || typeof value.projectOrigin !== "string" || !Array.isArray(value.frames)) return null;
   const frames = value.frames.map(parseFrame).filter((frame): frame is FrameRef => frame !== null);
   return {
-    gameOrigin: value.gameOrigin,
+    projectOrigin: value.projectOrigin,
     frames,
     consoleSummaryPath: typeof value.consoleSummaryPath === "string" ? value.consoleSummaryPath : "",
     networkSummaryPath: typeof value.networkSummaryPath === "string" ? value.networkSummaryPath : "",
@@ -192,7 +192,7 @@ export async function reviewSide(evidenceRoot: string, run: GradedRun): Promise<
   const refs = isRecord(probe) ? parseEvidenceRefs(probe.evidence) : null;
   if (refs === null) return { runId, frames: [], video: null };
   const frames: ReviewMedia[] = [];
-  for (const frame of pickFrames(witnessedFrames(refs.frames, refs.gameOrigin))) {
+  for (const frame of pickFrames(witnessedFrames(refs.frames, refs.projectOrigin))) {
     if ((await containedRunFile(evidenceRoot, runId, frame.path)) === null) continue;
     frames.push({ kind: MediaKind.Frame, runId, file: frame.path, width: frame.width, height: frame.height });
   }

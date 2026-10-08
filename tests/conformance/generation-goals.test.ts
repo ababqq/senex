@@ -73,7 +73,7 @@ it("soft review reports gaps once without treating the review time as a deadline
   assert.equal(progressReview(goals, "a", 31 * 60_000, true), null);
 });
 
-it("missing interaction evidence stays unverified rather than becoming a failed gameplay claim", () => {
+it("missing interaction evidence stays unverified rather than becoming a failed interaction claim", () => {
   const goals = createGoals([{ id: "online", done: ["Two clients exchange moves"] }]);
   recordGoalEvidence(goals, "online", "head", undefined);
   assert.equal(goals.entries[0]?.status, GoalStatus.Unverified);

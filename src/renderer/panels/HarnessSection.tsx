@@ -99,7 +99,7 @@ export function HarnessSection(): JSX.Element {
             <span className="text-ink">How suggestions are tested</span>
             <span className="text-ink-3">
               An independent reviewer compares the current and suggested instructions on your past requests. It doesn’t
-              rebuild your games, so an applied change isn’t proof of better results.
+              rebuild your projects, so an applied change isn’t proof of better results.
             </span>
           </span>
         </div>

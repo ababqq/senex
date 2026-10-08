@@ -4,7 +4,7 @@ import { turnHue } from "./oklch.ts";
  * Cover recipes: the agent picks a family, the host owns every pixel. A recipe is a family, its
  * look (a named palette, or a hue slot for the orb families) and a seed, plus optional motion.
  * The six named-palette families share one host-owned sphere program; each orb family is its own
- * program (`cover-orbs.ts`). Values arrive as uniforms, so a new game never writes shader code.
+ * program (`cover-orbs.ts`). Values arrive as uniforms, so a new project never writes shader code.
  */
 export const COVER_PALETTES = {
   clouds: ["genex", "day", "night", "dawn", "mint", "storm"],
@@ -49,13 +49,13 @@ export type CoverRecipe = {
   seed: number;
   /** 0 still to 1 lively; absent means the default pace. */
   motion?: number;
-  /** Rolled by the host at birth; the agent may replace it once with a look that fits the game. */
+  /** Rolled by the host at birth; the agent may replace it once with a look that fits the project. */
   placeholder?: true;
 };
 
 /**
  * Seeds are below this prime: small enough that the sphere program's noise offsets keep full
- * float precision, and each game still draws its own.
+ * float precision, and each project still draws its own.
  */
 export const COVER_SEED_RANGE = 997;
 /** FNV-1a's 32-bit offset basis and prime. */
@@ -160,7 +160,7 @@ function slotDistance(a: number, b: number): number {
   return Math.min(apart, COVER_HUE_SLOTS - apart);
 }
 
-/** An orb family's free hue slot farthest from its other games; its own colours when it has none. */
+/** An orb family's free hue slot farthest from its other projects; its own colours when it has none. */
 function freeHue(family: OrbFamily, free: CoverLook[], used: number[], random: () => number): CoverLook {
   const room = (look: CoverLook): number =>
     used.length ? Math.min(...used.map((hue) => slotDistance(hue, look.hue ?? 0))) : Number(look.hue === 0);
@@ -192,7 +192,7 @@ function lookInFamily(
   return wished ?? pick(free, random) ?? { family, palette: fallback };
 }
 
-/** The family used least by other games, among those that still have a free look. */
+/** The family used least by other projects, among those that still have a free look. */
 function leastUsedFamily(taken: readonly CoverLook[], random: () => number): CoverFamily {
   const keys = new Set(taken.map(coverLookKey));
   const open = COVER_FAMILIES.filter((family) => looksOf(family).some((look) => !keys.has(coverLookKey(look))));
@@ -208,8 +208,8 @@ function leastUsedFamily(taken: readonly CoverLook[], random: () => number): Cov
 }
 
 /**
- * The look a cover takes so that no two games share one: in the wished family (its wished palette
- * when free), else in the family other games use least. A look repeats only once every look of
+ * The look a cover takes so that no two projects share one: in the wished family (its wished palette
+ * when free), else in the family other projects use least. A look repeats only once every look of
  * its family is taken; the seed still sets it apart.
  */
 export function pickCoverLook(
@@ -221,13 +221,13 @@ export function pickCoverLook(
   return lookInFamily(family, taken, wish.palette, random);
 }
 
-/** A new game's look: free of every look in `taken`, any seed. */
+/** A new project's look: free of every look in `taken`, any seed. */
 export function rollCoverRecipe(taken: readonly CoverLook[] = [], random: () => number = Math.random): CoverRecipe {
   const look = pickCoverLook(taken, {}, random);
   return { kind: "recipe", ...look, seed: Math.floor(random() * COVER_SEED_RANGE), placeholder: true };
 }
 
-/** The first game in an empty library is always Clouds in the Genex sky. */
+/** The first project in an empty library is always Clouds in the Genex sky. */
 export function firstCoverRecipe(random: () => number = Math.random): CoverRecipe {
   return {
     kind: "recipe",
@@ -238,7 +238,7 @@ export function firstCoverRecipe(random: () => number = Math.random): CoverRecip
   };
 }
 
-/** Deterministic look for records made before recipes: no two old games look alike. */
+/** Deterministic look for records made before recipes: no two old projects look alike. */
 export function coverRecipeFromSeed(seed: number): CoverRecipe {
   let h = (seed >>> 0) ^ 0x9e3779b9;
   h = Math.imul(h ^ (h >>> 16), 0x85ebca6b);
@@ -405,8 +405,8 @@ const FAMILY_HINTS =
   "Clouds suit cozy/casual/adventure; aurora night/sci-fi/magic; bands space/arcade; marble puzzle/strategy; ember action/horror/fantasy; ocean open world/survival; orbital science/physics; bricks building/sandbox/kids; plasma sci-fi/energy; pixel retro/platformer; caustic water/fishing/beach; tempest action/weather/racing; nimbus calm/zen; terminal hacking/text/coding; voxel crafting/survival; meadow exploration/dreamlike; galaxy space/exploration; thermal stealth/horror/detective.";
 /** Enums in the schema, no shader code: about thirty tokens of output for a whole cover. */
 export const COVER_TOOL = {
-  name: "set_game_cover",
-  description: `Pick this game's sidebar cover once. Families with named palettes: ${COVER_LOOKS_BY_FAMILY.map(([family, palettes]) => `${family}: ${palettes.join("|")}`).join("; ")}. Families whose colour the host picks: ${ORB_FAMILIES.join(", ")}. ${FAMILY_HINTS} Genre is only a hint; choose the family that will look best for this game. The host keeps every game's cover different, so it may use another palette or colour than the one named. The host draws it; an unknown look keeps the current cover. Uploaded or already chosen covers are kept.`,
+  name: "set_project_cover",
+  description: `Pick this project's sidebar cover once. Families with named palettes: ${COVER_LOOKS_BY_FAMILY.map(([family, palettes]) => `${family}: ${palettes.join("|")}`).join("; ")}. Families whose colour the host picks: ${ORB_FAMILIES.join(", ")}. ${FAMILY_HINTS} Genre is only a hint; choose the family that will look best for this project. The host keeps every project's cover different, so it may use another palette or colour than the one named. The host draws it; an unknown look keeps the current cover. Uploaded or already chosen covers are kept.`,
   parameters: {
     type: "object" as const,
     properties: {
@@ -426,7 +426,7 @@ export const COVER_TOOL = {
 
 /**
  * The tool's arguments as a saved recipe, or an error that names the valid looks. The family is
- * kept; its palette or hue is moved off any look in `taken`, so no two games share one.
+ * kept; its palette or hue is moved off any look in `taken`, so no two projects share one.
  */
 export function coverRecipeFromTool(
   args: Record<string, unknown>,

@@ -20,7 +20,7 @@ for principles and skill routing.
   Shortcut modifier glyphs and keys have an explicit gap. Do not add a second primary action
   to demonstrate a variant.
 - **Overlays:** Radix dropdowns for commands, Base UI popovers for search and mixed controls,
-  `DialogSurface` for modal tasks. Portals handle clipping. The native game preview yields
+  `DialogSurface` for modal tasks. Portals handle clipping. The native project preview yields
   its rectangle while a shared overlay is mounted, including its exit animation.
 - **Selectors:** `Switch`/`Toggle` for booleans, `ViewSwitcher` for segmented views. Arrow
   keys and Home/End select tabs.
@@ -28,7 +28,7 @@ for principles and skill routing.
   transition in place, and what comes and goes in the chat opens and closes in place
   (`ui/Presence.tsx`, see Chat reading and activity). Interactive icons use control
   hover/focus. Reduced motion makes feedback static while preserving live content and timers.
-- **Startup:** until the first screen is drawn (the studio with its games and open chat, the
+- **Startup:** until the first screen is drawn (the studio with its projects and open chat, the
   welcome, sandbox setup or a failure) the window shows only the Genex G, 34px wide, centred on the
   page colour in a tenth of the theme's ink, with a light crossing it once every 3.2s. It is
   markup in `index.html` (`#app-loader`), there before the app's bundle; it fades in after 120ms (so
@@ -82,7 +82,7 @@ Chat uses one 15px/22px reading size for replies, activity headings and tool ste
 14px/20px is reserved for descriptions and metadata. Headings use weight and spacing at
 the same reading size. Keep Genex fonts and palette. The transcript sits 20px in from the column's sides and
 scrolls flush under the composer, with no strip between its last line and the composer's edge. Soft user bubbles use 12px horizontal and 8px vertical
-padding; images sent with a message sit right-aligned above it as 120×84 tiles with a 12px radius (placeholders hold their place while loading), and a tile opens the image beside the chat. Names of files that exist link wherever the chat shows them; names that are not files stay plain text. In Markdown prose (inline code paths, links without a scheme, bare paths) they are 6px-radius field chips with a 13px file icon in the body font. In plain text, code and tool rows they are underlined words in their own font and colour (underline 40% of the text colour, 3px offset, full colour and ink on hover); a focused link in a user bubble takes the line-strong fill, and one reached by keyboard in a folded bubble unfolds it. A tool row's path is a link beside its disclosure toggle, which stretches over the row; the path gives up its folders before its file name. The tooltip says what a click does — "Opens beside the chat", "Opens in its default app", "Opens in Finder" or "Shows in Finder" (Explorer on Windows) — then the path when the label hides it, and "In the build · not in your game folder yet" for build-only files. Game Markdown and images open a file tab in the stage: a 60px header with the name at 15px medium, "In the build · not in your game folder yet" at 13px ink-3 only for build-only files, Show in Finder (folder files only) and Close; Markdown reads at 15px/24px in a 700px column with 28px/44px insets, text as highlighted 13px mono, images centered. The stage returns to the previous tab on Close. User messages longer than seven rendered lines fold with a 32px fade and a left-aligned, unpadded Show more text button; Show less restores the compact view. Short messages have no toggle. One disclosure groups neighboring tools and routine updates, with a trailing
+padding; images sent with a message sit right-aligned above it as 120×84 tiles with a 12px radius (placeholders hold their place while loading), and a tile opens the image beside the chat. Names of files that exist link wherever the chat shows them; names that are not files stay plain text. In Markdown prose (inline code paths, links without a scheme, bare paths) they are 6px-radius field chips with a 13px file icon in the body font. In plain text, code and tool rows they are underlined words in their own font and colour (underline 40% of the text colour, 3px offset, full colour and ink on hover); a focused link in a user bubble takes the line-strong fill, and one reached by keyboard in a folded bubble unfolds it. A tool row's path is a link beside its disclosure toggle, which stretches over the row; the path gives up its folders before its file name. The tooltip says what a click does — "Opens beside the chat", "Opens in its default app", "Opens in Finder" or "Shows in Finder" (Explorer on Windows) — then the path when the label hides it, and "In the build · not in your project folder yet" for build-only files. Project Markdown and images open a file tab in the stage: a 60px header with the name at 15px medium, "In the build · not in your project folder yet" at 13px ink-3 only for build-only files, Show in Finder (folder files only) and Close; Markdown reads at 15px/24px in a 700px column with 28px/44px insets, text as highlighted 13px mono, images centered. The stage returns to the previous tab on Close. User messages longer than seven rendered lines fold with a 32px fade and a left-aligned, unpadded Show more text button; Show less restores the compact view. Short messages have no toggle. One disclosure groups neighboring tools and routine updates, with a trailing
 right/down chevron, 6px gap and regular weight. Failures stay visible in a muted amber count;
 the failed step itself uses the error color. Expanded tools sit in a shared 10px-radius frame with row dividers and 8px top spacing.
 Tool rows have 36px minimum height, 10px horizontal padding, 12px icons and 8px gaps.
@@ -123,7 +123,7 @@ title is Claude Code's sentence ("Claude wants to edit main.js"); for Bash it re
 to run a command" and the command follows once, in highlighted mono (`chat-tool-code`), never
 repeated in the title. A file tool shows its path as a link; the description line is Claude's
 description, else its reason. Choices: **Allow** ("Just this once."), the offered grants in words,
-every one named ("Always allow npm install commands in this game"; absent when none is offered)
+every one named ("Always allow npm install commands in this project"; absent when none is offered)
 and **Deny**, then an own-words row, "Tell Claude what to do instead…", which denies with that
 message. **Request details** discloses the reason and the tool input. A plan leaving Plan mode is
 **Approve this plan?**: its Markdown in a focusable region that scrolls (at most
@@ -145,7 +145,7 @@ chip, or, when that model came earlier, share one 52px row (Knight animations ·
 opens it. Sounds are 44px rows: a filled ink play button, the name, a 40-bar waveform seek and the
 length, which gives way to Open in Assets on hover; the row is the player, with no dialog. Every
 colour is the theme's, so models, pictures and sounds sit alike in light and dark; the Assets tab's
-sound tile draws its waveform live the same way. Only files present in the game folder appear;
+sound tile draws its waveform live the same way. Only files present in the project folder appear;
 Loop-run files wait for the landed build result. Large deliveries reveal six previews at a time.
 Asset grids omit per-file metadata and job headers. The viewer is the file on the page's own colour
 (88%, blurred), with only Reveal in Finder and Close in the top corner and no title; a click on a
@@ -182,30 +182,30 @@ was read. Every sent bubble reveals **Rewind**
 of the bubble, centred on its last line, on row hover or focus-within and always under `hover: none`,
 including messages before a build and ones read into another's answer; it is absent while the
 chat answers (a running build does not count), on queued input and in Harness. It confirms in a
-dialog: "Rewind to before this message?", one line on what leaves, a **Restore game files** switch
+dialog: "Rewind to before this message?", one line on what leaves, a **Restore project files** switch
 with what comes back (files changed outside the chat are named and turn it off by default), ghost
 Cancel with initial focus and a destructive **Rewind chat**. When the files cannot come back the
 switch is absent and one muted line says why, starting "Only the conversation rewinds:" (a build
-or a commit changed the game after this message, there's no saved copy from before it, it joined
+or a commit changed the project after this message, there's no saved copy from before it, it joined
 an answer already under way); a running build reads "A build is running. Rewinding stops it and
-cuts off any answer under way; the game's files stay as they are." and the button reads **Stopping
+cuts off any answer under way; the project's files stay as they are." and the button reads **Stopping
 the build…** while it works. The rewound words fill the composer ahead of any draft already there; its pictures join
 those already attached, up to the composer's limit.
 
 ## Studio hierarchy and progressive disclosure
 
 The shell is conversation-led: a full-height sidebar contains the theme-aware Genex wordmark,
-Search, the Notifications bell, **New game**, **Plugins**, **Harness**, **Settings**, then **Games**. Everything above the game
-list stays fixed; only the flat game list scrolls, with a 24px fade into the sidebar colour once it
-has moved. The four actions are one stack of 36px rows, 2px apart, with labels styled like game titles, 18px animated
-icons (their ink in line with the wordmark's left edge) and an 18px accent count badge on Harness. Game rows use 28px circular covers, 14px Medium
+Search, the Notifications bell, **New project**, **Plugins**, **Harness**, **Settings**, then **Projects**. Everything above the project
+list stays fixed; only the flat project list scrolls, with a 24px fade into the sidebar colour once it
+has moved. The four actions are one stack of 36px rows, 2px apart, with labels styled like project titles, 18px animated
+icons (their ink in line with the wordmark's left edge) and an 18px accent count badge on Harness. Project rows use 28px circular covers, 14px Medium
 titles and a keyboard-reachable overflow menu 6px from the row edge. The row's end is one 28px slot: the working dot, else the pin, and ⋯ in their place on hover or focus. Rows, nav items and sidebar
 buttons use the derived `--sidebar-selected`/`--sidebar-hover` fills (quieter than the shared hover in
 dark themes, visible in light ones). The toggle sits 80px from the window edge, just clear of the
 native window buttons, on one line with them and the header title (24px down), and stays there
 when the sidebar is hidden. Pinned
-games sort first, then recent activity. The sidebar has no global readiness/build footer; activity
-belongs to each game row and conversation, with Stop in the chat. No folder disclosures or chat counts. Sidebar visibility persists on wide
+projects sort first, then recent activity. The sidebar has no global readiness/build footer; activity
+belongs to each project row and conversation, with Stop in the chat. No folder disclosures or chat counts. Sidebar visibility persists on wide
 windows; at 900 CSS pixels and below it becomes a dismissible drawer so both content panes remain
 usable at zoom. Hidden navigation and the content behind an open drawer are inert. Command-B
 opens/closes navigation; Command-K opens the local search dialog without changing sidebar
@@ -225,18 +225,18 @@ the bell, and the glyph rings once (`data-announce`) when something arrives. Wit
 hidden, Show sidebar carries the dot. Arrivals while Studio is unfocused also post macOS
 notifications (at most three, else one summary); the Dock badge counts waiting work.
 
-Selecting Harness (internally the Studio conversation) opens its assistant conversation beside Activity; selecting a game chat
-restores chat + game stage. There is no global Build/Review switch. Command-2 enters Harness;
-Command-1 returns to the last game chat. Unsent composer text survives first-time thread loading; new chats focus the composer after that load. The header and sidebar toggle remain reachable during chat loading and errors.
-Activity spans all games and runs; it has no global game or run selector. An expanded run links
-to its game chat, while normal Studio navigation preserves the previous game-stage selection.
+Selecting Harness (internally the Studio conversation) opens its assistant conversation beside Activity; selecting a project chat
+restores chat + project stage. There is no global Build/Review switch. Command-2 enters Harness;
+Command-1 returns to the last project chat. Unsent composer text survives first-time thread loading; new chats focus the composer after that load. The header and sidebar toggle remain reachable during chat loading and errors.
+Activity spans all projects and runs; it has no global project or run selector. An expanded run links
+to its project chat, while normal Studio navigation preserves the previous project-stage selection.
 Plugins opens as a full workspace page from the sidebar in either workspace. Its Plugins/Skills
 header, search (12px radius), flat integration rows and detail pages share the app tokens. Back
 to workspace is a secondary button. Add is the page's one accent button: Install from GitHub… |
 Add MCP server…, Import MCP configuration… | Create a plugin ↗, Load local plugin…. Rows wear the
 plugin's own picture (44px, 10px radius; 64px/14px on its page; 16px/4px in menus), full-bleed
 like a Dock icon, else its initial on a `--line-strong` tile; interface glyphs use the icon colour.
-Genex's row and page name it the game dev tools router ("Genex · Tripo, Meshy, …" as its line) and
+Genex's row and page name it the project dev tools router ("Genex · Tripo, Meshy, …" as its line) and
 its picture is the routed tools' marks on a dark 2×2 board that is never empty: every 1.3s a row or
 column slides one step, one tool leaving as the next of eight slides in; still in menus and under
 reduced motion. Its Connect is the accent fill.
@@ -252,40 +252,40 @@ Version · Change), one muted note, Cancel and the accent action.
 Every plugin page leads with one setup card (Genex's account, Local Blender's runtime) in the
 same 16px-radius surface (15px medium state, 14px ink-3 line, one filled action, a failure's
 reason in 13px red inside the card). Genex's connected card shows the green dot, identity and one
-24px Credits stat with "One balance for all your games"; no per-game numbers (those are in the
+24px Credits stat with "One balance for all your projects"; no per-project numbers (those are in the
 usage panel). Then Genex's Tools it routes (each tool's mark on a dark 34px tile, its name and a
 mono line, in a grid of 12px-radius cards) or another plugin's two-column grid of 40px glyph tiles
 (What it does) and Connections; then Skills as one line with Show all, and Information (Developer, Version, "Can" in
 words, the trusted-code line). No plugin frames on Genex's or Blender's pages; Publish is a
-host-drawn lg dialog on the stage, "Publish to the web" with a globe after the title, for every open game: it first asks for
+host-drawn lg dialog on the stage, "Publish to the web" with a globe after the title, for every open project: it first asks for
 what is missing, one line and one press (an accent-tinted line "Publishing goes through" the Genex
 plugin, a blue chip with ↗ that closes the dialog and opens the plugin's page, and Install Genex plugin or
 Turn on Genex plugin in the footer; Connect Genex with the
-browser code), then shows the Game page row (a Test version row only while a draft is online and
-the game is not public), a stepped progress bar, and the accent Publish (Publish update once public). While it asks to set up (under the tinted line) or to publish, "Native app export for Mac,
+browser code), then shows the Project page row (a Test version row only while a draft is online and
+the project is not public), a stepped progress bar, and the accent Publish (Publish update once public). While it asks to set up (under the tinted line) or to publish, "Native app export for Mac,
 Windows and Mobile coming soon" sits just above the buttons, in the description's type. More (⋯) and the switch sit beside every
-plugin's title. Back to workspace and sidebar navigation restore the preserved conversation. Export is the first item of the game
-chat header's ⋯ menu and uses that chat's bound game; it is disabled on drafts and absent from Harness. Preserve the mounted
-game stage, selected build history and native-view occlusion behind Review, drawers and dialogs.
+plugin's title. Back to workspace and sidebar navigation restore the preserved conversation. Export is the first item of the project
+chat header's ⋯ menu and uses that chat's bound project; it is disabled on drafts and absent from Harness. Preserve the mounted
+project stage, selected build history and native-view occlusion behind Review, drawers and dialogs.
 
 Chat header and stage strip are 48px: 8px above and below 32px controls, and every gap between
-controls drags the window. The game title hugs its text (at most 320px, then truncates); select it
+controls drags the window. The project title hugs its text (at most 320px, then truncates); select it
 to rename, Enter to save and Escape to cancel. Rename updates the library display name; folder
 paths and identifiers stay stable. Show in Finder and Terminal sit together at the header's end,
-then ⋯ (Export game…, Rename). One game has one chat, so there is no chat switcher; conversations
+then ⋯ (Export project…, Rename). One project has one chat, so there is no chat switcher; conversations
 left from before that rule, and unbound ones, are found through search. The stage strip does not
-repeat the title. Icon-only controls carry tooltips with shortcut chips. The native game view paints
+repeat the title. Icon-only controls carry tooltips with shortcut chips. The native project view paints
 over the page, so no z-index lifts a tooltip above it: every tooltip keeps 4px clear of it, shifting
 or turning as it opens, and stage-strip tooltips open sideways. Live never changes while it
 is watched ([Builds and Live](../../docs/product/builds-live.md)): when something waits for it, the icon
 Reload takes `bg-accent-tint` with its glyph in ink (the accent on its own tint falls under 3:1), the
-sidebar's 7px accent dot and one `gate-pulse` (none under reduced motion), and its tooltip and aria-label say what changed ("The game changed —
+sidebar's 7px accent dot and one `gate-pulse` (none under reduced motion), and its tooltip and aria-label say what changed ("The project changed —
 reload to see it", "A new build is ready — reload to play it", plus a builder's note). The strip's end
-holds one speaker for the game's sound, crossed out while off (⌥⌘M): no menu and no settings,
+holds one speaker for the project's sound, crossed out while off (⌥⌘M): no menu and no settings,
 because agents' windows are always silent and Live is silent while hidden or behind another app.
-Play/Stop sits before Reload: one icon button, ■ while the game runs, ▶ once it is stopped and a
+Play/Stop sits before Reload: one icon button, ■ while the project runs, ▶ once it is stopped and a
 13px ring spinner while either is under way; each glyph fades and grows in (150ms). Full screen
-(four corners) follows the speaker and is disabled unless the running game is on the stage. In
+(four corners) follows the speaker and is disabled unless the running project is on the stage. In
 full screen a studio-drawn dark glass pill sits 14px from the top-right corner, “Hold esc to exit
 full screen” beside the exit glyph; after 2.6s the words fold into the icon, which rests at 45%
 until the pointer is on it. Plugin buttons wear the prompt bar's model-pill fill (`pill-quiet`);
@@ -295,8 +295,8 @@ halftone plasma in ink at 62% sits over a shimmering 13px line; it appears only 
 at least 0.6s and fades out (150ms) before the native view is uncovered.
 
 **Home** is where every launch starts and where the wordmark leads: nothing selected, one 21px
-Medium line (“Everything you need to ship a game”) over the game composer (“What do you want to
-make?”). Under it sit a quiet mono folder chip (Save the new game in: the games folder or Another
+Medium line (“Everything you need to ship a project”) over the project composer (“What do you want to
+make?”). Under it sit a quiet mono folder chip (Save the new project in: the projects folder or Another
 folder…, then Open a folder…) and, at the right, a ghost **Suggest prompt** (dice, mono 12px ink-3,
 like the chip) that puts one of 100 ideas in an empty box; it steps aside while the
 user writes their own. Behind them, an experimental background (`home-backdrop/`): a picture
@@ -305,53 +305,53 @@ canvas as dots, lines or ASCII (lines over the City picture by default) in a col
 (#171717 dark, #e8e8e8 light, or the theme's ink), at the window's size and centred on the window, so the sidebar only covers or
 uncovers it; a window resize redraws once it settles. Only the chips under the composer carry a
 page-coloured halo. Home's top-right image button opens every setting in a 380px popover; Settings
-→ Appearance repeats them under a preview of home. Entering a game crossfades it away. An empty
+→ Appearance repeats them under a preview of home. Entering a project crossfades it away. An empty
 library adds no sidebar text. Its first message makes
-the game: in one view transition the composer glides into the chat's place and the stage slides
+the project: in one view transition the composer glides into the chat's place and the stage slides
 in with the welcome's Planner (25% smaller, written once, then floating); the header and a
 working sidebar row say Naming… in ink-3 until the model's name arrives, the folder is made from
-it, and the game's own chat sends the message as home fades out over it. **New game**, Games
+it, and the project's own chat sends the message as home fades out over it. **New project**, Projects
 **+**, and Command-N open home, as the wordmark does, with the cursor in its composer; there is no
-New game dialog. The chip's **Open a folder…** opens the Open a game folder sheet before any
-writes: the folder's path under the title; one tinted summary (folder glyph and what the game is) or, when the folder holds more than one
-game, radio rows under "Which game should Genex open?"; an engine export's refusal; a collapsed
+New project dialog. The chip's **Open a folder…** opens the Open a project folder sheet before any
+writes: the folder's path under the title; one tinted summary (folder glyph and what the project is) or, when the folder holds more than one
+project, radio rows under "Which project should Genex open?"; an engine export's refusal; a collapsed
 **Details** (how it runs, packages, history, what a build still needs, every file Genex adds),
 open from the start when keeping a nested repository is the consent; the Claude settings and hooks trust switch, on by default; then Cancel and the
-primary in the dialog's usual footer, with no extra inset. **Delete** explicitly removes the game only from the sidebar; files and conversation
+primary in the dialog's usual footer, with no extra inset. **Delete** explicitly removes the project only from the sidebar; files and conversation
 history stay on disk and opening the folder again restores the same identity. Active work blocks
 removal.
 
-Every game has a cover sphere: a recipe of one of 18 host-owned families plus a seed. Six
+Every project has a cover sphere: a recipe of one of 18 host-owned families plus a seed. Six
 (Clouds, Aurora, Bands, Marble, Ember, Ocean) take one of 21 named palettes and share one sphere
 program; twelve orb families ported from orbkit's MIT orbs (Orbital, Bricks, Plasma, Pixel,
 Caustic, Tempest, Nimbus, Terminal, Voxel, Meadow, Galaxy, Thermal) take one of nine hue slots,
 40° apart, and each is its own program. Every orb fills its circle; all but Terminal, Bricks and
 Voxel get the Clouds light, rim and highlight over a dark glass body, and Voxel, whose blocks
-break the silhouette, drops the image outline. No two games share a look: a new game takes the
+break the silhouette, drops the image outline. No two projects share a look: a new project takes the
 family the library uses least and, in an orb family, the free hue farthest from that family's
-other games; a look repeats only once its family is full, and the seed still sets it apart. The
-first game in an empty library is always Clouds in the Genex sky. Records from before recipes
+other projects; a look repeats only once its family is full, and the seed still sets it apart. The
+first project in an empty library is always Clouds in the Genex sky. Records from before recipes
 (no cover, or the old shared default) get a stable look from their seed or folder name at display
-time, without rewriting the library. The game-building agent may call `set_game_cover` once
+time, without rewriting the library. The project-building agent may call `set_project_cover` once
 naming a family (and, for the six, a palette): enums only, no shader code; Genex keeps the family
 and moves a taken palette or hue to a free one, and an unknown look keeps the current cover.
-Uploads, earlier custom GLSL covers and a chosen look are kept. `GameAvatar` keeps sidebar/search
+Uploads, earlier custom GLSL covers and a chosen look are kept. `ProjectAvatar` keeps sidebar/search
 sizes at 28px/44px; one WebGL context paints every sphere into its own canvas. A row at rest
 shows the still saved the first time its sphere drew, so a restart compiles nothing. Each sphere
 keeps its own clock: a hovered or keyboard-focused row eases in from the frame it holds (about
 200ms, 1.6× the earlier pace) and eases out to hold its new frame, at 24fps or less; the selected
-game rests like any other row. Offscreen, hidden, inert and reduced-motion states hold still
+project rests like any other row. Offscreen, hidden, inert and reduced-motion states hold still
 frames; without a GPU rows show their saved still, or a lit gradient when there is none. A
 changed cover cross-fades over 300ms.
 **Change image** keeps the local center crop, preview and explicit save. Artwork stays in the
-host-owned library index, outside game sources and exports. The older planet-surface experiment
+host-owned library index, outside project sources and exports. The older planet-surface experiment
 remains a separate design reference, not a production dependency.
 Scrollbars share a quiet rounded 6px thumb inside a 10px drag target, a transparent track and
-no arrow buttons. The sidebar's game list uses a 3px thumb 2px from its border that shows only
+no arrow buttons. The sidebar's project list uses a 3px thumb 2px from its border that shows only
 while the sidebar is hovered or scrolling. Hover strengthens the thumb without adding decoration.
-Empty game chat is blank; the composer is its entry point. The Harness chat always starts with its
+Empty project chat is blank; the composer is its entry point. The Harness chat always starts with its
 first message, rendered like a reply (15/22 prose): ask about Harness and its improvements here;
-games are built in their own chats. While it is empty, three example questions follow as filled
+projects are built in their own chats. While it is empty, three example questions follow as filled
 16px-radius chips that send in one click. **How it works**, a quiet text button right after the
 Harness title in its chat header, opens a dialog: what Harness is, the four steps of its loop (you
 build, it looks back, the edit is tested, you decide), what its tests cannot prove, and
@@ -396,17 +396,17 @@ each change in file order with two unchanged lines around it and ⋯ for what it
 wrap to the card's width in ink on their tint (the sign carries the colour), so it scrolls only down. Reviewer vote
 counts are not shown. The check mark and chevron stay aligned with the title's first line, and
 the footer counts the selection and applies or discards it. Run rows show
-the game cover, the request on one line, game · time and an outcome pill (Running, New build,
+the project cover, the request on one line, project · time and an outcome pill (Running, New build,
 No build, Failed, Stopped). Expanded, a run gives only its result: one plain sentence (the run's
-own report when it wrote one), before/after captures, Play build and Open game chat. Checks and
-revision reports stay in the game's Builds tab. Learned rows say who let the change land, describe
+own report when it wrote one), before/after captures, Play build and Open project chat. Checks and
+revision reports stay in the project's Builds tab. Learned rows say who let the change land, describe
 it at reading size and keep the diff and **Undo this change**; a change the agent made to itself
 during a build shows the plain title and summary it wrote, like a suggestion. Expanded bodies align with their
 row's text and a hovered header never tints apart from its open body. Never lead with instruction-file names,
 reviewer rationale or counts of reviewed tasks; they belong behind the exact edit. **Look for
 improvements** appears once there are runs and reports on the button itself: a spinner with
 **Looking…**, then **Found**, **Added** or **Nothing new** for a few seconds. Labels cross-fade while
-the button's width animates to hug the visible label; no result sentence. Game chats show learning as
+the button's width animates to hug the visible label; no result sentence. Project chats show learning as
 one line (“Harness learned 2 things from this build.”) with **Review in Harness** on its own line;
 Harness's own records never appear in the Harness conversation. An intentional Stop reads
 **Stopped**.
@@ -414,19 +414,19 @@ Harness's own records never appear in the Harness conversation. An intentional S
 The Live stage, Assets and an empty Activity share one empty state (`ui/EmptyState.tsx`):
 a 128×92 wireframe on a fading floor (an old-school computer drawn as a blueprint — faces in the
 stage's colour, ink edges, hidden edges dashed, an accent screen with a blinking prompt, one turn
-per 9s (`ui/wire-computer.ts`) — then a crane, teapot, the Harness glyph, the stopped game's
+per 9s (`ui/wire-computer.ts`) — then a crane, teapot, the Harness glyph, the stopped project's
 upright plate; theme colours, 30 fps only while visible, a still under Reduce Motion), a one-line
 15/20 title, a one-line 13/18 subtitle of at most 40 characters and a fixed 48px button slot. A
-title-only state (Game stopped) keeps no subtitle room: its title sits 6px under the art and its
+title-only state (Project stopped) keeps no subtitle room: its title sits 6px under the art and its
 button 15px under the title. Idea → building turns the computer to face you, boots its screen and
 hands off to the rising crane; any other change of
 scene cross-fades the art while the words rise out and in. Reuse it for new empty states.
 With no runs, Activity shows only that empty state, centred: **A self-improving harness**, “Runs and
-improvements will show up here.” and **Start building** (the last game chat, composer focused), or
-**New game** when the library is empty.
+improvements will show up here.” and **Start building** (the last project chat, composer focused), or
+**New project** when the library is empty.
 Timed runs start from the composer's Mode menu. **Settings → Harness** holds **Maximum concurrent workers**
 and **Apply suggestions automatically** with how suggestions are tested. The evaluation explanation
-distinguishes instruction comparisons from game-quality evidence.
+distinguishes instruction comparisons from project-quality evidence.
 Use the existing content font for Harness prose and controls, code font only for technical text,
 weights 400/500 and sizes 18px title, 15px regular, 14px small. Keep visible named entry points;
 do not replace them with hover-only controls.
@@ -435,12 +435,12 @@ do not replace them with hover-only controls.
 
 The welcome (`renderer/onboarding/`, styles in `styles/onboarding.css`) is one full-window layer
 in the app's own roles, above the inert shell and below dialogs, so the Codex sign-in window can
-open over it. The Genex wordmark is 142px wide. The welcome's composer is a copy of the game
+open over it. The Genex wordmark is 142px wide. The welcome's composer is a copy of the project
 composer: the same panel, Add circle, borderless ∞ Loop button (as the bar appears its ∞
 draws itself once and a light passes over the word once) and Send circle. The first step waits
 1.4 s with a blinking caret, types 50 ms a letter, lets the prompt be read, then the pointer moves
 to Send and presses it. Its stage is a fixed 760×380 drawing scaled between 0.5× and 1.2× to fit;
-the second step shows **Plan your game** (the prompt lands on a translucent sheet in midair; a pen
+the second step shows **Plan your project** (the prompt lands on a translucent sheet in midair; a pen
 writes the plan in about 1.5 s, once, ticks three tasks and sends them on), **Build with workers**
 and **Reviewers test it**, in one row on identical fading floors. The two step bars sit at the bottom under Next. The connect screen is one group centred
 under Back and Skip for now, with Start building's place reserved below it. Claude Code and Codex
@@ -455,7 +455,7 @@ and Start building fade into home, the welcome's idea waiting in its composer.
 
 After the welcome, the Genex promo is a 360px surface card floating 16px from a bottom corner
 (above the workspace, beneath dialogs and toasts) that moves nothing beneath it: bottom-left while
-home is up, clear of home's composer, and bottom-right over a game's stage, away from the chat's
+home is up, clear of home's composer, and bottom-right over a project's stage, away from the chat's
 composer. It holds a 19:10 muted looping
 film (`src/renderer/media`, rendered with Remotion from `design/genex-promo-video/`; its poster
 under Reduce Motion), a 28px translucent close over it, a 13px ink-3 eyebrow, a 17px title,
@@ -493,15 +493,15 @@ Best fit tag, a memory meter and "Needs a N GB Mac" for the rest, plus Add from 
 row keeps the quiet Installed badge beside a ghost trash button; it asks on the row ("Delete it from
 this Mac?") with Cancel, which takes focus, and a destructive Delete. Closing or switching sections preserves host installation
 jobs. Harness holds **Maximum concurrent workers** (a ceiling the lead chooses under, default 8, maximum 12)
-and **Apply suggestions automatically** with how suggestions are tested. The game model list's
+and **Apply suggestions automatically** with how suggestions are tested. The project model list's
 Add more models opens Model Providers. First-launch and Studio setup links open the corresponding
 section. Timed runs start from the composer's Mode menu; MCP stays in Plugins. Permissions lists
-the always-allow rules chats saved, under each game's title: one mono rule per row with a ghost
+the always-allow rules chats saved, under each project's title: one mono rule per row with a ghost
 trash button, **Stop allowing** (focus moves to the rule taking its place); with none, one ink-3
 line says Always allow in a chat adds one. Each chat's mode stays in its composer.
-Opening Settings preserves the workspace and draft, traps focus and occludes the native game.
-Games comes first: the games folder as a mono path with **Change…** (a native folder picker).
-Every tab (Games, Appearance, Model Providers, Local Models, Harness and Permissions) uses the same
+Opening Settings preserves the workspace and draft, traps focus and occludes the native project.
+Projects comes first: the projects folder as a mono path with **Change…** (a native folder picker).
+Every tab (Projects, Appearance, Model Providers, Local Models, Harness and Permissions) uses the same
 viewport-capped 860px width and 720px content height; changing tabs
 must not resize or reposition the dialog.
 Escape/Close restores its entry point; arrow keys and Home/End navigate sections.
@@ -510,14 +510,14 @@ Escape/Close restores its entry point; arrow keys and Home/End navigate sections
 
 The Studio composer has one text area, an accessible Attach images button, the model button, the
 effort pill and Send/Stop. Its model button opens the model list directly (no roles). The Studio
-choice is saved apart from game chats (it starts from the last game pick once) and never becomes
-the model new games inherit. It accepts image drop/paste and has no Loop, permission, tool or
+choice is saved apart from project chats (it starts from the last project pick once) and never becomes
+the model new projects inherit. It accepts image drop/paste and has no Loop, permission, tool or
 context-ring controls. Provider setup is offered when no model is available.
 
-The game composer has one text area and one toolbar: a filled 30px Add circle, a Mode pill, the
+The project composer has one text area and one toolbar: a filled 30px Add circle, a Mode pill, the
 permissions pill (Claude orchestrators only), flexible space, a 16px context ring (2px stroke), a
 model pill naming the orchestrator, an effort pill, and one 30px Send/Stop circle. With no AI model
-at all (home or a game), the model pill's place is **Connect AI model** in the accent tint, which
+at all (home or a project), the model pill's place is **Connect AI model** in the accent tint, which
 opens Model Providers; there is no setup block under the composer. The prompt still takes typing,
 Send stays quiet, and Enter or Send fills the button with the accent, rings it, bumps it once
 (still under Reduce Motion) and shows its tooltip, "Connect an AI model to send", for 2.8 s; the
@@ -557,13 +557,13 @@ edits), plan (Plan) and shield-off (Bypass permissions, orange in the pill and i
 the glyph alone, its tooltip "Auto permissions"; another mode adds its label. The model's name keeps
 its room (`ui/toolbar-fit.ts`, measured): when it would be cut short the label goes first (the
 tooltip names the mode), then Mode's ∞ or time, then in the narrowest chat the pill (never Bypass). Its 360px panel opens
-above, start-aligned, and shifts to stay over the chat, never the native game. Under a
+above, start-aligned, and shifts to stay over the chat, never the native project. Under a
 **Permissions** label, five rows in Claude Code's order show glyph, label, one ink-3 description
 line, a check on the current mode and number hints 1–5 (digits pick while it is open; arrows,
 Home/End move). Auto carries a mono accent-tint **Recommended** tag; when the plan or model lacks
 Auto, its line says Claude asks first. Its Plan is Claude Code's plan mode (it reads, never edits),
 separate from Add's Plan mode (the studio's plan review), and shows no bulb. Choosing Bypass opens "Bypass permissions?" (it acts
-anywhere on this Mac, "this computer" on Windows and Linux; Rewind restores only the game folder)
+anywhere on this Mac, "this computer" on Windows and Linux; Rewind restores only the project folder)
 with ghost Cancel focused and a destructive **Bypass permissions**; focus returns to the pill.
 Mode holds Loop mode, one control: Off, ∞ (until the build passes), 30 m, 1 h, 2 h
 and Custom. Custom shows a ±15-minute stepper that also accepts typed times ("1h 15m", "90m",
@@ -576,8 +576,8 @@ Loop again (Off: "Each message runs one turn."). There is no new-build choice.
 The model panel (300px) lists three jobs as rows: **Main agent**, **Workers** ⓘ and **Reviewers** ⓘ,
 each naming its model with a ›; the ⓘ tooltips say what the job does and close when the pointer
 leaves. Workers and Reviewers always read quieter and stay choosable in Auto and Loop. A row opens
-its model list (240px) to the right of the panel, else its left, else above; over a running game
-the game hides while the list is open. The list groups
+its model list (240px) to the right of the panel, else its left, else above; over a running project
+the project hides while the list is open. The list groups
 models under ChatGPT, Claude, then Local models, each group's name
 in muted ink-3 at 11px regular; it marks the current one, and ends, below a line,
 with Add more models (Model Providers). Arrows move between rows, → opens a list, and Escape or ← closes the list before
@@ -590,8 +590,8 @@ and, for a model whose chat can be compacted, Compact now (also `/compact` in th
 its plan (e.g. Claude Max plan) that opens the provider's usage page, then each limit with its reset
 time, percent used and meter (amber from 75%, red from 90%). The orchestrator's plan comes first;
 with two plans, each names the roles it serves or says Not in use. While Genex is connected, a
-Genex credits block follows: Used by this game, then Left for all games in ink-3.
-Fresh games inherit the last selected chat model; returning chats retain their own saved model.
+Genex credits block follows: Used by this project, then Left for all projects in ink-3.
+Fresh projects inherit the last selected chat model; returning chats retain their own saved model.
 Model lists contain concrete named models without search or provider-default rows; unavailable or empty local providers stay in setup. Claude rows name Fable 5.1, Opus 5 and Sonnet 5. Subscription models default to High when supported; an explicit saved effort remains. Legacy provider-default selections resolve to named models within that provider.
 Tool/account setup stays in Add and Plugins; there is no duplicate connection status disclosure above the composer.
 The accepted design is the owner's 2026-09-24 prompt-bar frames (roles panel, effort slider, plan
@@ -599,7 +599,7 @@ limits); it does not introduce a separate palette or scale.
 
 ## Embedded terminal
 
-The terminal is a resizable pane under the conversation; it reduces chat height while the game
+The terminal is a resizable pane under the conversation; it reduces chat height while the project
 keeps its own stage. Its header action and Ctrl/Cmd+backquote reopen it. Hide keeps the process and
 scrollback; Stop ends the current process; Close session removes ended output. Show the session
 picker only when there are multiple sessions. Shift+Escape returns keyboard control from xterm
@@ -608,7 +608,7 @@ A short chat keeps the composer scrollable rather than clipping actions. Managed
 the pane and dismisses Settings while preserving the workspace/draft; its browser action opens a
 main-owned link. Native screen-reader support follows the OS accessibility setting. Theme and
 code-font changes apply to open terminals without restarting their processes. A one-line
-`bash` block in a game reply has no fill, a hairline border and 14/20 mono (a step under the reply) with the command
+`bash` block in a project reply has no fill, a hairline border and 14/20 mono (a step under the reply) with the command
 name in accent and its arguments in green; ghost icon buttons inside it on the right are Play
 (Stop while it runs) and Copy. Its output is a borderline card under it: 12/18 mono, folded to
 eight newest lines with a top fade, a chevron to show all, a terminal icon that opens the dock on
@@ -699,7 +699,7 @@ For a real plan-flow check, the app-basics fixture recognizes `fixture:plan` in 
 request and returns a long plan with code and lists; adding “purple” produces its revision.
 `fixture:pending` waits for real cancellation. Screenshots and a structured
 report are saved in `.studio-dev/design-gallery/`. This does not require an accompanying full
-`npm run verify`; it does not prove native game layering or provider authorization.
+`npm run verify`; it does not prove native project layering or provider authorization.
 
 `node tests/e2e/run-window-recovery.mjs` kills the owned app-basics window's renderer: the page
 must return by itself and note it in the Studio chat, twice, then stay dead without a dialog.
@@ -761,11 +761,11 @@ providers never edit files, so inspect Sending, Rewind and its dialog in an owne
 file restores in the rig.
 
 For Studio chat and Activity, run `node tests/e2e/run-studio-ui.mjs` under Node 24. It builds an
-immutable owned app with the credential-disabled `studio-activity` fixture: multiple games,
+immutable owned app with the credential-disabled `studio-activity` fixture: multiple projects,
 historical runs beyond the bootstrap tail, a long brief, plain and legacy proposals, improvements
 and recovery. Real pointer/keyboard checks cover the suggestion block (expand, include/exclude),
 the Studio model menu, Look for improvements (the fixture stages one suggestion), image drop
-through model completion, follow-up replies, Stop, blank-reply recovery, run results, game navigation/draft retention, Settings → Harness, three type
+through model completion, follow-up replies, Stop, blank-reply recovery, run results, project navigation/draft retention, Settings → Harness, three type
 sizes/two weights, light/dark themes, compact layout and 200% zoom.
 The report and captures under `.studio-dev/evidence/studio-*/` record actual build/profile/digests.
 Inspect captures; the synthetic replies prove transport and lifecycle, not live authentication,
@@ -775,8 +775,8 @@ full-history projection and legacy Studio run isolation without account access.
 
 For the broader workspace refinement workflow, run `node tests/e2e/run-ux-refinement.mjs` under Node 24.
 It creates and cleans owned sidebar/build-history profiles and checks actual pointer/keyboard
-game rename cancellation, sidebar toggle/search focus, Studio chat + Activity navigation, unsent-text
-restoration, sidebar Plugins and its keyboard ownership, game creation, ranked search, pin/rename/
+project rename cancellation, sidebar toggle/search focus, Studio chat + Activity navigation, unsent-text
+restoration, sidebar Plugins and its keyboard ownership, project creation, ranked search, pin/rename/
 remove with files retained, image dialog, sticky scrolling, settings
 disclosure, duration/reference validation, provider setup access and build-history preservation. Captures and full instance identities
 are written under `.studio-dev/evidence/ux-<time>/report.json`. The fixture suite does not
@@ -786,8 +786,8 @@ application; a requested resize alone is not a rendered layout pass.
 The conversation-led shell's Build smoke asserts removal of global mode tabs, Export in the
 chat header, Plugins in navigation, the accessible Genex wordmark and pointer cursors. It checks
 chat + Review coexistence and native preview occlusion at 1440×900, 1080×680, 1800×900 and 200%
-zoom, retaining the existing game-stage and stop-control regressions. Review entry now uses the
-Studio conversation; keyboard return selects the last game chat rather than toggling an unrelated
+zoom, retaining the existing project-stage and stop-control regressions. Review entry now uses the
+Studio conversation; keyboard return selects the last project chat rather than toggling an unrelated
 mode bit. Native export/picker dialogs remain fixture-blocked; export backend conformance is separate.
 
 Bonsai integration checks and the distinction between scripted session parity and real model
@@ -796,24 +796,24 @@ quality are specified in [local models](../../docs/local-models.md#verification)
 and crossed-role controls through the Studio sidebar and shared Model Picker. Real local trials use an isolated engine home with pinned runtime
 and weights; they do not authorize live subscription or paid-asset checks.
 
-AG-966 library acceptance: `tests/conformance/game-library.test.ts` covers duplicate folder names,
+AG-966 library acceptance: `tests/conformance/project-library.test.ts` covers duplicate folder names,
 canonical thread reuse, legacy history preservation, persistent presentation metadata, removal
 and re-adoption across macOS path aliases, seed stability/custom cover preservation and Unicode
 BM25 search. `run-ux-refinement.mjs` uses the populated `sidebar` fixture. Native folder/image
 pickers remain distinct manual gates; fixture success must not be reported as native picker
 acceptance. Build smoke passes an owned synthetic image through the real cover dialog,
 center-crop/preview/save and host decode, and checks executable image format rejection.
-`node scripts/preview-game-covers.mjs` regenerates the standalone artwork experiment;
+`node scripts/preview-project-covers.mjs` regenerates the standalone artwork experiment;
 it is a review artifact, not a remote generation service.
 
 ### Cover sphere acceptance
 
-Run `cover-shader.test.ts` with `game-library.test.ts` for cover contract changes. They prove the
+Run `cover-shader.test.ts` with `project-library.test.ts` for cover contract changes. They prove the
 18 families, hue slots and validation, no shared look until a family is full, the farthest free
-hue, the builder's family kept, birth rolls (first game Clouds), older records, tool parity with
+hue, the builder's family kept, birth rolls (first project Clouds), older records, tool parity with
 the seeded harness tool, project binding, upload races and the legacy GLSL path, not GPU
 behavior. After building `dist/renderer/theme.css`, `node tests/e2e/run-cover-shaders.mjs`
-exercises production GameAvatar and the legacy host compiler in credential-disabled Electron:
+exercises production ProjectAvatar and the legacy host compiler in credential-disabled Electron:
 real sphere pixels, every orb family painting a lit ball, Voxel without an outline, held frames,
 hover/keyboard easing, clocks that survive remounting, legacy covers,
 intersection/inert/hidden/reduced-motion suspension, GPU loss, a reload that restores resting

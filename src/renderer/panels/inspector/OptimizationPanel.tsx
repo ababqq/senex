@@ -24,7 +24,7 @@ const OPTIMIZATION_STATUS: Record<string, string> = {
   [OptimizationOutcome.Failed]: "Failed",
   [OptimizationOutcome.Interrupted]: "Interrupted",
   pending: "Waiting",
-  verifying_baseline: "Verifying game",
+  verifying_baseline: "Verifying project",
   profiling_baseline: "Measuring before",
   building_candidate: "Optimizing",
   validating_candidate: "Checking preservation",

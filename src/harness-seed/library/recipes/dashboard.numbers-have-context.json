@@ -1,0 +1,28 @@
+{
+  "id": "dashboard.numbers-have-context",
+  "title": "Every number carries a unit, a period and a comparison",
+  "tags": ["dashboard", "metric", "number", "kpi", "unit", "trend", "delta", "period", "label", "chart", "summary"],
+  "checkClass": "numbers-have-context",
+  "kind": "craft",
+  "pack": "data",
+  "appKinds": ["dashboard", "data-viz"],
+  "note": "A figure says what it measures, over what period and against what, so it can be judged at a glance.",
+  "intent": "A bare 1,284 tells a person nothing. Every headline number gets a label (what it measures), a unit (€, ms, users), a period (last 7 days) and, where it helps, a comparison (+12% vs. previous period, with an arrow and a colour that also has text). Format numbers for people: thousands separators, sensible rounding, compact notation for large values, a dash for missing data rather than 0 or NaN. Order the cards by importance, with the figure largest and the label smallest. Never show undefined, NaN or a raw ISO timestamp.",
+  "check": {
+    "id": "numbers-have-context",
+    "kind": "vision",
+    "camera": "default",
+    "ask": "Does every headline number show what it measures, its unit and its period, so it can be understood without guessing?",
+    "weight": "normal",
+    "note": "Every figure on the dashboard has a label, a unit and a period."
+  },
+  "port": "One `stat({ label, value, unit, period, change })` component renders every figure, so no card can leave a field out.",
+  "evidence": [],
+  "stats": {
+    "applied": 0,
+    "wins": 0,
+    "losses": 0
+  },
+  "status": "candidate",
+  "origin": "seed"
+}

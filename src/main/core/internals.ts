@@ -9,7 +9,7 @@ import type { AgentScreen, AgentScreenFrame } from "../../shared/agent-screen.ts
 import type { Revision } from "../../shared/optimization.ts";
 import type { PluginAppliedSet, PluginBinding } from "../../shared/plugins.ts";
 import type { LiveToolResult } from "../../substrate/engines/types.ts";
-import type { GameProject } from "../../substrate/game-workspace.ts";
+import type { Project } from "../../substrate/project-workspace.ts";
 import type { SecretPort } from "../../substrate/mcp/store.ts";
 import type { PreviewPool } from "../../substrate/preview-pool.ts";
 import type { SeedUpgradeReport } from "../../substrate/seed-upgrade.ts";
@@ -62,7 +62,7 @@ export interface WorkInFlight {
    */
   readonly activeCompletions: Map<string, Set<AbortController>>;
   /**
-   * Connector calls in flight, by the chat and game they were made for. A build's lead's call
+   * Connector calls in flight, by the chat and project they were made for. A build's lead's call
    * outlives the chat's turns (`outlivesTurn`): only its session's end or a Stop ends it.
    */
   readonly activeConnectorCalls: Map<
@@ -70,11 +70,11 @@ export interface WorkInFlight {
     { project?: string | null; threadId?: string; outlivesTurn?: boolean }
   >;
   /**
-   * One contractor per *directory* (live game folder or facet worktree), keyed by resolved cwd.
+   * One contractor per *directory* (live project folder or facet worktree), keyed by resolved cwd.
    * The first live build proved why a dir takes a lock: a crash mid-delegation left the
    * contractor running detached, a second "hi" was delegated into the same folder, and the two
    * sessions spent half an hour negotiating file ownership with each other. Keying by cwd
-   * rather than project is what lets N facet worktrees of one game build in parallel while two
+   * rather than project is what lets N facet worktrees of one project build in parallel while two
    * sessions in one folder still collide.
    *
    * Every brief in flight, keyed by the folder it builds in. `started` flips when the engine
@@ -161,7 +161,7 @@ export interface PreviewState {
   /** Agent screens: what the UI shows of every window a worker is driving. */
   readonly screens: Map<string, AgentScreenFrame | (AgentScreen & { jpeg?: undefined })>;
   /**
-   * What each preview handle last served, so Reload rebuilds a game that has its own build.
+   * What each preview handle last served, so Reload rebuilds a project that has its own build.
    * `loaded` is what the port was actually given — null when the build was broken and there was
    * nothing to show — so a Reload can tell "the same page again" from "a different folder now".
    */
@@ -206,19 +206,19 @@ export interface CoreChecks {
     audience: CapabilityAudience,
   ): Promise<{ revision: number; text: string }>;
   indexEvent(event: EventEnvelope): void;
-  readyProject(project: GameProject): Promise<GameProject>;
+  readyProject(project: Project): Promise<Project>;
   recordToolRevision(threadId: string, engine: string, revision?: number): Promise<void>;
   /** `engine`'s session `session` answered a brief that handed it `applied` (`ConnectionService.recordDelivered`). */
   recordDeliveredTools(threadId: string, engine: string, session: string, applied: PluginAppliedSet): Promise<void>;
   /** The plugins and skills `engine`'s session `session` on this thread was last handed (`ConnectionService.lastApplied`). */
   lastAppliedTools(threadId: string, engine: string, session: string): Promise<PluginAppliedSet | undefined>;
-  setGameCover(
+  setProjectCover(
     project: string,
     args: Record<string, unknown>,
     threadId?: string,
     signal?: AbortSignal,
   ): Promise<string>;
-  setGameCoverShader(
+  setProjectCoverShader(
     project: string,
     surface: unknown,
     threadId?: string,
@@ -237,9 +237,9 @@ export interface CoreServices {
   readonly conversation: ConversationService;
   readonly assets: AssetService;
   readonly rewind: ChatRewindService;
-  /** Claude Code permissions in game chats: who asks, the cards, the modes and what "always" keeps. */
+  /** Claude Code permissions in project chats: who asks, the cards, the modes and what "always" keeps. */
   readonly permissions: ChatPermissionService;
-  /** Whether a game chat is in Plan mode, when nothing may act on its behalf (`ChatPermissionService.planning`). */
+  /** Whether a project chat is in Plan mode, when nothing may act on its behalf (`ChatPermissionService.planning`). */
   planning(threadId: string): Promise<boolean>;
 }
 

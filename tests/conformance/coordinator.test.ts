@@ -37,9 +37,9 @@ for (const engine of ["codex", "claude-code"])
     it("queues follow-ups during a build, then answers in order with the saved run and session", async () => {
       const rig = await startRig();
       rigs.push(rig);
-      const project = "coordinator-game";
-      await rig.core.games.scaffold(project);
-      const thread = await rig.core.createGameThread(project);
+      const project = "coordinator-project";
+      await rig.core.projects.scaffold(project);
+      const thread = await rig.core.createProjectThread(project);
       const workerStarted = deferred(),
         releaseWorker = deferred(),
         coordinatorStarted = deferred(),
@@ -63,16 +63,16 @@ for (const engine of ["codex", "claude-code"])
           if (request.coordinator) {
             coordinators.push(request);
             assert.equal(request.readOnly, true);
-            assert.notEqual(request.cwd, rig.core.games.dirFor(project));
+            assert.notEqual(request.cwd, rig.core.projects.dirFor(project));
             assert.ok(!request.interviewTools?.some((t) => t.name === "start_autopilot"));
-            // It is this game's chat to the user, and it knows what the builders can use.
+            // It is this project's chat to the user, and it knows what the builders can use.
             assert.doesNotMatch(request.prompt, /Studio coordinator|registrar\)/);
-            assert.match(request.prompt, /capabilities of this game's builders/);
+            assert.match(request.prompt, /capabilities of this project's builders/);
             if (coordinators.length === 1) {
               const state = JSON.parse(String(await request.onLiveTool!("run_status", {})));
               assert.equal(state.run.runId, "preserve-run");
               assert.match(state.toolCapabilities, /genex__asset/);
-              assert.match(state.toolCapabilities, /capabilities of this game's builders/);
+              assert.match(state.toolCapabilities, /capabilities of this project's builders/);
               coordinatorStarted.resolve();
               await releaseCoordinator.promise;
               return result("The worker is still running.", "registrar-session");
@@ -135,7 +135,7 @@ for (const engine of ["codex", "claude-code"])
           run: { ...run, runId: "accidental-second-run" },
         });
         assert.equal(
-          await readFile(path.join(rig.core.games.dirFor(project), "worker-progress.txt"), "utf8"),
+          await readFile(path.join(rig.core.projects.dirFor(project), "worker-progress.txt"), "utf8"),
           "valuable work",
         );
         await rig.core.requestRunFinish(thread, run.runId);
@@ -285,8 +285,8 @@ it("future queued messages stay out of an earlier turn prompt", () => {
 it("replays a durable unanswered message once on boot without opening intake", async () => {
   const rig = await startRig();
   rigs.push(rig);
-  await rig.core.games.scaffold("replay-world");
-  const thread = await rig.core.createGameThread("replay-world");
+  await rig.core.projects.scaffold("replay-world");
+  const thread = await rig.core.createProjectThread("replay-world");
   await rig.core.append(
     [
       {
@@ -457,8 +457,8 @@ for (const ending of ["returns stopped", "throws aborted"] as const)
     // throw an abort when it lands before the session starts. The turn records it the same way.
     const rig = await startRig();
     rigs.push(rig);
-    await rig.core.games.scaffold("stop-trace");
-    const thread = await rig.core.createGameThread("stop-trace");
+    await rig.core.projects.scaffold("stop-trace");
+    const thread = await rig.core.createProjectThread("stop-trace");
     await rig.core.append(
       [
         {
@@ -517,8 +517,8 @@ for (const ending of ["returns stopped", "throws aborted"] as const)
 it("Stop while the plan is being written cancels it at once, without waiting for the plan", async () => {
   const rig = await startRig();
   rigs.push(rig);
-  await rig.core.games.scaffold("stop-plan");
-  const thread = await rig.core.createGameThread("stop-plan");
+  await rig.core.projects.scaffold("stop-plan");
+  const thread = await rig.core.createProjectThread("stop-plan");
   let writing = false;
   rig.core.engines.register({
     id: "codex",
@@ -559,8 +559,8 @@ it("Stop while the plan is being written cancels it at once, without waiting for
 it("a Stop pressed while the message is still sending stops that message: no builder answers it", async () => {
   const rig = await startRig();
   rigs.push(rig);
-  await rig.core.games.scaffold("stop-while-sending");
-  const thread = await rig.core.createGameThread("stop-while-sending");
+  await rig.core.projects.scaffold("stop-while-sending");
+  const thread = await rig.core.createProjectThread("stop-while-sending");
   let answered = 0;
   rig.core.engines.register({
     id: "codex",
@@ -603,8 +603,8 @@ it("a Stop pressed while the message is still sending stops that message: no bui
 it("Stop hands off to queued input in the same native session; an empty queue stays stopped", async () => {
   const rig = await startRig();
   rigs.push(rig);
-  await rig.core.games.scaffold("stop-queue");
-  const thread = await rig.core.createGameThread("stop-queue");
+  await rig.core.projects.scaffold("stop-queue");
+  const thread = await rig.core.createProjectThread("stop-queue");
   await rig.core.append(
     [
       {
@@ -666,8 +666,8 @@ it("Stop hands off to queued input in the same native session; an empty queue st
 it("a stale Plan mode flag during a build preserves its plan and queues the follow-up", async () => {
   const rig = await startRig();
   rigs.push(rig);
-  await rig.core.games.scaffold("existing-plan");
-  const thread = await rig.core.createGameThread("existing-plan");
+  await rig.core.projects.scaffold("existing-plan");
+  const thread = await rig.core.createProjectThread("existing-plan");
   await rig.core.store.updateThread(thread, {
     metadata: {
       planReview: {
@@ -704,8 +704,8 @@ it("a stale Plan mode flag during a build preserves its plan and queues the foll
 it("an ordinary change after completion continues implementation with the saved plan, without another intake", async () => {
   const rig = await startRig();
   rigs.push(rig);
-  await rig.core.games.scaffold("followup-plan");
-  const thread = await rig.core.createGameThread("followup-plan");
+  await rig.core.projects.scaffold("followup-plan");
+  const thread = await rig.core.createProjectThread("followup-plan");
   await rig.core.append(
     [
       { type: "messages", messages: [{ role: "user", content: "Build a quiet garden" }] },
@@ -747,6 +747,6 @@ it("an ordinary change after completion continues implementation with the saved 
   await rig.core.sendUserMessage("Add fireflies", { thread, engine: "codex" });
   await waitForLog(rig.core, (es) => customEvents(es, "coordinator_message_handled").length === 1, 15000);
   assert.equal(built, 1);
-  assert.equal(await readFile(path.join(rig.core.games.dirFor("followup-plan"), "fireflies.txt"), "utf8"), "added");
+  assert.equal(await readFile(path.join(rig.core.projects.dirFor("followup-plan"), "fireflies.txt"), "utf8"), "added");
   assert.equal(customEvents(await rig.core.store.listEvents(thread), "run_started").length, 1);
 });

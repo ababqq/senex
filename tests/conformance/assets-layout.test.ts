@@ -16,7 +16,7 @@ import {
   layoutAssets,
   sourceLabel,
 } from "../../src/renderer/assets-layout.ts";
-import { assetKind, type ProjectAsset } from "../../src/shared/game-assets.ts";
+import { assetKind, type ProjectAsset } from "../../src/shared/project-assets.ts";
 import { boundsOf, type Rect } from "../../src/renderer/run-graph.ts";
 
 /** Two cards share pixels. */
@@ -229,7 +229,7 @@ describe("layoutAssets", () => {
     assert.ok(bounds.y + bounds.h <= layout.height, "or the bottom");
   });
 
-  it("draws nothing, and no empty bands, for a game with no assets", () => {
+  it("draws nothing, and no empty bands, for a project with no assets", () => {
     const layout = layoutAssets([]);
     assert.deepEqual(layout.groups, []);
     assert.deepEqual(layout.rects, {});

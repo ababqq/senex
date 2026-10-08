@@ -160,7 +160,7 @@ export interface PluginToolbarItem {
   ariaLabel: string;
   /** A glyph of at most 4 characters, or a host icon: globe, export, play, image, box, boxes. */
   icon?: string;
-  /** Default true: the button waits for a loaded game. */
+  /** Default true: the button waits for a loaded project. */
   requiresProject?: boolean;
   target: PluginToolbarTarget;
   /** Names a declared action without confirmation that returns a PluginToolbarStatus. */
@@ -252,15 +252,15 @@ export interface PluginManifest {
   icon?: string;
 }
 
-/** What `export.stage` returns: Studio's public copy of the bound game. */
+/** What `export.stage` returns: Studio's public copy of the bound project. */
 export interface PluginExportResult {
   dir: string;
   files: number;
   included: string[];
   excluded: string[];
   /**
-   * What the game's own package.json tells Genex, which the copy does not carry: its Genex SDK
-   * versions and `genex` settings. Absent when the game names none.
+   * What the project's own package.json tells Genex, which the copy does not carry: its Genex SDK
+   * versions and `genex` settings. Absent when the project names none.
    */
   genex?: {
     dependencies: Partial<Record<"@genex-ai/multiplayer" | "@genex-ai/embed-sdk", string>>;
@@ -325,13 +325,13 @@ export interface PluginHost {
 }
 
 /**
- * One invocation's binding. Never store it: concurrent calls can belong to different games and
+ * One invocation's binding. Never store it: concurrent calls can belong to different projects and
  * different workers.
  */
 export interface PluginContext {
-  /** The bound game, when the call has one. */
+  /** The bound project, when the call has one. */
   project?: string;
-  /** The bound game's worktree. */
+  /** The bound project's worktree. */
   directory?: string;
   threadId?: string;
   /** Aborted when the user stops the turn. Local waiting ends; remote work may continue. */

@@ -18,7 +18,7 @@ import { handleRunStart } from "../../src/harness-seed/loop/run-dispatch.ts";
 
 const run = { runId: "run_a", project: "pong", engine: "claude-code" };
 const check = { id: "jump-arc", kind: "vision", camera: "default" };
-const spec = { id: "feel", title: "Game feel", intent: "The jump reads as weighty.", checks: [check] };
+const spec = { id: "feel", title: "Project feel", intent: "The jump reads as weighty.", checks: [check] };
 const SNAPSHOTS = (method: string) => method.startsWith("snapshot.");
 
 function spikeCtx(delegate: CtxHandler) {
@@ -174,7 +174,7 @@ describe("a spike in its own worktree", () => {
     assert.equal(outcome.ok, false);
   });
 
-  it("opens nothing for a game whose output folder it cannot name", async () => {
+  it("opens nothing for a project whose output folder it cannot name", async () => {
     const recorder = spikeCtx(() => assert.fail("no build for a refused spike"));
     const outcome = await spike(recorder, {
       worktree: true,
@@ -183,18 +183,18 @@ describe("a spike in its own worktree", () => {
       shape: { build: "npm run build" },
     });
     assert.deepEqual(recorder.sequence(), ["engine.describe"]);
-    assert.match(outcome.reason, /^no spike: this game builds into an output folder/);
+    assert.match(outcome.reason, /^no spike: this project builds into an output folder/);
   });
 });
 
 describe("a chat turn and Stop", () => {
-  /** A delegated chat turn in game `g`, answered by a builder that reports it did the work. */
+  /** A delegated chat turn in project `g`, answered by a builder that reports it did the work. */
   function chatTurn() {
     return ctxRecorder({
       unknown: { value: null },
       handlers: {
         "events.messages": () => [{ role: "user", content: "make the sky pink" }],
-        "game.list": () => [{ name: "g", title: "G" }],
+        "project.list": () => [{ name: "g", title: "G" }],
         "engine.describe": () => [],
         "engine.delegate": () => ({ ok: true, engine: "codex", turns: 1, usage: {}, sessionId: "s", summary: "done" }),
       },
@@ -212,7 +212,7 @@ describe("a chat turn and Stop", () => {
   it("a Stop while the turn prepares hands nothing to the builder, and the turn ends stopped", async () => {
     const recorder = chatTurn();
     // Stamping the folder is the last step before the builder starts: nothing is running to abort yet.
-    recorder.cancelAfter("game.contentStamp");
+    recorder.cancelAfter("project.contentStamp");
     const outcome = await runDelegatedTurn(recorder.ctx as never, options);
     assert.deepEqual(recorder.sequence("engine.delegate"), [], "no builder starts after the Stop");
     assert.equal(outcome.stopped, "aborted");
@@ -234,7 +234,7 @@ describe("Stop and the build a chat turn launched", () => {
     type Appended = { event_type?: string; messages?: Array<{ content?: string }> };
     const host = {
       call: async (method: string, params: { batch?: Appended[] }) => {
-        if (method === "game.list") return [{ name: "g", title: "G" }];
+        if (method === "project.list") return [{ name: "g", title: "G" }];
         if (method !== "events.append") return null;
         for (const item of params.batch ?? []) {
           if (item.event_type) recorded.push(item.event_type);

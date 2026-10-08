@@ -1,7 +1,7 @@
 /**
  * The M2 quick probe end to end against a FAKE page on a virtual clock: boot, idle baseline,
  * entrance by witness, input bursts against the post-entrance baseline, the eight rows, the gates,
- * the evidence frames (only after first render, only on gameplay) and the machine-wide lock. No
+ * the evidence frames (only after first render, only on interaction) and the machine-wide lock. No
  * browser starts; `eval-prober-browser.test.ts` runs the same probe in Chromium when opted in.
  */
 import assert from "node:assert/strict";
@@ -43,8 +43,8 @@ import {
 } from "../../scripts/evals/vocabulary.ts";
 import { tmpDir } from "../helpers/tmp.ts";
 
-const GAME = "http://127.0.0.1:4173";
-const URL_ = `${GAME}/index.html`;
+const PROJECT = "http://127.0.0.1:4173";
+const URL_ = `${PROJECT}/index.html`;
 const SAMPLE_EVERY_MS = 100;
 
 /** A 64x36 frame: flat grey, or a textured mid-tone scene. */
@@ -91,7 +91,7 @@ function fakePage(s: Scenario) {
     pageErrors: s.uncaughtAtMs === undefined ? [] : [{ atMs: s.uncaughtAtMs, message: "boom" }],
     network: [
       { url: URL_, method: "GET", status: 200, resourceType: "document", failure: null, startedAtMs: 0 },
-      { url: `${GAME}/main.js`, method: "GET", status: 200, resourceType: "script", failure: null, startedAtMs: 5 },
+      { url: `${PROJECT}/main.js`, method: "GET", status: 200, resourceType: "script", failure: null, startedAtMs: 5 },
     ],
     navigations: [{ atMs: 0, url: URL_ }],
     documentStatus: 200,
@@ -215,7 +215,7 @@ const options = (evidenceDir: string) => ({
 });
 
 describe("runQuickProbe", () => {
-  it("scores a game that boots, opens by its start control and answers input", async () => {
+  it("scores a project that boots, opens by its start control and answers input", async () => {
     const { evidenceDir, lockPath } = await setup();
     const fake = fakePage({ drawsAtMs: 2_000, startControl: "PLAY", responds: true });
     const result = await runQuickProbe(URL_, options(evidenceDir), {
@@ -237,7 +237,7 @@ describe("runQuickProbe", () => {
     assert.equal(result.evidence.frames.length, 8, "one after-gesture frame and one per burst");
     for (const f of result.evidence.frames) {
       assert.ok(f.atMs > 2_000, "never before the first render");
-      assert.equal(f.origin, GAME);
+      assert.equal(f.origin, PROJECT);
       assert.notEqual(f.phase, ProbePhase.Boot);
       assert.ok(fs.existsSync(f.path));
     }
@@ -334,7 +334,7 @@ describe("runQuickProbe", () => {
     assert.equal(result.rows[ProbeRow.L1BuildsAndBoots], CheckResult.Fail);
   });
 
-  it("fails stayed_on_game when the document leaves the origin, with no bounce allowed", async () => {
+  it("fails stayed_on_project when the document leaves the origin, with no bounce allowed", async () => {
     const { evidenceDir, lockPath } = await setup();
     const fake = fakePage({ drawsAtMs: 1_000, startControl: null, responds: true, leavesAtMs: 12_000 });
     const result = await runQuickProbe(URL_, options(evidenceDir), {
@@ -342,10 +342,10 @@ describe("runQuickProbe", () => {
       sleep: fake.sleep,
       lockPath,
     });
-    assert.equal(result.rows[ProbeRow.L1StayedOnGame], CheckResult.Fail);
+    assert.equal(result.rows[ProbeRow.L1StayedOnProject], CheckResult.Fail);
     assert.ok(
-      result.evidence.frames.every((f) => f.origin === GAME),
-      "frames off the game's origin are never evidence",
+      result.evidence.frames.every((f) => f.origin === PROJECT),
+      "frames off the project's origin are never evidence",
     );
   });
 

@@ -1,0 +1,39 @@
+{
+  "id": "layout.no-sideways-scroll",
+  "title": "The page never scrolls sideways",
+  "tags": [
+    "overflow",
+    "horizontal",
+    "scroll",
+    "responsive",
+    "width",
+    "layout",
+    "table",
+    "wrap",
+    "viewport",
+    "mobile",
+    "narrow"
+  ],
+  "checkClass": "no-horizontal-overflow",
+  "kind": "craft",
+  "pack": "layout",
+  "note": "Content wraps to the window instead of running past it; wide tables scroll inside their own box.",
+  "intent": "A page that scrolls sideways has something wider than the window: a table, a long unbroken word, a fixed-width card, a negative margin. Find it and fix the cause, not the symptom (overflow-x: hidden on body hides content rather than fixing it). Give flex and grid children min-width: 0 so they can shrink, let long text wrap (overflow-wrap: anywhere), keep images and canvases at max-width: 100%, and put a wide table inside a wrapper with overflow-x: auto so only the table scrolls. Check the page at a narrow width (360 px) as well as a wide one. The page reports state().ui.overflowX; a positive number is how many pixels it runs past the window.",
+  "check": {
+    "id": "no-horizontal-overflow",
+    "kind": "probe",
+    "expr": "ui.overflowX <= 0",
+    "needs": ["ui.overflowX"],
+    "weight": "normal",
+    "note": "The document is not wider than the window: state().ui.overflowX is 0."
+  },
+  "port": "The owner of styles.css sets box-sizing, min-width: 0 on flex and grid children and a max-width on media once; facets keep their own blocks inside that.",
+  "evidence": [],
+  "stats": {
+    "applied": 0,
+    "wins": 0,
+    "losses": 0
+  },
+  "status": "candidate",
+  "origin": "seed"
+}

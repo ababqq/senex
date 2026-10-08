@@ -15,7 +15,7 @@ export const shownSession = (event: Event): string | undefined =>
 /** Show the terminal dock, or hide it when it is showing (Cmd/Ctrl+`). */
 export const TOGGLE_TERMINAL_EVENT = "studio:toggle-terminal";
 
-/** Open a new terminal in the game's folder. */
+/** Open a new terminal in the project's folder. */
 export const OPEN_TERMINAL_EVENT = "studio:open-terminal";
 
 /** Whether a key press is the terminal's own chord, Cmd/Ctrl+`. */

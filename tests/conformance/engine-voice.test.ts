@@ -130,7 +130,7 @@ function builders(engine: string): Array<{ name: string; text: string }> {
     {
       name: "buildContractorBrief",
       text: chatSession.buildContractorBrief({
-        ask: "a pong game",
+        ask: "a pong project",
         scaffolded: true,
         engine,
         launch: { toolName: "start_autopilot", hours: 8, project: "plaza" },
@@ -139,7 +139,7 @@ function builders(engine: string): Array<{ name: string; text: string }> {
     {
       name: "buildInterviewBrief",
       text: chatSession.buildInterviewBrief({
-        ask: "a pong game",
+        ask: "a pong project",
         project: "plaza",
         toolName: "start_autopilot",
         hours: 8,

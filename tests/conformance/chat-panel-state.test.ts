@@ -307,12 +307,12 @@ describe("the running build's lead screen", () => {
       ...over,
     }) as AgentScreenFrame;
 
-  it("is the newest frame of this game's run whose role is the director", () => {
+  it("is the newest frame of this project's run whose role is the director", () => {
     const frames = [
       frame("old", 1),
       frame("builder", 9, { role: "builder" }),
       frame("other-run", 9, { runId: "run_b" }),
-      frame("other-game", 9, { project: "golf" }),
+      frame("other-project", 9, { project: "golf" }),
       frame("new", 5),
       frame("tie", 5),
     ];

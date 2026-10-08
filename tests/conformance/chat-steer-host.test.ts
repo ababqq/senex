@@ -65,7 +65,7 @@ describe("engine.steer waits for the chat's session on the clock it is given", (
     };
     const delegations = new Map<string, ActiveDelegation>();
     const clock = testClock((waited) => {
-      if (waited >= FIND_SESSION_MS / 2) delegations.set("/games/pond", session);
+      if (waited >= FIND_SESSION_MS / 2) delegations.set("/projects/pond", session);
     });
     const answer = await steerIntoChat(delegations, ask, clock.sleep);
     assert.deepEqual(answer, { how: "interrupt", accepted: ["ducks"] });
@@ -159,7 +159,7 @@ describe("the chat is free once a run closes", () => {
       args: { text: "Add rain" },
       messageId: "m1",
     });
-    assert.match(String(answer), /will continue in this game/);
+    assert.match(String(answer), /will continue in this project/);
     assert.deepEqual(
       payloads(await core.store.listEvents(thread), "run_followup_requested").map((p) => p.text),
       ["Add rain"],

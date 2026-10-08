@@ -1,6 +1,6 @@
 /**
  * The Genex plugin page reads the plugin's status once and shows one account state, the credits
- * it can honestly state, and each generation of the open game in plain words.
+ * it can honestly state, and each generation of the open project in plain words.
  */
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
@@ -32,7 +32,7 @@ const status = (over: Partial<GenexStatus> = {}): GenexStatus => ({
 
 const job = (over: Partial<GenexJob>): GenexJob => ({
   id: "job-1",
-  project: "game",
+  project: "project",
   operation: "model",
   status: "downloaded",
   files: [],
@@ -155,7 +155,7 @@ describe("Genex generations", () => {
     assert.equal(rows[0]?.error, "Prompt refused");
   });
 
-  it("says when a delivered asset is in the game", () => {
+  it("says when a delivered asset is in the project", () => {
     const [row] = genexJobRows([
       job({
         status: "downloaded",
@@ -169,7 +169,7 @@ describe("Genex generations", () => {
         },
       }),
     ]);
-    assert.equal(row?.state, JobState.InGame);
+    assert.equal(row?.state, JobState.InProject);
   });
 
   it("offers the candidates a character preview waits on", () => {
@@ -194,10 +194,10 @@ describe("Genex generations", () => {
 describe("Genex account button", () => {
   it("opens the Genex page's own account card, never the plugin's frame", () => {
     const genex = manifest as unknown as PluginManifest;
-    assert.equal(accountPanel(genex, "game"), undefined);
+    assert.equal(accountPanel(genex, "project"), undefined);
     const other = { ...genex, id: "other" };
-    assert.equal(accountPanel(other, "game")?.id, "publish", "other plugins keep their project panel");
-    assert.equal(accountPanel(other, null), undefined, "a project panel needs a game");
+    assert.equal(accountPanel(other, "project")?.id, "publish", "other plugins keep their project panel");
+    assert.equal(accountPanel(other, null), undefined, "a project panel needs a project");
   });
   it("lets the Genex page show the account problem itself, so the Plugins page does not repeat it", () => {
     const genex = { manifest, enabled: true } as unknown as PluginInfo;

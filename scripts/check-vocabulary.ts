@@ -100,7 +100,7 @@ const RULES: Record<VocabularyRule, RuleSpec> = {
     applies: EVERYWHERE,
     homes: [
       "src/harness-seed/loop/time.ts",
-      // Serialized with toString() and run inside the game page, where nothing can be imported.
+      // Serialized with toString() and run inside the project page, where nothing can be imported.
       "src/substrate/audio-observation.ts",
     ],
     patterns: [/new\s+Promise\s*(?:<[^>]*>)?\(\s*\(?\s*(\w+)\s*\)?\s*=>\s*\{?\s*(?:void\s+)?setTimeout\(\s*\1\s*,/],
@@ -110,9 +110,9 @@ const RULES: Record<VocabularyRule, RuleSpec> = {
 
 const CODE = /\.(?:[cm]?[jt]sx?)$/;
 const SKIPPED_DIRS = new Set(["node_modules", "dist", "out"]);
-// The game template is the game's own code, addressed to the in-app agent: none of these
+// The project template is the project's own code, addressed to the in-app agent: none of these
 // vocabularies reach it.
-const SKIPPED_TREES = ["src/game-template/"];
+const SKIPPED_TREES = ["src/project-template/"];
 
 // A `/` starts a regular expression after these; after a name, `)` or `]` it divides.
 const REGEX_AFTER = new Set([..."(,=:[!&|?{;+-*%>~^"]);
@@ -319,7 +319,7 @@ export function findRawVocabulary(file: string, source: string): VocabularyFindi
   return [...findings.values()].sort((a, b) => a.line - b.line);
 }
 
-/** Every checked file under the roots: code in src/ and scripts/, minus build output and the game template. */
+/** Every checked file under the roots: code in src/ and scripts/, minus build output and the project template. */
 export function vocabularyFiles(root: string, roots: readonly string[] = ["src", "scripts"]): string[] {
   const files: string[] = [];
   const walk = (dir: string) => {

@@ -34,7 +34,7 @@ const checksNeedAttention = (outcome: RunSummary): boolean => {
   return view.state === "finished" && view.delivered === "delivered" && view.verification === "attention";
 };
 
-/** A finished night whose merged build never became the game: it can still be played, or made live. */
+/** A finished night whose merged build never became the project: it can still be played, or made live. */
 function unlandedBuild(graph: RunGraphModel, final: FinalNode | null, run: RunNode) {
   if (graph.active || !final) return null;
   const head = final.integrationHead;
@@ -63,7 +63,7 @@ function BuildActions({
         }
       >
         <Icon name="play" size={13} />
-        Play this build
+        Open this build
       </Button>
       <Button
         onClick={() =>
@@ -139,7 +139,7 @@ function ResultRows({
     <Rows>
       {outcome?.learning ? (
         <Row label="What the studio learned" right={outcome.learning}>
-          <Para quiet>Studio learning: {outcome.learning} — separate from game execution.</Para>
+          <Para quiet>Studio learning: {outcome.learning} — separate from project execution.</Para>
         </Row>
       ) : null}
       <Row label="Technical details">

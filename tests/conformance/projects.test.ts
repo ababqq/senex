@@ -1,5 +1,5 @@
 /**
- * Folders-as-projects: a game can live anywhere on disk, chats nest inside it, stills in
+ * Folders-as-projects: a project can live anywhere on disk, chats nest inside it, stills in
  * `references/` reach the model as pictures, and forgetting an external folder does not delete it.
  */
 import assert from "node:assert/strict";
@@ -9,7 +9,7 @@ import { after, describe, it } from "node:test";
 import { startRig, waitForLog, type Rig } from "../helpers/studio-rig.ts";
 import { tmpDir } from "../helpers/tmp.ts";
 import { countImages } from "../helpers/fake-ollama.ts";
-import { slugFromName, tildePath } from "../../src/substrate/game-workspace.ts";
+import { slugFromName, tildePath } from "../../src/substrate/project-workspace.ts";
 
 const PNG_1x1 = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
@@ -23,11 +23,11 @@ after(async () => {
 
 describe("project folders", () => {
   it("slugFromName and tildePath are what the sidebar shows", () => {
-    assert.equal(slugFromName("My Cool Game"), "my-cool-game");
+    assert.equal(slugFromName("My Cool Project"), "my-cool-project");
     assert.equal(tildePath("/Users/simeon/coding/rift", "/Users/simeon"), "~/coding/rift");
   });
 
-  it("adopts a folder anywhere, keeps the user's stills, and scaffolds the missing game files", async () => {
+  it("adopts a folder anywhere, keeps the user's stills, and scaffolds the missing project files", async () => {
     const rig = await startRig({ replies: [] });
     rigs.push(rig);
     const dir = path.join(await tmpDir("studio-project-"), "mood-board");
@@ -41,34 +41,35 @@ describe("project folders", () => {
     assert.match(project.pathLabel, /mood-board/);
     assert.equal(project.dir, await realpath(dir));
     assert.ok(await readFile(path.join(dir, "index.html"), "utf8"));
-    // The assets door (AG-930): a scaffolded or adopted game gets the folder, the loader and the git attributes.
+    // The assets door (AG-930): a scaffolded or adopted project gets the folder and the git attributes,
+    // and the base styles every screen builds on.
     assert.match(await readFile(path.join(dir, "assets", "README.md"), "utf8"), /studio's own tools/);
     assert.match(await readFile(path.join(dir, ".gitattributes"), "utf8"), /\*\.glb binary/);
-    assert.match(await readFile(path.join(dir, "src", "assets.js"), "utf8"), /export async function loadAsset/);
+    assert.match(await readFile(path.join(dir, "src", "styles.css"), "utf8"), /--accent/);
     assert.match(await readFile(path.join(dir, "docs", "CONTRACT.md"), "utf8"), /## Assets/);
     assert.equal(await readFile(path.join(dir, "notes-from-me.txt"), "utf8"), "rainy neon streets");
-    assert.ok((await rig.core.games.list()).some((g) => g.name === project.name));
-    assert.ok((await rig.core.games.recents()).some((g) => g.name === project.name));
+    assert.ok((await rig.core.projects.list()).some((g) => g.name === project.name));
+    assert.ok((await rig.core.projects.recents()).some((g) => g.name === project.name));
   });
 
-  it("a game reuses its conversation instead of creating additional chats", async () => {
+  it("a project reuses its conversation instead of creating additional chats", async () => {
     const rig = await startRig({ replies: [{ text: "On it." }] });
     rigs.push(rig);
-    await rig.core.games.scaffold("arena", { title: "arena" });
-    // Static tripwire: the scaffold must ship a game that runs on load. `running = false` means
+    await rig.core.projects.scaffold("arena", { title: "arena" });
+    // Static tripwire: the scaffold must ship a project that runs on load. `running = false` means
     // a frozen screen until someone calls start() — and nobody in the pipeline does.
     assert.match(
-      await readFile(path.join(rig.core.games.dirFor("arena"), "src", "studio.js"), "utf8"),
+      await readFile(path.join(rig.core.projects.dirFor("arena"), "src", "studio.js"), "utf8"),
       // Anchored to the declaration — start() always contains a bare `running = true`.
       /let\s+running\s*=\s*true/,
     );
-    const first = await rig.core.threadForGame("arena");
+    const first = await rig.core.threadForProject("arena");
     await rig.core.sendUserMessage("add a dash", { thread: first });
     await waitForLog(rig.core, (log) => log.some((e) => e.data.type === "turn_ended"), 30_000, "first chat");
 
-    const second = await rig.core.createGameThread("arena");
+    const second = await rig.core.createProjectThread("arena");
     assert.equal(second, first);
-    assert.equal(await rig.core.threadForGame("arena"), second, "the folder keeps its canonical chat");
+    assert.equal(await rig.core.threadForProject("arena"), second, "the folder keeps its canonical chat");
     const firstRecord = await rig.core.store.getRecord(first);
     assert.equal((firstRecord.metadata as { project?: string }).project, "arena");
     assert.equal((firstRecord.metadata as { archived?: boolean }).archived, undefined);
@@ -81,10 +82,10 @@ describe("project folders", () => {
     await mkdir(dir, { recursive: true });
     await writeFile(path.join(dir, "precious.txt"), "do not delete");
     const project = await rig.core.adoptProject(dir);
-    const forgotten = await rig.core.archiveGame(project.name);
+    const forgotten = await rig.core.archiveProject(project.name);
     assert.equal(forgotten.trash, false);
     assert.equal(await readFile(path.join(dir, "precious.txt"), "utf8"), "do not delete");
-    assert.ok(!(await rig.core.games.list()).some((g) => g.name === project.name));
+    assert.ok(!(await rig.core.projects.list()).some((g) => g.name === project.name));
   });
 
   it("read_file of a still puts pixels on the next model round", async () => {
@@ -98,9 +99,9 @@ describe("project folders", () => {
       ],
     });
     rigs.push(rig);
-    await rig.core.games.scaffold("refs", { title: "refs" });
-    await writeFile(path.join(rig.core.games.dirFor("refs"), "references", "mood.png"), PNG_1x1);
-    const threadId = await rig.core.threadForGame("refs");
+    await rig.core.projects.scaffold("refs", { title: "refs" });
+    await writeFile(path.join(rig.core.projects.dirFor("refs"), "references", "mood.png"), PNG_1x1);
+    const threadId = await rig.core.threadForProject("refs");
     await rig.core.sendUserMessage("look at the reference still", { thread: threadId });
     const events = await waitForLog(
       rig.core,
@@ -129,19 +130,19 @@ describe("project folders", () => {
   it("a first message that names an existing folder works in that folder, not a new library copy", async () => {
     const rig = await startRig({ replies: [{ text: "I'll work in this folder." }] });
     rigs.push(rig);
-    const dir = path.join(await tmpDir("studio-named-ws-"), "blame-megastructure-game");
+    const dir = path.join(await tmpDir("studio-named-ws-"), "blame-megastructure-project");
     await mkdir(path.join(dir, "ref"), { recursive: true });
     await writeFile(path.join(dir, "ref", "main.png"), PNG_1x1);
 
-    const threadId = await rig.core.createGameThread();
+    const threadId = await rig.core.createProjectThread();
     await rig.core.sendUserMessage(`make a megastructure. refs in ${dir}/ref`, { thread: threadId });
     await waitForLog(rig.core, (log) => log.some((e) => e.data.type === "turn_ended"), 30_000, "turn_ended");
 
     const record = await rig.core.store.getRecord(threadId);
     const project = (record.metadata as { project?: string }).project;
     assert.ok(project);
-    assert.equal(await realpath(rig.core.games.dirFor(project!)), await realpath(dir));
-    assert.ok(!(await rig.core.games.list()).some((g) => g.library && g.name !== project));
+    assert.equal(await realpath(rig.core.projects.dirFor(project!)), await realpath(dir));
+    assert.ok(!(await rig.core.projects.list()).some((g) => g.library && g.name !== project));
   });
 
   it("named stills outside the project are readable without copying, and read_file defaults to this chat's folder", async () => {
@@ -159,8 +160,8 @@ describe("project folders", () => {
       ],
     });
     rigs.push(rig);
-    await rig.core.games.scaffold("inside", { title: "inside" });
-    const threadId = await rig.core.threadForGame("inside");
+    await rig.core.projects.scaffold("inside", { title: "inside" });
+    const threadId = await rig.core.threadForProject("inside");
     await rig.core.sendUserMessage(`keep going. stills are in ${outside}`, { thread: threadId });
     await waitForLog(rig.core, (log) => log.some((e) => e.data.type === "turn_ended"), 30_000, "turn_ended");
 

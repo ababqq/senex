@@ -157,7 +157,7 @@ it("host session invalidation never accepts page-supplied version/provenance", a
   await p.profile({ action: "end", sessionId: begin.sessionId });
 });
 
-it("a game that stops rendering midway cannot publish its earlier burst as current FPS", () => {
+it("a project that stops rendering midway cannot publish its earlier burst as current FPS", () => {
   const f = fixture();
   for (let i = 0; i < 35; i++) f.frame();
   for (let i = 0; i < 30; i++) f.frame(false);
@@ -257,14 +257,14 @@ it("a renderer that is still initialising is asked again rather than given up on
   assert.equal(attempts, 9);
 });
 
-it("a bundled game with no bare specifier is identified by the canvas stamp, and only its own revision", async () => {
+it("a bundled project with no bare specifier is identified by the canvas stamp, and only its own revision", async () => {
   const stamped = (engine: string | null) =>
     new PreviewProfiler(
       async (expression) => {
         if (expression.includes("installProfileObserver")) return { backend: "webgl" };
         if (!expression.includes("import(")) return null;
         // The page really evaluates the identity probe: there is no module loader in here, so the
-        // dynamic import rejects exactly as it does for a game whose three is inside its bundle.
+        // dynamic import rejects exactly as it does for a project whose three is inside its bundle.
         return await runInNewContext(expression, {
           __studio: {
             inspect: () => ({

@@ -83,7 +83,7 @@ export async function assetPreviewSmoke(
 }
 
 async function copyViewerFiles(core: StudioCore, project: string, dir: string): Promise<void> {
-  const output = path.join(core.games.dirFor(project), "assets", "viewer");
+  const output = path.join(core.projects.dirFor(project), "assets", "viewer");
   await mkdir(output, { recursive: true });
   await cp(dir, output, {
     recursive: true,

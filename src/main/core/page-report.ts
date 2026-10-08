@@ -2,7 +2,7 @@
  * What a served page reported back: the attach report every failure path shares, and the notes a
  * load adds when a page wanders off or boots slowly.
  */
-import type { AttachReport } from "../../shared/game-project.ts";
+import type { AttachReport } from "../../shared/project-folder.ts";
 import { SECOND_MS } from "../../shared/duration.ts";
 import type { ReadyResult } from "../../substrate/preview-ready.ts";
 
@@ -85,7 +85,7 @@ export function attachReport(reported: Record<string, unknown>, base: AttachRepo
   return { ...merged, ok: merged.contract !== "none" };
 }
 
-/** The address a URL belongs to: `game://<project>`, or scheme + host + port for the loopback. */
+/** The address a URL belongs to: `project://<project>`, or scheme + host + port for the loopback. */
 export function originOf(url: string | null): string | null {
   if (!url) return null;
   try {
@@ -99,7 +99,7 @@ export function originOf(url: string | null): string | null {
 
 /**
  * A page that has left the address the studio put in the window. The studio serves every page
- * itself — that is how the shim, the clock and the cameras get there at all — so a game that
+ * itself — that is how the shim, the clock and the cameras get there at all — so a project that
  * navigates to its own dev server has walked out of the studio's sight, and saying so by name
  * beats judging a page nothing can drive.
  */

@@ -14,8 +14,8 @@ const MESSAGE = {
 
 export interface ThreadsIpcDeps {
   core: StudioCore;
-  /** `~/AI Games`, as a human reads it — the renderer never sees absolute paths. */
-  gamesRootLabel(root: string): string;
+  /** `~/AI Projects`, as a human reads it — the renderer never sees absolute paths. */
+  projectsRootLabel(root: string): string;
   /** The harness's last reported status per thread, for a renderer that loads mid-run. */
   threadStatus(): ThreadStatusMap;
   pushUiEvent(event: UiEvent): void;
@@ -32,7 +32,7 @@ export function registerThreadsIpc(
   handle: IpcHandle,
   {
     core,
-    gamesRootLabel,
+    projectsRootLabel,
     threadStatus,
     pushUiEvent,
     appendErrorDurably,
@@ -50,21 +50,21 @@ export function registerThreadsIpc(
     }
     // The renderer's poll continues from `eventsCursor`, never from the tail's last id. The reads
     // are independent; the loader waits for the slowest (the engines' CLI checks), not their sum.
-    const [feed, threads, games, engines] = await Promise.all([
+    const [feed, threads, projects, engines] = await Promise.all([
       core.store.listAllSince(undefined, 600),
       core.store.listThreads(),
-      core.games.list(),
+      core.projects.list(),
       core.engines.describe(),
     ]);
     return {
       threadId: core.mainThread,
       layout: core.layout,
-      gamesRootLabel: gamesRootLabel(core.layout.gamesRoot),
+      projectsRootLabel: projectsRootLabel(core.layout.projectsRoot),
       harness: { state: core.host.state, version: core.host.harnessVersion, capabilities: core.host.capabilities },
       threads,
       events: feed.events,
       eventsCursor: feed.cursor,
-      games,
+      projects,
       engines,
       threadStatus: threadStatus(),
       activeDelegations: core.activeBuilders(),
@@ -130,11 +130,11 @@ export function registerThreadsIpc(
     core.messageImages(String(payload.threadId), String(payload.messageId)),
   );
   handle("studio:thread.new", async (payload) => {
-    const threadId = await core.createGameThread(payload?.project);
+    const threadId = await core.createProjectThread(payload?.project);
     return core.store.getRecord(threadId);
   });
-  handle("studio:thread.forGame", async (payload) => {
-    const threadId = await core.threadForGame(payload.project);
+  handle("studio:thread.forProject", async (payload) => {
+    const threadId = await core.threadForProject(payload.project);
     return core.store.getRecord(threadId);
   });
   handle("studio:thread.rename", async (payload) => core.renameThread(payload.threadId, payload.title));

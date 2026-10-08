@@ -74,9 +74,9 @@ test("an inspected empty shared base can pass infrastructure checks with blank f
   const result = await gatherEvidence(context() as never, request as never);
   assert.equal(result.ok, true, JSON.stringify(result.problems));
   assert.equal(result.emptyScene, true);
-  assert.match(result.warnings.join(" "), /no visual content or gameplay has been validated/);
+  assert.match(result.warnings.join(" "), /no visual content or interaction has been validated/);
   // Zero draw calls on every camera is what an empty base IS: the same sentence, as a warning.
-  assert.match(result.warnings.join(" | "), /the game drew nothing for any camera/);
+  assert.match(result.warnings.join(" | "), /the project drew nothing for any camera/);
   assert.ok(!result.problems.some((p: string) => /drew nothing/.test(p)), result.problems.join(" | "));
 });
 test("a generated blank build cannot opt out using its own empty phase or the scaffold flag", async () => {
@@ -85,7 +85,7 @@ test("a generated blank build cannot opt out using its own empty phase or the sc
     assert.equal(result.ok, false);
     assert.match(result.problems.join(" "), /black/);
     // Outside the base stage, drawing nothing is still the verdict and not a warning.
-    assert.ok(result.problems.includes("the game drew nothing for any camera"), result.problems.join(" | "));
+    assert.ok(result.problems.includes("the project drew nothing for any camera"), result.problems.join(" | "));
   }
 });
 test("existing geometry that renders black still fails in the base stage", async () => {

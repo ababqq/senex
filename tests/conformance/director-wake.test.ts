@@ -667,12 +667,12 @@ const bookmarked = (payload: Record<string, unknown>) => ({
 describe("one session: whose session the lead is (lead-session.ts)", () => {
   const run = { runId: "run_s", project: "plaza", goal: "a dusk plaza", engine: "claude-code", model: "opus" };
 
-  it("O1. continues the chat's session only on the lead's engine, game and model; otherwise says whose session it keeps", () => {
+  it("O1. continues the chat's session only on the lead's engine, project and model; otherwise says whose session it keeps", () => {
     const seat = (events: unknown[], priorJournal: unknown = null) =>
       leadSeat({
         events: events as never,
         run: run as never,
-        folder: "/games/plaza",
+        folder: "/projects/plaza",
         priorJournal: priorJournal as never,
       });
     const chat = bookmarked({ project: "plaza", engine: "claude-code", sessionId: "chat-1", model: "opus" });
@@ -699,7 +699,7 @@ describe("one session: whose session the lead is (lead-session.ts)", () => {
         want: { sessionId: null, chatSession: false },
       },
       {
-        label: "another game's session",
+        label: "another project's session",
         events: [bookmarked({ project: "other", engine: "claude-code", sessionId: "chat-other", model: "opus" })],
         want: { sessionId: null, chatSession: false },
       },
@@ -707,7 +707,7 @@ describe("one session: whose session the lead is (lead-session.ts)", () => {
     for (const { label, events, want } of rows) {
       const got = seat(events);
       assert.deepEqual({ sessionId: got.sessionId, chatSession: got.chatSession }, want, label);
-      assert.equal(got.folder, "/games/plaza", label);
+      assert.equal(got.folder, "/projects/plaza", label);
     }
     // A Resume of a lead that kept a session of its own goes on in it; one that was the chat's does not come back.
     const other = [bookmarked({ project: "plaza", engine: "codex", sessionId: "chat-codex", model: null })];
@@ -755,7 +755,7 @@ describe("one session: whose session the lead is (lead-session.ts)", () => {
   it("O3. the lead's session is written to the chat's bookmark only when it is the chat's and it changed", async () => {
     const appended: unknown[] = [];
     const ctx = { call: async (_method: string, params: { batch: unknown[] }) => appended.push(...params.batch) };
-    const seat = leadSeat({ events: [], run: run as never, folder: "/games/plaza" });
+    const seat = leadSeat({ events: [], run: run as never, folder: "/projects/plaza" });
     await bookmarkLead(ctx as never, { threadId: "t", run: run as never, seat }, "lead-1");
     await bookmarkLead(ctx as never, { threadId: "t", run: run as never, seat }, "lead-1");
     await bookmarkLead(
@@ -789,9 +789,9 @@ describe("one session: whose session the lead is (lead-session.ts)", () => {
       contract: { ok: false, error: "window.__studio is missing" },
       loop: DirectorLoop.Wake,
     };
-    const lead = directorBrief({ ...base, lead: { gameFolder: "/games/skate" } } as never);
-    assert.match(lead, /^You are the DIRECTOR of run run_b on the game "skate" — and still this chat's own session/);
-    assert.match(lead, /WHERE YOU ARE: your cwd is the game folder the user sees \(\/games\/skate\)/);
+    const lead = directorBrief({ ...base, lead: { projectFolder: "/projects/skate" } } as never);
+    assert.match(lead, /^You are the DIRECTOR of run run_b on the project "skate" — and still this chat's own session/);
+    assert.match(lead, /WHERE YOU ARE: your cwd is the project folder the user sees \(\/projects\/skate\)/);
     assert.match(lead, /the run's integration worktree \(\/scratch\/autopilot\/run_b\/integration\)/);
     // Flipped (the lead builds with its own hands): it edits and commits in the integration
     // worktree it leads, does foundations and small repairs itself, and hands parallel work out.
@@ -806,7 +806,7 @@ describe("one session: whose session the lead is (lead-session.ts)", () => {
       ...base,
       nestedRepos: [],
       contract: null,
-      lead: { gameFolder: "/games/skate" },
+      lead: { projectFolder: "/projects/skate" },
     } as never);
     assert.ok(plain.length - skill.length < 5_000, `the lead's brief's own words are ${plain.length - skill.length}`);
     const turn = directorBrief({ ...base, loop: DirectorLoop.Turn } as never);

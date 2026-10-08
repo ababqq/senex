@@ -6,7 +6,7 @@
  * sandbox, no process spawning of its own, and no way to write the event log except through an
  * append that we head-check. The table's handlers live in `./harness-rpc/`, one module per
  * namespace; the work behind them lives in the services under `./core/` (previews, delegation,
- * recovery, self-improvement, plugin tools, conversation, assets, game threads), which the core
+ * recovery, self-improvement, plugin tools, conversation, assets, project threads), which the core
  * composes and hands its shared state through {@link CoreInternals}. This file keeps the
  * lifecycle (init, start, stop), the event log's front door, settings and the public surface.
  *
@@ -19,8 +19,8 @@ import path from "node:path";
 import type { BuildPreviewRequest } from "../shared/build-preview.ts";
 import { DEFAULT_BUILDERS, LEAD_WINDOWS } from "../shared/builders.ts";
 import type { ConnectionSnapshot } from "../shared/connections.ts";
-import type { GameLocation, GameName, GameNameRequest } from "../shared/game-project.ts";
-import type { GameSoundRequest } from "../shared/game-sound.ts";
+import type { ProjectLocation, ProjectName, ProjectNameRequest } from "../shared/project-folder.ts";
+import type { ProjectSoundRequest } from "../shared/project-sound.ts";
 import { latestRun } from "../shared/coordinator.ts";
 import { validateCoverSurface } from "../shared/cover-shader.ts";
 import { coverLookName, coverRecipeFromTool } from "../shared/cover-recipe.ts";
@@ -29,8 +29,8 @@ import { MINUTE_MS, SECOND_MS } from "../shared/duration.ts";
 import { EngineStatusCode } from "../shared/engine-descriptor.ts";
 import { errorMessage } from "../shared/errors.ts";
 import { EventKind, ThreadKind, SnapshotScope } from "../shared/event-log.ts";
-import { assetKind, isAudioFile, type AssetDeliveredPayload } from "../shared/game-assets.ts";
-import { coverFromBrief, replaceableCover, type GameUpdate } from "../shared/game-library.ts";
+import { assetKind, isAudioFile, type AssetDeliveredPayload } from "../shared/project-assets.ts";
+import { coverFromBrief, replaceableCover, type ProjectUpdate } from "../shared/project-library.ts";
 import type { HarnessHostHandlers, HarnessParams, HarnessResult, HostMethod } from "../shared/harness-api.ts";
 import type { ExportReview, PluginBinding } from "../shared/plugins.ts";
 import { ToolPermissionBy } from "../shared/permissions.ts";
@@ -67,16 +67,16 @@ import { EngineRegistry } from "../substrate/engines/registry.ts";
 import type { Engine, LiveToolResult } from "../substrate/engines/types.ts";
 import { EventStore } from "../substrate/event-store.ts";
 import { atomicWriteJson, ensureDir, readJsonIfExists } from "../substrate/fsx.ts";
-import type { ExportResult } from "../substrate/game-export.ts";
-import { GameCandidates } from "../substrate/game-candidate.ts";
+import type { ExportResult } from "../substrate/project-export.ts";
+import { ProjectCandidates } from "../substrate/project-candidate.ts";
 import {
-  GameWorkspaces,
+  ProjectWorkspaces,
   readProjectShape,
   type AdoptOptions,
   type CreateOptions,
   type FolderInspection,
-  type GameProject,
-} from "../substrate/game-workspace.ts";
+  type Project,
+} from "../substrate/project-workspace.ts";
 import { HarnessHost, UpdateJournal, type UpdateRecord } from "../substrate/harness-host.ts";
 import { shortId } from "../substrate/ids.ts";
 import { ExportApprovals, sortedReview } from "./core/export-approvals.ts";
@@ -101,11 +101,11 @@ import { ChatPermissionService } from "./core/chat-permissions.ts";
 import { ConnectionService } from "./core/connections.ts";
 import { ConversationService } from "./core/conversation.ts";
 import { DelegationService } from "./core/delegation.ts";
-import { GameFileService } from "./core/game-files.ts";
-import { nameFromIdea, nameGame } from "./core/game-naming.ts";
+import { ProjectFileService } from "./core/project-files.ts";
+import { nameFromIdea, nameProject } from "./core/project-naming.ts";
 import { GENEX_PLUGIN_ID, GenexCliService, genexHostPreflight, genexHostTool } from "./core/genex-cli.ts";
 import { GenexPackageService } from "./core/genex-package.ts";
-import { GameThreadService } from "./core/game-threads.ts";
+import { ProjectThreadService } from "./core/project-threads.ts";
 import {
   type CoreInternals,
   freshImprovementState,
@@ -130,10 +130,10 @@ import {
   type StudioSettings,
 } from "./core/settings.ts";
 import { SUBSCRIPTION_ENGINES } from "./core/subscription-engines.ts";
-import { GameBuilds } from "./game-build.ts";
+import { ProjectBuilds } from "./project-build.ts";
 import { engineRpc } from "./harness-rpc/engine.ts";
 import { eventsRpc } from "./harness-rpc/events.ts";
-import { gameRpc } from "./harness-rpc/game.ts";
+import { projectRpc } from "./harness-rpc/project.ts";
 import { optimizationRpc } from "./harness-rpc/optimization.ts";
 import { pluginsRpc } from "./harness-rpc/plugins.ts";
 import { previewRpc } from "./harness-rpc/preview.ts";
@@ -155,8 +155,8 @@ export { SUBSCRIPTION_ENGINES, layoutFor, type StudioLayout, type StudioSettings
 const HARNESS_HEARTBEAT_TIMEOUT_MS = 10 * MINUTE_MS;
 /** This many harness exits inside the window is a crash loop: the studio rewinds instead of restarting. */
 const HARNESS_CRASH_LOOP = { count: 3, windowMs: 5 * MINUTE_MS } as const;
-/** Where the folder chosen in Settings → Games is remembered, under userData. */
-const GAMES_ROOT_FILE = "games-root.json";
+/** Where the folder chosen in Settings → Projects is remembered, under userData. */
+const PROJECTS_ROOT_FILE = "games-root.json";
 /** How long after a boot the first full read of the log (for Activity) waits. */
 const ACTIVITY_WARMUP_DELAY_MS = 5 * SECOND_MS;
 
@@ -167,26 +167,26 @@ const MESSAGE = {
   updateRewound: "it did not boot; the studio rewound",
   updateUnhealthy: "healthcheck failed",
   stillBuilding: (project: string) => `a contractor is still building in "${project}" — wait for it to finish first`,
-  protectedLocation: "Studio can't create games there. Choose another folder.",
-  workStillRunning: "Wait for this game's work to finish before removing it.",
-  buildStillRunning: "Stop this game's build before removing it.",
-  gameNotFound: "Game not found",
+  protectedLocation: "Studio can't create projects there. Choose another folder.",
+  workStillRunning: "Wait for this project's work to finish before removing it.",
+  buildStillRunning: "Stop this project's build before removing it.",
+  projectNotFound: "Project not found",
   exportBuildFailed: "Current build failed; no stale output was exported",
-  coverWrongGame: "Cover tool is bound to this conversation’s game.",
+  coverWrongProject: "Cover tool is bound to this conversation’s project.",
   noCoverRenderer: "GPU cover rendering is unavailable.",
-  shaderCoverKept: "This game already has a custom cover. Its image was preserved.",
+  shaderCoverKept: "This project already has a custom cover. Its image was preserved.",
   shaderCoverRaced: "The cover changed while rendering. The newer image was preserved.",
-  shaderCoverSaved: "Saved this game’s shader cover. The attached image is its rendered still.",
-  coverLabel: "Game cover",
-  recipeCoverKept: "This game already has a chosen cover. It was kept.",
+  shaderCoverSaved: "Saved this project’s shader cover. The attached image is its rendered still.",
+  coverLabel: "Project cover",
+  recipeCoverKept: "This project already has a chosen cover. It was kept.",
   recipeCoverRaced: "The cover changed meanwhile. The newer one was kept.",
-  recipeCoverSaved: (look: string) => `Saved this game’s cover: ${look}.`,
+  recipeCoverSaved: (look: string) => `Saved this project’s cover: ${look}.`,
   queueNeedsHarness: "Queue editing needs the updated conversation harness. Your message is still queued.",
   resumeUnsupported:
     "This build of the studio can't pick a build back up yet — its own loop code predates timed builds.",
   runAlreadyFinished: (runId: string) => `run ${runId} already finished — nothing to resume`,
   noAutopilotJournal: (runId: string) => `no Autopilot journal found for run ${runId}`,
-  notInLibrary: (project: string) => `refused: "${project}" is not a game in the library`,
+  notInLibrary: (project: string) => `refused: "${project}" is not a project in the library`,
   notOurRoot: (root: string, project: string) =>
     `refused: ${root} is not a studio worktree or the folder of "${project}"`,
   linkedPath: (target: string) => `refused: the worktree path runs through a symlink: ${target}`,
@@ -237,12 +237,12 @@ function byLogOrder(a: EventEnvelope, b: EventEnvelope): number {
   return a.id > b.id ? 1 : 0;
 }
 
-/** The game a thread is bound to, if any (`metadata.project`). */
+/** The project a thread is bound to, if any (`metadata.project`). */
 function threadProject(record: { metadata?: unknown }): string | undefined {
   return (record.metadata as { project?: string } | undefined)?.project;
 }
 
-/** A thread's `metadata.kind`: the studio's own, a game's, or none for a thread from before kinds. */
+/** A thread's `metadata.kind`: the studio's own, a project's, or none for a thread from before kinds. */
 function threadKind(record: { metadata?: unknown }): string | undefined {
   return (record.metadata as { kind?: string } | undefined)?.kind;
 }
@@ -267,12 +267,12 @@ function loadedFilesScript(files: string[]): string {
 
 export interface StudioPaths {
   userData: string;
-  /** Read-only app resources: harness seed, game template, vendored libraries, bootstrap. */
+  /** Read-only app resources: harness seed, project template, vendored libraries, bootstrap. */
   resources: string;
 }
 
 export interface StudioCoreOptions {
-  renderGameCover?: (surface: string, seed: number) => Promise<string>;
+  renderProjectCover?: (surface: string, seed: number) => Promise<string>;
   /** Notes each boot step as it finishes (`main/performance.ts`); a launch without diagnostics passes nothing. */
   markBoot?: (step: string) => void;
   engines?: Engine[];
@@ -280,7 +280,7 @@ export interface StudioCoreOptions {
   paths: StudioPaths;
   preview?: PreviewPort;
   /**
-   * Factory for headless observation ports (a hidden window on the same `game://` protocol).
+   * Factory for headless observation ports (a hidden window on the same `project://` protocol).
    * Absent = the pool serves only the live view and `preview.acquire` refuses loudly.
    */
   createHeadlessPreview?: (options?: { purpose?: "optimization" }) => Promise<PreviewPort>;
@@ -294,10 +294,10 @@ export interface StudioCoreOptions {
   /** The app's version, stamped into the harness seed manifest (substrate/seed-upgrade.ts `writer`). */
   appVersion?: string;
   /**
-   * Where game folders live. The app passes `~/AI Games` so projects are plain visible folders
+   * Where project folders live. The app passes `~/AI Projects` so projects are plain visible folders
    * in Finder; tests and smoke runs leave it unset and get the default under userData.
    */
-  gamesRoot?: string;
+  projectsRoot?: string;
   ollamaHost?: string;
   /** Claude Code binary for the SDK to spawn (asar-unpacked in a packaged app); unset = SDK default. */
   claudeExecutable?: string;
@@ -333,10 +333,10 @@ export class StudioCore {
   readonly layout: StudioLayout;
   readonly snapshots: SnapshotEngine;
   readonly snapshotIndex = new SnapshotIndex();
-  readonly candidates: GameCandidates;
+  readonly candidates: ProjectCandidates;
   readonly engines = new EngineRegistry();
   readonly contextPreferences: ContextPreferences;
-  readonly games: GameWorkspaces;
+  readonly projects: ProjectWorkspaces;
   readonly journal: UpdateJournal;
   readonly ollamaSidecar: OllamaSidecar;
   /** Token bookkeeping + improvement-class caps, enforced at the engine seam (A9). */
@@ -348,8 +348,8 @@ export class StudioCore {
   store!: EventStore;
   turns!: TurnFactory;
   sandbox!: ProcessSandbox;
-  /** Builds a game that builds itself — never inside the folder the user owns. */
-  builds!: GameBuilds;
+  /** Builds a project that builds itself — never inside the folder the user owns. */
+  builds!: ProjectBuilds;
   plugins!: PluginRegistry;
   pluginServices!: PluginServices;
   /**
@@ -374,12 +374,12 @@ export class StudioCore {
   readonly #pluginTools: PluginToolService;
   readonly #conversation: ConversationService;
   readonly #assets: AssetService;
-  readonly #threads: GameThreadService;
-  readonly #gameFiles: GameFileService;
+  readonly #threads: ProjectThreadService;
+  readonly #projectFiles: ProjectFileService;
   readonly #rewind: ChatRewindService;
   /** Questions an agent's plugin tool is waiting on the user for (`plugin_consent` cards in the chat). */
   readonly #consent: PluginConsent;
-  /** Claude Code permissions in game chats: modes, the Allow / Deny cards, saved grants. */
+  /** Claude Code permissions in project chats: modes, the Allow / Deny cards, saved grants. */
   readonly #permissions: ChatPermissionService;
   /** The same port the registry reads, kept so a plugin server's `secret:<name>` can be resolved. */
   #mcpSecrets: SecretPort | null = null;
@@ -395,8 +395,8 @@ export class StudioCore {
   #assetCheckpointStore?: AssetCheckpoints;
   #planReviews?: PlanReviewController;
 
-  // One at a time, keyed by what they touch: a game's thread, a game's shown build, the cover renderer.
-  readonly #gameThreadOperations = new Map<string, Promise<unknown>>();
+  // One at a time, keyed by what they touch: a project's thread, a project's shown build, the cover renderer.
+  readonly #projectThreadOperations = new Map<string, Promise<unknown>>();
   readonly #showOperations = new Map<string, Promise<unknown>>();
   readonly #coverOperations = new Map<string, Promise<unknown>>();
   readonly #showRequests = new Map<string, Promise<{ dir: string; commit: string }>>();
@@ -418,12 +418,12 @@ export class StudioCore {
     this.contextPreferences = new ContextPreferences(path.join(options.paths.userData, "context-settings.json"));
     this.#consent = new PluginConsent({ timeoutMs: options.consentTimeoutMs ?? CONSENT_TIMEOUT_MS });
     this.layout = layoutFor(options.paths.userData);
-    if (options.gamesRoot) this.layout.gamesRoot = options.gamesRoot;
+    if (options.projectsRoot) this.layout.projectsRoot = options.projectsRoot;
     this.snapshots = new SnapshotEngine([{ name: HARNESS_WORKSPACE, dir: this.layout.harnessWs }]);
-    this.candidates = new GameCandidates(this.snapshots, path.join(this.layout.scratch, "optimization"));
-    this.games = new GameWorkspaces({
-      root: this.layout.gamesRoot,
-      templateDir: path.join(options.paths.resources, "game-template"),
+    this.candidates = new ProjectCandidates(this.snapshots, path.join(this.layout.scratch, "optimization"));
+    this.projects = new ProjectWorkspaces({
+      root: this.layout.projectsRoot,
+      templateDir: path.join(options.paths.resources, "project-template"),
       vendorDir: path.join(options.paths.resources, "vendor"),
       indexFile: path.join(options.paths.userData, "projects.json"),
       userData: options.paths.userData,
@@ -442,8 +442,8 @@ export class StudioCore {
     this.#pluginTools = new PluginToolService(this, this.#x);
     this.#conversation = new ConversationService(this, this.#x);
     this.#assets = new AssetService(this);
-    this.#threads = new GameThreadService(this);
-    this.#gameFiles = new GameFileService(this);
+    this.#threads = new ProjectThreadService(this);
+    this.#projectFiles = new ProjectFileService(this);
     this.#rewind = new ChatRewindService(this, this.#x);
     this.#permissions = new ChatPermissionService(this);
   }
@@ -476,8 +476,8 @@ export class StudioCore {
       recordToolRevision: (...args) => core.#connections.recordApplied(...args),
       recordDeliveredTools: (...args) => core.#connections.recordDelivered(...args),
       lastAppliedTools: (...args) => core.#connections.lastApplied(...args),
-      setGameCover: (...args) => core.#setGameCover(...args),
-      setGameCoverShader: (...args) => core.#setGameCoverShader(...args),
+      setProjectCover: (...args) => core.#setProjectCover(...args),
+      setProjectCoverShader: (...args) => core.#setProjectCoverShader(...args),
       get settings() {
         return core.#settings;
       },
@@ -524,11 +524,11 @@ export class StudioCore {
   // ── boot ─────────────────────────────────────────────────────────────────────────────────
   async init(): Promise<void> {
     const mark = (step: string): void => this.options.markBoot?.(`core:${step}`);
-    await this.#restoreGamesRoot();
+    await this.#restoreProjectsRoot();
     for (const dir of Object.values(this.layout)) await ensureDir(dir);
     await this.#loadSettings();
     await this.budget.load();
-    const migrated = await this.#migrateGamesRoot();
+    const migrated = await this.#migrateProjectsRoot();
     mark("settings");
     await this.#recovery.seedHarnessWorkspace();
     mark("seed");
@@ -536,17 +536,19 @@ export class StudioCore {
     await this.#adoptStudioThread();
     await this.#recovery.noteSeedMoves();
     if (migrated.length > 0) {
-      await this.append([customEventData(CustomEvent.GamesMigrated, { moved: migrated, to: this.layout.gamesRoot })]);
+      await this.append([
+        customEventData(CustomEvent.ProjectsMigrated, { moved: migrated, to: this.layout.projectsRoot }),
+      ]);
     }
     await this.#recovery.rebuildSnapshotIndex();
     await this.#takeSeedUpgradeBaseline();
     mark("events");
-    const listed = await this.#registerGames();
-    mark("games");
+    const listed = await this.#registerProjects();
+    mark("projects");
     // Ask the login shell for its PATH now, in parallel with the rest of the boot: the answer
     // takes a second or two and the first sandboxed process would otherwise wait for it.
     void toolchain().catch(() => {});
-    // Side by side: the sandbox reads only the layout and the games, and plugin setup reaches the
+    // Side by side: the sandbox reads only the layout and the projects, and plugin setup reaches the
     // sandbox only when a tool runs later.
     const [sandbox] = await Promise.all([
       this.#createSandbox(listed).finally(() => mark("sandbox")),
@@ -572,8 +574,8 @@ export class StudioCore {
   }
 
   /**
-   * The oldest thread is the studio's own — chat with the studio, runs and self-changes. Game
-   * threads (metadata.kind === "game") come and go around it; it is never one of them.
+   * The oldest thread is the studio's own — chat with the studio, runs and self-changes. Project
+   * threads (metadata.kind === "project") come and go around it; it is never one of them.
    */
   async #adoptStudioThread(): Promise<void> {
     const threads = await this.store.listThreads();
@@ -590,13 +592,13 @@ export class StudioCore {
     }
   }
 
-  #gamesRootFile(): string {
-    return path.join(this.options.paths.userData, GAMES_ROOT_FILE);
+  #projectsRootFile(): string {
+    return path.join(this.options.paths.userData, PROJECTS_ROOT_FILE);
   }
 
-  /** The folder chosen in Settings → Games replaces the default while the disk holding it is there. */
-  async #restoreGamesRoot(): Promise<void> {
-    const saved = (await readJsonIfExists<{ dir?: unknown }>(this.#gamesRootFile()).catch(() => null))?.dir;
+  /** The folder chosen in Settings → Projects replaces the default while the disk holding it is there. */
+  async #restoreProjectsRoot(): Promise<void> {
+    const saved = (await readJsonIfExists<{ dir?: unknown }>(this.#projectsRootFile()).catch(() => null))?.dir;
     if (typeof saved !== "string" || !path.isAbsolute(saved)) return;
     // An unplugged drive keeps the choice for the next launch; this one uses the default.
     if (
@@ -606,36 +608,36 @@ export class StudioCore {
       ))
     )
       return;
-    this.layout.gamesRoot = saved;
-    this.games.root = saved;
+    this.layout.projectsRoot = saved;
+    this.projects.root = saved;
   }
 
-  /** Settings → Games: new games are created in `dir` from now on. Existing games stay where they are. */
-  async setGamesRoot(dir: string): Promise<void> {
-    if (path.resolve(dir) === path.resolve(this.games.root)) return;
+  /** Settings → Projects: new projects are created in `dir` from now on. Existing projects stay where they are. */
+  async setProjectsRoot(dir: string): Promise<void> {
+    if (path.resolve(dir) === path.resolve(this.projects.root)) return;
     await this.assertProjectAllowed(dir);
-    await this.games.changeRoot(dir);
-    this.layout.gamesRoot = this.games.root;
-    this.sandbox.allowWrite(this.games.root);
-    this.sandbox.denyWrite(claudeFolderDenyWrites(this.games.root, []));
-    await atomicWriteJson(this.#gamesRootFile(), { dir: this.games.root });
-    this.emit(UiEvent.GameChanged, {});
+    await this.projects.changeRoot(dir);
+    this.layout.projectsRoot = this.projects.root;
+    this.sandbox.allowWrite(this.projects.root);
+    this.sandbox.denyWrite(claudeFolderDenyWrites(this.projects.root, []));
+    await atomicWriteJson(this.#projectsRootFile(), { dir: this.projects.root });
+    this.emit(UiEvent.ProjectChanged, {});
   }
 
   /**
-   * Games used to live under `~/Library/Application Support` — technically fine, invisible in
-   * Finder, and the source of a whole morning of "where is my game?" confusion. When the app
+   * Projects used to live under `~/Library/Application Support` — technically fine, invisible in
+   * Finder, and the source of a whole morning of "where is my project?" confusion. When the app
    * points the root somewhere visible, existing projects follow it once, folder by folder.
    */
-  async #migrateGamesRoot(): Promise<string[]> {
+  async #migrateProjectsRoot(): Promise<string[]> {
     const oldRoot = path.join(this.options.paths.userData, "workspaces", "games");
-    if (path.resolve(oldRoot) === path.resolve(this.layout.gamesRoot)) return [];
+    if (path.resolve(oldRoot) === path.resolve(this.layout.projectsRoot)) return [];
     const entries = await readdir(oldRoot, { withFileTypes: true }).catch(() => []);
     const moved: string[] = [];
     for (const entry of entries) {
       if (!entry.isDirectory() || entry.name.startsWith(".")) continue;
       const from = path.join(oldRoot, entry.name);
-      const to = path.join(this.layout.gamesRoot, entry.name);
+      const to = path.join(this.layout.projectsRoot, entry.name);
       const alreadyThere = await readdir(to).catch(() => null);
       if (alreadyThere !== null) continue; // never overwrite a folder the user may have touched
       try {
@@ -668,13 +670,13 @@ export class StudioCore {
     }
   }
 
-  /** The library's games, each checked against the policy and registered for snapshots. */
-  async #registerGames(): Promise<GameProject[]> {
-    await this.games.loadIndex();
-    const listed = await this.games.list();
-    for (const game of listed) {
-      await this.assertProjectAllowed(game.dir);
-      this.snapshots.register({ name: game.name, dir: game.dir });
+  /** The library's projects, each checked against the policy and registered for snapshots. */
+  async #registerProjects(): Promise<Project[]> {
+    await this.projects.loadIndex();
+    const listed = await this.projects.list();
+    for (const project of listed) {
+      await this.assertProjectAllowed(project.dir);
+      this.snapshots.register({ name: project.name, dir: project.dir });
     }
     return listed;
   }
@@ -684,20 +686,20 @@ export class StudioCore {
     return [this.layout.secrets, this.layout.engineHomes, path.join(os.homedir(), ".genex")];
   }
 
-  #createSandbox(games: GameProject[]): Promise<ProcessSandbox> {
+  #createSandbox(projects: Project[]): Promise<ProcessSandbox> {
     return ProcessSandbox.create({
       writableRoots: [
         this.layout.workspaces,
         this.layout.runs,
         this.layout.exports,
-        this.layout.gamesRoot,
-        ...games.map((game) => game.dir),
+        this.layout.projectsRoot,
+        ...projects.map((project) => project.dir),
       ],
       scratchDir: this.layout.scratch,
       secretPaths: this.#protectedPaths(),
       // R4 enforced: the judge rubrics are readable but frozen — no agent process, however
       // evolved, rewrites the yardstick it is measured by. Nor does one plant Claude Code's
-      // settings or hooks in a game, which the person's own session there would load.
+      // settings or hooks in a project, which the person's own session there would load.
       // B7: prompts and skills are the agent's operating rules; it changes them only through
       // the host (`guardian.write_self`), which tries, snapshots and records every change.
       denyWrite: [
@@ -705,8 +707,8 @@ export class StudioCore {
         path.join(this.layout.harnessWs, "prompts"),
         path.join(this.layout.harnessWs, "skills"),
         ...claudeFolderDenyWrites(
-          this.layout.gamesRoot,
-          games.map((game) => game.dir),
+          this.layout.projectsRoot,
+          projects.map((project) => project.dir),
         ),
       ],
       readableRoots: [this.options.paths.resources],
@@ -772,7 +774,7 @@ export class StudioCore {
 
   /**
    * `genex__cli`: Studio's pinned Genex CLI, run in the sandbox in a folder under userData that no
-   * agent can write, never in a game, which it may not write either.
+   * agent can write, never in a project, which it may not write either.
    */
   #genexCli(): GenexCliService {
     return new GenexCliService({
@@ -782,23 +784,23 @@ export class StudioCore {
       runsRoot: path.join(this.options.paths.userData, "genex-cli"),
       resources: this.options.paths.resources,
       genexStorage: this.pluginServices.root(GENEX_PLUGIN_ID),
-      protectedWrites: async () => [this.games.root, ...(await this.games.list()).map((game) => game.dir)],
+      protectedWrites: async () => [this.projects.root, ...(await this.projects.list()).map((project) => project.dir)],
       ...(this.options.execPath ? { execPath: this.options.execPath } : {}),
     });
   }
 
-  /** `genex__package`: a pinned Genex SDK install into the bound game or its Studio worktree. */
+  /** `genex__package`: a pinned Genex SDK install into the bound project or its Studio worktree. */
   #genexPackages(): GenexPackageService {
     return new GenexPackageService({
       // The builds are made after the plugins; a tool call only ever comes later.
       addPackages: (source, names) => this.builds.addPackages(source, names),
-      gameDir: (project) => this.games.dirFor(project),
+      projectDir: (project) => this.projects.dirFor(project),
       scratch: this.layout.scratch,
     });
   }
 
   /**
-   * How delivered files look in the game: served headless, which of them the page loaded, how
+   * How delivered files look in the project: served headless, which of them the page loaded, how
    * its audio played, and a screenshot.
    */
   async #observeAssets(binding: PluginBinding, files: string[]) {
@@ -807,7 +809,7 @@ export class StudioCore {
     const session = this.#previews.sessionPortFor({ label: `asset:${project}` });
     try {
       const port = await session.get();
-      // HTTP exposes responseStatus in resource timing; the private game:// scheme may not.
+      // HTTP exposes responseStatus in resource timing; the private project:// scheme may not.
       const loaded = await this.#previews.loadServed(port, project, root, undefined, true);
       if (loaded.problem) throw new Error(loaded.problem);
 
@@ -846,10 +848,10 @@ export class StudioCore {
       landed.push({ file, bytes: size, kind: assetKind(file) });
     }
     const asked = this.#x.pluginCallAttribution.get(binding);
-    // A Loop run delivers into its own worktree; those files reach the game only when it lands.
-    const game = await realpath(this.games.dirFor(binding.project)).catch(() => null);
+    // A Loop run delivers into its own worktree; those files reach the project only when it lands.
+    const project = await realpath(this.projects.dirFor(binding.project)).catch(() => null);
     const workspace: AssetDeliveredPayload["workspace"] =
-      game && (await realpath(root).catch(() => root)) === game ? "game" : "build";
+      project && (await realpath(root).catch(() => root)) === project ? "project" : "build";
     const payload: AssetDeliveredPayload = {
       project: binding.project,
       source: id,
@@ -883,7 +885,7 @@ export class StudioCore {
       secrets: secrets.port,
       secretsLocked: secrets.locked,
       resolveProject: async (project) => {
-        const dir = this.games.dirFor(project);
+        const dir = this.projects.dirFor(project);
         await this.assertProjectAllowed(dir);
         return dir;
       },
@@ -904,8 +906,8 @@ export class StudioCore {
     await this.plugins.syncMcpServers();
   }
 
-  #createBuilds(): GameBuilds {
-    return new GameBuilds({
+  #createBuilds(): ProjectBuilds {
+    return new ProjectBuilds({
       root: path.join(this.layout.scratch, "builds"),
       run: (request) => this.sandbox.run(request),
       // A worktree the app made is already ours: it is built where it stands. Anything else is
@@ -987,7 +989,7 @@ export class StudioCore {
    */
   async start(bootReason: BootReason = BootReason.ColdStart, options: { resetHarness?: boolean } = {}): Promise<void> {
     await this.snapshots.init();
-    await this.#threads.adoptOrphanedGameThreads().catch(() => {}); // a repair must never block the boot
+    await this.#threads.adoptOrphanedProjectThreads().catch(() => {}); // a repair must never block the boot
     await this.#recovery
       .closeInterruptedWork()
       .catch((err) => this.options.onLog?.(`[core] closing interrupted work failed: ${errorMessage(err)}`, "stderr"));
@@ -1362,60 +1364,62 @@ export class StudioCore {
 
   // ── threads ──────────────────────────────────────────────────────────────────────────────
   /**
-   * The canonical chat for a game. Existing histories choose their most recent conversation
+   * The canonical chat for a project. Existing histories choose their most recent conversation
    * once; subsequent sidebar visits reuse that selection without creating another chat.
    */
-  async threadForGame(project: string): Promise<string> {
-    return serial(this.#gameThreadOperations, project, () => this.#threads.threadForGame(project));
+  async threadForProject(project: string): Promise<string> {
+    return serial(this.#projectThreadOperations, project, () => this.#threads.threadForProject(project));
   }
 
-  createGameThread(
-    ...args: Parameters<GameThreadService["createGameThread"]>
-  ): ReturnType<GameThreadService["createGameThread"]> {
-    return this.#threads.createGameThread(...args);
+  createProjectThread(
+    ...args: Parameters<ProjectThreadService["createProjectThread"]>
+  ): ReturnType<ProjectThreadService["createProjectThread"]> {
+    return this.#threads.createProjectThread(...args);
   }
 
-  renameThread(...args: Parameters<GameThreadService["renameThread"]>): ReturnType<GameThreadService["renameThread"]> {
+  renameThread(
+    ...args: Parameters<ProjectThreadService["renameThread"]>
+  ): ReturnType<ProjectThreadService["renameThread"]> {
     return this.#threads.renameThread(...args);
   }
 
   bindThreadToProject(
-    ...args: Parameters<GameThreadService["bindThreadToProject"]>
-  ): ReturnType<GameThreadService["bindThreadToProject"]> {
+    ...args: Parameters<ProjectThreadService["bindThreadToProject"]>
+  ): ReturnType<ProjectThreadService["bindThreadToProject"]> {
     return this.#threads.bindThreadToProject(...args);
   }
 
-  // ── games ────────────────────────────────────────────────────────────────────────────────
-  async createGame(title: string, options: CreateOptions = {}): Promise<GameProject> {
+  // ── projects ────────────────────────────────────────────────────────────────────────────────
+  async createProject(title: string, options: CreateOptions = {}): Promise<Project> {
     // The library root is host-configured. The reserved child is checked by #readyProject;
     // the root itself is intentionally not an adoptable project in fixture profiles. A chosen
     // folder is checked before the library writes, so a refused one is left with nothing in it.
     const allowed = (real: string) => this.#assertLocationAllowed(real);
     const where = options.parent === undefined ? {} : { parent: options.parent, allowed };
     const waiting = options.provisional === true ? { provisional: true } : {};
-    const game = await this.#readyProject(await this.games.create(title, { ...where, ...waiting }));
-    await this.threadForGame(game.name);
-    return game;
+    const project = await this.#readyProject(await this.projects.create(title, { ...where, ...waiting }));
+    await this.threadForProject(project.name);
+    return project;
   }
 
-  /** A name for a game started from its first request, before its folder is made (`core/game-naming.ts`). */
-  nameGame(request: GameNameRequest): Promise<GameName> {
-    return nameGame({ engines: this.engines, budget: this.budget }, request);
+  /** A name for a project started from its first request, before its folder is made (`core/project-naming.ts`). */
+  nameProject(request: ProjectNameRequest): Promise<ProjectName> {
+    return nameProject({ engines: this.engines, budget: this.budget }, request);
   }
 
-  /** Games being named from an idea now: a second message while the first names it waits its turn. */
+  /** Projects being named from an idea now: a second message while the first names it waits its turn. */
   #namingFromIdea = new Set<string>();
 
-  /** A game whose title waits for an idea takes the name this message gives it, in place (`nameFromIdea`). */
-  async nameFromIdea(project: string, request: GameNameRequest): Promise<void> {
+  /** A project whose title waits for an idea takes the name this message gives it, in place (`nameFromIdea`). */
+  async nameFromIdea(project: string, request: ProjectNameRequest): Promise<void> {
     if (this.#namingFromIdea.has(project)) return;
     this.#namingFromIdea.add(project);
     try {
       await nameFromIdea(
         {
-          games: this.games,
-          name: (asked) => this.nameGame(asked),
-          changed: (named) => this.emit(UiEvent.GameChanged, { project: named }),
+          projects: this.projects,
+          name: (asked) => this.nameProject(asked),
+          changed: (named) => this.emit(UiEvent.ProjectChanged, { project: named }),
         },
         project,
         request,
@@ -1426,13 +1430,13 @@ export class StudioCore {
   }
 
   /**
-   * A folder the user chose for a new game, checked as creating there will be: the library's
-   * rules, then this launch's policy and the folders no agent may reach. The games folder itself
+   * A folder the user chose for a new project, checked as creating there will be: the library's
+   * rules, then this launch's policy and the folders no agent may reach. The projects folder itself
    * is the ordinary library.
    */
-  async gameLocation(dir: string): Promise<GameLocation> {
-    const real = await this.games.location(dir, (checked) => this.#assertLocationAllowed(checked));
-    return { dir: real, pathLabel: this.games.pathLabel(real) };
+  async projectLocation(dir: string): Promise<ProjectLocation> {
+    const real = await this.projects.location(dir, (checked) => this.#assertLocationAllowed(checked));
+    return { dir: real, pathLabel: this.projects.pathLabel(real) };
   }
 
   /** This launch's rules for a chosen folder's real path: its policy, and no folder agents may not read. */
@@ -1445,18 +1449,18 @@ export class StudioCore {
     }
   }
 
-  async updateGame(project: string, patch: GameUpdate): Promise<GameProject> {
-    const game = await this.games.update(project, patch);
-    this.emit(UiEvent.GameChanged, { project });
-    return game;
+  async updateProject(project: string, patch: ProjectUpdate): Promise<Project> {
+    const entry = await this.projects.update(project, patch);
+    this.emit(UiEvent.ProjectChanged, { project });
+    return entry;
   }
 
   /**
-   * Legacy archive callers still mark threads as recoverable history and hide the game.
+   * Legacy archive callers still mark threads as recoverable history and hide the project.
    * Folder files remain on disk; a building project cannot be archived under its contractor.
-   * The sidebar uses removeGame instead, preserving the active state of its conversations.
+   * The sidebar uses removeProject instead, preserving the active state of its conversations.
    */
-  async archiveGame(project: string): Promise<{ dir: string; trash: boolean }> {
+  async archiveProject(project: string): Promise<{ dir: string; trash: boolean }> {
     if (this.#building(project)) throw new Error(MESSAGE.stillBuilding(project));
     const threads = await this.store.listThreads();
     for (const thread of threads) {
@@ -1464,14 +1468,14 @@ export class StudioCore {
         await this.store.updateThread(thread.id, { metadata: { archived: true } });
       }
     }
-    const forgotten = await this.games.forget(project);
-    await this.append([customEventData(CustomEvent.GameArchived, { project, trash: forgotten.trash })]);
-    this.emit(UiEvent.GameArchived, { project, trash: forgotten.trash });
+    const forgotten = await this.projects.forget(project);
+    await this.append([customEventData(CustomEvent.ProjectArchived, { project, trash: forgotten.trash })]);
+    this.emit(UiEvent.ProjectArchived, { project, trash: forgotten.trash });
     return forgotten;
   }
 
   /** The sidebar removal is reversible by re-adding the folder. No files or logs are changed. */
-  async removeGame(project: string): Promise<void> {
+  async removeProject(project: string): Promise<void> {
     const threads = (await this.store.listThreads()).filter((thread) => threadProject(thread) === project);
     const threadWorking = threads.some(
       (thread) => this.#x.activeCompletions.has(thread.id) || this.#x.pluginTurnLeases.has(thread.id),
@@ -1481,16 +1485,16 @@ export class StudioCore {
       const run = latestRun(await this.store.listEvents(thread.id));
       if (run?.state === RunState.Running) throw new Error(MESSAGE.buildStillRunning);
     }
-    await this.games.forget(project);
-    this.emit(UiEvent.GameChanged, { project });
+    await this.projects.forget(project);
+    this.emit(UiEvent.ProjectChanged, { project });
   }
 
-  /** Whether a contractor is building in this game (or holds one of its folders). */
+  /** Whether a contractor is building in this project (or holds one of its folders). */
   #building(project: string): boolean {
     return [...this.#x.activeDelegations.values()].some((work) => work.project === project);
   }
 
-  /** Builders working right now, by game: how many in each (the bootstrap's `activeDelegations`). */
+  /** Builders working right now, by project: how many in each (the bootstrap's `activeDelegations`). */
   activeBuilders(): Record<string, number> {
     const counts: Record<string, number> = {};
     for (const { project } of this.#x.activeDelegations.values()) counts[project] = (counts[project] ?? 0) + 1;
@@ -1498,34 +1502,34 @@ export class StudioCore {
   }
 
   /**
-   * What a picked folder holds — every game in it and one level down, how each runs, and what
-   * would stop a night. Read-only on purpose: the Open Game sheet shows this *before* the user
+   * What a picked folder holds — every project in it and one level down, how each runs, and what
+   * would stop a night. Read-only on purpose: the Open Project sheet shows this *before* the user
    * consents to anything being written (a folder used to be scaffolded the moment it was picked).
    */
   async inspectFolder(dir: string): Promise<FolderInspection> {
     await this.assertProjectAllowed(dir);
-    return this.games.inspect(dir);
+    return this.projects.inspect(dir);
   }
 
   /**
-   * Open a folder as a game, with what the user consented to in the Open Game sheet: which game
-   * inside it (`subdir` — the nested game is offered as *the* game, decision 1), and whether the
-   * studio may write a starter game there. Adoption is the first moment anything is written.
+   * Open a folder as a project, with what the user consented to in the Open Project sheet: which project
+   * inside it (`subdir` — the nested project is offered as *the* project, decision 1), and whether the
+   * studio may write a starter project there. Adoption is the first moment anything is written.
    */
-  async adoptProject(dir: string, options: AdoptOptions = {}): Promise<GameProject> {
+  async adoptProject(dir: string, options: AdoptOptions = {}): Promise<Project> {
     await this.assertProjectAllowed(dir);
-    const project = await this.games.adopt(dir, options);
+    const project = await this.projects.adopt(dir, options);
     return await this.#readyProject(project);
   }
 
-  async #readyProject(project: GameProject): Promise<GameProject> {
+  async #readyProject(project: Project): Promise<Project> {
     await this.assertProjectAllowed(project.dir);
-    await this.games.touch(project.name);
+    await this.projects.touch(project.name);
     this.sandbox.allowWrite(project.dir);
-    this.sandbox.denyWrite(claudeFolderDenyWrites(this.layout.gamesRoot, [project.dir]));
+    this.sandbox.denyWrite(claudeFolderDenyWrites(this.layout.projectsRoot, [project.dir]));
     this.snapshots.register({ name: project.name, dir: project.dir });
     await this.snapshots.init();
-    this.emit(UiEvent.GameChanged, { project: project.name });
+    this.emit(UiEvent.ProjectChanged, { project: project.name });
     return project;
   }
 
@@ -1562,39 +1566,39 @@ export class StudioCore {
   }
 
   /**
-   * The public copy of a game: built first when its shape builds, then staged into `targetDir`
+   * The public copy of a project: built first when its shape builds, then staged into `targetDir`
    * by the same audited exporter the Export button uses. Plugins reach it as `export.stage`.
    */
   async exportPublicCopy(project: string, targetDir: string): Promise<ExportResult> {
-    const game = (await this.games.list()).find((g) => g.name === project);
-    if (!game) throw new Error(MESSAGE.gameNotFound);
+    const entry = (await this.projects.list()).find((g) => g.name === project);
+    if (!entry) throw new Error(MESSAGE.projectNotFound);
     let output: string | undefined;
-    if (game.shape?.build) {
-      const built = await this.builds.ensure({ project: game.name, dir: game.dir, shape: game.shape });
+    if (entry.shape?.build) {
+      const built = await this.builds.ensure({ project: entry.name, dir: entry.dir, shape: entry.shape });
       if (!built.ok || !built.output) throw new Error(MESSAGE.exportBuildFailed);
       output = built.output;
     }
-    return this.games.export(project, targetDir, output, { secretValues: this.knownSecretValues() });
+    return this.projects.export(project, targetDir, output, { secretValues: this.knownSecretValues() });
   }
 
-  async #setGameCoverShader(
+  async #setProjectCoverShader(
     project: string,
     surface: unknown,
     threadId?: string,
     signal?: AbortSignal,
   ): Promise<LiveToolResult> {
     validateCoverSurface(surface);
-    await this.assertProjectAllowed(this.games.dirFor(project));
+    await this.assertProjectAllowed(this.projects.dirFor(project));
     await this.#assertCoverThread(project, threadId);
     return serial(this.#coverOperations, COVER_RENDERER, async () => {
       signal?.throwIfAborted();
-      const before = (await this.games.presentation(project)).cover;
+      const before = (await this.projects.presentation(project)).cover;
       if (!replaceableCover(before)) return MESSAGE.shaderCoverKept;
-      if (!this.options.renderGameCover) throw new Error(MESSAGE.noCoverRenderer);
+      if (!this.options.renderProjectCover) throw new Error(MESSAGE.noCoverRenderer);
       const seed = before && "seed" in before ? before.seed : coverFromBrief(project).seed;
-      const poster = await this.options.renderGameCover(surface, seed);
+      const poster = await this.options.renderProjectCover(surface, seed);
       signal?.throwIfAborted();
-      const saved = await this.games.saveGeneratedCover(project, before, {
+      const saved = await this.projects.saveGeneratedCover(project, before, {
         kind: "shader",
         version: 2,
         surface,
@@ -1603,9 +1607,9 @@ export class StudioCore {
         custom: true,
       });
       if (!saved) return MESSAGE.shaderCoverRaced;
-      this.emit(UiEvent.GameChanged, { project });
+      this.emit(UiEvent.ProjectChanged, { project });
       await this.append(
-        [customEventData(CustomEvent.GameCoverCreated, { project, kind: "shader" })],
+        [customEventData(CustomEvent.ProjectCoverCreated, { project, kind: "shader" })],
         threadId ?? this.mainThread,
       );
       return {
@@ -1615,35 +1619,35 @@ export class StudioCore {
     });
   }
 
-  /** A cover tool writes only the game its conversation is bound to. */
+  /** A cover tool writes only the project its conversation is bound to. */
   async #assertCoverThread(project: string, threadId: string | undefined): Promise<void> {
     if (!threadId) return;
     const record = await this.store.getRecord(threadId);
-    if (threadProject(record) !== project) throw new Error(MESSAGE.coverWrongGame);
+    if (threadProject(record) !== project) throw new Error(MESSAGE.coverWrongProject);
   }
 
   /**
    * The builder's one cover choice: a recipe the host draws, in the family it named and a look no
-   * other game has. An unknown look keeps the current cover.
+   * other project has. An unknown look keeps the current cover.
    */
-  async #setGameCover(
+  async #setProjectCover(
     project: string,
     args: Record<string, unknown>,
     threadId?: string,
     signal?: AbortSignal,
   ): Promise<string> {
     coverRecipeFromTool(args); // An unknown look is refused before anything else.
-    await this.assertProjectAllowed(this.games.dirFor(project));
+    await this.assertProjectAllowed(this.projects.dirFor(project));
     await this.#assertCoverThread(project, threadId);
     return serial(this.#coverOperations, COVER_RENDERER, async () => {
       signal?.throwIfAborted();
-      const before = (await this.games.presentation(project)).cover;
+      const before = (await this.projects.presentation(project)).cover;
       if (!replaceableCover(before)) return MESSAGE.recipeCoverKept;
-      const recipe = coverRecipeFromTool(args, await this.games.coverLooksInUse(project));
-      if (!(await this.games.saveGeneratedCover(project, before, recipe))) return MESSAGE.recipeCoverRaced;
-      this.emit(UiEvent.GameChanged, { project });
+      const recipe = coverRecipeFromTool(args, await this.projects.coverLooksInUse(project));
+      if (!(await this.projects.saveGeneratedCover(project, before, recipe))) return MESSAGE.recipeCoverRaced;
+      this.emit(UiEvent.ProjectChanged, { project });
       await this.append(
-        [customEventData(CustomEvent.GameCoverCreated, { project, kind: "recipe" })],
+        [customEventData(CustomEvent.ProjectCoverCreated, { project, kind: "recipe" })],
         threadId ?? this.mainThread,
       );
       return MESSAGE.recipeCoverSaved(coverLookName(recipe));
@@ -1655,7 +1659,7 @@ export class StudioCore {
     // The harness-facing allowlist: every method the harness may call, and nothing else. Host code
     // that needs the same work calls the service or core method directly, never this table.
     const table: HarnessHostHandlers = {
-      ...gameRpc(this, this.#x),
+      ...projectRpc(this, this.#x),
       ...eventsRpc(this, this.#x),
       ...optimizationRpc(this, this.#x),
       ...snapshotRpc(this, this.#x),
@@ -1670,9 +1674,9 @@ export class StudioCore {
 
   /**
    * A folder the harness names over RPC (ARCH-1). The harness is agent-editable code, so the host
-   * accepts only what it hands out itself: a game in the library (never a link someone put in the
+   * accepts only what it hands out itself: a project in the library (never a link someone put in the
    * library folder), and a root whose realpath is inside scratch — worktrees, candidates, builds —
-   * or is that game's own folder. Checked before anything reads, builds or serves it.
+   * or is that project's own folder. Checked before anything reads, builds or serves it.
    */
   /**
    * The real path of `root` once it is checked (null when none was named). Callers serve and build
@@ -1680,14 +1684,14 @@ export class StudioCore {
    * between the check and the use (M1).
    */
   async #assertHarnessRoot(project: string, root: string | null | undefined): Promise<string | null> {
-    const game = (await this.games.list()).find((listed) => listed.name === project);
-    if (!game) throw new Error(MESSAGE.notInLibrary(project));
+    const entry = (await this.projects.list()).find((listed) => listed.name === project);
+    if (!entry) throw new Error(MESSAGE.notInLibrary(project));
     if (root === undefined || root === null) return null;
     const real = await realpath(path.resolve(String(root))).catch(() => null);
     if (real) {
       const scratch = await realpath(this.layout.scratch);
       if (isBelow(scratch, real)) return real;
-      if (real === (await realpath(game.dir).catch(() => null))) return real;
+      if (real === (await realpath(entry.dir).catch(() => null))) return real;
     }
     throw new Error(MESSAGE.notOurRoot(String(root), project));
   }
@@ -1721,7 +1725,7 @@ export class StudioCore {
   /** Trusted UI project binding; agent inputs do not select an output root. */
   async pluginBinding(project?: string, threadId?: string): Promise<PluginBinding | undefined> {
     if (!project) return undefined;
-    const directory = this.games.dirFor(project);
+    const directory = this.projects.dirFor(project);
     await this.assertProjectAllowed(directory);
     return { project, directory, threadId };
   }
@@ -1737,8 +1741,8 @@ export class StudioCore {
     return this.#consent.resolve(consentId, approved);
   }
 
-  // ── tool permissions in game chats (Studio UI over IPC only — never an RPC method) ─────────
-  /** The mode new chats start in, saved "always allow" rules by game, and where Auto is unavailable. */
+  // ── tool permissions in project chats (Studio UI over IPC only — never an RPC method) ─────────
+  /** The mode new chats start in, saved "always allow" rules by project, and where Auto is unavailable. */
   permissionSettings(): ReturnType<ChatPermissionService["settings"]> {
     return this.#permissions.settings();
   }
@@ -1753,7 +1757,7 @@ export class StudioCore {
     return this.#permissions.answer(requestId, answer);
   }
 
-  /** Stop allowing a saved "always allow" rule for a game. */
+  /** Stop allowing a saved "always allow" rule for a project. */
   forgetPermission(project: unknown, rule: unknown): ReturnType<ChatPermissionService["forget"]> {
     return this.#permissions.forget(project, rule);
   }
@@ -1787,17 +1791,17 @@ export class StudioCore {
     return { ...this.#x.runPreview };
   }
 
-  /** Reflect stage visibility (and whether the person watches a game in Live) while preserving active observations. */
+  /** Reflect stage visibility (and whether the person watches a project in Live) while preserving active observations. */
   previewStageVisible(visible: boolean, watching = visible): Promise<void> {
     return this.#previews.setStageVisible(visible, watching);
   }
 
-  /** The Live game's sound switch, as the user left it. */
-  previewSound(request: GameSoundRequest): void {
+  /** The Live project's sound switch, as the user left it. */
+  previewSound(request: ProjectSoundRequest): void {
     this.#previews.setSound(request);
   }
 
-  /** The studio window came to the front or went behind: a game in the background is not heard. */
+  /** The studio window came to the front or went behind: a project in the background is not heard. */
   previewForeground(foreground: boolean): void {
     this.#previews.setForeground(foreground);
   }
@@ -1807,7 +1811,7 @@ export class StudioCore {
     return this.#previews.checkpointPreview(project, cwd, note);
   }
 
-  /** Serve a game (or a checked worktree of it) into a preview — what `preview.load` does, for host callers. */
+  /** Serve a project (or a checked worktree of it) into a preview — what `preview.load` does, for host callers. */
   loadPreview(p: HarnessParams<typeof HostMethod.PreviewLoad>): Promise<string> {
     return this.#previews.loadPreview(p);
   }
@@ -1824,12 +1828,12 @@ export class StudioCore {
     return this.#previews.reloadLive(p);
   }
 
-  /** The stage's Stop: Live's game stops running until Play. */
+  /** The stage's Stop: Live's project stops running until Play. */
   stopLive(): Promise<void> {
     return this.#previews.stopLive();
   }
 
-  /** The stage's Play on a stopped game. */
+  /** The stage's Play on a stopped project. */
   playLive(): Promise<void> {
     return this.#previews.playLive();
   }
@@ -1844,7 +1848,7 @@ export class StudioCore {
     return this.#previews.offerBuild(...args);
   }
 
-  /** What waits for this game's Live and the build Live shows: the stage reads it on mount (`live.behind`). */
+  /** What waits for this project's Live and the build Live shows: the stage reads it on mount (`live.behind`). */
   liveState(...args: Parameters<PreviewService["liveState"]>): ReturnType<PreviewService["liveState"]> {
     return this.#previews.liveState(...args);
   }
@@ -1864,8 +1868,8 @@ export class StudioCore {
   }
 
   /**
-   * Show a build the game's repo holds (a run's integration head, any commit) in the user's
-   * window, from a worktree of its own: the game folder is untouched. A run that finished or
+   * Show a build the project's repo holds (a run's integration head, any commit) in the user's
+   * window, from a worktree of its own: the project folder is untouched. A run that finished or
    * paused without landing leaves its build on `refs/studio/runs/<run>/integration`; this is
    * how the user plays it before deciding.
    */
@@ -1886,10 +1890,10 @@ export class StudioCore {
     return this.#previews.landBuild(...args);
   }
 
-  playGameSnapshot(
-    ...args: Parameters<PreviewService["playGameSnapshot"]>
-  ): ReturnType<PreviewService["playGameSnapshot"]> {
-    return this.#previews.playGameSnapshot(...args);
+  playProjectSnapshot(
+    ...args: Parameters<PreviewService["playProjectSnapshot"]>
+  ): ReturnType<PreviewService["playProjectSnapshot"]> {
+    return this.#previews.playProjectSnapshot(...args);
   }
 
   readProjectAsset(
@@ -1912,7 +1916,7 @@ export class StudioCore {
     return this.#previews.agentScreens(...args);
   }
 
-  // ── assets and game files ────────────────────────────────────────────────────────────────
+  // ── assets and project files ────────────────────────────────────────────────────────────────
   get assetCheckpoints() {
     if (!this.#assetCheckpointStore) {
       this.#assetCheckpointStore = new AssetCheckpoints(path.join(this.layout.engineHomes, "asset-deliveries.json"));
@@ -1963,32 +1967,36 @@ export class StudioCore {
     return this.#assets.runFeedback(...args);
   }
 
-  readGameFile(...args: Parameters<GameFileService["readGameFile"]>): ReturnType<GameFileService["readGameFile"]> {
-    return this.#gameFiles.readGameFile(...args);
+  readProjectFile(
+    ...args: Parameters<ProjectFileService["readProjectFile"]>
+  ): ReturnType<ProjectFileService["readProjectFile"]> {
+    return this.#projectFiles.readProjectFile(...args);
   }
 
-  revealGameFile(
-    ...args: Parameters<GameFileService["revealGameFile"]>
-  ): ReturnType<GameFileService["revealGameFile"]> {
-    return this.#gameFiles.revealGameFile(...args);
+  revealProjectFile(
+    ...args: Parameters<ProjectFileService["revealProjectFile"]>
+  ): ReturnType<ProjectFileService["revealProjectFile"]> {
+    return this.#projectFiles.revealProjectFile(...args);
   }
 
-  messageImages(...args: Parameters<GameFileService["messageImages"]>): ReturnType<GameFileService["messageImages"]> {
-    return this.#gameFiles.messageImages(...args);
+  messageImages(
+    ...args: Parameters<ProjectFileService["messageImages"]>
+  ): ReturnType<ProjectFileService["messageImages"]> {
+    return this.#projectFiles.messageImages(...args);
   }
 
   /** Which names a chat wrote are files on this computer, and how each opens (`main/chat-files.ts`). */
   resolveChatFiles(
-    ...args: Parameters<GameFileService["resolveChatFiles"]>
-  ): ReturnType<GameFileService["resolveChatFiles"]> {
-    return this.#gameFiles.resolveChatFiles(...args);
+    ...args: Parameters<ProjectFileService["resolveChatFiles"]>
+  ): ReturnType<ProjectFileService["resolveChatFiles"]> {
+    return this.#projectFiles.resolveChatFiles(...args);
   }
 
   /** The path a click on a chat's file opens, resolved again, and how it opens. */
   chatFileTarget(
-    ...args: Parameters<GameFileService["chatFileTarget"]>
-  ): ReturnType<GameFileService["chatFileTarget"]> {
-    return this.#gameFiles.chatFileTarget(...args);
+    ...args: Parameters<ProjectFileService["chatFileTarget"]>
+  ): ReturnType<ProjectFileService["chatFileTarget"]> {
+    return this.#projectFiles.chatFileTarget(...args);
   }
 
   // ── delegation tools ─────────────────────────────────────────────────────────────────────
@@ -2081,18 +2089,18 @@ export class StudioCore {
 
   async dispatchRun(run: Extract<DispatchAction, { type: typeof DispatchActionType.RunStart }>["run"]): Promise<void> {
     this.#selfImprovement.touchActivity();
-    // A run is that game's story: its briefs, iterations and verdict belong in its own chat.
-    const threadId = await this.threadForGame(run.project);
+    // A run is that project's story: its briefs, iterations and verdict belong in its own chat.
+    const threadId = await this.threadForProject(run.project);
     this.#rewind.assertNotRewinding(threadId);
     await this.host.dispatch({ type: DispatchActionType.RunStart, threadId, run });
   }
 
-  /** What rewinding a chat to a message would do to the game files (`core/rewind.ts`). */
+  /** What rewinding a chat to a message would do to the project files (`core/rewind.ts`). */
   rewindPreview(...args: Parameters<ChatRewindService["preview"]>): ReturnType<ChatRewindService["preview"]> {
     return this.#rewind.preview(...args);
   }
 
-  /** Rewind a game chat to just before one of its messages (`core/rewind.ts`). */
+  /** Rewind a project chat to just before one of its messages (`core/rewind.ts`). */
   rewindChat(...args: Parameters<ChatRewindService["rewind"]>): ReturnType<ChatRewindService["rewind"]> {
     return this.#rewind.rewind(...args);
   }
@@ -2169,7 +2177,7 @@ export class StudioCore {
 
   /**
    * Undo one learned change and nothing else. Its own diff is reversed on the file it wrote,
-   * so later changes, the per-game lessons and the app's own updates stay where they are —
+   * so later changes, the per-project lessons and the app's own updates stay where they are —
    * "Undo this change" used to rewind the whole harness to before it, and restart it mid-run.
    */
   async undoSelfChange(snapshotId: string): Promise<{ file: string }> {

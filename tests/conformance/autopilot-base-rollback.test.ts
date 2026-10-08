@@ -1,7 +1,7 @@
 /**
  * A failed shared base must never erase the user's own work.
  *
- * The base builder edits the live game folder. When it fails, the night rolls the folder back so
+ * The base builder edits the live project folder. When it fails, the night rolls the folder back so
  * facets fork from something that runs — and that rollback used to be a raw
  * `git reset --hard HEAD && git clean -fd`, which also deleted whatever the user had not committed
  * yet (an adopted repository with edits in progress). The rollback now returns to a snapshot taken
@@ -55,10 +55,10 @@ function respond(request: { messages: Array<{ role: string; content: string }> }
 }
 
 describe("autopilot: a failed shared base", () => {
-  it("rolls the game back without erasing the user's uncommitted and untracked work", async () => {
+  it("rolls the project back without erasing the user's uncommitted and untracked work", async () => {
     const rig = await startRig({ respond });
     rigs.push(rig);
-    const { name: project, dir } = await rig.core.games.scaffold("wip-game", { title: "Work in progress" });
+    const { name: project, dir } = await rig.core.projects.scaffold("wip-project", { title: "Work in progress" });
 
     // The user's own history: a committed file, then edits they have not committed yet.
     await mkdir(path.join(dir, "src"), { recursive: true });

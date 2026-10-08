@@ -12,7 +12,7 @@ const fromHome = (app: Studio) => (select: () => void) => {
   else select();
 };
 
-/** Moving between conversations and games: each closes Plugins and the drawer on the way. */
+/** Moving between conversations and projects: each closes Plugins and the drawer on the way. */
 export function useNavigation(app: Studio, chrome: ShellChrome, handoff: ComposerHandoff) {
   const { setPluginsOpen, setDrawerOpen, closeOverlays } = chrome;
   const studioThread = useThreads(studioThreadOf);
@@ -26,7 +26,7 @@ export function useNavigation(app: Studio, chrome: ShellChrome, handoff: Compose
     },
     [app, setPluginsOpen, setDrawerOpen],
   );
-  /** Home: no conversation open, and the composer that starts a new game. */
+  /** Home: no conversation open, and the composer that starts a new project. */
   const goHome = useCallback(() => {
     const atHome = roomOf(app.threads.getState()) === Room.Home;
     const go = () => {
@@ -52,13 +52,13 @@ export function useNavigation(app: Studio, chrome: ShellChrome, handoff: Compose
     },
     [app, setPluginsOpen, setDrawerOpen, focusWhenOpen],
   );
-  /** Back to the game chat last open, else the first game; `focusComposer` puts the cursor in it. */
-  const returnToGame = useCallback(
+  /** Back to the project chat last open, else the first project; `focusComposer` puts the cursor in it. */
+  const returnToProject = useCallback(
     (focusComposer = false) => {
-      const { games } = app.library.getState();
-      const target = returnTarget(app.threads.getState(), games);
+      const { projects } = app.library.getState();
+      const target = returnTarget(app.threads.getState(), projects);
       if (!target) {
-        if (games[0]) void enterProject(games[0].name, focusComposer);
+        if (projects[0]) void enterProject(projects[0].name, focusComposer);
         return;
       }
       if (focusComposer) focusOnly(target);
@@ -66,21 +66,30 @@ export function useNavigation(app: Studio, chrome: ShellChrome, handoff: Compose
     },
     [app, selectThread, enterProject, focusOnly],
   );
-  const selectGame = useCallback((name: string) => enterProject(name), [enterProject]);
-  const removeGame = useCallback(
+  const selectProject = useCallback((name: string) => enterProject(name), [enterProject]);
+  const removeProject = useCallback(
     async (name: string) => {
-      if (await app.removeGame(name)) closeOverlays();
+      if (await app.removeProject(name)) closeOverlays();
     },
     [app, closeOverlays],
   );
-  /** New game is home, the wordmark's room, with the cursor in its composer (already there or not). */
-  const newGame = useCallback(() => {
+  /** New project is home, the wordmark's room, with the cursor in its composer (already there or not). */
+  const newProject = useCallback(() => {
     goHome();
     requestAnimationFrame(() => handoff.homeComposer.current?.focus());
   }, [goHome, handoff.homeComposer]);
   return useMemo(
-    () => ({ selectThread, enterStudio, returnToGame, enterProject, selectGame, removeGame, newGame, goHome }),
-    [selectThread, enterStudio, returnToGame, enterProject, selectGame, removeGame, newGame, goHome],
+    () => ({
+      selectThread,
+      enterStudio,
+      returnToProject,
+      enterProject,
+      selectProject,
+      removeProject,
+      newProject,
+      goHome,
+    }),
+    [selectThread, enterStudio, returnToProject, enterProject, selectProject, removeProject, newProject, goHome],
   );
 }
 

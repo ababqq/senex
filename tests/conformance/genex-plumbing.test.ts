@@ -10,8 +10,8 @@ import { randomUUID } from "node:crypto";
 it("Claude, Codex and local builders receive the same host-owned asset status contract", async () => {
   const rig = await startRig({ replies: [] });
   try {
-    await rig.core.games.scaffold("asset-tools");
-    const threadId = await rig.core.createGameThread("asset-tools");
+    await rig.core.projects.scaffold("asset-tools");
+    const threadId = await rig.core.createProjectThread("asset-tools");
     const api = rig.core.api() as unknown as Record<string, (input: any) => Promise<any>>;
     const observed: any[] = [];
     for (const engine of ["claude-code", "codex", "bonsai"]) {
@@ -53,7 +53,7 @@ it("Claude, Codex and local builders receive the same host-owned asset status co
     };
     const ctx = { project: "asset-tools", threadId, call: (name: string, args: any) => api[name]!(args) };
     observed.push(JSON.parse((await tool.execute({ operation: "status" }, ctx)) as never));
-    assert.match((await tool.execute({ operation: "status", project: "another-game" }, ctx)) as never, /pinned/);
+    assert.match((await tool.execute({ operation: "status", project: "another-project" }, ctx)) as never, /pinned/);
     for (const result of observed) {
       assert.ok(result.operations.includes("creature.animate"));
       assert.equal(result.operations.includes("publish"), false);
@@ -71,11 +71,11 @@ it("returns host inspection images through all provider tool paths without creat
   const rig = await startRig({ replies: [] });
   try {
     const project = "asset-observation";
-    await rig.core.games.scaffold(project);
-    const threadId = await rig.core.createGameThread(project),
+    await rig.core.projects.scaffold(project);
+    const threadId = await rig.core.createProjectThread(project),
       id = randomUUID();
-    await mkdir(path.join(rig.core.games.dirFor(project), "assets"), { recursive: true });
-    await writeFile(path.join(rig.core.games.dirFor(project), "assets/banner.png"), "fixture");
+    await mkdir(path.join(rig.core.projects.dirFor(project), "assets"), { recursive: true });
+    await writeFile(path.join(rig.core.projects.dirFor(project), "assets/banner.png"), "fixture");
     const dir = path.join(rig.core.pluginServices.root("genex"), "projects", project, "jobs", id);
     await mkdir(dir, { recursive: true });
     await writeFile(
@@ -138,8 +138,8 @@ it("removed Genex leaves coding, existing assets and public export independent",
   const rig = await startRig({ replies: [] });
   try {
     const project = "without-genex";
-    await rig.core.games.scaffold(project);
-    const root = rig.core.games.dirFor(project);
+    await rig.core.projects.scaffold(project);
+    const root = rig.core.projects.dirFor(project);
     await mkdir(path.join(root, "assets"), { recursive: true });
     await writeFile(path.join(root, "assets/saved.svg"), '<svg xmlns="http://www.w3.org/2000/svg"/>');
     await rig.core.plugins.remove("genex");
@@ -177,7 +177,7 @@ it("removed Genex leaves coding, existing assets and public export independent",
     // Explicit static export isolates plugin independence from the rig's intentionally stubbed Three vendor.
     await writeFile(path.join(root, "index.html"), '<img src="assets/saved.svg">');
     await writeFile(path.join(root, "studio.json"), JSON.stringify({ exportFiles: ["index.html", "assets"] }));
-    const exported = await rig.core.games.export(project, path.join(rig.core.layout.exports, "without-genex"));
+    const exported = await rig.core.projects.export(project, path.join(rig.core.layout.exports, "without-genex"));
     assert.ok(exported);
     const { readFile } = await import("node:fs/promises");
     assert.match(await readFile(path.join(rig.core.layout.exports, "without-genex/assets/saved.svg"), "utf8"), /<svg/);
@@ -191,9 +191,9 @@ it("every engine path leaves the same host-owned record of a plugin tool call", 
   try {
     const expectedVersion = rig.core.plugins.list().find((p) => p.manifest.id === "genex")!.manifest.version;
     const project = "asset-ledger";
-    await rig.core.games.scaffold(project);
-    const threadId = await rig.core.createGameThread(project),
-      root = rig.core.games.dirFor(project),
+    await rig.core.projects.scaffold(project);
+    const threadId = await rig.core.createProjectThread(project),
+      root = rig.core.projects.dirFor(project),
       id = randomUUID();
     await mkdir(path.join(root, "assets"), { recursive: true });
     await writeFile(path.join(root, "assets/banner.png"), "fixture");
@@ -332,8 +332,8 @@ it("agent publish requests wait for Studio consent on every engine path", async 
   const rig = await startRig({ replies: [] });
   try {
     const project = "publish-consent";
-    await rig.core.games.scaffold(project);
-    const threadId = await rig.core.createGameThread(project);
+    await rig.core.projects.scaffold(project);
+    const threadId = await rig.core.createProjectThread(project);
     const api = rig.core.api() as unknown as Record<string, (input: any) => Promise<any>>;
     // Only the Studio UI answers a card: the agent-facing RPC table carries no way to.
     assert.equal(
@@ -403,7 +403,7 @@ it("agent publish requests wait for Studio consent on every engine path", async 
           return { ok: true, engine, summary: "fixture", turns: 1, usage: {} };
         },
       } as never);
-      await api["engine.delegate"]!({ engine, project, threadId, prompt: "Put this game online" });
+      await api["engine.delegate"]!({ engine, project, threadId, prompt: "Put this project online" });
     }
     // The local harness reaches the same wrapper through plugins.invoke.
     const registry = await createToolRegistry({
@@ -433,8 +433,8 @@ it("a consent question expires, and Stop or the end of a turn withdraws it", asy
   const quick = await startRig({ replies: [] }, { consentTimeoutMs: 200 });
   try {
     const project = "publish-expiry";
-    await quick.core.games.scaffold(project);
-    const threadId = await quick.core.createGameThread(project);
+    await quick.core.projects.scaffold(project);
+    const threadId = await quick.core.createProjectThread(project);
     const api = quick.core.api() as unknown as Record<string, (input: any) => Promise<any>>;
     const result = await api["plugins.invoke"]!({
       project,
@@ -457,8 +457,8 @@ it("a consent question expires, and Stop or the end of a turn withdraws it", asy
   const rig = await startRig({ replies: [] });
   try {
     const project = "publish-withdrawn";
-    await rig.core.games.scaffold(project);
-    const threadId = await rig.core.createGameThread(project);
+    await rig.core.projects.scaffold(project);
+    const threadId = await rig.core.createProjectThread(project);
     const api = rig.core.api() as unknown as Record<string, (input: any) => Promise<any>>;
     const invoke = () =>
       api["plugins.invoke"]!({ project, threadId, name: "genex__publish", args: { operation: "draft" } });

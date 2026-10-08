@@ -248,7 +248,7 @@ export const RunGraph = memo(function RunGraph({
   const { outcome, graph, rows } = model;
   const references = useReferenceFrames(project, graph.runId);
   const stills = useRunStills(model);
-  // The lead's own newest view of the game: the picture on its node while it has the run.
+  // The lead's own newest view of the project: the picture on its node while it has the run.
   const leadFrame = useAgentScreens((s) => leadFrameOf(s, project, graph.runId)) ?? null;
   const overlays = useOverlays(model.selectable);
   const { selected } = overlays;
@@ -281,7 +281,7 @@ export const RunGraph = memo(function RunGraph({
           earlier={earlier}
           action={
             hasBuild ? (
-              <PlayButton quiet={graph.active} label={graph.active ? "Play latest" : "Play"} onPlay={play} />
+              <PlayButton quiet={graph.active} label={graph.active ? "Open latest" : "Open"} onPlay={play} />
             ) : null
           }
         />

@@ -65,7 +65,7 @@ function AssetPicture({
   );
 }
 
-/** Why a job is not in hand: its own failure, or an in-game check that failed to start. */
+/** Why a job is not in hand: its own failure, or an in-project check that failed to start. */
 function JobProblem({ job }: { job: AssetInfo }): JSX.Element | null {
   if (job.state === AssetCardState.Failed && job.error)
     return <span className="line-clamp-3 text-xs text-red">{job.error}</span>;
@@ -176,9 +176,9 @@ function jobGroups(jobs: AssetInfo[]): Array<[string, AssetInfo[]]> {
   return [
     ["Failed", jobs.filter((job) => job.state === AssetCardState.Failed)],
     ["Making", jobs.filter(isMaking)],
-    ["Not in your game yet", made.filter((job) => job.inGame === false)],
-    ["In your game", made.filter((job) => job.inGame)],
-    ["Delivered", made.filter((job) => job.inGame === undefined)],
+    ["Not in your project yet", made.filter((job) => job.inProject === false)],
+    ["In your project", made.filter((job) => job.inProject)],
+    ["Delivered", made.filter((job) => job.inProject === undefined)],
   ];
 }
 

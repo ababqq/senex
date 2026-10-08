@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "id": "inline-raf",
+  "title": "Sweep",
+  "proves": [
+    "the shim owns performance.now and requestAnimationFrame for a page that never heard of the studio",
+    "preview.input reaches the page's own listeners while the clock is frozen and stepped",
+    "the hook discovers renderer/scene/camera so the page is judgeable with no edit",
+    "seed(n) makes Math.random reproducible for a project that calls it directly",
+    "a project that registers no camera is photographed on the view it renders, and warned about, not voided"
+  ],
+  "shape": {
+    "entry": "index.html",
+    "main": "index.html",
+    "build": null,
+    "install": null,
+    "own": true,
+    "kind": "three-modules",
+    "serve": "."
+  },
+  "addsAtLeast": ["src/studio.js", "src/studio.d.ts", "CLAUDE.md", "NOTES.md", "studio.json", ".gitignore", ".git"],
+  "neverAdded": ["index.html", "src/main.js", "docs/CONTRACT.md"],
+  "edits": "none",
+  "contract": "attached",
+  "needsNodeModules": false,
+  "backend": "webgl",
+  "app": {
+    "kind": "graphics",
+    "keyboardMove": true
+  },
+  "setup": null,
+  "cameras": ["default"],
+  "expectWarnings": [],
+  "allowWarnings": [],
+  "delta": [],
+  "deterministic": true,
+  "readyBudgetMs": 5000
+}

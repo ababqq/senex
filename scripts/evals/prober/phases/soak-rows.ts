@@ -20,10 +20,10 @@ import type { Check } from "../types.ts";
 import {
   demoteForFullscreen,
   demoteForLookInput,
-  demoteForNoGameplay,
+  demoteForNoInteraction,
   demoteForPointerLock,
   type FullscreenState,
-  type GameplayReached,
+  type InteractionReached,
   type LookInputVerdict,
   type PointerLockState,
 } from "../verdicts.ts";
@@ -130,7 +130,7 @@ export function survivesRow(soak: SoakRun | null, heap: HeapGrowth, shortenedWhy
   }
   if (soak.ranMs < SPEC_SOAK_MS) {
     const why = shortenedWhy
-      ? `: ${shortenedWhy}. That is the probe's own budget, not a verdict on the game's stability`
+      ? `: ${shortenedWhy}. That is the probe's own budget, not a verdict on the project's stability`
       : "";
     const detail = `No crash, but the soak ran ${seconds(soak.ranMs)}s, not the ${seconds(SPEC_SOAK_MS)}s the check specifies${why}.`;
     return machineRow(id, CheckResult.Unknown, detail, value);
@@ -146,7 +146,7 @@ export interface SoftLockDoors {
   lookInput: LookInputVerdict;
   fullscreen: FullscreenState;
   entranceConfirmed: boolean;
-  gameplay: GameplayReached;
+  interaction: InteractionReached;
 }
 
 /** The raw soft-lock verdict before any door demotion; `byStillness` marks the only demotable fail. */
@@ -176,7 +176,7 @@ function softLockVerdict(soak: SoakRun, w: SoakWindows): { result: CheckResult; 
       : `State kept changing in ${counted}, but only ${seconds(soak.ranMs)}s of the ${seconds(SPEC_SOAK_MS)}s were run.`;
     return { result: full ? CheckResult.Pass : CheckResult.Unknown, detail, byStillness: false };
   }
-  const detail = `Only ${counted} showed any state change above the stillness floor: the game stops responding partway through.`;
+  const detail = `Only ${counted} showed any state change above the stillness floor: the project stops responding partway through.`;
   return { result: CheckResult.Fail, detail, byStillness: true };
 }
 
@@ -207,7 +207,7 @@ export function softLockRow(
         // A confirmed entrance means a refused fullscreen request did not keep the probe out.
         (r: CheckResult) =>
           doors.entranceConfirmed ? { result: r, why: null } : demoteForFullscreen(r, doors.fullscreen),
-        (r: CheckResult) => demoteForNoGameplay(r, doors.gameplay),
+        (r: CheckResult) => demoteForNoInteraction(r, doors.interaction),
       ]
     : [];
   const { result, detail } = applyDemotions(raw, steps);

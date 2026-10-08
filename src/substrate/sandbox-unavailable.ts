@@ -49,7 +49,7 @@ const MESSAGE = {
       "The command is too long for Windows to start (over 32,767 characters). Put it in a script file and run that.",
     [SandboxLaunchCode.SrtWinTimeout]: "The Windows sandbox did not answer in time. Try again in a moment.",
     [SandboxLaunchCode.NetworkDrive]:
-      "Commands cannot run in a folder on a mapped or network drive. Move the game to a local drive.",
+      "Commands cannot run in a folder on a mapped or network drive. Move the project to a local drive.",
     [SandboxLaunchCode.NotGranted]:
       "This folder is not open to sandboxed commands yet. It opens once the running commands finish; try again then.",
   } satisfies Record<SandboxLaunchCode, string>,

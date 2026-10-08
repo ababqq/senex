@@ -1,5 +1,5 @@
 /**
- * Genex's Publish on the stage strip has two looks: the accent while the game has something to
+ * Genex's Publish on the stage strip has two looks: the accent while the project has something to
  * publish, the quiet fill otherwise. Its status says which, and never writes a badge.
  */
 import assert from "node:assert/strict";
@@ -28,7 +28,7 @@ const job = (jobState: GenexPublishJob["state"]): GenexPublishJob => ({
   startedAt: "2026-10-03T10:00:00Z",
 });
 
-test("a game that is not listed yet calls for Publish", () => {
+test("a project that is not listed yet calls for Publish", () => {
   assert.equal(publishButtonStatus(state()).attention, true);
   assert.equal(publishButtonStatus(state({ slug: "pong", status: GenexHostedStatus.Draft })).attention, true);
 });
@@ -37,7 +37,7 @@ test("a failed publish still calls for Publish", () => {
   assert.equal(publishButtonStatus(state({ job: job(GenexPublishJobState.Failed) })).attention, true);
 });
 
-test("a listed game, or one uploading, leaves Publish quiet", () => {
+test("a listed project, or one uploading, leaves Publish quiet", () => {
   assert.equal(publishButtonStatus(state({ slug: "pong", status: GenexHostedStatus.Published })).attention, false);
   assert.equal(publishButtonStatus(state({ job: job(GenexPublishJobState.Running) })).attention, false);
   assert.equal(publishButtonStatus(state({ job: job(GenexPublishJobState.Unresolved) })).attention, false);

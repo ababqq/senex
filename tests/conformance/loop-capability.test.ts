@@ -68,7 +68,7 @@ describe("loop capability handshake", () => {
     assert.equal(rig.core.host.state, "ready");
     assert.deepEqual(rig.core.host.capabilities, [], "a harness that claims nothing has nothing");
 
-    const threadId = await rig.core.createGameThread();
+    const threadId = await rig.core.createProjectThread();
     const brief = "an overnight rainy city with neon puddles";
     await rig.core.sendUserMessage(brief, { thread: threadId, loop: { hours: 2 } });
 

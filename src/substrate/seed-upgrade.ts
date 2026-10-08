@@ -353,7 +353,7 @@ async function deletedBeforeMigration(
  * untouched ones (recording them in the manifest's `retired` too) and renames the edited ones.
  */
 export const RETIRED_SEED_PATHS: readonly string[] = [
-  "skills/game-contract.md",
+  "skills/project-contract.md",
   "skills/self-improvement.md",
   "skills/threejs-craft.md",
   "skills/unattended-runs.md",
@@ -1170,7 +1170,7 @@ export async function craftCheckOwners(rootDir: string): Promise<Map<string, str
 /**
  * Seed ids the seed dropped by RENAME rather than by retirement. Without this a superseded id
  * has no craft recipe to point at, survives every rule below, and goes on being rendered to
- * every planner for ever under a heading about what some other game learned.
+ * every planner for ever under a heading about what some other project learned.
  */
 export const SUPERSEDED_CHECKS: Record<string, string> = { "fire-registers": "primary-action-registers" };
 

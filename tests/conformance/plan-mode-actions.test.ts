@@ -1,5 +1,5 @@
 /**
- * Plan mode is for planning (B2): while a game chat is in Plan, no plugin or connector action runs
+ * Plan mode is for planning (B2): while a project chat is in Plan, no plugin or connector action runs
  * on its behalf, whoever asks (the chat's session, a build's lead, a worker) and whatever was saved
  * as "always allow", and no run's coordinator or run control starts, goes on with or lands a build.
  * A plugin's skill is still readable. Leaving Plan lifts it.
@@ -37,8 +37,8 @@ it("in Plan mode a connector action is refused without a card, even one saved as
   const lite = await coreLite();
   try {
     const project = "planning";
-    await lite.core.games.scaffold(project);
-    const threadId = await lite.core.createGameThread(project);
+    await lite.core.projects.scaffold(project);
+    const threadId = await lite.core.createProjectThread(project);
     await lite.core.mcp.save(echo(), {}, { trust: true });
     await lite.core.mcp.toolsFor(project);
     const api = lite.api() as unknown as Record<string, (input: unknown) => Promise<unknown>>;
@@ -65,8 +65,8 @@ it("in Plan mode a plugin action answers the agent that it waits for the plan, a
   const lite = await coreLite();
   try {
     const project = "planning";
-    await lite.core.games.scaffold(project);
-    const threadId = await lite.core.createGameThread(project);
+    await lite.core.projects.scaffold(project);
+    const threadId = await lite.core.createProjectThread(project);
     await lite.core.setPermissionMode(threadId, PermissionMode.Plan);
     const api = lite.api() as unknown as Record<string, (input: unknown) => Promise<unknown>>;
     const answer = (await api["plugins.invoke"]!({
@@ -88,8 +88,8 @@ it("in Plan mode a run's coordinator and the chat's run controls cannot land, co
   const lite = await coreLite();
   try {
     const project = "planning-run";
-    await lite.core.games.scaffold(project);
-    const threadId = await lite.core.createGameThread(project);
+    await lite.core.projects.scaffold(project);
+    const threadId = await lite.core.createProjectThread(project);
     await lite.core.append(
       [
         { type: "custom", event_type: "run_registered", payload: { runId: "run_a", project, mode: "director" } },

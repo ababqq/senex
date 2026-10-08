@@ -14,12 +14,12 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip.tsx";
 import { PickerLabel } from "../ui/PickerPanel.tsx";
 import { Icon } from "../ui/icons.tsx";
 import { isRovingKey, RovingAxis, rovingTarget } from "../ui/roving-focus.ts";
-import { GameAvatar } from "../ui/GameAvatar.tsx";
+import { ProjectAvatar } from "../ui/ProjectAvatar.tsx";
 import { CLAUDE_CODE_MARK, CODEX_MARK } from "../ui/provider-marks.ts";
 import { relativeTime } from "../chat-labels.ts";
 import { activityNotices, dayGroup, type Notice, NoticeKind, noticeSource, waitingNotices } from "../notifications.ts";
-import { isGameThread, threadMeta } from "../state/threads.ts";
-import type { ConversationRecord, GameProject } from "../types.ts";
+import { isProjectThread, threadMeta } from "../state/threads.ts";
+import type { ConversationRecord, Project } from "../types.ts";
 import { MINUTE_MS } from "../../shared/duration.ts";
 import { EngineId } from "../../shared/providers.ts";
 
@@ -34,7 +34,7 @@ const TIP_QUIET_MS = 400;
 
 interface Props {
   items: Notice[];
-  games: GameProject[];
+  projects: Project[];
   threads: ConversationRecord[];
   onOpen: (notice: Notice) => void;
   /** Opening the panel reads the news in it. */
@@ -90,15 +90,15 @@ function noticeTime(notice: Notice, now: number): string {
   return `starts in ${Math.max(1, Math.ceil((notice.until - now) / MINUTE_MS))}m`;
 }
 
-/** A row's picture: its game's cover, else the provider's mark or the chat's kind. */
-function NoticeArt({ notice, game, gameChat }: { notice: Notice; game?: GameProject; gameChat: boolean }) {
-  if (game) return <GameAvatar cover={game.cover} gameKey={game.name} className="notify-art" />;
+/** A row's picture: its project's cover, else the provider's mark or the chat's kind. */
+function NoticeArt({ notice, entry: project, projectChat }: { notice: Notice; entry?: Project; projectChat: boolean }) {
+  if (project) return <ProjectAvatar cover={project.cover} projectKey={project.name} className="notify-art" />;
   return (
     <span className="notify-art notify-art-tile" aria-hidden>
       {notice.kind === NoticeKind.SignIn ? (
         <ProviderGlyph engine={notice.engine} />
       ) : (
-        <Icon name={gameChat ? "new-game" : "harness"} size={15} />
+        <Icon name={projectChat ? "new-project" : "harness"} size={15} />
       )}
     </span>
   );
@@ -119,14 +119,14 @@ function NoticeTrail({ notice, fresh }: { notice: Notice; fresh: boolean }) {
 /** One notification: what it is about, when, what it says, and what it asks. */
 function NoticeRow({
   notice,
-  games,
+  projects,
   threads,
   fresh,
   now,
   onChoose,
 }: {
   notice: Notice;
-  games: GameProject[];
+  projects: Project[];
   threads: ConversationRecord[];
   fresh: boolean;
   now: number;
@@ -134,8 +134,9 @@ function NoticeRow({
 }): JSX.Element {
   const thread = threads.find((item) => item.id === notice.threadId);
   const project = notice.project ?? threadMeta(thread).project;
-  const game = project && notice.kind !== NoticeKind.SignIn ? games.find((item) => item.name === project) : undefined;
-  const gameChat = isGameThread(thread);
+  const entry =
+    project && notice.kind !== NoticeKind.SignIn ? projects.find((item) => item.name === project) : undefined;
+  const projectChat = isProjectThread(thread);
   return (
     <button
       type="button"
@@ -145,10 +146,10 @@ function NoticeRow({
       data-fresh={fresh || undefined}
       onClick={() => onChoose(notice)}
     >
-      <NoticeArt notice={notice} game={game} gameChat={gameChat} />
+      <NoticeArt notice={notice} entry={entry} projectChat={projectChat} />
       <span className="notify-copy">
         <span className="notify-title">
-          <span className="min-w-0 truncate">{noticeSource(notice, game?.title, gameChat)}</span>
+          <span className="min-w-0 truncate">{noticeSource(notice, entry?.title, projectChat)}</span>
           <span className="notify-time">{noticeTime(notice, now)}</span>
         </span>
         <span className="notify-text" title={notice.text}>
@@ -195,14 +196,14 @@ function NoticeList({
       {!waiting.length && !activity.length && (
         <div className="notify-empty">
           <p>You’re all caught up</p>
-          <p>Questions, plans and finished builds from your games show up here.</p>
+          <p>Questions, plans and finished builds from your projects show up here.</p>
         </div>
       )}
     </div>
   );
 }
 
-export function NotificationsMenu({ items, games, threads, onOpen, onRead, onClear }: Props): JSX.Element {
+export function NotificationsMenu({ items, projects, threads, onOpen, onRead, onClear }: Props): JSX.Element {
   const [open, setOpen] = useState(false);
   const [tip, setTip] = useState(false);
   // The rows that were new when the panel opened keep their dot until it closes.
@@ -234,7 +235,7 @@ export function NotificationsMenu({ items, games, threads, onOpen, onRead, onCle
     <NoticeRow
       key={notice.id}
       notice={notice}
-      games={games}
+      projects={projects}
       threads={threads}
       fresh={fresh.has(notice.id)}
       now={now}

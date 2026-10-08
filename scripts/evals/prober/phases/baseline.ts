@@ -1,7 +1,7 @@
 /**
  * No-input baselines from the instrument's page-side frame series (a 64x36 mirror diffed per sample).
- * Two baselines, and each check names the one it used: the pre-gesture idle (on a game with a title
- * screen that is the MENU's drift) and the post-entrance window, taken on gameplay once the entrance
+ * Two baselines, and each check names the one it used: the pre-gesture idle (on a project with a title
+ * screen that is the MENU's drift) and the post-entrance window, taken on interaction once the entrance
  * is confirmed, which is where every gated input measurement happens.
  */
 import type { ProbeSample } from "../instrument.ts";
@@ -11,7 +11,7 @@ import type { PhaseContext } from "./context.ts";
 
 /** A response is a change when it exceeds this multiple of the baseline's p95. */
 export const CHANGE_OVER_IDLE = 3;
-/** Absolute floor, so a perfectly static game does not get a zero threshold. */
+/** Absolute floor, so a perfectly static project does not get a zero threshold. */
 export const MIN_CHANGE_DIFF = 0.004;
 /** The fewest sampler readings a baseline may set a threshold from. */
 export const MIN_BASELINE_SAMPLES = 5;

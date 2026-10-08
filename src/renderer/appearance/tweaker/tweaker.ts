@@ -229,7 +229,7 @@ type TypeMeasure = {
 };
 
 /**
- * The sidebar's labels (New game … Settings, the game titles) and the chat header's title share one
+ * The sidebar's labels (New project … Settings, the project titles) and the chat header's title share one
  * type. It is the same in every theme, so the tweaker keeps it beside the drafts, as the logo width.
  */
 export const LABEL_TYPE = {
@@ -537,7 +537,7 @@ export function readability(palette: Palette, role: AnyRole): Readability | null
   // The onboarding art and the empty-state cube draw their lines and glows in this colour on the canvas.
   if (role === "art" || role === "wireArt")
     return { ratio: contrastRatio(shownColor(palette, role), palette.background), minimum: GRAPHIC_CONTRAST };
-  // The sidebar writes the current and hovered game or page name in the text colour on these rows.
+  // The sidebar writes the current and hovered project or page name in the text colour on these rows.
   if (isSidebarRow(role))
     return { ratio: contrastRatio(palette.foreground, shownColor(palette, role)), minimum: TEXT_CONTRAST };
   const pair = ON_GROUND.find((p) => [...p.marks, ...p.grounds].some((r) => r === role));

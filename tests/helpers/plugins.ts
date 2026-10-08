@@ -24,7 +24,7 @@ export interface PluginFixture {
 }
 
 /**
- * A registry with the example plugin, initialized, with a `game` binding at `root`. By default the
+ * A registry with the example plugin, initialized, with a `project` binding at `root`. By default the
  * example is a bundled seed; `installed: 'local'` loads it from its folder instead, for suites that
  * update it from other local folders (a bundled id is Studio's alone and refuses those).
  */
@@ -39,7 +39,7 @@ export async function pluginFixture(options: { installed?: "bundled" | "local" }
   );
   await registry.init();
   if (options.installed === "local") await registry.installLocal(EXAMPLE_PLUGIN, "local");
-  const binding = { project: "game", directory: root };
+  const binding = { project: "project", directory: root };
   return {
     root,
     seeds,
@@ -133,7 +133,7 @@ export async function accountFixture() {
     base,
     tokens,
     registry,
-    binding: { project: "game", directory: base },
+    binding: { project: "project", directory: base },
     storageMarker: path.join(base, "data", "acct", "owned-by-a.txt"),
     async relaunch() {
       const r = await open();

@@ -33,11 +33,11 @@ export interface FakePreview extends PreviewPort {
   reloads: number;
   screenshots: number;
   consoleLines: Array<{ at: number; level: string; message: string }>;
-  /** Lines the *studio* put on the game's console (`note`) — a build that failed before the page could load. */
+  /** Lines the *studio* put on the project's console (`note`) — a build that failed before the page could load. */
   notes: Array<{ level: string; message: string; loadError: boolean }>;
   calls: Array<{ method: string; arg: unknown }>;
   inputs: unknown[];
-  /** Demo names `preview.call {method:"demos"}` reports; unset means the game declares none. */
+  /** Demo names `preview.call {method:"demos"}` reports; unset means the project declares none. */
   demoNames?: string[];
   /** Camera names `preview.call {method:"cameras"}` reports; unset means the classic trio only. */
   cameraNames?: string[];
@@ -46,7 +46,7 @@ export interface FakePreview extends PreviewPort {
    * miss returns `next` (the state) — exactly what a page without the v2 contract would do.
    */
   evaluations: Array<{ match: string; value: unknown }>;
-  /** Extra `__studio` methods the fake game exposes (`eye`, `inspect`, `audio`, …). */
+  /** Extra `__studio` methods the fake project exposes (`eye`, `inspect`, `audio`, …). */
   studioMethods: Record<string, (arg: unknown) => unknown>;
   /** Every crop and diff the loop asked for, so a test can prove a vision check looked at a crop. */
   crops: Array<{ file: string; crop: unknown }>;
@@ -70,13 +70,32 @@ export interface FakePreview extends PreviewPort {
   pairs: Array<{ left: number; right: number }>;
 }
 
+/** What a page counts when the exercise acts on it: a click answers, typing edits a field, keys are keys. */
+function bumpUi(preview: FakePreview, type: string): void {
+  const ui = { ...((preview.next.ui as Record<string, number> | undefined) ?? {}) };
+  const add = (key: string, by = 1) => {
+    ui[key] = (ui[key] ?? 0) + by;
+  };
+  if (type === "click") {
+    add("clicks");
+    add("navigations");
+    add("reactions");
+  }
+  if (type === "type") {
+    add("keys");
+    add("edits");
+  }
+  if (type === "press" || type === "tap" || type === "down") add("keys");
+  preview.next = { ...preview.next, ui };
+}
+
 export function makeFakePreview(): FakePreview {
   const held = new Set<string>();
   // Each read of the step witness moves the page's own counters, the way a stepped page does.
   let witnessTicks = 0;
   const preview: FakePreview = {
-    // A player that answers the harness-owned input checks the way the template does: held
-    // WASD moves it on step(), an injected look turns its yaw.
+    // A page that answers the harness-owned checks the way a served page does: its own `ui` counters
+    // rise when the exercise clicks or types, and held WASD moves the player on step() for a scene.
     next: {
       version: 1,
       seed: 1,
@@ -86,6 +105,17 @@ export function makeFakePreview(): FakePreview {
       phase: "playing",
       entities: {},
       player: { x: 0, y: 0, z: 0, yaw: 0 },
+      ui: {
+        clicks: 0,
+        keys: 0,
+        edits: 0,
+        focusMoves: 0,
+        navigations: 0,
+        reactions: 0,
+        errors: 0,
+        unnamedControls: 0,
+        overflowX: 0,
+      },
     },
     pixelStatsNext: { width: 800, height: 600, sampled: 480_000, meanLuma: 42, litFraction: 0.6, canvas: true },
     loads: [],
@@ -110,7 +140,7 @@ export function makeFakePreview(): FakePreview {
       preview.loads.push(project);
       preview.loadRoot = root ?? null;
       preview.loadEntry = entry ?? null;
-      return `game://${project}/${entry ?? "index.html"}`;
+      return `project://${project}/${entry ?? "index.html"}`;
     },
     async reload() {
       preview.reloads++;
@@ -164,9 +194,6 @@ export function makeFakePreview(): FakePreview {
           gesture: { needed: false, done: false, reasons: [] },
         };
       }
-      // The template's own answers to the harness-owned screen checks: no DOM UI, one HUD quad.
-      if (String(expression).includes("domUi().length === 0") || String(expression).includes("count('hud') === 1"))
-        return { value: true };
       return preview.next;
     },
     async studioState() {
@@ -226,6 +253,7 @@ export function makeFakePreview(): FakePreview {
     async input(actions) {
       preview.inputs.push(...(actions ?? []));
       for (const action of (actions ?? []) as Array<{ type: string; keys?: string[]; dx?: number }>) {
+        bumpUi(preview, action.type);
         if (action.type === "down") for (const key of action.keys ?? []) held.add(key);
         if (action.type === "up") for (const key of action.keys ?? []) held.delete(key);
         if (action.type === "look") {
@@ -244,7 +272,7 @@ export function makeFakePreview(): FakePreview {
       return { ok: true, applied: actions?.length ?? 0, width: 800, height: 600 };
     },
     // Kept apart from `consoleLines` and `next.__loadError`, which in this rig say what the
-    // *game* did: a note the studio wrote must not be counted as the game's own error by an
+    // *project* did: a note the studio wrote must not be counted as the project's own error by an
     // evidence pass. What a caller can assert here is that the studio said it at all.
     note(level, message, options) {
       preview.notes.push({ level, message, loadError: options?.loadError === true });
@@ -339,7 +367,7 @@ export async function startRig(
 
 /**
  * Wait until a predicate over the studio's whole log holds, or fail loudly. The whole log,
- * because work lands in the thread it belongs to — runs and builds in their game's thread,
+ * because work lands in the thread it belongs to — runs and builds in their project's thread,
  * studio business in the studio thread — and a test should see the story wherever it happened.
  */
 export async function waitForLog(

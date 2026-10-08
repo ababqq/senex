@@ -33,7 +33,7 @@ export type IpcHandler<C extends StudioInvokeChannel> = (
 
 // Plugin panels, connectors and terminals may run arbitrary local programs, and a chat's permission
 // mode and answers say what Claude may do on this Mac; only Studio's own main frame may reach
-// them, never a plugin page or a game's frame.
+// them, never a plugin page or a project's frame.
 const STUDIO_UI_ONLY = ["studio:plugins.", "studio:mcp.", "studio:terminal.", "studio:permissions."];
 
 /**

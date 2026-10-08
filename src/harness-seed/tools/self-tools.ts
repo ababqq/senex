@@ -125,7 +125,7 @@ export const tools: HarnessTool[] = [
     description: "Read one of your own files.",
     parameters: {
       type: "object",
-      properties: { file: str("path relative to your workspace, e.g. tools/game-tools.ts") },
+      properties: { file: str("path relative to your workspace, e.g. tools/project-tools.ts") },
       required: ["file"],
     },
     async execute(args, ctx) {
@@ -316,7 +316,7 @@ export const tools: HarnessTool[] = [
     description: "Take a checkpoint of the current state so you can come back to it.",
     parameters: {
       type: "object",
-      properties: { reason: str("what this checkpoint is"), project: str("game project to include") },
+      properties: { reason: str("what this checkpoint is"), project: str("project to include") },
       required: ["reason"],
     },
     async execute(args, ctx) {

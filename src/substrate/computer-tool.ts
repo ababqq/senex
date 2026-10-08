@@ -10,7 +10,7 @@
  *
  * The action vocabulary is Anthropic's `computer_toolset_20260801` (screenshot, zoom,
  * left_click …, key, type, scroll, wait) so both models already know how to hold it, plus the
- * studio verbs a game needs: `camera` (a named studio viewpoint), `state` (the game's own
+ * studio verbs a project needs: `camera` (a named studio viewpoint), `state` (the project's own
  * numbers), `reload` (rebuild + reload after edits), `console` (errors since load).
  *
  * Electron-free: this file parses the flat arguments the bridge shim and the MCP schema
@@ -80,7 +80,7 @@ export type Region = [number, number, number, number];
 
 /**
  * Which picture a look takes (M4.5): `screen` is the whole page — a DOM menu, an HTML HUD, a
- * loading screen, everything the user sees — and `canvas` is only what the game draws. A game
+ * loading screen, everything the user sees — and `canvas` is only what the project draws. A project
  * whose car-select and pause screen live outside the canvas is invisible to a canvas-only eye,
  * which is why a worker can ask. Absent means the studio picks.
  */
@@ -209,7 +209,7 @@ const SURFACE_WORDS: Record<string, ComputerSurface> = {
   webgpu: "canvas",
   gl: "canvas",
   gpu: "canvas",
-  game: "canvas",
+  project: "canvas",
   render: "canvas",
   scene: "canvas",
 };

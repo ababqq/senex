@@ -124,7 +124,7 @@ export interface Worker {
   merging?: ConflictMerge | null;
 }
 
-/** The game's shape (`gameAtStart`, setup.ts): the host's, or the template's page and entry when it names none. */
+/** The project's shape (`appAtStart`, setup.ts): the host's, or the template's page and entry when it names none. */
 export type NightShape = Pick<ProjectShape, "entry" | "main" | "build"> & Partial<ProjectShape>;
 
 /** A worker being started: its worktree and its thread are not open yet (`startWorker`). */
@@ -208,7 +208,7 @@ export interface NightState {
 }
 
 /**
- * What the night knows (`prepareNight`, setup.ts): the run and its clock, the game's shape and
+ * What the night knows (`prepareNight`, setup.ts): the run and its clock, the project's shape and
  * ledger, the starting point and the integration worktree, `state`, the journal and the report,
  * and the counters that change all night.
  */
@@ -235,9 +235,9 @@ export interface NightData {
   shape: NightShape;
   capacity: HarnessResult<"preview.capacity"> | null;
   contractMissing: boolean;
-  gameKind: string;
+  appKind: string;
   priorLedger: LedgerRecord[];
-  gameLessons: string[];
+  projectLessons: string[];
   report: AnyRecord;
   projectDir: string;
   baseCommit: string | null;
@@ -276,7 +276,7 @@ export interface NightData {
    */
   resting?: boolean;
   /**
-   * A waking night's lead (one session, lead-session.ts): its chat's own session, in the game
+   * A waking night's lead (one session, lead-session.ts): its chat's own session, in the project
    * folder, writing nothing while the build runs — workers do, a conflict goes to a worker of its
    * own (conflict-worker.ts), and no `.studio/DIRECTOR.md` is kept. Absent — the long turn, a kept
    * older director.ts — the director works in the integration worktree with its own hands.
@@ -495,12 +495,12 @@ export function notesSince(night: Night, seq: number): NightLogEntry[] {
 
 /** What every ledger record of this night carries. */
 export function ledgerFacts(night: Night) {
-  const { gameKind, run } = night;
-  return { runId: run.runId, mode: RunMode.Director, game: run.project, gameKind };
+  const { appKind, run } = night;
+  return { runId: run.runId, mode: RunMode.Director, project: run.project, appKind };
 }
 
 /**
- * An outcome on the game's own ledger, chained behind the last one so five rounds finishing in
+ * An outcome on the project's own ledger, chained behind the last one so five rounds finishing in
  * the same second land as five lines, in order (`ledgerWrites`, see prepareNight).
  */
 export function remember(night: Night, record: LedgerRecord): Promise<unknown> {
@@ -510,10 +510,10 @@ export function remember(night: Night, record: LedgerRecord): Promise<unknown> {
   return night.ledgerWrites;
 }
 
-/** Checks this kind of game has never been able to measure — the dry run warns about them. */
+/** Checks this kind of project has never been able to measure — the dry run warns about them. */
 export function neverMeasured(night: Night) {
-  const { gameKind, priorLedger, tonight } = night;
-  return rarelyMeasurable([...priorLedger, ...tonight], { kind: gameKind });
+  const { appKind, priorLedger, tonight } = night;
+  return rarelyMeasurable([...priorLedger, ...tonight], { kind: appKind });
 }
 
 /** What the integration worktree actually stands on right now — the one source of truth. */
@@ -614,7 +614,7 @@ export function withLease<T>(
  * console errors the build INHERITED (an error it did not introduce is not its fault — one
  * shader line in a base nobody owned cost four first-round iterations, every judge of a night
  * and its landing), and the base exemption for this run's own starting point (a scaffold is
- * allowed to be blank; a game is not).
+ * allowed to be blank; a project is not).
  *
  * `scaffold` reaches gauntlet as its base pass — iterationId "base" is the stage's name
  * there, not this pass's label, and the frames still land under `director/<label>`.

@@ -18,6 +18,7 @@
   "checkClass": "liveness",
   "kind": "craft",
   "pack": "liveness",
+  "appKinds": ["graphics"],
   "note": "Bare ground between the buildings is what makes a place read as a stage set: something stands within 3 m of most points near the player.",
   "intent": "A place with three good buildings and nothing between them reads as a stage set the moment the player walks off the path. Fill the ground the way a real settlement does: fences and low walls along the edges, woodpiles and barrels and crates against the walls, a cart, tool leaning, a trough, grass tufts and stones scattered with a seeded rng, ruts where people walk. Instance the repeated pieces so the draw-call budget survives, and place them by rule (against a wall, beside a door, along a fence line) rather than uniformly at random, so the clutter reads as used rather than sprinkled.",
   "check": {

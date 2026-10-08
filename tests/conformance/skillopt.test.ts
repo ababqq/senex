@@ -207,7 +207,7 @@ async function runSkillOptRig(
 
   // Give the studio a single skill to optimise and a run history to learn from.
   const skillsDir = path.join(rig.core.layout.harnessWs, "skills");
-  for (const name of ["game-contract", "threejs-craft", "unattended-runs", "self-improvement"]) {
+  for (const name of ["project-contract", "threejs-craft", "unattended-runs", "self-improvement"]) {
     await writeFile(
       path.join(skillsDir, `${name}.md`),
       name === "threejs-craft" ? SKILL : "---\nname: x\ndescription: y\n---\n",
@@ -434,22 +434,22 @@ describe("skillopt: the gate", () => {
     assert.equal(pass.tasks, 0);
   });
 
-  it("mines chat-build evidence out of the per-game threads", async () => {
+  it("mines chat-build evidence out of the per-project threads", async () => {
     const { respond, counts } = makeResponder({ edits: [], gate: "reject" });
     const rig = await startRig({ respond });
     rigs.push(rig);
     const skillsDir = path.join(rig.core.layout.harnessWs, "skills");
-    for (const name of ["game-contract", "threejs-craft", "unattended-runs", "self-improvement"]) {
+    for (const name of ["project-contract", "threejs-craft", "unattended-runs", "self-improvement"]) {
       await writeFile(
         path.join(skillsDir, `${name}.md`),
         name === "threejs-craft" ? SKILL : "---\nname: x\ndescription: y\n---\n",
       );
     }
 
-    // The evidence lives where it happened: chat builds logged in their game's own thread.
+    // The evidence lives where it happened: chat builds logged in their project's own thread.
     // Two of them: the analyst learns from one and the gate tests on the other.
-    const gameThread = await rig.core.threadForGame("pong");
-    assert.notEqual(gameThread, rig.core.mainThread);
+    const projectThread = await rig.core.threadForProject("pong");
+    assert.notEqual(projectThread, rig.core.mainThread);
     await rig.core.append(
       [
         {
@@ -463,11 +463,11 @@ describe("skillopt: the gate", () => {
           payload: { brief: "add a score", ok: true, consoleErrors: 0, summary: "clean" },
         },
       ],
-      gameThread,
+      projectThread,
     );
 
     await rig.core.host.dispatch({ type: "skillopt_start", threadId: rig.core.mainThread }, 90_000);
-    assert.ok(counts.analyst >= 1, "evidence in a game thread must reach the analyst");
+    assert.ok(counts.analyst >= 1, "evidence in a project thread must reach the analyst");
     const pass = customEvents(await rig.core.listAllEvents(), "skillopt_pass").at(-1)!;
     assert.equal(pass.tasks, 2, "the pass reports exactly what it mined");
   });
@@ -600,7 +600,7 @@ describe("skillopt: the gate", () => {
     );
   });
 
-  it("golden-boot-glory: a skill serves every game, so the analyst proposes no rule for one sport or game and the gate counts one against a version", async () => {
+  it("golden-boot-glory: a skill serves every project, so the analyst proposes no rule for one sport or project and the gate counts one against a version", async () => {
     const workspace = path.join(await tmpDir("skillopt-general-"), "ws");
     await mkdir(path.join(workspace, "skills"), { recursive: true });
     await writeFile(path.join(workspace, "skills", "camera.md"), SKILL);
@@ -641,7 +641,7 @@ describe("skillopt: the gate", () => {
     await runSkillOpt(ctx as never, { threadId: "t1" });
     assert.ok(systemPrompts.analyst.length > 0 && systemPrompts.gate.length > 0);
     for (const prompt of [...systemPrompts.analyst, ...systemPrompts.gate])
-      assert.match(prompt, /every (kind of )?game/i, "the skill is for every game");
+      assert.match(prompt, /every (kind of )?project/i, "the skill is for every project");
     assert.match(systemPrompts.analyst[0]!, /one (genre|sport)/i);
     assert.match(systemPrompts.gate[0]!, /one (genre|sport)/i);
   });

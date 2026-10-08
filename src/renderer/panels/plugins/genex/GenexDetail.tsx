@@ -1,7 +1,7 @@
 /**
  * The Genex plugin's page, below its title: the account card, the tools it routes, the skills it
- * gives agents and what it is. The page is app-wide: one balance covers every game,
- * a game's own spend is in its usage panel, and Publish lives on the game's stage.
+ * gives agents and what it is. The page is app-wide: one balance covers every project,
+ * a project's own spend is in its usage panel, and Publish lives on the project's stage.
  */
 import type { JSX } from "react";
 import { GenexAction } from "../../../../shared/genex.ts";
@@ -75,7 +75,7 @@ function ReviewRow({ row, live }: { row: GenexJobRow; live: GenexLive }): JSX.El
 }
 
 /**
- * The open game's generations that wait for the person (a character's candidates, a remesh):
+ * The open project's generations that wait for the person (a character's candidates, a remesh):
  * the page is app-wide, but a decision only the person can make is shown where they look for Genex.
  */
 function WaitingForReview({ live }: { live: GenexLive }): JSX.Element | null {
@@ -92,7 +92,7 @@ function WaitingForReview({ live }: { live: GenexLive }): JSX.Element | null {
   );
 }
 
-/** The account card (the shared balance, never a game's spend) and what waits for review in the open game. */
+/** The account card (the shared balance, never a project's spend) and what waits for review in the open project. */
 function LiveAccount({ detail, page }: { detail: PluginInfo; page: PluginsPage }): JSX.Element {
   const live = useGenexStatus(detail, page.project);
   return (

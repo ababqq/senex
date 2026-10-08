@@ -17,9 +17,9 @@ const plugin = (id: string, name: string, description: string): PluginInfo =>
   ({ manifest: { id, name, description, publisher: "Someone" } }) as unknown as PluginInfo;
 
 describe("Genex's row and page name the router", () => {
-  it("shows Genex as the game dev tools router, with the tools it routes on its line", () => {
+  it("shows Genex as the project dev tools router, with the tools it routes on its line", () => {
     const genex = plugin(GENEX_PLUGIN_ID, "Genex Tools", "3D models, characters, sound and art…");
-    assert.equal(shownName(genex), "Game dev tools router");
+    assert.equal(shownName(genex), "Project dev tools router");
     assert.equal(shownDescription(genex), GENEX_WORDS.router.description);
     assert.match(shownDescription(genex), /^Genex · .*Meshy/);
   });

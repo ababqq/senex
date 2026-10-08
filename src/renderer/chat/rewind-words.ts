@@ -1,5 +1,5 @@
 /**
- * What the Rewind dialog says about the game files: whether they can go back with the chat, and
+ * What the Rewind dialog says about the project files: whether they can go back with the chat, and
  * when they cannot, why only the conversation rewinds. Pure, so the words are tested without a DOM.
  */
 import { FilesStay, type RewindFiles } from "../../shared/chat-rewind.ts";
@@ -10,8 +10,8 @@ export const REWIND_WORDS = {
   rewinding: "Rewinding…",
   /** The confirmation waits for the running build to close before the chat goes back. */
   stoppingBuild: "Stopping the build…",
-  checking: "Checking the game files…",
-  restoreFiles: "Restore game files",
+  checking: "Checking the project files…",
+  restoreFiles: "Restore project files",
 } as const;
 
 /** Up to three file names, and how many more there are. */
@@ -62,16 +62,16 @@ const CHAT_ONLY = "Only the conversation rewinds";
 
 /** Why only the conversation rewinds, one plain line each. */
 const FILES_STAY_WORDS: Record<FilesStay, string> = {
-  [FilesStay.BuildChanged]: `${CHAT_ONLY}: a build changed the game after this message, so its files stay as they are.`,
+  [FilesStay.BuildChanged]: `${CHAT_ONLY}: a build changed the project after this message, so its files stay as they are.`,
   [FilesStay.BuildRunning]:
-    "A build is running. Rewinding stops it and cuts off any answer under way; the game’s files stay as they are.",
-  [FilesStay.HistoryChanged]: `${CHAT_ONLY}: a commit changed the game after this message, so its files stay as they are.`,
-  [FilesStay.NoCheckpoint]: `${CHAT_ONLY}: there’s no saved copy of the game from before this message.`,
+    "A build is running. Rewinding stops it and cuts off any answer under way; the project’s files stay as they are.",
+  [FilesStay.HistoryChanged]: `${CHAT_ONLY}: a commit changed the project after this message, so its files stay as they are.`,
+  [FilesStay.NoCheckpoint]: `${CHAT_ONLY}: there’s no saved copy of the project from before this message.`,
   [FilesStay.JoinedAnswer]: `${CHAT_ONLY}: this message joined an answer already under way, so there’s no saved copy from just before it.`,
   [FilesStay.TooLarge]: `${CHAT_ONLY}: the files that changed were too large to save.`,
 };
 
-/** What the game files do when the chat goes back, in plain lines. */
+/** What the project files do when the chat goes back, in plain lines. */
 export function rewindFilesWords(files: RewindFiles): RewindFilesWords {
   const nested = keptWords(files);
   switch (files.state) {
@@ -85,7 +85,7 @@ export function rewindFilesWords(files: RewindFiles): RewindFilesWords {
         nested,
       };
     case "unchanged":
-      return { line: "The game files haven’t changed since this message.", outside: null, nested };
+      return { line: "The project files haven’t changed since this message.", outside: null, nested };
     case "unavailable":
       return { line: FILES_STAY_WORDS[files.reason], outside: null, nested: null };
     case "none":
