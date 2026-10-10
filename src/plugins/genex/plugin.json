@@ -275,7 +275,7 @@
     {
       "id": "publish",
       "label": "Publish",
-      "ariaLabel": "Publish game",
+      "ariaLabel": "Publish project",
       "icon": "globe",
       "requiresProject": true,
       "target": {

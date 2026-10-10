@@ -588,13 +588,35 @@ export const EMPTY_SCENE_PROBE = `(() => {
   }
 })()`;
 
-/** The camera pose, read only for the empty-scene stage where pixels cannot prove placement. */
+/**
+ * The camera pose, read only for the empty-scene stage where pixels cannot prove placement. A page
+ * that draws no 3D world has no camera to place, and says so with an empty string.
+ */
 const CAMERA_POSE_PROBE = `(() => {
   const c = window.__studio.inspect().camera;
+  if (!c) return "";
   c.updateMatrixWorld(true);
   const values = [...c.matrixWorld.elements, ...c.projectionMatrix.elements];
   return values.every(Number.isFinite) ? JSON.stringify(values) : null;
 })()`;
+
+/**
+ * Whether a page that draws no 3D world shows nothing at all: no text and no visible element. A
+ * build that ships that has no first screen, whatever its pixels say, so it is a problem anywhere
+ * but on the shared base. A page with a scene, or one that predates `dom`, answers false.
+ */
+const BLANK_PAGE_PROBE = `(() => {
+  try {
+    var i = window.__studio.inspect();
+    if (!i || i.scene || !i.dom || typeof i.dom.empty !== "function") return false;
+    return i.dom.empty() === true;
+  } catch (err) {
+    return false;
+  }
+})()`;
+
+/** The sentence a blank page earns. */
+const BLANK_PAGE_PROBLEM = "the page shows nothing — no text and no visible element, so the build has no first screen";
 
 /**
  * Which surface a frame was actually PHOTOGRAPHED on, as the port reports it — not the one the
@@ -945,6 +967,17 @@ async function proveAndDrive(look: Look): Promise<LookEnd> {
   }
 }
 
+/** A generated build whose page shows nothing has no first screen: canvas draw counts cannot say so. */
+async function flagBlankPage(look: Look): Promise<LookEnd> {
+  const { ctx, h, problems } = look;
+  try {
+    if ((await ctx.call(HostMethod.PreviewEvaluate, { expression: BLANK_PAGE_PROBE, ...h })) === true)
+      problems.push(BLANK_PAGE_PROBLEM);
+  } catch {
+    /* a page that cannot be read is judged by the checks that can read it */
+  }
+}
+
 /** Whether an empty shared base is empty by inspection, and the base's held no-draw sentence. */
 async function inspectEmptyScene(look: Look): Promise<LookEnd> {
   const { baseStage, ctx, h, problems, warnings } = look;
@@ -959,6 +992,7 @@ async function inspectEmptyScene(look: Look): Promise<LookEnd> {
       /* missing inspection never exempts a broken build */
     }
   }
+  if (!baseStage) await flagBlankPage(look);
   // A base that drew nothing: a scaffold with nothing in it is infrastructure and passes with a
   // warning; a base that has content and still drew nothing is broken and says so.
   if (look.noDrawPending) {
@@ -1004,6 +1038,7 @@ async function recordCameraPose(look: Look, camera: string): Promise<void> {
   const { cameraPoses, ctx, h, problems } = look;
   try {
     const pose = await ctx.call(HostMethod.PreviewEvaluate, { expression: CAMERA_POSE_PROBE, ...h });
+    if (pose === "") return;
     if (typeof pose === "string") cameraPoses.set(camera, pose);
     else problems.push(`camera(${camera}) has no valid transform`);
   } catch {
