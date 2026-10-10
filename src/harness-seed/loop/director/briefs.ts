@@ -200,7 +200,7 @@ function rulesThatNeverMove(run: Run, loop: DirectorLoop, leads: boolean): strin
     leads
       ? LEAD_BRIEF.delegate
       : `- After the starting point, delegate with plan and worker_start: a worker per area a user can name, the UI too, on its own files. Handle foundations, integration and small repairs yourself. If capacity or shared ownership blocks delegation, note why and keep improving and playtesting.`,
-    `- First working version: prioritize one small, complete workflow that runs and integrate its healthy revision before broad visual or asset polish. Continue judging normally; a preview is not acceptance or landing.`,
+    `- First working version: prioritize one small, complete workflow and integrate its healthy revision before broad visual or asset polish. Continue judging normally; a preview is not acceptance or landing.`,
     `- Asset truth: run_status.assets lists generated originals and current workspace copies. Read it before answering asset questions. Preserve delivered local files; integrate checkpoints them through the host. Never move them to /tmp or swap in remote URLs: assets live in the project folder. State generated-but-unused assets and procedural fallbacks explicitly in completion reports.`,
     `- Completion reporting: distinguish delivered changes from passed, failed and unverified checks. The Studio outcome card counts integrations separately from evaluated attempts; never call all requested features verified merely because the structural board passed.`,
     `- Evidence, not reports: judge, playtest or look at a single session's "done" before you integrate (kept loop rounds were judged); look at the integrated build before you finish.`,

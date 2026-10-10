@@ -14,7 +14,7 @@
     "js": "(() => { const logs = [...objects('log'), ...objects('log-pile'), ...objects('firewood')]; if (!logs.length) return true; let bad = 0; for (const l of logs) l.traverse(m => { if (m.isMesh && /Sphere|Icosahedron|Dodecahedron|Octahedron/.test(m.geometry?.type ?? '')) bad++; }); return bad === 0; })()",
     "detail": "(() => { const logs = [...objects('log'), ...objects('log-pile'), ...objects('firewood')]; let bad = 0; for (const l of logs) l.traverse(m => { if (m.isMesh && /Sphere|Icosahedron|Dodecahedron|Octahedron/.test(m.geometry?.type ?? '')) bad++; }); return 'logs: ' + logs.length + ', sphere-built log meshes: ' + bad; })()",
     "weight": "normal",
-    "note": "A log is a cylinder with cut ends, never a row of spheres (the village run shipped a \"felled log\" that was six ovoids). a foliage helper you write (for example makeLog/makeLogPile in src/foliage.js)."
+    "note": "A log is a cylinder with cut ends, never a row of spheres (the village run shipped a \"felled log\" that was six ovoids). foliage.js makeLog/makeLogPile."
   },
   "port": "Anything tagged log, log-pile or firewood comes from makeLog / makeLogPile, or from a modelled asset.",
   "evidence": [

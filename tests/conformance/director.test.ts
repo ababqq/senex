@@ -224,7 +224,8 @@ describe("the director's tools and brief", () => {
     assert.match(brief, /THE PLAYBOOK:\n# playbook\nlook first/);
     assert.match(brief, /RULES THAT NEVER MOVE:/);
     // Flipped (golden-goal night, 2026-10-02): one worker per area a player can name, the UI too.
-    assert.match(brief, /delegate with plan and worker_start: a worker per area a player can name, the UI and HUD too/);
+    // Flipped again (software retarget): a user, not a player, and no HUD in a rule every kind reads.
+    assert.match(brief, /delegate with plan and worker_start: a worker per area a user can name, the UI too/);
     assert.match(brief, /Finish once required outcomes are verified; time is a ceiling/);
     assert.match(brief, /\.studio\/DIRECTOR\.md/);
     assert.ok(!brief.includes("YOU WERE RESUMED"));

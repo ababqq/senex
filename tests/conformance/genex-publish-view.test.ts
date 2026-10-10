@@ -112,7 +112,7 @@ test("a running attempt shows its steps: every publish tests the draft before it
   const testing = publishView(state({ slug: "g", job: job({ phase: "verifying-deployment" }) }));
   assert.equal(testing.running, true);
   assert.equal(testing.canPublish, false, "nothing else starts while one runs");
-  assert.equal(testing.phase, "Making sure it plays");
+  assert.equal(testing.phase, "Making sure it works");
   assert.equal(testing.status, "Publishing…");
   assert.deepEqual(
     testing.steps.map((s) => [s.step, s.state]),
@@ -165,7 +165,7 @@ test("a failed attempt is said calmly, its raw error kept only as details for su
   const listedFailed = publishView(
     state({ slug: "g", status: "published", job: job({ state: "failed", phase: "failed", error: "x" }) }),
   );
-  assert.match(listedFailed.failure?.text ?? "", /players still get the version they had/);
+  assert.match(listedFailed.failure?.text ?? "", /people still get the version they had/);
 });
 
 test("an upload whose outcome is unknown offers Check again and the person's own word, never a silent retry", () => {

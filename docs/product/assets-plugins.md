@@ -28,7 +28,7 @@ Marketplace (Coming soon until the catalog has something new) and the plugin gui
 The host draws Genex's app-wide page (shared balance, the tools it routes) and Local Blender's
 runtime card. Connect, unapproved, reuses a saved account or
 opens browser sign-in; setup survives restart and reinstall. Project spend is in the usage panel.
-Enabled Genex suggests assets in planning when the brief calls for media; workers use it once the account is ready. User
+Enabled Genex suggests media assets in planning; workers use it once the account is ready. User
 preferences win; failures and fallbacks are disclosed.
 Genex bundles its MCP with the same account: project/animation search, owned projects and
 generation status. Studio’s host tools handle generation, delivery, credits and publishing,

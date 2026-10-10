@@ -13,7 +13,7 @@
     "kind": "scene",
     "js": "(() => { const ids = (typeof identityTags !== 'undefined' ? identityTags : tags()).filter(t => t !== 'hud'); return ids.length > 0 && ids.every(t => materials(t).length > 0 && materials(t).every(m => m.map || m.userData?.triplanar || m.userData?.asset)); })()",
     "weight": "identity",
-    "note": "Every material on the facet's identity tags has a map (baked by the project's material baker), a triplanar projection, or belongs to a modelled asset (userData.asset, stamped by the project's asset loader — it bakes a map onto any asset material that has none) — a flat MeshStandardMaterial is an untextured box. Replace tags() with the facet's identity tag list in the js."
+    "note": "Every material on the facet's identity tags has a map (baked via src/materials.js), a triplanar projection, or belongs to a modelled asset (userData.asset, stamped by src/assets.js — loadAsset bakes a map onto any asset material that has none) — a flat MeshStandardMaterial is an untextured box. Replace tags() with the facet's identity tag list in the js."
   },
   "port": "The mainOwner bakes shared materials in one material module; every other facet applies one by tag and edits the check to name its own tags.",
   "evidence": [

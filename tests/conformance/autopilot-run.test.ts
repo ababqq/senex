@@ -1062,6 +1062,47 @@ describe("autopilot: a 2-facet run on the fake engine", () => {
     assert.equal(customEvents(events, "facet_iteration").length, 0);
     assert.ok(customEvents(events, "run_iteration").length >= 1, "gauntlet iterations ran instead");
   });
+
+  it("skips the renderer-only optimization stage for a declared page, and keeps it for a graphics project", async () => {
+    const outcomes: Record<string, string> = {};
+    for (const app of [{ kind: "dashboard" }, { kind: "graphics" }]) {
+      const { respond } = makeAutopilotResponder({
+        plan: {
+          facets: [{ id: "whole", title: "Whole project", brief: "just build it", budgetShare: 1 }],
+          app,
+          integrationNotes: "",
+          assumptions: [],
+        },
+      });
+      const rig = await startRig({ respond });
+      rigs.push(rig);
+      const runId = rig.core.newRunId();
+      await rig.core.dispatchRun({
+        runId,
+        goal: "one small project",
+        project: `skip-${app.kind}`,
+        mode: "autopilot",
+        classic: true,
+        reference: { name: "a calm feeling", shots: [], kind: "direction" },
+        budgets: { wallClockMs: 120_000, maxIterations: 1 },
+      });
+      const events = await waitForLog(
+        rig.core,
+        (log) => log.some((e) => e.data.type === "custom" && e.data.event_type === "run_finished"),
+        90_000,
+        `${app.kind} run_finished`,
+      );
+      const stage = customEvents(events, "optimization_updated").at(-1)!;
+      assert.ok(stage, `${app.kind}: the run still publishes a durable optimization outcome`);
+      outcomes[app.kind] = String(stage.summary ?? "");
+    }
+    assert.match(outcomes.dashboard!, /draw calls|renderer/i, "the page says why it was not optimized");
+    assert.doesNotMatch(
+      outcomes.graphics!,
+      /draw calls|renderer is measured/i,
+      "a graphics project is not skipped by kind",
+    );
+  });
 });
 
 /**

@@ -13,7 +13,7 @@
     "kind": "scene",
     "js": "meshes('building').length > 0 && materials('building').every(m => m.map)",
     "weight": "normal",
-    "note": "Buildings carry baked masonry/plaster/wood maps from the project's material baker, never flat colour."
+    "note": "Buildings carry baked masonry/plaster/wood maps from src/materials.js, never flat colour."
   },
   "port": "The buildings facet applies a material kind per building at construction time from the project's material baker; no MeshStandardMaterial with only a colour survives on a building.",
   "evidence": [
