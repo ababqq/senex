@@ -488,7 +488,7 @@ async function landWhatRuns(night: Night): Promise<AnyRecord> {
   if (health.ok === true || judged) return landIntegration(true);
   await decision(
     `the integration branch ${shortSha(head)} did not load at the close (${(health.problems ?? []).join("; ")}) and no judge had passed it — kept unlanded on ${integrationRef}`,
-    "this build did not start when it was checked at the end, so it was not made live — you can still open and play it",
+    "this build did not start when it was checked at the end, so it was not made live — you can still open and use it",
   );
   return notLanded(
     "the integrated build did not load at the close and no judge had passed it",

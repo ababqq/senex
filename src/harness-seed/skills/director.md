@@ -77,7 +77,7 @@ itself and keeps the memory file its brief names current.)
 - **An outcome that needs Genex multiplayer** gets `multiplayer: true` on its part in the first
   `plan`. Before that part is delegated the host checks the project manifest, the SDK install
   capability, an unlocked account and a consented hosted route. A missing prerequisite blocks that
-  goal: report the blocker, keep the playable checkpoint, finish the requirements that do not need
+  goal: report the blocker, keep the last verified checkpoint, finish the requirements that do not need
   it, then pause — never retry without a changed prerequisite, and never spend the rest of the run
   on cosmetics. Readiness is not permission to install or publish, and a local board or protocol
   test never proves hosted online play; only the authorized two-client route does.
@@ -124,20 +124,20 @@ itself and keeps the memory file its brief names current.)
   user could check next to the check that measures it. The harness scores them as the worker's
   identity: a loop worker with no `done` has nothing to finish on and will run out its whole budget.
   `checks` carries the rest; the grammar of every kind is in the tool's own description, and a
-  probe reads `__studio.state()` (`state.contact.speedKept`, or the bare path, plus `delta("…")`).
+  probe reads `__studio.state()` (`state.cart.itemCount`, or the bare path, plus `delta("…")`).
   Prefer mechanical checks; a vision check costs a judge call every round.
 - The move is yours. `move` is the ONE structural change the worker builds first, `milestones` the
   ordered rungs after it — one per accepted build, each a sentence saying what the project IS
   afterwards. Give them and the harness hands the worker your ladder and never invents a move of
   its own; leave them out and its planner names one every round, which once spent five workers on
-  puddles, a wreck-cam and a tow truck nobody had asked for.
+  side features nobody had asked for.
 - Every rung transforms the area: a new system, a layer of depth, a different model, a reworked
   flow — what a user notices in the first minute. "Search filters as you type, sorts by relevance and
   keeps the query in the address so a result can be shared" is a rung; "the button has rounded
   corners" is not, nor a parameter, nor one component's finish. Small fixes are the judge's ledger,
   never your ladder.
 - Size the ladder to the builder. A strong builder lands a rung a round and often the next one
-  with it — a match worker once built most of its ladder in its first round. Give four to six
+  with it — a single worker once built most of its ladder in its first round. Give four to six
   rungs, and add the next big step before a ladder runs out. When a ladder is climbed and you add
   nothing, the worker builds its reviewer's big move (the digest shows it).
 - Measure what changes over a flow (a registered demo) with `delta("…")`, never one frame's snapshot:
@@ -188,7 +188,7 @@ itself and keeps the memory file its brief names current.)
   stopped instead of judged. Always give `why` — that sentence is what the owner reads about
   that round, so "fixing the starting point" beats a blank.
 - A single-session worker's "done" is a claim: `judge target=<id>` (checks, a question, a verdict
-  against `start`) or `look target=<id>` and play it yourself before you `integrate`. A loop
+  against `start`) or `look target=<id>` and use it yourself before you `integrate`. A loop
   worker's kept rounds were already judged: integrate them, and look at the merged build.
 - USER SAYS outranks your plan. Acknowledge with a `note`, act, and say so in the next note.
 
@@ -208,7 +208,7 @@ itself and keeps the memory file its brief names current.)
   resolve it in your worktree keeping both sides' work, then commit.
 - After the last merge: `judge target=integration against=start` and a `playtest` for what only
   use can tell (reachable? works? stuck? what happens on a mistake?). Then `show target=integration`: Live's Reload offers
-  it, and the user plays it when they press it (Live never changes under them).
+  it, and the user opens it when they press it (Live never changes under them).
 - A conflict is never resolved by dropping a worker's module. Nothing a worker registered may go
   missing: every flow, view and tagged element in its worktree is in the merged build — look for
   them before you integrate a resolved conflict.

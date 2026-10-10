@@ -7,8 +7,8 @@ body>p:first-of-type{margin:0 0 20px;max-width:62ch;color:var(--muted);font-size
 #controls{display:flex;flex-wrap:wrap;gap:8px}
 button{min-height:32px;margin:0;padding:6px 14px;border:0;border-radius:11px;background:var(--soft);color:var(--fg);font:13px/1.4 ui-monospace,"SF Mono",Menlo,monospace;letter-spacing:-.02em;cursor:pointer;transition:background-color .15s ease-out}
 button:is(:hover,:focus-visible):not(:disabled){background:var(--hover);outline:none}
-button[aria-label="Publish this game on Genex"]{background:var(--fill);color:#fff}
-button[aria-label="Publish this game on Genex"]:is(:hover,:focus-visible):not(:disabled){background:color-mix(in oklab,var(--fill) 88%,#fff)}
+button[aria-label="Publish this project on Genex"]{background:var(--fill);color:#fff}
+button[aria-label="Publish this project on Genex"]:is(:hover,:focus-visible):not(:disabled){background:color-mix(in oklab,var(--fill) 88%,#fff)}
 button:disabled{opacity:.5;cursor:default}
 #phase:not(:empty){margin:16px 0 0;color:var(--accent);font-size:13px}
 #status{margin-top:20px;border-top:1px solid var(--line)}
@@ -18,7 +18,7 @@ button:disabled{opacity:.5;cursor:default}
 #error:not(:empty){margin:12px 0 0;font-size:13px}
 a{color:var(--accent)}
 @media (prefers-reduced-motion:reduce){button{transition:none}}
-</style><h2>Publish to Genex</h2><p>Studio exports a public copy of this game and uploads that copy. Your game folder is never changed and never carries the hosted project link.</p><div id="controls"></div><p id="phase"></p><div id="status">Loading…</div><p id="error" role="alert"></p><script>// Include this in a prebuilt panel. No credential values or arbitrary IPC are exposed.
+</style><h2>Publish to Genex</h2><p>Studio exports a public copy of this project and uploads that copy. Your project folder is never changed and never carries the hosted project link.</p><div id="controls"></div><p id="phase"></p><div id="status">Loading…</div><p id="error" role="alert"></p><script>// Include this in a prebuilt panel. No credential values or arbitrary IPC are exposed.
 const waiting=new Map();let seq=0;
 window.addEventListener('message',event=>{
   if(event.source!==parent||event.data?.type!=='studio-plugin-result')return;
@@ -39,7 +39,7 @@ studioPlugin.call('context').then(c=>{const t=c?.theme,root=document.documentEle
 const controls=document.querySelector('#controls'),status=document.querySelector('#status'),phase=document.querySelector('#phase'),error=document.querySelector('#error');
 const ui=studioPlugin.ui;
 const call=(name,args={})=>studioPlugin.call('action',name,args);
-const PHASES={checking:'Checking this game',exporting:'Exporting a public copy',"creating-project":'Creating the hosted Genex game',uploading:'Uploading to the draft page',promoting:'Making it the public version',listing:'Uploading and making it public',done:'Finished',failed:'Upload failed','verifying-deployment':'Uploaded · Checking playable files',ready:'Ready to play',unresolved:'Uploaded · Still checking availability'};
+const PHASES={checking:'Checking this project',exporting:'Exporting a public copy',"creating-project":'Creating the hosted Genex project',uploading:'Uploading to the draft page',promoting:'Making it the public version',listing:'Uploading and making it public',done:'Finished',failed:'Upload failed','verifying-deployment':'Uploaded · Checking playable files',ready:'Ready to play',unresolved:'Uploaded · Still checking availability'};
 let running=false,timer;
 const button=(label,ariaLabel,disabled,onclick)=>{const b=document.createElement('button');b.type='button';b.textContent=label;b.ariaLabel=ariaLabel;b.disabled=!!disabled;b.onclick=onclick;controls.append(b);return b;};
 
@@ -60,7 +60,7 @@ function renderStatus(state,job){
   status.dataset.connected=String(state.connected===true);
   status.replaceChildren(
     ui.status('Genex account',state.connected?'Connected':'Not connected'),
-    ui.status('This game',gameText(state)),
+    ui.status('This project',gameText(state)),
     ui.status('Draft page',state.draftUrl??'None yet'),
     ui.status('Gallery page',listed(state)?(state.galleryUrl??'None yet'):'Not listed'),
     ui.status('Last upload',state.lastPreviewAt??'Never'));
@@ -81,8 +81,8 @@ function renderControls(state,job,live){
   if(unresolved)button('I checked — allow a new upload','Allow a new upload after checking the deployment page',false,()=>act('publish-allow-upload',{jobId:job.id}));
   if(termsPending(state))button('Review Genex terms','Review Genex terms',false,()=>act('terms'));
   // Publishing updates the draft and makes that build public in one press; a draft alone stays available for test builds.
-  button(listed(state)?'Update the public version':'Publish','Publish this game on Genex',!state.connected||live,()=>act('publish-gallery'));
-  button(state.slug?'Update the draft only':'Put a draft online','Put this game online as a draft',!state.connected||live,()=>act('publish-draft'));
+  button(listed(state)?'Update the public version':'Publish','Publish this project on Genex',!state.connected||live,()=>act('publish-gallery'));
+  button(state.slug?'Update the draft only':'Put a draft online','Put this project online as a draft',!state.connected||live,()=>act('publish-draft'));
   openButtons(state,job);
 }
 function openButtons(state,job){

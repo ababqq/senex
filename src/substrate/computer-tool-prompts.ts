@@ -36,14 +36,14 @@ export function computerToolDescription(options: {
     "left_click | right_click | middle_click | double_click | triple_click coordinate=x,y (text=shift|ctrl+alt holds modifiers). " +
     "left_click_drag start_coordinate=x,y coordinate=x,y. mouse_move coordinate=x,y. left_mouse_down / left_mouse_up. " +
     "scroll scroll_direction=up|down|left|right scroll_amount=<notches> [coordinate=x,y]. " +
-    "type text=<literal text>. key text=<a key or +chord: w, i, Return, Escape, space, ctrl+s> [repeat=n]. hold_key text=w duration=<seconds> (walks, grinds). " +
+    "type text=<literal text>. key text=<a key or +chord: Tab, Return, Escape, space, ctrl+s, w> [repeat=n]. hold_key text=<key> duration=<seconds> (a key held down: an arrow to scrub, w to walk in a 3D view). " +
     "wait duration=<seconds>. cursor_position. " +
     `camera text=<name>: jump to a named view the project registered (default is the page as it loads).${options.cameras} ` +
     "state: the project's own __studio.state() numbers (a claim — a screenshot is the proof). console: errors since load." +
     reload +
     " screenshot, camera and zoom take surface=screen|canvas: screen is the whole page — a DOM menu, an HTML HUD, a loading screen — and canvas is only what the project draws. Leave it out and the studio picks. " +
     `Coordinates are pixels of the last screenshot, origin top-left. ${clock} ` +
-    "Menus, map pickers and mode switches are reached the way a player reaches them: click or press the key, then screenshot to see that you are where you think you are."
+    "Menus, pickers and mode switches are reached the way a person reaches them: click or press the key, then screenshot to see that you are where you think you are."
   );
 }
 

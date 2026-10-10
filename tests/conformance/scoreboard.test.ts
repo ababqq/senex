@@ -1583,10 +1583,10 @@ describe("technique library", () => {
     assert.match(text, /Work identity checks first: mirror-rt/);
   });
 
-  it("names the template's own modules in THE FIX only to a worker inside the template", () => {
-    // M4.6 gates every template-specific rule on `template`. THE FIX kept naming foliage.js and
-    // materials.js to a project the user brought, where neither module exists and the worker's seam
-    // forbids creating them at those paths — a round spent looking for files that are not there.
+  it("gives THE FIX its 3D advice only to a project that draws a scene, and names no template module", () => {
+    // THE FIX used to name foliage.js and materials.js: modules the template no longer ships, which a
+    // worker then spent a round looking for. It also gave trees, hay and floating things to a
+    // dashboard or a form. The advice now follows the kind the run declared.
     const args = {
       run: { runId: "r", goal: "g" },
       spec: { id: "trees", title: "Trees", intent: "a wood", checks: [] },
@@ -1595,15 +1595,25 @@ describe("technique library", () => {
       comparison: null,
       fix: { what: "[blob] the trees are grey faceted balls on posts — camA", streak: 2, mandatory: true },
     };
-    const template = String(renderBrief({ ...args, template: true } as never));
-    assert.match(template, /rebuilt from cards or parts \(`foliage\.js`\)/);
-    assert.match(template, /a baked material kind \(`materials\.js`\)/);
+    const page = String(renderBrief({ ...args, template: true } as never));
+    assert.match(page, /## THE FIX this iteration \(mandatory/);
+    assert.match(page, /Replace the mechanism behind it, do not tune it\./);
+    assert.match(page, /A layout that reads wrong is rebuilt/);
+    assert.doesNotMatch(page, /foliage\.js|materials\.js/, "the template ships neither module");
+    assert.doesNotMatch(page, /a tree, a bush, hay, an animal/, "a page is not told to build trees");
 
-    const own = String(renderBrief({ ...args, template: false, screen: false } as never));
+    const own = String(
+      renderBrief({
+        ...args,
+        run: { runId: "r", goal: "g", app: { kind: "graphics" } },
+        template: false,
+        screen: false,
+      } as never),
+    );
     assert.match(own, /## THE FIX this iteration \(mandatory/);
     assert.match(own, /Replace the mechanism behind it, do not tune it\./);
-    assert.doesNotMatch(own, /foliage\.js/, "the studio template's modules are not in this project");
-    assert.doesNotMatch(own, /materials\.js/);
+    assert.doesNotMatch(own, /foliage\.js|materials\.js/, "the studio template's modules are not in this project");
+    assert.doesNotMatch(own, /A layout that reads wrong is rebuilt/, "a scene is not told to rebuild a layout");
     assert.match(own, /the way this project already builds its objects/);
     assert.match(own, /a material this project's renderer can bake/);
     // The rules below it are the own-shape ones, so the whole brief speaks about one project.
@@ -1617,7 +1627,7 @@ describe("technique library", () => {
         ...args,
         template: false,
         screen: false,
-        run: { runId: "r", goal: "g", blender: { version: "5.2.1" } },
+        run: { runId: "r", goal: "g", app: { kind: "graphics" }, blender: { version: "5.2.1" } },
       } as never),
     );
     assert.doesNotMatch(modelled, /blender/i, "old runtime metadata cannot inject a disabled tool");

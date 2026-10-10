@@ -147,7 +147,7 @@ test("an empty base is reported as infrastructure, not a validated project", () 
     [],
     null,
   )!;
-  assert.match(buildProgress(graph).health, /no scenery or interaction yet/);
+  assert.match(buildProgress(graph).health, /no content or interaction yet/);
 });
 
 test("the final Optimization stage does not announce another creative build", async () => {

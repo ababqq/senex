@@ -206,7 +206,7 @@ function StepRows({
             ["round", String(node.iteration)],
             ["verdict by", node.verdictSource],
             ["merged", mergeLine(node.merge)],
-            ["cameras", listOrNull(node.shots.map((shot) => shot.camera))],
+            ["views", listOrNull(node.shots.map((shot) => shot.camera))],
             ["model", modelLine(run.engine, run.model)],
             ["flags", listOrNull(node.flags.map((flag) => flag.what))],
             ["outage", outageLine(node.outage)],
@@ -278,7 +278,7 @@ function StepView(props: StepPanelProps & { node: IterationNode; onPick: (at: nu
       path: shot.path,
       src: null,
       title: `${step.name} · try ${n}`,
-      caption: `camera: ${shot.camera}`,
+      caption: `view: ${shot.camera}`,
     }));
     props.onLight(
       items,

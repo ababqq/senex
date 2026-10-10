@@ -70,11 +70,11 @@ export const tools: HarnessTool[] = [
   {
     name: "screenshot",
     description:
-      "Capture what the project looks like right now. You will see the picture on the next round — a path is not a picture. Pass a camera name to compare like with like across builds.",
+      "Capture what the project looks like right now. You will see the picture on the next round — a path is not a picture. Pass a view name (the camera argument) to compare like with like across builds.",
     parameters: {
       type: "object",
       properties: {
-        camera: str("named debug camera, e.g. default/top/close/wide"),
+        camera: str("optional view name, e.g. default, empty, settings"),
         label: str("file label when saving into a run"),
         runId: str("run id, when this shot belongs to a gauntlet iteration"),
       },
@@ -105,7 +105,7 @@ export const tools: HarnessTool[] = [
         keys: {
           type: "array",
           items: { type: "string" },
-          description: 'keys to press, e.g. ["w"] or ["shift","space"]',
+          description: 'keys to press, e.g. ["Tab"] or ["ctrl","z"]',
         },
         key: str("single key, if not using keys[]"),
         holdMs: { type: "number", description: "how long to hold, default 400" },
@@ -113,7 +113,7 @@ export const tools: HarnessTool[] = [
     },
     async execute(args, ctx) {
       const keys = keysToPress(args);
-      if (!keys.length) return { ok: false, content: 'press_keys needs keys: ["w"] (or key: "w").' };
+      if (!keys.length) return { ok: false, content: 'press_keys needs keys: ["Tab"] (or key: "Tab").' };
       await ctx.call(HostMethod.PreviewCall, { method: PageMethod.Start });
       await ctx.call(HostMethod.PreviewInput, {
         actions: [{ type: "hold", keys, ms: args.holdMs ?? HOLD_DEFAULT_MS }],
@@ -147,7 +147,8 @@ export const tools: HarnessTool[] = [
 
   {
     name: "look",
-    description: "Mouse-look in the project preview (dx/dy in pixels). Positive dx looks right, negative dy looks up.",
+    description:
+      "Mouse-look in a canvas or 3D project that turns its view with the mouse (dx/dy in pixels); a page of DOM ignores it, so use click, scroll and press_keys there. Positive dx looks right, negative dy looks up.",
     parameters: {
       type: "object",
       properties: {
@@ -169,7 +170,7 @@ export const tools: HarnessTool[] = [
   {
     name: "project_state",
     description:
-      "Read window.__studio.state() — score, phase, entity counts, fps, and any probes the project exposes. The structural half of judging.",
+      "Read window.__studio.state() — the probes the project exposes (items, selection, route), what the page counted people doing to it in ui (clicks, typing, navigation, errors) and, for a canvas project, fps. The structural half of judging.",
     parameters: { type: "object", properties: {} },
     async execute(_args, ctx) {
       const state = await ctx.call(HostMethod.PreviewState, {});
@@ -190,7 +191,7 @@ export const tools: HarnessTool[] = [
         script: {
           type: "array",
           description:
-            "optional controls after seed. e.g. [{type:'hold', keys:['w'], ms:2000}, {type:'look', dx:40}, {type:'tap', keys:['space']}, {type:'screenshot', camera:'close'}]",
+            "optional controls after seed. e.g. [{type:'click', x:0.5, y:0.4}, {type:'type', text:'Ada'}, {type:'press', combo:'Tab'}, {type:'screenshot', camera:'default'}]; a canvas project can also take {type:'hold', keys:['w'], ms:2000} and {type:'look', dx:40}",
         },
       },
       required: ["seed"],

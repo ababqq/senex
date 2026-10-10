@@ -40,7 +40,7 @@ const MESSAGE = {
   alreadyBuilding: (project: string) =>
     `A build is already running for **${project}** — nothing new was started. Ask here about the one that is running, or stop it first.`,
   engineExport: (name: string | undefined) =>
-    `${name} was exported from a project engine, so the studio cannot edit or judge it — it can only open it, play it and take screenshots. Open the folder with the project's own scenes and scripts, and start the build there.`,
+    `${name} was exported from a game engine, so the studio cannot edit or judge it — it can only open it, play it and take screenshots. Open the folder with the project's own scenes and scripts, and start the build there.`,
   stoppedBeforeStart: "Stopped before the build started — nothing was built.",
   notReady: (name: string, missing: readonly string[]) =>
     `${name} is not ready for a run: ${missing.join("; ")}. Fix that first (a chat build can), then start again.`,

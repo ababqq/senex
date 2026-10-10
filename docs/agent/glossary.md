@@ -86,7 +86,7 @@ is product copy, not this glossary.
   runs, its own worktree (`loop/spec.ts`, `loop/facet-loop.ts`).
 - **Contractor**: the persistent builder session that writes project code for a facet or turn
   (`loop/facet-loop.ts`, `loop/turn-loop.ts`; its page is `src/project-template/CLAUDE.md`).
-- **Spike**: a throwaway mini-scene built in isolation when an identity check keeps failing;
+- **Spike**: a throwaway mini-page built in isolation when an identity check keeps failing;
   a passing spike becomes a recipe in the technique library (`loop/spike.ts`, `library/`).
 - **Judge**: a fresh-context model that compares candidates blind and names defects, never a
   score (`loop/judge.ts`, prompts in `judge/`). The app calls it a reviewer; the harness and its
@@ -115,9 +115,13 @@ is product copy, not this glossary.
 
 ## Data and profiles
 
-- **Project / project**: "project" in the UI; "project" in code, the project folder's name used as the
-  `project` parameter (`src/substrate/project-workspace.ts` `ProjectWorkspaces`,
-  `src/shared/project-library.ts`).
+- **Project**: what a person builds, a local web project folder; its name is the `project` parameter
+  (`src/substrate/project-workspace.ts` `ProjectWorkspaces`, `src/shared/project-library.ts`). Spellings
+  persisted before the rename stay `game` and are never migrated: the thread kind, permission-rule and
+  snapshot scopes, snapshot refs, `library/games/`, `workspaces/games/` and `games-root.json`.
+- **App kind**: what a project is (dashboard, form-flow, list-manager, content-site, editor, data-viz,
+  utility, graphics), declared by the plan, the scout or `studio.json`'s nested `project` block
+  (`loop/kinds.ts`). Not `ProjectKind`, which is how a folder runs (`three-vite`, `own-script`, …).
 - **Thread / conversation**: the same thing. APIs say `threadId`; the event store stores
   `conversations/<id>/events` (`src/substrate/event-store.ts`); the UI says chat.
 - **Fixture profile**: a disposable `studio:dev` profile with scripted engines and native

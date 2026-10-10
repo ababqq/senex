@@ -70,7 +70,7 @@ import { setTimeout as delay } from "node:timers/promises";
 /** What the preview's console tells the agent about the project view, and why a call is refused. */
 const MESSAGE = {
   renderGone: (reason: string) => `render process gone: ${reason}`,
-  unresponsive: "project loop is unresponsive",
+  unresponsive: "the page is unresponsive",
   blocked: (what: string) => `the studio blocked ${what}: projects run offline in the preview`,
   pageSurfaceFallback: (reason: string | null) =>
     `the page surface could not be photographed${reason === null ? "" : ` (${reason})`}; the canvas was photographed instead`,

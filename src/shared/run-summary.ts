@@ -408,7 +408,7 @@ const readInteractionEvidence: RecordReader = (run, { event, event_type, payload
     id: event.id,
     head: string(payload.head),
     category: "interaction",
-    label: string(payload.label) ?? "Independent playtest",
+    label: string(payload.label) ?? "Independent test",
     status: INTERACTION_STATUSES.has(payload.status) ? payload.status : "unknown",
     note: string(payload.note),
     source: string(payload.source) ?? event_type,

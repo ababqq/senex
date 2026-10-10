@@ -402,7 +402,7 @@ gl_FragColor=vec4(clamp(o,0.0,1.0),edge);
 const TOOL_PALETTES = [...new Set(COVER_LOOKS.map(([, palette]) => palette))];
 /** Genre hints per family, as the builder reads them. Model-facing. */
 const FAMILY_HINTS =
-  "Clouds suit cozy/casual/adventure; aurora night/sci-fi/magic; bands space/arcade; marble puzzle/strategy; ember action/horror/fantasy; ocean open world/survival; orbital science/physics; bricks building/sandbox/kids; plasma sci-fi/energy; pixel retro/platformer; caustic water/fishing/beach; tempest action/weather/racing; nimbus calm/zen; terminal hacking/text/coding; voxel crafting/survival; meadow exploration/dreamlike; galaxy space/exploration; thermal stealth/horror/detective.";
+  "Clouds suit cozy/casual/adventure; aurora night/sci-fi/magic; bands space/arcade; marble puzzle/strategy; ember action/horror/fantasy; ocean open world/survival; orbital science/physics; bricks building/sandbox/kids; plasma sci-fi/energy; pixel retro/platformer; caustic water/fishing/beach; tempest action/weather/racing; nimbus calm/zen; terminal hacking/text/coding; voxel crafting/survival; meadow exploration/dreamlike; galaxy space/exploration; thermal stealth/horror/detective. For software: nimbus calm/notes/wellness; terminal developer tools/data/coding; bands analytics/dashboards/finance; marble planning/productivity; clouds personal/lifestyle; orbital science/data visualisation.";
 /** Enums in the schema, no shader code: about thirty tokens of output for a whole cover. */
 export const COVER_TOOL = {
   name: "set_project_cover",

@@ -72,7 +72,7 @@ export function briefWithMovedSections(
           `- Run \`${build}\` before you finish: the studio runs the same build before every preview, and a build that fails is a black screen for every critic.`,
         ]
       : []),
-    `- If this facet is behavioural (an interaction, a move, a beat), expose a deterministic demo of it via the studio contract (config.demos in installStudio) — demo checks run it and photograph its end frame.`,
+    `- If this facet is behavioural (an interaction, a workflow, a transition), expose a deterministic demo of it via the studio contract (config.demos in installStudio) — demo checks run it and photograph its end frame.`,
   ];
   const header = "## Rules that do not change";
   return body.includes(header)
@@ -284,7 +284,7 @@ function promptInput({
     pointsAtBrief: Boolean(briefFile) && briefText === null,
     steering: cappedSteering(userSteering),
     failureText: lastFailure ? cappedFailure(lastFailure) : null,
-    moveLine: [moveAsk(move), fixAsk(fix)].filter(Boolean).join("\n"),
+    moveLine: [moveAsk(move), fixAsk(fix, drawsScene(rest.run?.app))].filter(Boolean).join("\n"),
     briefPointer: briefFile
       ? `READ ${briefFile} FIRST — it is this iteration's brief: the checks (your contract), the scoreboard, the attempts that lost, and the recipes that apply.`
       : "",
@@ -300,16 +300,16 @@ function moveAsk(move: AnyRecord | null): string {
   const lead = move.mandatory ? "A build that only tunes what already exists LOSES; make" : "Make";
   const escalate =
     move.polishStreak >= 2 ? ` ESCALATE: your last ${move.polishStreak} accepted builds were polish only.` : "";
-  return `THE MOVE THIS ITERATION (${move.mandatory ? "mandatory" : "asked for"}): ${move.what}${measured}. ${lead} the move first — the whole step, boldly, so a player notices it in the first minute — then fix up to three ledger items.${escalate}`;
+  return `THE MOVE THIS ITERATION (${move.mandatory ? "mandatory" : "asked for"}): ${move.what}${measured}. ${lead} the move first — the whole step, boldly, so a user notices it in the first minute — then fix up to three ledger items.${escalate}`;
 }
 
 /** THE FIX this iteration names, and how many more namings make it mandatory. */
-function fixAsk(fix: AnyRecord | null): string {
+function fixAsk(fix: AnyRecord | null, scene: boolean): string {
   if (!fix?.what) return "";
   const weight = fix.mandatory
     ? "mandatory — a build that leaves it LOSES"
     : "the judge has named it " + fix.streak + " times; next time it is mandatory";
-  return `THE FIX THIS ITERATION (${weight}): ${fix.what}${fix.checkId ? ` — measured by check ${fix.checkId}` : ""}. Replace the mechanism, do not tune it: if it is a shape, rebuild the shape; if it is a material, change the material kind (foliage.js for anything leafy).`;
+  return `THE FIX THIS ITERATION (${weight}): ${fix.what}${fix.checkId ? ` — measured by check ${fix.checkId}` : ""}. Replace the mechanism, do not tune it: ${scene ? "if it is a shape, rebuild the shape; if it is a material, give it a material kind this project's renderer can bake." : "if it is a layout, rebuild the layout; if it is a component, replace it rather than patching its styles."}`;
 }
 
 /** The board's failing entries and the ones nobody could measure. */
@@ -622,7 +622,7 @@ function imageLines({ acceptedShots, iteration, imagesAttached, pointsAtBrief }:
     `LOOK AT IMAGES BEFORE YOU CODE:`,
     ...(imagesAttached
       ? [
-          `- ${imagesAttached} images are ATTACHED to this message: the reference stills${attached}. They are the visual bar — materials, light, silhouette, palette.`,
+          `- ${imagesAttached} images are ATTACHED to this message: the reference stills${attached}. They are the visual bar — layout, hierarchy, type, spacing and colour (for a 3D scene: materials, light, silhouette).`,
         ]
       : []),
     ...(acceptedShots.length
@@ -642,7 +642,7 @@ function setupLine(setup: AnyRecord): string {
   const how = setup.note ?? (setup.demo ? `demo "${setup.demo}"` : `${(setup.actions ?? []).length} input action(s)`);
   const equals = setup.verify && "equals" in setup.verify ? ` == ${JSON.stringify(setup.verify.equals)}` : "";
   const verified = setup.verify ? `, verified by ${setup.verify.path}${equals}` : "";
-  return `THE REQUESTED STATE: the window opens on the state this run is about — the studio replays a setup script after every load (${how})${verified}. Every judge, every capture and the check "requested-state" look there, not at the boot screen. If a capture or screenshot says the state was not reached, that is the first thing to fix — the way a player reaches it, not by changing what the project boots into.`;
+  return `THE REQUESTED STATE: the window opens on the state this run is about — the studio replays a setup script after every load (${how})${verified}. Every judge, every capture and the check "requested-state" look there, not at the boot screen. If a capture or screenshot says the state was not reached, that is the first thing to fix — the way a user reaches it, not by changing what the project boots into.`;
 }
 
 /** The demo ask, the builder's hands and eyes, and what to check before finishing. */
@@ -652,7 +652,7 @@ function closingLines({ run, worktree, pointsAtBrief }: PromptInput): string[] {
       ? []
       : [
           "",
-          `If this facet is behavioural (an interaction, a move, a beat), expose a deterministic demo of it via the studio contract (config.demos in installStudio) — demo checks run it and photograph its end frame.`,
+          `If this facet is behavioural (an interaction, a workflow, a transition), expose a deterministic demo of it via the studio contract (config.demos in installStudio) — demo checks run it and photograph its end frame.`,
         ]),
     ...(worktree
       ? [

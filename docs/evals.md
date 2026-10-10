@@ -186,7 +186,9 @@ malformed case throws `CaseFileError` naming the case and field.
 
 Pinned: C1 `medieval-village` (dev-tuned: the seed was iterated on village runs), C2 `shooter`,
 C3 `mini-golf`, C5 `vague-brief` and C8 `canary` (no checklist; its verdict is machine-only).
-C9 `edit-existing`, C10 `follow-up` and C11 `long-horizon` are drafts the owner pins before a
+C9 `edit-existing`, C10 `follow-up`, C11 `long-horizon` and the software set (C12 `sales-dashboard`,
+C13 `class-signup`, C14 `habit-tracker`, C15 `hiking-club-site`, C16 `bill-splitter`) are drafts the
+owner pins before a
 first baseline. Private holdouts live in `$GENEX_EVALS_HOME/cases-private.md`, every case
 marked holdout; holdout rows never enter Git or an export.
 
@@ -593,6 +595,12 @@ five-minute rows read `unknown`); both set `STUDIO_BROWSER_TESTS=1`.
   report, or compare each against its raw lane on the product axis.
 - Edit-existing, follow-up and long-horizon cases run as plain builds: no start-folder seeding or
   follow-up turns yet.
+- The prober and the calibration fixtures are canvas-shaped. Boot is the first non-flat frame of the
+  largest visible `<canvas>` (a page with none fails `l1.builds_and_boots`), no frame is written before
+  that draw, the "page ran" precondition needs animation frames, and the input bursts are movement
+  keys, Space and a drag. A page that is all DOM, which is what the software cases C12–C16 build,
+  therefore fails L1, has no witnessed frames and is never judged (`scoreAllRuns` 0); those drafts
+  wait for a DOM boot path, a new `PROBER_VERSION` and a green `calibrate --live`.
 - The prober writes PNG frames and no video; pairwise rows are never published.
 - Field rows count tool calls in total only (`byCategory` is empty).
 - The lane root keeps the evals home out of an agent's casual listing, not out of reach: its

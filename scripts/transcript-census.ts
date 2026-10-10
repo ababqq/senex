@@ -50,7 +50,7 @@ export const ROLE_LITERALS = [
   ["worker:integrator", "You are the integrator for Autopilot run"],
   ["worker:spike", "You are building a SPIKE"],
   ["coordinator:intake", "You are the studio's intake interviewer for an"],
-  ["playtester", "You are a playtester"],
+  ["playtester", "You are a usability tester"],
   ["planner:replan", "You are the planner of an Autopilot run"],
   ["judge:blind-compare", "You are judging two builds of the same project against a quality bar"],
   ["judge:facet-compare", "You are judging ONE FACET of two builds"],
@@ -91,6 +91,9 @@ export const COMPLETION_ROLES: readonly string[] = [
   "ledger:lessons",
 ];
 
+/** Opening sentences the harness wrote before the retarget; transcripts recorded then still carry them. */
+const LEGACY_ROLE_LITERALS: ReadonlyArray<readonly [ClassifiedRole, string]> = [["playtester", "You are a playtester"]];
+
 export type ClassifiedRole = (typeof ROLE_LITERALS)[number][0];
 export type Role = ClassifiedRole | "other";
 export const ROLE_NAMES: readonly Role[] = [...ROLE_LITERALS.map(([role]) => role), "other"];
@@ -99,7 +102,7 @@ export const ROLE_NAMES: readonly Role[] = [...ROLE_LITERALS.map(([role]) => rol
 export function classifyBrief(brief: string | null | undefined): Role {
   const head = (brief ?? "").trimStart().slice(0, 400);
   if (!head) return "other";
-  for (const [role, literal] of ROLE_LITERALS) if (head.startsWith(literal)) return role;
+  for (const [role, literal] of [...ROLE_LITERALS, ...LEGACY_ROLE_LITERALS]) if (head.startsWith(literal)) return role;
   return "other";
 }
 

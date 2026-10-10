@@ -495,6 +495,16 @@ export function drawsScene(app: AnyRecord | null | undefined): boolean {
   return normalizeAppTraits(app).kind === "graphics";
 }
 
+/**
+ * Whether the final optimization stage has a renderer to measure. It compares draw calls and
+ * triangles, which only a graphics project has; a run that declared no kind keeps the stage, as it
+ * did before kinds existed.
+ */
+export function measuresRenderer(app: AnyRecord | null | undefined): boolean {
+  const kind = normalizeAppTraits(app).kind;
+  return kind === null || kind === "graphics";
+}
+
 /** `place` for a world a person moves through, `screen` for software that is a screen to read and operate. */
 export function criticFor(app: AnyRecord | null | undefined): string {
   const kind = normalizeAppTraits(app).kind;

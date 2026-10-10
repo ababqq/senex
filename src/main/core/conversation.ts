@@ -725,7 +725,7 @@ export class ConversationService {
     if (elsewhere) return OTHER_PROJECT_IN_LIVE;
     if (!loads) {
       const offered = await this.#core.offerBuild(project, commit);
-      return `Live was left as the person has it: the Reload button on the stage now offers this build (${offered.slice(0, SHORT_COMMIT)}) and plays it when they press it. The project folder is unchanged. Tell the user it is ready to play with Reload.`;
+      return `Live was left as the person has it: the Reload button on the stage now offers this build (${offered.slice(0, SHORT_COMMIT)}) and shows it when they press it. The project folder is unchanged. Tell the user it is ready to use with Reload.`;
     }
     const shown = await this.#core.showBuild(project, commit);
     this.#core.emit(UiEvent.StageShow, { project, view: "live" });

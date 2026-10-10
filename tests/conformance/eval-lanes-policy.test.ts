@@ -69,7 +69,7 @@ describe("instruction texts", () => {
   it("renders the shared suffix with the case's minutes and the answer policy's sentence", () => {
     assert.equal(
       instructionSuffix(90),
-      "You have about 90 minutes. Get a playable version working early, then keep improving it until the brief is fully met or time runs out. Nobody will answer questions; make reasonable assumptions and continue.",
+      "You have about 90 minutes. Get a working version running early, then keep improving it until the brief is fully met or time runs out. Nobody will answer questions; make reasonable assumptions and continue.",
     );
     assert.ok(instructionSuffix(45).endsWith(answerText(AnswerPolicy.NoAnswers)));
     for (const bad of [0, -5, 1.5, Number.NaN]) assert.throws(() => instructionSuffix(bad), RangeError);

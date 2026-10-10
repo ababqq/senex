@@ -44,7 +44,7 @@ export function instructionSuffix(deadlineMin: number, policy: AnswerPolicy = AN
     throw new RangeError("deadlineMin must be a positive integer");
   return [
     `You have about ${deadlineMin} minutes.`,
-    "Get a playable version working early, then keep improving it until the brief is fully met or time runs out.",
+    "Get a working version running early, then keep improving it until the brief is fully met or time runs out.",
     answerText(policy),
   ].join(" ");
 }

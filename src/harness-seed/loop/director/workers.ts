@@ -599,7 +599,7 @@ function doneArg(value: unknown): { value: any[] | null; error?: undefined } | {
   if (done.error !== undefined) return done;
   if (done.value?.some((entry: AnyRecord | null) => !isDoneEntry(entry)))
     return {
-      error: `done: every entry is {"what":"one sentence a player could check","check":{…}} — the sentence says what the work is, the check measures it`,
+      error: `done: every entry is {"what":"one sentence a user could check","check":{…}} — the sentence says what the work is, the check measures it`,
     };
   if (done.value && done.value.length > MAX_DONE)
     return { error: `done: ${done.value.length} entries — keep it to ${MAX_DONE}; the rest are checks` };

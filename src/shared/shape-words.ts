@@ -16,7 +16,7 @@ const KINDS: Record<ProjectKind, { phrase: string; chip: string }> = {
   "three-modules": { phrase: "a 3D project that runs as written", chip: "3D · runs as written" },
   canvas2d: { phrase: "a 2D canvas project", chip: "2D canvas" },
   phaser: { phrase: "a Phaser project", chip: "Phaser" },
-  "engine-export": { phrase: "a project exported from a project engine", chip: "engine export" },
+  "engine-export": { phrase: "a project exported from a game engine", chip: "engine export" },
   "own-script": { phrase: "a project with its own scripts", chip: "own scripts" },
 };
 
@@ -48,7 +48,7 @@ export function openedWords(title: string, shape: ProjectShape): string {
  * harness refuses the night in its own words (`loop/main.ts` `nightRefusal`).
  */
 export const ENGINE_EXPORT_REFUSAL =
-  "This project was exported from a project engine. Genex can open it, play it and take screenshots — it cannot edit or judge a project that is already compiled. To have builders work on it, open the folder with the project's own scenes and scripts.";
+  "This project was exported from a game engine. Genex can open it, play it and take screenshots — it cannot edit or judge a project that is already compiled. To have builders work on it, open the folder with the project's own scenes and scripts.";
 
 /** Whether an overnight build can be started on this shape at all. */
 export function canBuildOvernight(kind: ProjectKind): boolean {

@@ -674,7 +674,7 @@ judges it unless stopped (`judgeTheLanding`), and lands when the head moved beyo
 loaded or a judge passed that sha.
 `report.landingResult` records `verified`, a `how` token and the morning card's `line`. A landing
 blocked by commits (`could-not-land`) or uncommitted changes (`uncommitted-changes`) in the project
-folder waits for **Make it live** (`landBuild`); **Play this build** is `showBuild`
+folder waits for **Make it live** (`landBuild`); **Open this build** is `showBuild`
 ([feature map](feature-map.md)). A stopped round is committed
 to its `-stopped` ref and recorded `facet_stopped` with no verdict and no rollback.
 
@@ -707,9 +707,8 @@ decided in [`src/substrate/project-shape.ts`](../../src/substrate/project-shape.
 evidence — every `<script src>`, `package.json`, the bundler config, engine runtime files — never by
 the entry filename, and recorded in `studio.json` on first open: `main`, `build`, `serve`, `kind`
 (`three-vite`, `three-modules`, `canvas2d`, `phaser`, `engine-export`, `own-script`) and `own`. A
-folder is the studio's template only with both `contractVersion` in `studio.json` and the vendored
-three import map. `findProjectRoot` looks one folder down. An `engine-export` project can be played and
-photographed but never starts a night.
+folder is the studio's template only with both `contractVersion` in `studio.json` and the `studio-template` page meta.
+`findProjectRoot` looks one folder down. An `engine-export` project can be opened and photographed but never starts a night.
 
 **Opening a folder.** New project's Open existing and home's Open a folder… are the UI's way in.
 `studio:project.pick` and `studio:project.inspect` (candidates, preflight) write nothing. The
@@ -719,9 +718,8 @@ every planned write (`plannedWrites`), and only its button calls
 `studio:project.adopt` with the row's own `OpenChoice`. A nested project is adopted as the project;
 keeping the parent passes `template: false`. Adoption never writes the template's entry or pages
 beside a real entry; an own project gets `CLAUDE.md`/`NOTES.md` from `project-template/*.own.md`.
-The contract upgrade reads a vintage:
-`studioContractGeneration` grades `src/studio.js` (0–4) and `project.upgradeContract` replaces an
-older copy, keeping it as `src/studio.v<generation>.js`.
+The contract upgrade: `studioContractGeneration` grades `src/studio.js` (0–5) and `project.upgradeContract` replaces an
+older copy (HUD generations 3–4 excepted), keeping it as `src/studio.v<generation>.js`.
 
 **Builds.** `preview.load`/`preview.reload` build through `ProjectBuilds`
 ([`src/main/project-build.ts`](../../src/main/project-build.ts)) and serve the output. A build never runs in

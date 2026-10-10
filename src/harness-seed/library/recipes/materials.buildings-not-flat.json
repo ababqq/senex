@@ -6,8 +6,8 @@
   "kind": "craft",
   "pack": "materials",
   "appKinds": ["graphics"],
-  "note": "Buildings carry baked masonry, plaster or wood maps from materials.js, never flat colour.",
-  "intent": "Buildings are the largest surfaces in the frame, so a flat colour on them is the first thing the taste judge names. Bake three or four wall kinds in materials.js (stone, render, timber, brick) with tiling chosen so the pattern does not repeat visibly across one facade, and pick per building from a seeded rng. Vary the base colour slightly between buildings so a row does not read as one extruded block, and keep the map on every mesh tagged building, gable ends and side walls included.",
+  "note": "Buildings carry baked masonry, plaster or wood maps from the project's material baker, never flat colour.",
+  "intent": "Buildings are the largest surfaces in the frame, so a flat colour on them is the first thing the taste judge names. Bake three or four wall kinds in a material module (for example src/materials.js) (stone, render, timber, brick) with tiling chosen so the pattern does not repeat visibly across one facade, and pick per building from a seeded rng. Vary the base colour slightly between buildings so a row does not read as one extruded block, and keep the map on every mesh tagged building, gable ends and side walls included.",
   "check": {
     "id": "materials-no-flat-buildings",
     "kind": "scene",
@@ -15,7 +15,7 @@
     "weight": "normal",
     "note": "Buildings carry baked masonry/plaster/wood maps from src/materials.js, never flat colour."
   },
-  "port": "The buildings facet applies a material kind per building at construction time from materials.js; no MeshStandardMaterial with only a colour survives on a building.",
+  "port": "The buildings facet applies a material kind per building at construction time from the project's material baker; no MeshStandardMaterial with only a colour survives on a building.",
   "evidence": [
     {
       "source": "library/checks.json (seeded catalogue, retired to the recipe library by M4.7)",

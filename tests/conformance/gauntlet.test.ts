@@ -1005,7 +1005,7 @@ describe("gauntlet: briefs and intake", () => {
     const completions = rig.server.requests.filter((r) => r.path.startsWith("/v1/chat/completions"));
     assert.ok(completions.length >= 1, "the interview called the model");
     assert.match(JSON.stringify(completions[0]!.body), /Loop is ON/);
-    assert.match(JSON.stringify(completions[0]!.body), /Never quiz them on project titles/);
+    assert.match(JSON.stringify(completions[0]!.body), /Never quiz them on product names/);
 
     await rig.core.stopThread(threadId);
     await waitForLog(

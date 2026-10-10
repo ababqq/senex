@@ -2564,7 +2564,9 @@ describe("harness incidents", () => {
     } as never);
     assert.match(brief, /## THE FIX this iteration \(mandatory/);
     assert.match(brief, /Measured by check defect-blob-the-trees/);
-    assert.match(brief, /foliage\.js/);
+    // Flipped (software retarget): THE FIX no longer names foliage.js, a module the template stopped shipping.
+    assert.match(brief, /Replace the mechanism behind it, do not tune it\./);
+    assert.doesNotMatch(brief, /foliage\.js/);
     const prompt = facetPrompt({
       run: { runId: "r", goal: "g" },
       spec,

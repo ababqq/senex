@@ -46,7 +46,7 @@ with the caller's role (judge, playtester or SkillOpt gate). An autopilot close 
 read these signals.
 
 Where learning goes. Four places, and they are not interchangeable: a check earned into
-`library/checks.json` (five technical checks ship; a planner's check earns its place by being
+`library/checks.json` (eight technical checks ship, five of them for `graphics`; a planner's check earns its place by being
 used), a craft recipe in `library/recipes` (opinions about how a thing should look — retrieved
 when a check fails or a judge names the defect, never imposed), a skill file (how an agent works),
 and a prompt (what a role is). `library/games/<project>.jsonl` and `.md` hold what a night learned
@@ -437,7 +437,7 @@ smoke runners at an isolated Forge output directory so verification does not ove
 running app bundle. Fixture checks need no paid assets, real CLIs or credentials.
 
 Build actions regression: real Git showBuild requests overlap in director conformance; Electron
-Build smoke overlaps two showBuild IPC requests with loadPreview, repeats Play, and checks
+Build smoke overlaps two showBuild IPC requests with loadPreview, repeats Open, and checks
 live work staying in view, Jump to now and graph cursors. run-steps tests own step folding,
 merge-first state, gates and layout. No production project is used as a fixture.
 

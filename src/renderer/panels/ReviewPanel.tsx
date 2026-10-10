@@ -57,7 +57,7 @@ const OUTCOME: Record<RunOutcomeKind, { label: string; tone: string; sentence: s
     tone: "bg-accent-tint text-accent-ink",
     sentence: "Harness is still building. The project chat shows its progress.",
   },
-  delivered: { label: "New build", tone: "bg-green-tint text-green", sentence: "A new build is ready to play." },
+  delivered: { label: "New build", tone: "bg-green-tint text-green", sentence: "A new build is ready to use." },
   none: {
     label: "No build",
     tone: "bg-orange-tint text-orange",

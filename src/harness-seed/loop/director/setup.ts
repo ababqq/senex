@@ -889,10 +889,10 @@ async function sayStartingPoint(night: Night, commit: string | null, error: stri
   );
   await decision(
     commit
-      ? `the starting point is built and committed (${shortSha(commit)})${journal.base.empty ? " — an empty world with working cameras; the workers fill it" : ""}`
+      ? `the starting point is built and committed (${shortSha(commit)})${journal.base.empty ? " — an empty app that runs, with its views registered; the workers fill it" : ""}`
       : `the starting point could not be built (${error}): the director starts on the empty scaffold and must make it run itself before any worker can`,
     commit
-      ? `the starting point is ready${journal.base.empty ? " — an empty world the builders will fill" : ""}`
+      ? `the starting point is ready${journal.base.empty ? " — an empty app the builders will fill" : ""}`
       : "the starting point could not be built, so the lead makes the project run itself before any builder starts",
   );
 }
