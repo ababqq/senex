@@ -266,7 +266,9 @@ the project's own cameras, falling back to the view the project renders when it 
 warning, never a void), and the page as well when the page has UI; and when `ok` is false it always
 says why. Frames that ran and drew nothing are a verdict on a base with content in it and a warning
 on an empty scaffold — the same exemption the blank-pixel rule already had, settled by inspection
-(`EMPTY_SCENE_PROBE`) rather than by the project's own word. One classifier answers for every caller: `none`, `observation`, `race` or `build` — an
+(`EMPTY_SCENE_PROBE`) rather than by the project's own word. A page that draws no 3D world has no
+camera to place, and a generated one that shows no text and no visible element at all
+(`BLANK_PAGE_PROBE`) is a problem, because canvas draw counts cannot see a blank DOM page. One classifier answers for every caller: `none`, `observation`, `race` or `build` — an
 observation failure is not a build defect, and "evidence pass failed" is not a race.
 
 What a rollback may assume of a project folder. `snapshot.restore` on a project commits a rescue

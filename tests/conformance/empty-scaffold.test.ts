@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import vm from "node:vm";
 import { gatherEvidence } from "../../src/harness-seed/loop/gauntlet.ts";
 
 function context({
@@ -58,6 +59,37 @@ function context({
     },
   };
 }
+/**
+ * A page that draws no 3D world: `inspect()` answers with DOM helpers and no scene or camera. The
+ * probes the evidence pass sends run for real against that answer, so the test proves what the
+ * page would say and not what a fixture was told to say.
+ */
+function domContext({ blank }: { blank: boolean }) {
+  const page = {
+    __studio: { inspect: () => ({ scene: null, camera: null, dom: { empty: () => blank } }), state: () => ({}) },
+  };
+  const fallback = context({ empty: blank });
+  return {
+    call: async (method: string, p: Record<string, unknown> = {}) => {
+      if (method === "preview.screenshot")
+        return {
+          path: "/runs/page.jpg",
+          base64: "the-page",
+          bytes: 500,
+          stats: { canvas: false, litFraction: 1, drawCalls: null },
+        };
+      if (method === "preview.evaluate" && !String(p.expression).includes("studio step witness")) {
+        // As the host answers: a probe that throws comes back as `{ __error }`, never as a rejection.
+        try {
+          return vm.runInNewContext(String(p.expression), { window: page }) ?? null;
+        } catch (err) {
+          return { __error: String(err) };
+        }
+      }
+      return fallback.call(method, p);
+    },
+  };
+}
 const request = {
   run: { runId: "run_x", project: "empty" },
   iterationId: "base",
@@ -99,4 +131,25 @@ test("an empty scene does not excuse load errors or dead camera placement", asyn
   const deadCamera = await gatherEvidence(context({ samePose: true }) as never, request as never);
   assert.equal(deadCamera.ok, false);
   assert.match(deadCamera.problems.join(" "), /same transform/);
+});
+test("an empty DOM base passes infrastructure checks: a page has no camera to place", async () => {
+  const result = await gatherEvidence(domContext({ blank: true }) as never, request as never);
+  assert.equal(result.emptyScene, true);
+  assert.ok(!result.problems.some((p: string) => /transform|inspected/.test(p)), result.problems.join(" | "));
+  assert.equal(result.ok, true, result.problems.join(" | "));
+});
+test("a generated build whose page shows nothing fails, wherever the pixels came from", async () => {
+  for (const options of [{ scaffold: false }, { iterationId: "001" }]) {
+    const result = await gatherEvidence(domContext({ blank: true }) as never, { ...request, ...options } as never);
+    assert.equal(result.ok, false, "a blank page is not a first screen");
+    assert.equal(result.emptyScene, false);
+    assert.match(result.problems.join(" | "), /page shows nothing/);
+  }
+});
+test("a generated DOM build with something on the page is not called blank", async () => {
+  const result = await gatherEvidence(
+    domContext({ blank: false }) as never,
+    { ...request, scaffold: false, iterationId: "001" } as never,
+  );
+  assert.ok(!result.problems.some((p: string) => /page shows nothing/.test(p)), result.problems.join(" | "));
 });

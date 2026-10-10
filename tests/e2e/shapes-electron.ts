@@ -385,7 +385,7 @@ async function main(): Promise<void> {
       const evidence = await gatherEvidence(
         ctx as never,
         {
-          run: { runId, project: project.name, setup: manifest.setup, entry: manifest.app, ownShape: true },
+          run: { runId, project: project.name, setup: manifest.setup, app: manifest.app, ownShape: true },
           iterationId: "shapes",
           seed: 7,
           handle,
@@ -581,7 +581,7 @@ async function main(): Promise<void> {
         repeat = (await gatherEvidence(
           ctx as never,
           {
-            run: { runId, project: project.name, setup: manifest.setup, entry: manifest.app, ownShape: true },
+            run: { runId, project: project.name, setup: manifest.setup, app: manifest.app, ownShape: true },
             iterationId: "shapes",
             seed: 7,
             handle,
