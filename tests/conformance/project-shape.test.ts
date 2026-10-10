@@ -1585,7 +1585,7 @@ describe("the Open Project sheet", () => {
       "the export refusal",
     );
     assert.equal(customEvents(log, "run_registered").length, 0, "nothing was registered, so nothing has to be closed");
-    assert.match(String(customEvents(log, "run_start_blocked")[0]!.reason), /exported from a project engine/);
+    assert.match(String(customEvents(log, "run_start_blocked")[0]!.reason), /exported from a game engine/);
     assert.ok(
       log.some((event) => event.data.type === "messages" && JSON.stringify(event.data).includes("take screenshots")),
       "the chat is told, in the same words the sheet used",
@@ -1651,7 +1651,7 @@ describe("the Open Project sheet", () => {
     const project = await projects.adopt(godot);
     assert.equal(project.shape.kind, "engine-export");
     const refusal = nightRefusal(project, (await projects.validate(project.name)).problems);
-    assert.match(refusal!, /exported from a project engine/);
+    assert.match(refusal!, /exported from a game engine/);
     assert.match(refusal!, /play it and take screenshots/);
     assert.match(refusal!, /scenes and scripts/);
     assert.equal(kindChip(project.shape.kind), "engine export", "the stage header says the same thing");

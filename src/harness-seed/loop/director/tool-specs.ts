@@ -81,7 +81,7 @@ export const DIRECTOR_TOOLS: LiveToolSpec[] = [
         },
         workers: {
           type: "string",
-          description: `JSON array of the parts you mean to hand out, 1–${MAX_PLAN_WORKERS}: [{"id":"plaza-lighting","title":"Plaza lighting","seam":"the plaza's light and sky — nothing else touches it","owns":"src/plaza.js, src/sky.js","done":["the plaza reads as dusk from every camera"],"minutes":45}]. Set multiplayer:true on each outcome requiring Genex online play; its host prerequisites are checked before delegation. Use the same id in worker_start; a part you drop or add later is a new plan.`,
+          description: `JSON array of the parts you mean to hand out, 1–${MAX_PLAN_WORKERS}: [{"id":"task-list","title":"Task list","seam":"the list view and its storage — nothing else touches it","owns":"src/tasks.js, src/store.js","done":["a task added in the form shows in the list and survives a reload"],"minutes":45}]. Set multiplayer:true on each outcome requiring Genex online play; its host prerequisites are checked before delegation. Use the same id in worker_start; a part you drop or add later is a new plan.`,
         },
         base: {
           type: "string",
@@ -99,7 +99,7 @@ export const DIRECTOR_TOOLS: LiveToolSpec[] = [
         play_script: {
           type: "string",
           description:
-            'The controls the harness drives before every judgement, when the kind\'s own script is wrong for this project: JSON array of [{"type":"hold","keys":["w"],"ms":800},{"type":"look","dx":56,"dy":-8},{"type":"click","x":480,"y":300},{"type":"drag","fromX":100,"fromY":100,"x":300,"y":200}].',
+            'The controls the harness drives before every judgement, when the kind\'s own script is wrong for this project: JSON array of [{"type":"click","x":480,"y":300},{"type":"type","text":"Ada"},{"type":"press","combo":"Tab"},{"type":"drag","fromX":100,"fromY":100,"x":300,"y":200},{"type":"scroll","dx":0,"dy":400}] (a canvas project can also use hold with keys and ms, and look with dx and dy).',
         },
       },
       required: ["summary", "workers"],
@@ -119,7 +119,7 @@ export const DIRECTOR_TOOLS: LiveToolSpec[] = [
         },
         id: {
           type: "string",
-          description: "A slug (letters, digits, dashes) unique in this run, e.g. plaza-lighting.",
+          description: "A slug (letters, digits, dashes) unique in this run, e.g. task-list.",
         },
         title: { type: "string", description: "A short title for the feed." },
         brief: {
@@ -142,7 +142,7 @@ export const DIRECTOR_TOOLS: LiveToolSpec[] = [
         owns: {
           type: "string",
           description:
-            'Comma-separated files, folders or globs this worker owns — its seam (src/plaza.js, src/world/, "src/ui/*.tsx", "app/**/hud.*"). In a glob * and ? stop at a slash and ** crosses them; a pattern containing * or ? must be QUOTED, because on Codex this arrives as a shell command line and an unquoted glob is expanded before the studio sees it. Edits elsewhere are reverted by the reviewer; empty means src/ on the studio\'s template, and everything but the entry, the contract and index.html in a project of its own — name a seam whenever more than one worker runs.',
+            'Comma-separated files, folders or globs this worker owns — its seam (src/tasks.js, src/views/, "src/ui/*.tsx", "app/**/forms.*"). In a glob * and ? stop at a slash and ** crosses them; a pattern containing * or ? must be QUOTED, because on Codex this arrives as a shell command line and an unquoted glob is expanded before the studio sees it. Edits elsewhere are reverted by the reviewer; empty means src/ on the studio\'s template, and everything but the entry, the contract and index.html in a project of its own — name a seam whenever more than one worker runs.',
         },
         owns_main: {
           type: "string",
@@ -155,7 +155,7 @@ export const DIRECTOR_TOOLS: LiveToolSpec[] = [
         },
         done: {
           type: "string",
-          description: `loop only: JSON array of 2–${MAX_DONE} measurable {"what","check"} outcomes: [{"what":"a car keeps its speed after hitting a bin","check":{"id":"props-dont-stop-cars","kind":"probe","demo":"prop-run","expr":"state.contact.speedKept >= 0.7"}}]. Identity checks must pass with judge agreement to finish. Write before the brief. Same grammar as checks.`,
+          description: `loop only: JSON array of 2–${MAX_DONE} measurable {"what","check"} outcomes: [{"what":"a task added in the form shows in the list","check":{"id":"task-added","kind":"probe","demo":"add-task","expr":"state.tasks.count >= 1"}}]. Identity checks must pass with judge agreement to finish. Write before the brief. Same grammar as checks.`,
         },
         checks: {
           type: "string",
@@ -176,7 +176,7 @@ export const DIRECTOR_TOOLS: LiveToolSpec[] = [
         },
         milestones: {
           type: "string",
-          description: `loop only: JSON array of 2–${MAX_MILESTONES} ORDERED structural steps after the move, each a transformation of the area (a system, a layer of depth, a reworked feel) that one accepted round builds — never a list of small fixes: [{"what":"herons wade and the reeds sway","check":{"kind":"scene","js":"count('heron') >= 3"}}] ("check" optional). The worker climbs one rung per accepted build; a rung the judge finds already built climbs by itself. While you own the ladder the harness never names a move of its own; when it is climbed the worker builds its reviewer's big move until you add a rung with worker_steer move=.`,
+          description: `loop only: JSON array of 2–${MAX_MILESTONES} ORDERED structural steps after the move, each a transformation of the area (a system, a layer of depth, a reworked feel) that one accepted round builds — never a list of small fixes: [{"what":"search filters the list as you type and keeps the query in the address","check":{"kind":"scene","js":"dom.count('li.task') >= 3"}}] ("check" optional). The worker climbs one rung per accepted build; a rung the judge finds already built climbs by itself. While you own the ladder the harness never names a move of its own; when it is climbed the worker builds its reviewer's big move until you add a rung with worker_steer move=.`,
         },
         identity: {
           type: "string",
@@ -304,7 +304,7 @@ export const DIRECTOR_TOOLS: LiveToolSpec[] = [
   {
     name: DirectorTool.Playtest,
     description:
-      "Send a playtester into a build with one question (can you reach X, does Y work, is Z fun). It plays with the computer tool for a few minutes and answers yes/no with a report. Costs minutes; use it for what only play can tell.",
+      "Send a playtester into a build with one question (can you reach X, does Y work, is Z obvious). It uses the build with the computer tool for a few minutes and answers yes/no with a report. Costs minutes; use it for what only use can tell.",
     parameters: {
       type: "object",
       properties: {
@@ -338,7 +338,7 @@ export const DIRECTOR_TOOLS: LiveToolSpec[] = [
   {
     name: DirectorTool.Show,
     description:
-      "Offer a build to Live, the project view the user is looking at: integration (default), live, or a worker id. Live never changes under the user: its Reload button lights up and plays the build when they press it. Nothing is changed on disk.",
+      "Offer a build to Live, the project view the user is looking at: integration (default), live, or a worker id. Live never changes under the user: its Reload button lights up and loads the build when they press it. Nothing is changed on disk.",
     parameters: { type: "object", properties: { target: { type: "string" } } },
   },
   {

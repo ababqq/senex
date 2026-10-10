@@ -34,7 +34,7 @@
     "weight": "normal",
     "note": "Nothing organic (trees, bushes, hay, animals, people, smoke) is a flat-shaded sphere/icosahedron/capsule. Faceted balls read as rocks; organic things are cards, parts, or smooth shapes with a material."
   },
-  "port": "Anywhere the facet is tempted to reach for SphereGeometry or IcosahedronGeometry under a living tag, reach for foliage.js, a parts group, or a modelled asset instead.",
+  "port": "Anywhere the facet is tempted to reach for SphereGeometry or IcosahedronGeometry under a living tag, reach for a foliage helper, a parts group, or a modelled asset instead.",
   "evidence": [
     {
       "source": "library/checks.json (seeded catalogue, retired to the recipe library by M4.7)",

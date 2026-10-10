@@ -727,7 +727,7 @@ export function statusLine(graph: RunGraph, summary: RunSummary | null, rows: Pa
     return {
       tone: Tone.Orange,
       strong: timed("Paused", facts.time),
-      rest: facts.hasBuild ? "an earlier build is ready to play · resume from chat" : "resume from chat",
+      rest: facts.hasBuild ? "an earlier build is ready to use · resume from chat" : "resume from chat",
     };
   if (execution === ExecutionStatus.Failed || execution === ExecutionStatus.Cancelled)
     return stoppedLine(execution === ExecutionStatus.Failed, summary, facts);
@@ -783,7 +783,7 @@ function stepRest(graph: RunGraph, step: Step): string {
 }
 
 function stoppedLine(failed: boolean, summary: RunSummary | null, facts: LineFacts): StatusLine {
-  const rest = facts.hasBuild ? "an earlier build is ready to play" : "nothing was made live";
+  const rest = facts.hasBuild ? "an earlier build is ready to use" : "nothing was made live";
   return {
     tone: failed ? Tone.Red : Tone.Muted,
     strong: timed(failed ? "Build failed" : "Build stopped", facts.worked),
@@ -827,7 +827,7 @@ function finishedLine(summary: RunSummary | null, rows: PartRow[], facts: LineFa
     return {
       tone: Tone.Orange,
       strong: timed("Not live yet", facts.worked),
-      rest: [failedWords, "the build is ready to play"].filter(Boolean).join(" · "),
+      rest: [failedWords, "the build is ready to use"].filter(Boolean).join(" · "),
     };
   return {
     tone: Tone.Muted,

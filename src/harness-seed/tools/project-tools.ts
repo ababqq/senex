@@ -86,7 +86,7 @@ export const tools: HarnessTool[] = [
       "Create a new project from the web app template. The template already satisfies the studio contract (window.__studio), so the first screenshot works immediately.",
     parameters: {
       type: "object",
-      properties: { name: str("lowercase project id, e.g. 'pong'"), title: str("human title") },
+      properties: { name: str("lowercase project id, e.g. 'task-tracker'"), title: str("human title") },
       required: ["name"],
     },
     async execute(args, ctx) {
@@ -279,7 +279,7 @@ export const tools: HarnessTool[] = [
       type: "object",
       properties: {
         goal: str("one paragraph: what exists when the build ends, in the user's words plus the feeling"),
-        direction: str("the feeling bar — AAA photoreal rainy city, etc. Titles optional"),
+        direction: str("the feeling bar — 'calm like Linear', 'dense like a trading terminal', etc. Names optional"),
         project: str("folder slug for a chat that has no folder yet, lowercase; a chat already bound to one keeps it"),
         notes: str("optional extra for the critic"),
       },
@@ -334,10 +334,10 @@ export const tools: HarnessTool[] = [
       type: "object",
       properties: {
         goal: str("one paragraph: what should exist, in the user's words plus the feeling"),
-        direction: str("the visual/feeling bar — a named project or film, or a described feeling"),
+        direction: str("the visual/feeling bar — a named product, site or film, or a described feeling"),
         project: str("folder slug for a chat that has no folder yet, lowercase; a chat already bound to one keeps it"),
         notes: str("optional extra for the critics — what makes the reference good"),
-        textual_reference: str("if the user had no images: the project/film they named as the vibe"),
+        textual_reference: str("if the user had no images: the product, site or film they named as the vibe"),
       },
       required: ["goal", "direction"],
     },

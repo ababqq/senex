@@ -49,7 +49,7 @@ async function rubric(ctx: HarnessCtx): Promise<string> {
     return await readFile(path.join(ctx.workspace, "judge", "playtester.md"), "utf8");
   } catch {
     return [
-      "You are a playtester with no history with this project. Play it with the tools for the whole action budget, screenshot often, then answer each yes/no question from what you actually did or saw.",
+      "You are a usability tester with no history with this project. Use it with the tools for the whole action budget, screenshot often, then answer each yes/no question from what you actually did or saw.",
       "Last, name bigMove: the ONE change that would most improve how this works for the person using it — a system, a rule, a control scheme, the feedback they get. A bold step, never a tweak.",
       'Reply with JSON only when done: {"answers":{"<check id>":{"answer":"yes"|"no","note":"…"}},"report":"…","bigMove":{"what":"…","why":"…"}}',
     ].join("\n");
@@ -89,7 +89,7 @@ function playBrief({
     `QUESTIONS TO ANSWER AT THE END (by check id):`,
     ...checks.map((c) => `- ${c.id}: ${c.ask}`),
     ``,
-    'When you are done playing, reply with JSON only: {"answers":{"<check id>":{"answer":"yes"|"no","note":"…"}},"report":"…"}',
+    'When you are done testing, reply with JSON only: {"answers":{"<check id>":{"answer":"yes"|"no","note":"…"}},"report":"…"}',
   ]
     .filter((line) => line !== null && line !== undefined)
     .join("\n");

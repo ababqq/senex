@@ -110,7 +110,7 @@ export const coordinatorTools: readonly StudioToolSpec[] = [
   {
     name: CoordinatorTool.ShowBuild,
     description:
-      "Open a build in Live, the project view on the right of this chat, without changing the project folder: integration (what the run built, landed or not), live (the project folder as it is), or a commit hash. Use only when the user asks to see, run, play or launch what a run made, including after the run has finished or paused; never to show your own edits, which the stage's Reload button offers by itself. Afterwards say what it answered: open in Live, or waiting behind Reload while the user watches Live.",
+      "Open a build in Live, the project view on the right of this chat, without changing the project folder: integration (what the run built, landed or not), live (the project folder as it is), or a commit hash. Use only when the user asks to see, run, open or launch what a run made, including after the run has finished or paused; never to show your own edits, which the stage's Reload button offers by itself. Afterwards say what it answered: open in Live, or waiting behind Reload while the user watches Live.",
     parameters: {
       type: "object",
       properties: { build: { type: "string", description: "live, integration (default), or a commit hash." } },
@@ -119,7 +119,7 @@ export const coordinatorTools: readonly StudioToolSpec[] = [
   {
     name: CoordinatorTool.LandBuild,
     description:
-      "Put a build in the project folder: merge what the run built (integration, the default) or a named commit into the folder the user plays from; Live shows it at once or through its Reload button, as the answer says. Only for a run that has finished or paused; use finish_run while it is running. Refuses when the project folder has uncommitted edits.",
+      "Put a build in the project folder: merge what the run built (integration, the default) or a named commit into the folder the user runs the project from; Live shows it at once or through its Reload button, as the answer says. Only for a run that has finished or paused; use finish_run while it is running. Refuses when the project folder has uncommitted edits.",
     parameters: {
       type: "object",
       properties: { build: { type: "string", description: "integration (default) or a commit hash." } },

@@ -25,8 +25,8 @@ export function studioToolName(name: string): string {
 /** `checkpoint`: the contractor decides which moments are worth showing. */
 export const CHECKPOINT_TOOL = {
   description:
-    "Tell the studio the project just reached a moment worth seeing (it first runs end-to-end, a feature became playable). The studio lights the user's Reload with your note, so they see it the moment they press it.",
-  note: "One short sentence: what just became visible or playable.",
+    "Tell the studio the project just reached a moment worth seeing (it first runs end-to-end, a feature became usable). The studio lights the user's Reload with your note, so they see it the moment they press it.",
+  note: "One short sentence: what just became visible or usable.",
   reply: "Shown to the user.",
 } as const;
 

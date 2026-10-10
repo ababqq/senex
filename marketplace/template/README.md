@@ -1,6 +1,6 @@
 # Studio curated plugin catalog
 
-This repository lists reviewed releases. It does not host games or require a Genex account.
+This repository lists reviewed releases. It does not host projects or require a Genex account.
 Anyone can submit a plugin release: see [CONTRIBUTING.md](CONTRIBUTING.md) and the
 [plugin guide](https://github.com/genex-games/genex-desktop/blob/dev/docs/PLUGIN_GUIDE.md).
 Maintainers review every submission before it is listed.

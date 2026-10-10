@@ -85,7 +85,7 @@ function BuildingProject({
     <StageEmpty
       art="building"
       title="Building your project"
-      subtitle={head ? "The latest build is ready to play." : "It shows up here as soon as it runs."}
+      subtitle={head ? "The latest build is ready to use." : "It shows up here as soon as it runs."}
       action={
         head ? (
           <PlayButton label="Open latest" onPlay={() => onPlay(head)} />

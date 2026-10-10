@@ -206,7 +206,7 @@ export function ResultPanel(props: InspectorProps): JSX.Element {
   const title = graph.active ? "Latest build" : "Your build";
   const ended = endedWords(graph);
   const open = (): void => {
-    if (resultSrc) props.onLight([{ path: resultPath, src: resultSrc, title, caption: "camera: default" }], 0);
+    if (resultSrc) props.onLight([{ path: resultPath, src: resultSrc, title, caption: "view: default" }], 0);
   };
   const attention = outcome && checksNeedAttention(outcome) ? "checks need attention" : null;
   return (

@@ -72,7 +72,7 @@ export function contractBrief({
     `- Change nothing else. No features, no content, no refactors — the run's builders do that next, and they fork from what you leave here.`,
     `- Do not commit; the studio commits.`,
     ``,
-    `YOU HAVE HANDS AND EYES: ${toolCall(roleEngine(run, RoleKey.Builder), "computer")} runs this folder's build in its own window; the tool's own description lists every action it takes. Look before you finish: window.__studio.state() must answer, and the project must still look and play exactly as it did.`,
+    `YOU HAVE HANDS AND EYES: ${toolCall(roleEngine(run, RoleKey.Builder), "computer")} runs this folder's build in its own window; the tool's own description lists every action it takes. Look before you finish: window.__studio.state() must answer, and the project must still look and work exactly as it did.`,
   ]
     .filter(Boolean)
     .join("\n");
@@ -167,10 +167,10 @@ function unobservedStartLine(startObserved: boolean, startingPoint: AnyRecord | 
 /** The starting point the studio built for an empty project, or why it could not. */
 function startingPointLine(startingPoint: AnyRecord | null, leads: boolean): string {
   if (startingPoint?.ok)
-    return `THE STARTING POINT: this project was an empty project, so the studio built the starting point you are standing on (commit ${shortSha(startingPoint.commit ?? "")}${startingPoint.empty ? " — an empty world with working cameras, no content yet" : ""}) and every worker forks from it. There is nothing to compare it with: \`judge against=start\` answers "first build". The whole run is the project itself.`;
+    return `THE STARTING POINT: this project was an empty project, so the studio built the starting point you are standing on (commit ${shortSha(startingPoint.commit ?? "")}${startingPoint.empty ? " — an empty app that runs, with its views registered and no content yet" : ""}) and every worker forks from it. There is nothing to compare it with: \`judge against=start\` answers "first build". The whole run is the project itself.`;
   if (startingPoint && leads) return LEAD_BRIEF.startingPointFailed(startingPoint.error);
   if (startingPoint)
-    return `THE STARTING POINT: this project is an empty project and the studio's attempt at a starting point failed (${startingPoint.error}). Nothing runs until you make it run: build the world's shape and the shared modules in your worktree with your own hands, look at it, commit — then start workers on it.`;
+    return `THE STARTING POINT: this project is an empty project and the studio's attempt at a starting point failed (${startingPoint.error}). Nothing runs until you make it run: build the app's shape and the shared modules in your worktree with your own hands, look at it, commit — then start workers on it.`;
   return "";
 }
 
@@ -196,11 +196,11 @@ function rulesThatNeverMove(run: Run, loop: DirectorLoop, leads: boolean): strin
   return [
     `RULES THAT NEVER MOVE:`,
     `- Look before you plan: screenshot the project, reach the state the goal is about, read the code that owns it. A brief written blind is a run wasted.`,
-    `- Then say the plan: \`plan\` — what this run is for and the parts you mean to hand out, in the user's own chat. worker_start refuses until you have called it, so the user can read the plan. Say what kind of project this is in the same call — kind= one of ${KIND_NAMES.join(", ")} — because the harness drives that kind's controls before every judgement and puts only the checks it can pass on the board; a run that declares no kind gets no HUD rule, no look check and no movement check.${run.app?.kind ? ` THIS PROJECT ALREADY SAYS WHAT IT IS: its studio.json declares a ${run.app.kind} project, and this run is already being judged as one — pass that kind again unless what you saw in this run says otherwise.` : ""}${planReviewWords(run, loop)}`,
+    `- Then say the plan: \`plan\` — what this run is for and the parts you mean to hand out, in the user's own chat. worker_start refuses until you have called it, so the user can read the plan. Say what kind of project this is in the same call — kind= one of ${KIND_NAMES.join(", ")} — because the harness drives that kind's controls before every judgement and puts only the checks it can pass on the board; a run that declares no kind gets no page rule, no navigation check and no typing check.${run.app?.kind ? ` THIS PROJECT ALREADY SAYS WHAT IT IS: its studio.json declares a ${run.app.kind} project, and this run is already being judged as one — pass that kind again unless what you saw in this run says otherwise.` : ""}${planReviewWords(run, loop)}`,
     leads
       ? LEAD_BRIEF.delegate
-      : `- After the starting point, delegate with plan and worker_start: a worker per area a player can name, the UI and HUD too, on its own files. Handle foundations, integration and small repairs yourself. If capacity or shared ownership blocks delegation, note why and keep improving and playtesting.`,
-    `- First playable: prioritize a small complete playable loop and integrate its healthy revision before broad atmosphere or asset polish. Continue judging normally; a preview is not acceptance or landing.`,
+      : `- After the starting point, delegate with plan and worker_start: a worker per area a user can name, the UI too, on its own files. Handle foundations, integration and small repairs yourself. If capacity or shared ownership blocks delegation, note why and keep improving and playtesting.`,
+    `- First working version: prioritize one small, complete workflow that runs and integrate its healthy revision before broad visual or asset polish. Continue judging normally; a preview is not acceptance or landing.`,
     `- Asset truth: run_status.assets lists generated originals and current workspace copies. Read it before answering asset questions. Preserve delivered local files; integrate checkpoints them through the host. Never move them to /tmp or swap in remote URLs: assets live in the project folder. State generated-but-unused assets and procedural fallbacks explicitly in completion reports.`,
     `- Completion reporting: distinguish delivered changes from passed, failed and unverified checks. The Studio outcome card counts integrations separately from evaluated attempts; never call all requested features verified merely because the structural board passed.`,
     `- Evidence, not reports: judge, playtest or look at a single session's "done" before you integrate (kept loop rounds were judged); look at the integrated build before you finish.`,
@@ -338,7 +338,7 @@ export function wrapUpPrompt({
       ? `Workers still running: ${running.join(", ")} — finish stops them; integrate what is worth keeping first (integrate is quick).`
       : "",
     `Integration branch: ${head}${lastHealthWords(integrationHealthy)}.`,
-    `Call finish now with land=yes if the integrated build loads and ${fromScratch ? "does what the goal asked (this run started from an empty project — the user had no project at all, so anything that runs and plays is this run's build)" : "is better than what the user had"}, otherwise land=no, and an honest summary. Then stop.`,
+    `Call finish now with land=yes if the integrated build loads and ${fromScratch ? "does what the goal asked (this run started from an empty project — the user had no project at all, so anything that runs and works is this run's build)" : "is better than what the user had"}, otherwise land=no, and an honest summary. Then stop.`,
   ]
     .filter(Boolean)
     .join("\n");
@@ -392,7 +392,7 @@ export function singleWorkerBrief({
       ? `THIS PROJECT HAS ITS OWN SHAPE: entry ${shape?.main ?? "src/main.ts"}${shape?.build ? `, built with \`${shape.build}\` — run it before you finish and fix what it reports` : ""}; keep its entry, UI and input handling; keep the studio contract wired. This project is the user's own code: follow the conventions it already has, and do not rename, restyle or reformat anything you did not have to change.`
       : "",
     setup
-      ? `THE REQUESTED STATE: your window opens on the state this work is about (${setup.note ?? "the run's setup"}); if a screenshot says the state was not reached, fix the way a player reaches it, not what the project boots into.`
+      ? `THE REQUESTED STATE: your window opens on the state this work is about (${setup.note ?? "the run's setup"}); if a screenshot says the state was not reached, fix the way a user reaches it, not what the project boots into.`
       : "",
     `YOU HAVE HANDS AND EYES: ${toolCall(roleEngine(run, RoleKey.Builder), "computer")} runs this folder's build live in its own window (its own description lists every action), and ${toolCall(roleEngine(run, RoleKey.Builder), "capture")} takes every registered camera at once. Look at what you made before you say it is done; the director will.`,
     `Do not commit — the studio commits your folder when you stop. Do not touch files outside this folder. Keep ${facetNotes(worker.id)} with what you did and what you verified.`,

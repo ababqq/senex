@@ -103,7 +103,7 @@ async function supplementPlaytests(summary: RunSummary, dir: string, entries: re
         id: `${folder.name}:${check}`,
         head: null,
         category: "interaction",
-        label: `Independent playtest ${folder.name.slice(5)} — ${check} (question not recorded)`,
+        label: `Independent test ${folder.name.slice(5)} — ${check} (question not recorded)`,
         status: playtestStatus(answer.pass),
         note: typeof answer.note === "string" ? answer.note : null,
         source: "independent-playtester",

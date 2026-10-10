@@ -225,6 +225,7 @@ export const SystemTag = {
   Tool: "TOOL",
   Fix: "FIX",
   Alive: "ALIVE",
+  Screen: "SCREEN",
   Waiting: "WAITING",
   Update: "UPDATE",
   Plan: "PLAN",
@@ -1140,7 +1141,9 @@ function narrateFix(chat: ChatDraft, event: EventEnvelope): void {
 
 function narrateLiveness(chat: ChatDraft, event: EventEnvelope): void {
   const liveness = customPayload(event.data, CustomEvent.FacetLiveness);
-  if (liveness) say(chat, event.id, SystemTag.Alive, livenessWords(liveness));
+  if (!liveness) return;
+  const tag = liveness.critic === "screen" ? SystemTag.Screen : SystemTag.Alive;
+  say(chat, event.id, tag, livenessWords(liveness));
 }
 
 function narrateOutage(chat: ChatDraft, event: EventEnvelope): void {

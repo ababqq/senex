@@ -75,8 +75,8 @@ const MAX_SETUP_ACTIONS = 24;
 const MAX_GESTURE_KEYS = 4;
 
 const REPORT_SHAPE =
-  '{"seen":"<what the window shows on load — the map, the mode, the camera, the HUD, in two sentences>",' +
-  '"requested":"<what the brief is about, as seen in the project — which map, mode, area, moment>",' +
+  '{"seen":"<what the window shows on load — the screen, the mode, the account, the data, in two sentences>",' +
+  '"requested":"<what the brief is about, as seen in the project — which screen, mode, record, account>",' +
   '"setup":{"actions":[{"type":"tap","keys":["g"]},{"type":"wait","ms":500},{"type":"click","x":480,"y":300,"px":true}],"demo":null,"gesture":false,"verify":{"path":"route","equals":"#/settings"},"note":"<one sentence: what this reaches>"},' +
   '"reachedRequested":true,' +
   '"kind":"<one of: ' +
@@ -124,11 +124,11 @@ export function scoutBrief({
     ``,
     `WHAT KIND OF PROJECT IS THIS: answer from what you just drove, with one of these eight words — ${KIND_NAMES.join(", ")}. The kind decides which checks the builders' boards carry and which question the critic is asked, so a wrong word costs a whole run. If none of the eight fits, say the closest and say why in "risks".`,
     ``,
-    `PLAY is the short script the harness drives before every judgement, so every judge sees the project moving under the same controls: the same action shapes as SETUP ({"type":"hold","keys":["w"],"ms":800}, {"type":"tap","keys":["space"]}, {"type":"look","dx":40}, {"type":"click","x":0.5,"y":0.5}, {"type":"drag","fromX":0.4,"fromY":0.6,"x":0.6,"y":0.4}, {"type":"wait","ms":300}). Use the controls this project actually has — a board project is clicked and dragged, not walked — and keep it under eight actions.`,
+    `PLAY is the short script the harness drives before every judgement, so every judge sees the project moving under the same controls: the same action shapes as SETUP ({"type":"click","x":0.5,"y":0.5}, {"type":"type","text":"hello"}, {"type":"press","combo":"Tab"}, {"type":"drag","fromX":0.4,"fromY":0.6,"x":0.6,"y":0.4}, {"type":"scroll","dx":0,"dy":400}, {"type":"wait","ms":300}; a canvas project can also use {"type":"hold","keys":["w"],"ms":800}, {"type":"tap","keys":["space"]} and {"type":"look","dx":40}). Use the controls this project actually has — a form is typed into and tabbed through, a dashboard is clicked and scrolled, a canvas is steered — and keep it under eight actions.`,
     ``,
     `If the project does nothing until a real click — audio that waits for a gesture, pointer lock, a title screen that listens for mousedown — put "gesture": true in the setup (or {"x":480,"y":300} for one spot). The studio then delivers one trusted click before it waits for the project to be ready.`,
     ``,
-    `SETUP is the script the harness replays after every load, before anyone looks — the judges, the builders' captures, the playtester — so every eye lands on the requested state. Write it as input actions ({"type":"tap","keys":["i"]}, {"type":"hold","keys":["w"],"ms":800}, {"type":"click","x":480,"y":300,"px":true}, {"type":"wait","ms":500}; coordinates in pixels of your screenshots), or name a config.demos entry that reaches the state, plus verify: a dotted path in __studio.state() and the value it holds when the state is reached. If the project already boots into the requested state, setup is {"actions":[],"verify":{…}} with only the probe.`,
+    `SETUP is the script the harness replays after every load, before anyone looks — the judges, the builders' captures, the playtester — so every eye lands on the requested state. Write it as input actions ({"type":"click","x":480,"y":300,"px":true}, {"type":"type","text":"ada@example.com"}, {"type":"press","combo":"Return"}, {"type":"wait","ms":500}; coordinates in pixels of your screenshots), or name a config.demos entry that reaches the state, plus verify: a dotted path in __studio.state() and the value it holds when the state is reached. If the project already boots into the requested state, setup is {"actions":[],"verify":{…}} with only the probe.`,
     ``,
     `Reply with JSON only, this shape: ${REPORT_SHAPE}`,
   ]

@@ -16,7 +16,7 @@ closed, with Show in Finder for files in the project folder.
 
 ## The two views
 
-**Live** plays the browser project in a native view (WebGL and WebGPU); hidden unobserved previews
+**Live** runs the browser project in a native view (WebGL and WebGPU); hidden unobserved previews
 pause. The strip holds Live/Builds/Assets, Run/Stop, Reload, the sound switch (⌥⌘M; only a shown
 Live in front is heard), Full screen (hold Esc to leave) and plugin actions such as Publish (accent
 until listed). Stop halts the project until Run or Reload. Slow loads show a halftone loader and

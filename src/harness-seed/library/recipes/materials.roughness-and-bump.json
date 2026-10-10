@@ -15,7 +15,7 @@
     "weight": "normal",
     "note": "At least one standard material in the scene has a roughness map and one has bump/normal detail — surfaces read as materials, not paint."
   },
-  "port": "materials.js returns { map, roughnessMap, normalMap } from one baker per kind, so every consumer gets all three without thinking about it.",
+  "port": "The material baker returns { map, roughnessMap, normalMap } from one baker per kind, so every consumer gets all three without thinking about it.",
   "evidence": [
     {
       "source": "library/checks.json (seeded catalogue, retired to the recipe library by M4.7)",

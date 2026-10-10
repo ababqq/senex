@@ -52,7 +52,7 @@ text behind a Studio-written preface; `vendor.json` records each source, version
 
 ## Vendored three.js
 
-Games and the asset preview use a vendored three.js (MIT, Copyright © 2010-2026 three.js
+Canvas and 3D projects and the asset preview use a vendored three.js (MIT, Copyright © 2010-2026 three.js
 authors); its license ships as `dist/resources/vendor/three-LICENSE`. The copied `examples/jsm`
 tree includes third-party libraries under their own terms, listed with their licenses in
 [three.js add-on libraries](#threejs-add-on-libraries); the Assets viewer also copies the Draco and
@@ -463,7 +463,7 @@ SOFTWARE.
 
 ## three.js add-on libraries
 
-three.js 0.185.1 (r185) ships these third-party libraries in `examples/jsm/libs`. Genex vendors that folder for games, and copies the Basis and Draco decoders for the Assets viewer, with this page beside both copies. three.js's own license ships as `three-LICENSE`.
+three.js 0.185.1 (r185) ships these third-party libraries in `examples/jsm/libs`. Genex vendors that folder for projects, and copies the Basis and Draco decoders for the Assets viewer, with this page beside both copies. three.js's own license ships as `three-LICENSE`.
 
 | File | Project | License |
 | --- | --- | --- |

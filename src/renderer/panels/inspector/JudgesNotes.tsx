@@ -32,6 +32,16 @@ const ALIVE_WORDS: Record<string, string> = {
   purpose: "every object has a reason to be there",
   life: "movement and inhabitants",
   wear: "age and weather on things",
+  "next-step": "where to go next is legible",
+  material: "surfaces that read as what they are",
+  readable: "every element is legible at a glance",
+  state: "where the user is and what has happened",
+  affordance: "what can be acted on looks like it can",
+  feedback: "every action answers on the screen",
+  depth: "layers of content, controls and overlays",
+  composition: "a layout that is arranged, not scattered",
+  palette: "one set of colours that carry meaning",
+  finish: "type, spacing and edges that are finished",
 };
 
 const aliveWord = (key: string): string => ALIVE_WORDS[key] ?? key;
@@ -139,7 +149,12 @@ function Named({ defects }: { defects: string[] }): JSX.Element | null {
 
 function Weakest({ alive }: { alive: Liveness }): JSX.Element | null {
   const weakest = weakestPrinciple(alive);
-  if (weakest) return <p>Six things the critic looks for; the weakest here is {aliveWord(weakest.key)}.</p>;
+  if (weakest)
+    return (
+      <p>
+        {alive.principles.length} things the critic looks for; the weakest here is {aliveWord(weakest.key)}.
+      </p>
+    );
   if (alive.biggest) return <p>The weakest thing: {aliveWord(alive.biggest)}.</p>;
   return null;
 }
@@ -147,10 +162,12 @@ function Weakest({ alive }: { alive: Liveness }): JSX.Element | null {
 function Alive({ alive }: { alive: Liveness | null }): JSX.Element | null {
   if (!alive || alive.total === null) return null;
   const explained = alive.principles.some((principle) => principle.reason || principle.fix);
+  // The screen critic (software) asks how well the screen reads; only the place critic asks if it feels alive.
+  const question = alive.critic === "screen" ? "How well does the screen read?" : "Does it feel alive?";
   return (
     <>
       <h3>
-        Does it feel alive? {alive.total} of {alive.max ?? "?"}
+        {question} {alive.total} of {alive.max ?? "?"}
       </h3>
       {alive.summary ? <p>{alive.summary}</p> : null}
       <Weakest alive={alive} />

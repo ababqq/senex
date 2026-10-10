@@ -26,7 +26,7 @@
     "kind": "scene",
     "js": "meshes('weapon').some(m => m.userData && m.userData.asset) || (meshes('weapon').length >= 4 && new Set(meshes('weapon').map(m => m.geometry && m.geometry.type)).size >= 2)",
     "weight": "identity",
-    "note": "The weapon is built from at least 4 meshes of at least 2 geometry types (body, barrel, grip, sight…) — one box is a primitive, not a gun. A modelled asset (userData.asset from src/assets.js) counts as built from parts."
+    "note": "The weapon is built from at least 4 meshes of at least 2 geometry types (body, barrel, grip, sight…) — one box is a primitive, not a gun. A modelled asset (userData.asset, set by the project's asset loader) counts as built from parts."
   },
   "port": "The weapon facet returns one group with named children (body, barrel, grip, sight, muzzle) so the muzzle and sight checks have something to find.",
   "evidence": [

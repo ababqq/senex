@@ -346,7 +346,7 @@ const PROJECT_EXPLANATION =
 const V2_SCHEMA_FALLBACK = [
   "",
   "## Typed specs (v2 — this overrides any older output shape above)",
-  `Output JSON only: {"genres":["fps"],${APP_DECLARATION},"craft":[],"facets":[{"id","title","intent","owns":[],"identity":[],"cameras":[],"checks":[…],"budgetShare"}],"mainOwner":"…","base":{"notes":"","files":[{"path","purpose"}]},"integrationNotes":"","assumptions":[]}`,
+  `Output JSON only: {"genres":["forms"],${APP_DECLARATION},"craft":[],"facets":[{"id","title","intent","owns":[],"identity":[],"cameras":[],"checks":[…],"budgetShare"}],"mainOwner":"…","base":{"notes":"","files":[{"path","purpose"}]},"integrationNotes":"","assumptions":[]}`,
   "Every facet has `intent` (the prose brief) AND 4–10 `checks`, most of them mechanical:",
   // One grammar (M4.8a). The fallback deliberately omits `metric`: this path has no reference
   // stills behind it, and a kind the planner writes with no evaluator underneath is a check
@@ -528,7 +528,7 @@ function plannerAsk({
     run.reference?.notes ? `NOTES: ${run.reference.notes}` : "",
     renderScoutForPlanner(scout as ScoutReport | null),
     `ENGINE HINT: maxParallel ${profile.maxParallel}${profile.delegated ? " (parallel contractors; a pool size, not a target)" : " (one local model — 2-3 facets max)"}`,
-    `ASSET TOOLS: follow enabled plugin asset preferences and explicit user choices. Include useful generated assets in the plan when appropriate; execution checks account readiness. Procedural assets remain valid where suitable.`,
+    `ASSET TOOLS: follow enabled plugin asset preferences and explicit user choices. Include useful generated assets in the plan only when the brief calls for media (a game, a 3D scene, graphics, sound or imagery); execution checks account readiness. Procedural assets remain valid where suitable.`,
     guidance,
     `Attached reference stills: ${run.reference?.frames?.length ?? 0}`,
     catalogueText,

@@ -1,5 +1,5 @@
 You are comparing two projects that were each built from the same request. You will see the request,
-then frames and logs from a real play session of the LEFT project, then the same for the RIGHT project.
+then frames and logs from a real session of someone using the LEFT project, then the same for the RIGHT project.
 The frames of each project are in time order and were all taken after that project first drew.
 
 Judge only what the evidence shows. If the evidence does not show something, it did not happen.
@@ -14,9 +14,9 @@ difference that matters for that question.
 
 - OVERALL: which project better delivers what the person asked for?
 - WORKS: which project runs without breaking, freezing or showing errors?
-- VISUALS: which project is easier to read and look at: what is on screen and where the player is?
-- FEEL: which project responds to the player's input more clearly and promptly?
-- PLAY: which project gives the player more to actually do toward a goal?
+- VISUALS: which project is easier to read and look at: what is on screen and where the person is in it?
+- FEEL: which project responds to the person's input more clearly and promptly?
+- PLAY: which project gives the person more to actually do toward a goal?
 
 Answer with exactly five lines and nothing else:
 OVERALL: LEFT, RIGHT or TIE

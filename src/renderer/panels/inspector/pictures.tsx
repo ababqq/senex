@@ -162,7 +162,7 @@ export function Cameras({
 }): JSX.Element | null {
   if (names.length < 2) return null;
   return (
-    <div role="group" aria-label="Camera" className="flex flex-wrap gap-1">
+    <div role="group" aria-label="View" className="flex flex-wrap gap-1">
       {names.map((name) => (
         <button
           key={name}

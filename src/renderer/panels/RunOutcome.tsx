@@ -152,7 +152,7 @@ export function coverageWords(summary: RunSummary): string {
 
 /** Who took a check: the independent playtester, a judge (visual and structural), or a recorded check. */
 function checkSource(e: Evidence): string {
-  if (e.source === "independent-playtester") return "Independent playtester";
+  if (e.source === "independent-playtester") return "Independent tester";
   return e.category === "visual" || e.category === "structural" ? "Reviewer" : "Recorded check";
 }
 

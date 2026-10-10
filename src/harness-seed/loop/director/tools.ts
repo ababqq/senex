@@ -782,7 +782,7 @@ async function playIn(
     await night.saveJournal();
   }
   const bigMove = played?.report?.bigMove ?? null;
-  note(`playtested ${target.label}: ${words.said}${bigMove ? ` — the player's big step: ${bigMove.what}` : ""}`);
+  note(`playtested ${target.label}: ${words.said}${bigMove ? ` — the tester's big step: ${bigMove.what}` : ""}`);
   return JSON.stringify({
     target: target.label,
     question: ask,

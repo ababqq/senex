@@ -39,7 +39,7 @@ const num = (description: string) => ({ type: "number", description });
 export const PLAYTEST_TOOLS: readonly LiveTool[] = [
   {
     name: PlaytestTool.PressKeys,
-    description: `Press keys in the project the way a player would (w,a,s,d,space,shift,arrows…). Hold with holdMs (default ${PLAYTEST_LIMITS.defaultHoldMs}). Returns the project's state afterwards — then screenshot to SEE what happened.`,
+    description: `Press keys in the project the way a person would (Tab, Enter, Escape, space, arrows, letters; w,a,s,d,shift for a 3D or canvas view). Hold with holdMs (default ${PLAYTEST_LIMITS.defaultHoldMs}). Returns the project's state afterwards — then screenshot to SEE what happened.`,
     parameters: {
       type: "object",
       properties: {
@@ -53,7 +53,8 @@ export const PLAYTEST_TOOLS: readonly LiveTool[] = [
   },
   {
     name: PlaytestTool.Look,
-    description: "Mouse-look: dx pixels (positive = right), dy pixels (positive = down).",
+    description:
+      "Mouse-look, for a 3D or canvas view that reads relative mouse movement: dx pixels (positive = right), dy pixels (positive = down). Pages and forms use click and press_keys instead.",
     parameters: {
       type: "object",
       properties: { dx: num("horizontal pixels"), dy: num("vertical pixels") },
@@ -74,7 +75,7 @@ export const PLAYTEST_TOOLS: readonly LiveTool[] = [
   {
     name: PlaytestTool.ProjectState,
     description:
-      "The project's own state numbers (position, score, phase, fps). Self-reported — a screenshot is the truth.",
+      "The project's own state (items, selection, route, form validity, phase; position or fps in a 3D or canvas view). Self-reported — a screenshot is the truth.",
     parameters: { type: "object", properties: {} },
   },
   {

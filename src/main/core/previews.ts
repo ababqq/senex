@@ -108,7 +108,7 @@ const MESSAGE = {
   noPreview: "no preview is attached (headless mode)",
   profilingNeedsStage: "profiling requires a stage preview",
   previewChanged: "The selected preview changed while this build was preparing. Open the build again when ready.",
-  noProjectInSnapshot: "that snapshot has no project to play",
+  noProjectInSnapshot: "that snapshot has no project to open",
   sessionEnded: "the session ended before its window opened",
   notRunArtefact: (file: string) => `not a run artefact: ${file}`,
   notStill: (file: string) => `not a run artefact or a reference still: ${file}`,

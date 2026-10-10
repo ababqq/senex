@@ -1,9 +1,10 @@
+import type { ThreadKind } from "../shared/event-log.ts";
 import type { PermissionMode } from "../shared/permissions.ts";
 
 export * from "../shared/studio-api.ts";
 
 export interface ThreadMeta {
-  kind?: "studio" | "game";
+  kind?: ThreadKind;
   project?: string | null;
   archived?: boolean;
   extraReads?: string[];

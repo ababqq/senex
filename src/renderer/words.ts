@@ -1025,7 +1025,7 @@ export function checkReplanWords(part: PartRound & { action?: string | null; why
 
 function replanWhat(action: string): string {
   if (action.includes("drop")) return "dropped one of its checks";
-  if (action.includes("repoint")) return "re-aimed one of its checks at another camera";
+  if (action.includes("repoint")) return "re-aimed one of its checks at another view";
   return "changed one of its checks";
 }
 
@@ -1541,7 +1541,7 @@ export const PROGRESS_WORDS = {
   planOpens: "The plan opens here; each part appears as it is named.",
   preparingBuilds: "Preparing the next builds",
   startRejected: "The starting point was rejected; the parts carry on from an empty project.",
-  startEmpty: "The starting point runs but is empty — no scenery or interaction yet.",
+  startEmpty: "The starting point runs but is empty — no content or interaction yet.",
   startPassed: "The starting point passed its checks. Each part still needs its own verdict.",
 } as const;
 
@@ -1602,7 +1602,7 @@ const STUDIO_TOOLS: Record<string, ToolWords> = {
   look: { icon: "project", label: "looked around" },
   check_project: { icon: "project", label: "checked the project" },
   project_state: { icon: "project", label: "read the project's state" },
-  play_deterministic: { icon: "project", label: "played the project" },
+  play_deterministic: { icon: "project", label: "ran a scripted exercise" },
   new_project: { icon: "project", label: "started a new project" },
   export_project: { icon: "project", label: "exported the project" },
   remember: { icon: "think", label: "remembered something" },
@@ -1635,7 +1635,7 @@ const STUDIO_TOOLS: Record<string, ToolWords> = {
   worker_stop: { icon: "run", label: "stopped a worker" },
   wait: { icon: "think", label: "waited", active: "Waiting" },
   judge: { icon: "see", label: "reviewed a build", active: "Reviewing a build" },
-  playtest: { icon: "project", label: "had a build playtested", active: "Playtesting a build" },
+  playtest: { icon: "project", label: "had a build tried out", active: "Trying out a build" },
   integrate: { icon: "write", label: "merged a worker's work", active: "Merging a worker's work" },
   show: { icon: "see", label: "showed you a build" },
   note: { icon: "think", label: "noted a decision" },
@@ -2393,13 +2393,13 @@ export const GENEX_WORDS = {
   /** The Publish dialog on the project's stage, drawn by Studio. */
   publish: {
     title: "Publish to the web",
-    intro: "Get a link anyone can play in their browser.",
-    published: "Your project is live. Anyone with the link can play it.",
+    intro: "Get a link anyone can open in their browser.",
+    published: "Your project is live. Anyone with the link can open it.",
     /** The stage strip's own Publish, when Genex adds none: the words of Genex's button. */
     button: "Publish",
     buttonLabel: "Publish project",
     /** The name field: what the project is listed under, and what Genex paints on its cover. */
-    name: "Name players will see",
+    name: "Name people will see",
     /** The project's line under its name. */
     statusNone: "Not online yet",
     statusDraft: "Test version online",
@@ -2424,7 +2424,7 @@ export const GENEX_WORDS = {
     filesLeftOut: (count: number) => `${count} left out`,
     failedTitle: "It didn't go online this time",
     failedText: "Your project is safe and nothing changed. Check your internet connection and try again.",
-    failedKept: "Your project is safe, and players still get the version they had. Try again in a moment.",
+    failedKept: "Your project is safe, and people still get the version they had. Try again in a moment.",
     unresolvedTitle: "Still checking whether it went online",
     unresolvedText: "Studio couldn’t tell whether the upload reached Genex. Check again before uploading again.",
     copyDetails: "Copy details for support",
@@ -2456,8 +2456,8 @@ export const GENEX_WORDS = {
       promoting: "Going live",
       listing: "Going live",
       done: "Finished",
-      "verifying-deployment": "Making sure it plays",
-      ready: "Ready to play",
+      "verifying-deployment": "Making sure it works",
+      ready: "Ready to use",
       failed: "Didn't go online",
       unresolved: "Still checking",
     } satisfies Record<GenexPublishPhase, string>,

@@ -347,6 +347,11 @@ describe("the committed case file", () => {
         ["edit-existing", CaseMode.EditExisting],
         ["follow-up", CaseMode.FollowUp],
         ["long-horizon", CaseMode.LongHorizon],
+        ["sales-dashboard", CaseMode.Build],
+        ["class-signup", CaseMode.Build],
+        ["habit-tracker", CaseMode.Build],
+        ["hiking-club-site", CaseMode.Build],
+        ["bill-splitter", CaseMode.Build],
       ],
     );
     for (const c of cases) assert.equal(c.visibility, CaseVisibility.Public);

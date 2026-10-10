@@ -46,7 +46,7 @@ export const ENGINE_LABELS: Readonly<Record<string, string>> = {
 export const ROLES: readonly RoleRow[] = [
   { key: "planner", label: "Orchestrator", detail: "interviews you, plans the facets, re-points checks" },
   { key: "builder", label: "Workers", detail: "build the base, every facet, the spikes and the merge" },
-  { key: "judge", label: "Judges", detail: "vision checks, taste, code review, the playtester, the panel" },
+  { key: "judge", label: "Judges", detail: "vision checks, taste, code review, the usability tester, the panel" },
 ];
 
 /** The jobs the composer may send to the other subscription. Never the orchestrator. */

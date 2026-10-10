@@ -174,10 +174,10 @@ the executable, packaged state, main-bundle digest and temporary profile identit
 
 ## Local builder progress and diagnosis
 
-For a new Bonsai project with no planned facets yet, the base brief names a visible first scene,
+For a new Bonsai project with no planned facets yet, the base brief names a visible first screen,
 the existing entry file and the public installStudio API. It does not ask the builder to study
 the instrumentation implementation. Existing imported projects retain their own architecture
-and contract-wiring path. Detailed quality work can follow the first captured, working scene.
+and contract-wiring path. Detailed quality work can follow the first captured, working screen.
 
 Writable local sessions offer an exact, unique-block `edit_file` tool for small corrections,
 with the same path and worker-ownership checks as full-file writes. Ambiguous matches fail

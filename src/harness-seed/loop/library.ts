@@ -783,7 +783,7 @@ export function renderBrief({
     ...briefHeader(run, spec, iteration, app),
     ...steeringSection(steering),
     ...moveSection(move),
-    ...fixSection(fix, template),
+    ...fixSection(fix, drawsScene(run.app)),
     ...scoreboardSection(board, comparison),
     ...(integration ? [`## Integration`, integration, ``] : []),
     ...livenessSection(liveness, critic),
@@ -859,7 +859,7 @@ function moveSection(move: AnyRecord | null): string[] {
 }
 
 /** The biggest gap the judge keeps naming, and how to replace the mechanism behind it. */
-function fixSection(fix: AnyRecord | null, template: boolean): string[] {
+function fixSection(fix: AnyRecord | null, scene: boolean): string[] {
   if (!fix?.what) return [];
   const urgency = fix.mandatory
     ? "mandatory — a build that leaves it loses, whatever else it flips"
@@ -873,15 +873,21 @@ function fixSection(fix: AnyRecord | null, template: boolean): string[] {
     fix.recipe
       ? `The library has a recipe for exactly this: ${fix.recipe.title} (${fix.recipe.id}) — it is under "Recipes that apply" below. Port it; do not invent a fourth way.`
       : "",
-    // The named modules are the studio template's own (foliage.js, materials.js). A project the
-    // user brought has neither, and the builder's seam forbids inventing them at those paths,
-    // so it hears the same rule in its own project's terms. The Blender clause stays on the run,
-    // not on the shape: the modeller is granted to an own-shape worker too.
-    template
-      ? `Replace the mechanism behind it, do not tune it. A faceted or smooth solid that should read as something organic (a tree, a bush, hay, an animal) is rebuilt from cards or parts (\`foliage.js\`); a flat wash that should read as a material gets a baked material kind (\`materials.js\`); a thing that floats gets a contact patch and sinks. Land it in the same build as the move — the move comes first, this before the rest of the ledger.`
-      : `Replace the mechanism behind it, do not tune it. A faceted or smooth solid that should read as something organic (a tree, a bush, hay, an animal) is rebuilt out of cards or parts, the way this project already builds its objects; a flat wash that should read as a material gets a material this project's renderer can bake; a thing that floats gets a contact patch and sinks. Land it in the same build as the move — the move comes first, this before the rest of the ledger.`,
+    fixMechanism(scene),
     ``,
   ];
+}
+
+/**
+ * What "replace the mechanism, do not tune it" means for this build: a 3D scene's solids and
+ * materials, or a screen's layout and components. The template ships no foliage or material
+ * module any more, so neither text names one.
+ */
+function fixMechanism(scene: boolean): string {
+  const landing = "Land it in the same build as the move — the move comes first, this before the rest of the ledger.";
+  if (!scene)
+    return `Replace the mechanism behind it, do not tune it. A layout that reads wrong is rebuilt (the structure, not the padding values); a control or component that misbehaves is replaced by one that handles the case, not patched around it; a style repeated in several places moves into one shared rule or token. ${landing}`;
+  return `Replace the mechanism behind it, do not tune it. A faceted or smooth solid that should read as something organic (a tree, a bush, hay, an animal) is rebuilt out of cards or parts, the way this project already builds its objects; a flat wash that should read as a material gets a material this project's renderer can bake; a thing that floats gets a contact patch and sinks. ${landing}`;
 }
 
 /** The board after the last judged build: identity first, and what could not be measured. */

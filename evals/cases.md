@@ -284,6 +284,131 @@ checklist is graded once, on the final state, so it covers both turns.
 A three-hour deadline, so the case measures what a long Loop adds over a short build: whether the
 systems keep connecting, and whether later work breaks earlier work.
 
+## C12 · `sales-dashboard` — a screen to read at a glance *(draft: owner pins before first baseline)*
+
+**Exposure:** none
+
+> I run a small online shop and I want one screen that shows how this week went: revenue and number
+> of orders at the top, a chart of sales day by day, and a table of my best-selling products. Let me
+> flip between this week and last month. Sample data is fine, but make it believable.
+
+**Acceptance:**
+
+```
+[ ] revenue and the number of orders are at the top, readable without scrolling   <- "revenue and number of orders at the top"
+[ ] a chart shows sales for each day of the period                                <- "a chart of sales day by day"
+[ ] a table lists products, the best seller first                                 <- "my best-selling products"
+[ ] the period can be switched, and the numbers on screen change with it          <- "flip between this week and last month"
+[ ] the figures agree: the totals match what the chart and the table show         <- "make it believable"
+[ ] KEY: the screen reads at a glance — the headline numbers dominate and the rest is quiet
+```
+
+**Control:** the revenue total is announced aloud by a choir of sea lions
+
+The dashboard shape: a screen that is read far more than it is operated, so hierarchy and
+consistency carry the case. The KEY line is the layout judgement — every number can be present while
+the page is a wall of equal-weight boxes.
+
+## C13 · `class-signup` — the failure path is the product *(draft: owner pins before first baseline)*
+
+**Exposure:** none
+
+> A sign-up form for a community pottery class. I need the person's name, their email, which session
+> they want (Tuesday evening or Saturday morning) and whether they have used a wheel before. If they
+> get something wrong, tell them what to fix. When it goes through, show a confirmation of what they
+> signed up for.
+
+**Acceptance:**
+
+```
+[ ] the form asks for name, email, session and wheel experience                   <- "the person's name, their email"
+[ ] the session choice offers Tuesday evening and Saturday morning                <- "Tuesday evening or Saturday morning"
+[ ] a malformed email is refused with a message that says what is wrong           <- "tell them what to fix"
+[ ] a required field left empty is refused, with the message beside that field
+[ ] a valid submission shows a confirmation                                       <- "show a confirmation"
+[ ] the confirmation repeats the person's name and the session they chose         <- "what they signed up for"
+[ ] KEY: after a refusal, what the person already typed is still in the form
+```
+
+**Control:** the confirmation is delivered as a handwritten letter by post
+
+The form-flow shape: the happy path is a handful of fields and every real defect lives in what
+happens when a field is wrong. The KEY line is the one a form quietly fails — a refusal that wipes
+the form teaches nobody anything.
+
+## C14 · `habit-tracker` — a list that changes under your hands *(draft: owner pins before first baseline)*
+
+**Exposure:** none
+
+> A little habit tracker. I add habits like "stretch" or "read", tick each one off for today, and see
+> how many days in a row I have kept it going. I should be able to delete a habit I don't want any
+> more.
+
+**Acceptance:**
+
+```
+[ ] a habit can be added by typing its name                                       <- "I add habits"
+[ ] a habit can be ticked off for today                                           <- "tick each one off for today"
+[ ] each habit shows a streak, and ticking it raises the count                    <- "how many days in a row"
+[ ] a habit can be deleted                                                        <- "delete a habit"
+[ ] with no habits the screen says what to do instead of showing nothing
+[ ] KEY: the list stays coherent as it changes — ticked habits are distinguishable and nothing duplicates or vanishes
+```
+
+**Control:** ticking a habit also waters a real houseplant
+
+The list-manager shape: create, mark and delete are three small features, and the defects live in the
+seams — an empty list, the second item, the state a tick leaves behind. Persistence across a reload
+is left out on purpose: no prober phase reloads the page, so no frame could show it.
+
+## C15 · `hiking-club-site` — a small site that holds together *(draft: owner pins before first baseline)*
+
+**Exposure:** none
+
+> A small website for our hiking club. A home page that says who we are, a page with our three
+> regular hikes and how long and how hard each one is, and a page about how to join. It should be
+> easy to get between the pages and read well on a phone.
+
+**Acceptance:**
+
+```
+[ ] the home page says who the club is                                            <- "says who we are"
+[ ] a hikes page lists three hikes                                                <- "our three regular hikes"
+[ ] each hike shows how long and how hard it is                                   <- "how long and how hard"
+[ ] a page explains how to join                                                   <- "how to join"
+[ ] every page links to the others, and following a link works                    <- "easy to get between the pages"
+[ ] at phone width nothing scrolls sideways and the text stays readable           <- "read well on a phone"
+[ ] KEY: it reads as one site — shared navigation and a consistent look on every page
+```
+
+**Control:** the hikes page can only be read during a solar eclipse
+
+The content-site shape: little behaviour, so the case measures structure, copy and finish. The phone
+line is the responsive check.
+
+## C16 · `bill-splitter` — a small tool that must be right *(draft: owner pins before first baseline)*
+
+**Exposure:** none
+
+> A bill splitter for dinner with friends. I type in the total, pick a tip percentage and say how many
+> of us there are, and it shows what each person pays. Round sensibly, and don't show nonsense if I
+> leave a box empty.
+
+**Acceptance:**
+
+```
+[ ] there are inputs for the total, the tip percentage and the number of people   <- "pick a tip percentage"
+[ ] the amount each person pays is shown                                          <- "what each person pays"
+[ ] the amount is rounded to cents                                                <- "Round sensibly"
+[ ] an empty or zero input gives a neutral state, never NaN, a negative or an infinite amount   <- "leave a box empty"
+[ ] KEY: the amount is right for the inputs on screen — (total plus tip) divided by the people
+```
+
+**Control:** splitting the bill also orders dessert for the table
+
+The utility shape: one screen, one formula, no excuses. The KEY line is checkable from the frames
+alone, because the inputs and the answer are on screen together.
+
 ---
 
 # Rotation and holdouts
@@ -314,3 +439,8 @@ cases of the suite this one was ported from and are not ported; their numbers ar
 | C9 edit-existing | draft | — | — |
 | C10 follow-up | draft | — | — |
 | C11 long-horizon | draft | — | — |
+| C12 sales-dashboard | draft | — | — |
+| C13 class-signup | draft | — | — |
+| C14 habit-tracker | draft | — | — |
+| C15 hiking-club-site | draft | — | — |
+| C16 bill-splitter | draft | — | — |
