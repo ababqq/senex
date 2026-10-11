@@ -493,6 +493,20 @@ export function appLine(app: AnyRecord | null | undefined): string {
   return `PROJECT: ${kind.says}.${drives} The input evidence is ${paths.join(", ")} in __studio.state() — report [dead-input] only if those are unchanged.`;
 }
 
+/**
+ * What every judge is told about a picture of a page of DOM. The shot is the window's own pixels:
+ * the top of the page, never what scrolls below it. Without this sentence a judge fails a chart for
+ * "bars cut off at the bottom of the frame" or a form for "no comment box" when the frame simply ends
+ * above them (live validation, second pass, 2026-10-11).
+ */
+export const PICTURE_EXTENT_LINE =
+  "A SCREENSHOT OF A PAGE IS A WINDOW ONTO IT: it shows the top of the page, as much as fits in the window, and nothing that scrolls below. A control, field or row missing from the picture is not proof it is missing from the page, and content ending at the bottom edge may run on. Judge what the picture shows; when the answer depends on what lies below it, say so with confidence under 0.5.";
+
+/** The sentence a judge is given about the pictures of this project: none for a scene, which a canvas frame shows whole. */
+export function pictureLine(app: AnyRecord | null | undefined): string {
+  return drawsScene(app) ? "" : PICTURE_EXTENT_LINE;
+}
+
 /** Whether the project draws a scene a person moves through (a canvas, a 3D world) rather than a page of DOM. */
 export function drawsScene(app: AnyRecord | null | undefined): boolean {
   return normalizeAppTraits(app).kind === "graphics";

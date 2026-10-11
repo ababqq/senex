@@ -8176,3 +8176,70 @@ describe("a first version that starts with entries nobody made (live validation,
     assert.doesNotMatch(brief, /realistic fixture data/);
   });
 });
+
+/**
+ * Live Loop validation, second pass (2026-10-11): judges saw only the top of a DOM page and failed it for
+ * what lay below the picture ("the bars are cut off at the bottom of the frame", "the table is below the
+ * crop and can't be confirmed"). Every judge is now told what a picture of a page is.
+ */
+describe("a picture of a page is a window onto it (live validation, second pass, 2026-10-11)", () => {
+  it("PX-1. a vision judge is told what lies below the picture of a page, and a scene is left alone", async () => {
+    const { PICTURE_EXTENT_LINE } = await import("../../src/harness-seed/loop/kinds.ts");
+    const run: Run = {
+      runId: "px-1",
+      project: "fixture",
+      goal: "Judge a page",
+      reference: { name: "fixture", shots: [] },
+      budgets: { wallClockMs: 1000 },
+    };
+    const check: Check = {
+      id: "seen",
+      kind: "vision",
+      camera: "default",
+      ask: "Is the table of classes visible?",
+      weight: "normal",
+      hard: false,
+      note: "",
+    };
+    const promptFor = async (app: Record<string, unknown> | undefined) => {
+      let sent = "";
+      const { ctx } = ctxRecorder({
+        handlers: {
+          "engine.complete": (params) => {
+            sent = JSON.stringify(params);
+            return { message: { content: '{"answer":"yes","confidence":0.9}' } };
+          },
+        },
+      });
+      await visionCheck(ctx, {
+        run: { ...run, ...(app ? { app } : {}) },
+        check,
+        crop: { base64: JPEG_BYTES.toString("base64") },
+      });
+      return sent;
+    };
+    const line = JSON.stringify(PICTURE_EXTENT_LINE).slice(1, -1);
+    assert.ok((await promptFor({ kind: "dashboard" })).includes(line), "a declared page is told");
+    assert.ok(
+      (await promptFor(undefined)).includes(line),
+      "so is a run that declared nothing: it is a page until it says otherwise",
+    );
+    assert.ok(!(await promptFor({ kind: "graphics" })).includes(line), "a scene is a canvas: no page extends past it");
+  });
+
+  it("PX-2. a judge is told how tall the page is and that the picture shows its top, only when it is taller", async () => {
+    const { describeEvidence } = await import("../../src/harness-seed/loop/judge.ts");
+    const shots = [{ camera: "default", base64: "AAAA" }];
+    const tall = describeEvidence({ shots, pageExtent: { windowPx: 600, documentPx: 1840 } } as never);
+    assert.ok(tall.includes("1840") && tall.includes("600"), tall);
+    for (const pageExtent of [
+      null,
+      undefined,
+      { windowPx: 600, documentPx: 610 },
+      { windowPx: 600, documentPx: 600 },
+    ]) {
+      const flat = describeEvidence({ shots, pageExtent } as never);
+      assert.ok(!flat.includes("1840") && !flat.includes("below"), JSON.stringify(pageExtent));
+    }
+  });
+});

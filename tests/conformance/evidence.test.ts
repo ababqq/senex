@@ -1572,3 +1572,40 @@ describe("the order a pass touches the page in, and the state it leaves it in", 
     assert.equal(clean.calls.at(-1)!.payload.method, "start");
   });
 });
+
+describe("how tall the page is, beside the picture of its top", () => {
+  /**
+   * Live Loop validation, second pass (2026-10-11): a picture of a DOM page is the window's own pixels, the
+   * top of the page, so judges failed a dashboard for "bars cut off at the bottom of the frame" and a form for
+   * "no comment box or email field is shown". The pass now measures the page, and the judge is told.
+   */
+  const tall = (expression: string) => (expression.includes("scrollHeight") ? [600, 1840] : false);
+
+  it("reports the window's height and the document's when the page runs on past the picture", async () => {
+    const { ctx } = stubCtx({ frames: ["AAAA"], evaluate: tall });
+    const evidence = await gather(ctx);
+    assert.deepEqual(evidence.pageExtent, { windowPx: 600, documentPx: 1840 });
+    assert.ok(
+      !evidence.warnings.some((warning: string) => /1840/.test(warning)),
+      "a tall page is not a defect, so it is no warning",
+    );
+  });
+
+  it("reports nothing when the answer is not two positive numbers, and survives a probe that throws", async () => {
+    for (const answer of [false, null, "tall", [600], [0, 1840], [600, Number.NaN], [600, -1]]) {
+      const { ctx } = stubCtx({
+        frames: ["AAAA"],
+        evaluate: (expression) => (expression.includes("scrollHeight") ? answer : false),
+      });
+      assert.equal((await gather(ctx)).pageExtent, null, JSON.stringify(answer));
+    }
+    const { ctx } = stubCtx({
+      frames: ["AAAA"],
+      evaluate: (expression) => {
+        if (expression.includes("scrollHeight")) throw new Error("page gone");
+        return false;
+      },
+    });
+    assert.equal((await gather(ctx)).pageExtent, null);
+  });
+});
