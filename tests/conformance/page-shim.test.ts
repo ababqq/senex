@@ -667,3 +667,42 @@ it("budgets GPU error drains to one per thirty frames", () => {
   for (let i = 0; i < 90; i++) frame();
   assert.equal(reads, 3);
 });
+
+describe("what a project's reset is told about why it runs", () => {
+  /**
+   * Live builds (2026-10-11): the page runs `reset(1)` on every load, and a generated `reset` that
+   * "empties the store and loads the fixtures" wiped a reading list and prefilled sample books for
+   * the person who opened the page. The judge's reseeds are the only calls that should do that.
+   */
+  function install(calls: Array<[number, unknown]>) {
+    const globals = globalThis as unknown as Record<string, unknown>;
+    const before = { window: globals.window, document: globals.document };
+    const canvas = { getBoundingClientRect: () => ({ left: 0, top: 0, width: 100, height: 100 }) };
+    globals.window = { addEventListener: () => {} };
+    globals.document = { addEventListener: () => {}, querySelector: () => canvas, pointerLockElement: canvas };
+    const restore = () => Object.assign(globals, before);
+    try {
+      const api = installStudio({
+        canvas,
+        hud: false,
+        reset: (seed: number, info?: unknown) => calls.push([seed, info]),
+      } as never) as { seed(value: number): number };
+      return { api, restore };
+    } catch (error) {
+      restore();
+      throw error;
+    }
+  }
+
+  it("says boot on the page load and not-boot on the judge's reseed", () => {
+    const calls: Array<[number, unknown]> = [];
+    const page = install(calls);
+    try {
+      assert.deepEqual(calls, [[1, { boot: true }]]);
+      page.api.seed(7);
+      assert.deepEqual(calls.at(-1), [7, { boot: false }]);
+    } finally {
+      page.restore();
+    }
+  });
+});

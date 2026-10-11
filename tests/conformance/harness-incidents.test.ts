@@ -1,5 +1,8 @@
 import { ReferenceKind } from "../../src/harness-seed/loop/run-events.ts";
 import { execFile } from "node:child_process";
+import vm from "node:vm";
+import { applyPlayScript } from "../../src/harness-seed/loop/play-script.ts";
+import { playScriptFor } from "../../src/harness-seed/loop/kinds.ts";
 import { promisify } from "node:util";
 import { gitFile } from "../helpers/git.ts";
 /**
@@ -8058,5 +8061,118 @@ describe("a Hello in a brand-new project (2026-10-04)", () => {
     assert.match(brief, /nothing has been built/i);
     const talk = brief.search(/greeting/i);
     assert.ok(talk >= 0 && talk < brief.search(/CLAUDE\.md/), "how to answer a greeting comes before how to build");
+  });
+});
+
+/**
+ * Live Loop builds on the owner's Mac (2026-10-11), BUILD 3 (a reading list): the list exercise
+ * clicked a fixed spot, which was the page's masthead, and typed "Buy milk" into nothing. The judge
+ * then reported `[dead-input]` as a defect of a page whose field worked. The exercise now puts the
+ * keyboard in the first text field instead of aiming at a coordinate.
+ */
+describe("an exercise that typed into a masthead (live validation, 2026-10-11)", () => {
+  interface Field {
+    y: number;
+    autofocus?: boolean;
+  }
+  interface Layout {
+    fields: Field[];
+    /** A page that re-renders on Return drops focus, as an `innerHTML` list does. */
+    dropsFocusOnReturn?: boolean;
+  }
+
+  /** A page of text fields at fixed heights; a click focuses a field only when it lands on one. */
+  function pageWith(layout: Layout) {
+    let focused: number | null = layout.fields.findIndex((f) => f.autofocus);
+    if (focused < 0) focused = null;
+    const entered: string[][] = layout.fields.map(() => []);
+    const elements = layout.fields.map((_, index) => ({
+      tagName: "INPUT",
+      disabled: false,
+      readOnly: false,
+      isContentEditable: false,
+      getAttribute: (name: string) => (name === "type" ? "text" : null),
+      closest: () => null,
+      getClientRects: () => ({ length: 1 }),
+      focus: () => {
+        focused = index;
+      },
+    }));
+    const document = {
+      get activeElement() {
+        return focused === null ? { tagName: "BODY" } : elements[focused];
+      },
+      querySelectorAll: () => elements,
+    };
+    const ctx = {
+      cancelled: false,
+      call: async (method: string, payload: Record<string, any> = {}) => {
+        if (method === "preview.evaluate")
+          return new vm.Script(String(payload.expression)).runInNewContext({ document });
+        if (method !== "preview.input") return {};
+        for (const action of payload.actions ?? []) {
+          if (action.type === "click") {
+            const hit = layout.fields.findIndex(
+              (f) => Math.abs(f.y - action.y) <= 0.04 && Math.abs(action.x - 0.5) <= 0.3,
+            );
+            focused = hit < 0 ? null : hit;
+          }
+          if (action.type === "type" && focused !== null) entered[focused]!.push(String(action.text));
+          if (action.type === "press" && action.combo === "Tab" && focused !== null)
+            focused = focused + 1 < layout.fields.length ? focused + 1 : null;
+          if (action.type === "press" && action.combo === "Return" && layout.dropsFocusOnReturn) focused = null;
+        }
+        return {};
+      },
+    };
+    return { ctx, entered };
+  }
+
+  const drive = async (kind: string, layout: Layout) => {
+    const page = pageWith(layout);
+    await applyPlayScript(page.ctx as never, playScriptFor({ kind }), { clock: "step" });
+    return page.entered;
+  };
+
+  it("LM-1. a list exercise reaches the first field wherever the page keeps it", async () => {
+    const layouts: Array<[string, Layout]> = [
+      ["a masthead where the old click landed", { fields: [{ y: 0.4 }] }],
+      ["a field that took focus on load", { fields: [{ y: 0.4, autofocus: true }] }],
+      ["a list that drops focus when an item is added", { fields: [{ y: 0.2 }], dropsFocusOnReturn: true }],
+      ["a field exactly where the old click landed", { fields: [{ y: 0.2 }] }],
+    ];
+    for (const [name, layout] of layouts)
+      assert.deepEqual(await drive("list-manager", layout), [["Buy milk", "Call Ada"]], name);
+  });
+
+  it("LM-2. a form and a utility put their first text in the first field and Tab to the next", async () => {
+    const fields = { fields: [{ y: 0.8 }, { y: 0.9 }] };
+    assert.deepEqual(await drive("form-flow", fields), [["Ada Lovelace"], ["ada@example.com"]]);
+    assert.deepEqual(await drive("utility", fields), [["42"], ["7"]]);
+  });
+
+  it("LM-3. a page without a text field is driven without error and takes no input", async () => {
+    assert.deepEqual(await drive("list-manager", { fields: [] }), []);
+  });
+});
+
+/**
+ * Live Loop builds (2026-10-11): a reading list opened with seven sample books nobody asked for,
+ * and a feedback form opened with "2 responses saved" — the base brief asked for "realistic fixture
+ * data" and a `reset(seed)` the page runs on every load. A first version keeps a person's entries,
+ * and tells its `reset` whether the page is loading.
+ */
+describe("a first version that starts with entries nobody made (live validation, 2026-10-11)", () => {
+  it("SD-1. the first-version brief keeps sample entries out of lists and forms and tells reset about the load", async () => {
+    const { baseBrief } = await import("../../src/harness-seed/loop/prompts-build.ts");
+    const brief = baseBrief({
+      run: { goal: "A reading list", reference: null, engine: "claude-code", builderEngine: "claude-code" } as never,
+      plan: { facets: [] },
+      projectLabel: "shelf-tracker",
+    });
+    assert.match(brief, /no sample entries in a list or form a person fills in/);
+    assert.match(brief, /reset\(seed, info\)/);
+    assert.match(brief, /info\.boot is true[^`]*keep what a person saved/);
+    assert.doesNotMatch(brief, /realistic fixture data/);
   });
 });

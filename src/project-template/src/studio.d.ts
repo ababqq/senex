@@ -224,8 +224,12 @@ export interface StudioConfig {
   cameras?: Record<string, () => unknown>;
   /** Scripted workflows the generic run cannot reach; each ends on its last screen. May be async. */
   demos?: Record<string, () => unknown>;
-  /** Back to a known state for this seed: empty the store, seed the fixtures. */
-  reset?: (seed: number) => void;
+  /**
+   * Back to a known state for this seed. It runs with `{ boot: true }` on every page load (seed 1) and with
+   * `{ boot: false }` when the judge reseeds a hidden copy. Only a reseed may empty the store and load fixtures;
+   * on boot keep what a person saved and add no sample entries unless the brief asks for it.
+   */
+  reset?: (seed: number, info?: { boot: boolean }) => void;
   /** The canvas of a project that draws one. */
   canvas?: HTMLCanvasElement;
   /** A 3D or canvas world's scene graph, renderer and camera — whatever library they come from. */

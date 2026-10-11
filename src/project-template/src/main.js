@@ -8,8 +8,9 @@ import { installStudio } from "./studio.js";
 const app = document.getElementById("app");
 
 installStudio({
-  // Back to a known state for this seed: empty the store, load the fixtures, return to the first screen.
-  reset() {},
+  // Back to a known state for this seed, with `info.boot` true on the page load and false on the judge's reseeds.
+  // On boot keep what a person saved and add no sample entries unless the brief asks; a reseed may empty the store and load fixtures.
+  reset(seed, info) {},
   // What the project holds, as numbers and short strings a check can compare: items, selection, route.
   probes() {
     return { phase: "empty", elements: app.querySelectorAll("*").length };

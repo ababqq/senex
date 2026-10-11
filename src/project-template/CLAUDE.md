@@ -17,10 +17,10 @@ screens, data and controls, and replace `phase: "empty"`. Five rules; tables in 
 4. **Make it measurable.** A probe in `probes()` per thing the project holds, a view in `views` per
    screen worth photographing (always empty and error), a demo in `demos` per workflow the generic
    exercise cannot reach. The page reports what was done to it (`state().ui`) by itself; never fake it.
-5. **Deterministic, local, nothing downloaded.** Randomness only from `reset(seed)` or the `rng` in
-   `update()`; no wall clock, no network, no CDN. Data in memory or `localStorage`; images and icons are
-   code or made by the studio's tools into `assets/`. Optional tools/skills come from Studio’s current
-   registry: load their returned files and verify use in the preview. `references/` is to LOOK at.
+5. **Deterministic, local, nothing downloaded.** Randomness only from `reset(seed)` or the `rng` in `update()`; no wall
+   clock, no network, no CDN. Data in memory or `localStorage`; `reset(1)` runs on every page load, so on boot it never
+   wipes what a person saved, and no sample entries or extras unless asked. Images and icons: code, or Studio’s registry
+   tools into `assets/` (use their returned files; verify in the preview). `references/`: LOOK only.
 
 Three lessons every facet re-learned: non-owner facets touch `src/main.js` only inside the `FACET
 WIRING` block (one import, one init line — the harness union-merges it, anything else conflicts);

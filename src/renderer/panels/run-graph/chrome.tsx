@@ -95,7 +95,7 @@ export function PlayButton({
         }
       }}
     >
-      <Icon name="play" size={13} />
+      <Icon name="arrow-up-right" size={13} />
       {opening ? "Opening…" : label}
     </Button>
   );

@@ -209,7 +209,7 @@ describe("first-launch art", () => {
       drawWelcome(
         recorder().ctx,
         t,
-        "A tiny space shooter in a field of asteroids",
+        "A small habit tracker with a weekly streak",
         { font: "15px sans-serif", spacing: "0px" },
         palette,
       );

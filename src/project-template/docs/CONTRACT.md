@@ -13,7 +13,7 @@ not rewrite it. `studio.json` records that folder's shape, detected on first ope
 | `build` | Shell command the studio runs (in the folder, or the facet's copy) before every preview | none |
 | `entry` | The page the studio serves; with a build, inside its output. May carry a query the page reads | `index.html` |
 | `bootMs` | How long the studio waits for the page to report itself ready before it looks anyway — 1000..60000, default 15000. Raise it for a project with a long data load or a top-level `await`. The studio reads this field and never writes it | none (15000) |
-| `project` | This project's kind and traits, declared once a run by the plan — a nested block, not the top-level `kind`, which is the project's SHAPE | none |
+| `app` | This project's kind and traits, declared once a run by the plan — a nested block, not the top-level `kind`, which is the project's SHAPE (an older `game` block is still read) | none |
 
 Every rule below then reads with `main` in place of `src/main.js`: the contract is installed from
 the real entry, facets wire into its FACET WIRING block, and the project's own UI and input stay as
@@ -43,7 +43,7 @@ world) — and a project that supplies none of them still answers `cameras()` wi
 
 | Call | Meaning |
 | --- | --- |
-| `__studio.seed(n)` | Reseed and reset deterministically — **and pause**, so the judge can step from a known state. Same seed ⇒ same run. Calls your `reset(seed)`. |
+| `__studio.seed(n)` | Reseed and reset deterministically — **and pause**, so the judge can step from a known state. Same seed ⇒ same run. Calls your `reset(seed, { boot: false })`; the page load calls `reset(1, { boot: true })`, and only a reseed may empty the store or load fixtures. |
 | `__studio.start()` / `pause()` | The project runs from the moment it loads — never wait for `start()`. `pause()` freezes it for deterministic judging; `start()` resumes live use. |
 | `__studio.step(dtMs)` | Advance by hand, independent of wall clock — used for scripted runs. |
 | `__studio.state()` | JSON snapshot: runtime timing, the page's own activity (`ui`, below) and the numbers and short strings your `probes()` return. Nothing is required for a feature the project does not have. |
