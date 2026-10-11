@@ -155,9 +155,8 @@ around every plugin tool call.
 
 Build keeps the task graph with an outcome summary above it. The summary shows delivery, revision-specific check failures and independent interaction
 limits immediately. The result panel's **Technical details** exposes recorded integration/evaluated-attempt counts,
-revision identities and learning accounting; its **Checks** exposes failed questions and historical evidence (the structural
-count is of the revision on offer, and says so when its passes were on an earlier one); `View capture`
-uses the existing protected still reader. Tries fold into their step; a part's panel (its row
+revision identities and learning accounting; its **Checks** exposes failed questions and historical evidence, counting the shown revision only; `View capture`
+uses the protected still reader. Tries fold into their step; a part's panel (its row
 label, keyboard-accessible) lists its steps. Explicit replacements remain one part; its technical
 details retain worker identities and reasons. `Open` / `Open latest` uses the existing scratch-preview
 operation and selects Live; landing remains a separate action. Learning is recorded independently
@@ -165,7 +164,7 @@ from finished project execution. Graph, MorningCard and Review use the same host
 
 Build outcome controls use visible hover/focus affordances and a pending Open state. View history
 toggles all attempt histories back closed; collapsed task cards retain result-bus connections
-(dim for no recorded integration). These lines describe graph topology, not acceptance.
+(dim for no recorded integration), showing topology, not acceptance.
 
 Startup content is separate from harness readiness: bootstrap loading draws nothing under the
 startup loader, failure shows Retry, and only a successful empty read shows the empty-projects message.
