@@ -134,9 +134,54 @@ describe("preview input driver", () => {
     assert.deepEqual(beats[1], { page: { studio: {}, dom: [{ kind: "wheel", dx: 0, dy: 6000, x: 7, y: 8 }] } });
   });
 
-  it("types a newline as Enter and sends a char only for printable keys", async () => {
-    const { beats } = await run({ type: "type", text: "a\n" });
-    assert.deepEqual(nativeTypes(beats), ["keyDown", "char", "keyUp", "keyDown", "keyUp"]);
+  // Flipped (live validation, 2026-10-11): Enter used to send no char, so a focused button was never
+  // clicked, a form was never submitted and a textarea got no newline from the harness's Return.
+  it("types a newline as Enter, with the char Chromium needs to act on it, and Tab as a key alone", async () => {
+    const { beats } = await run({ type: "type", text: "a\n\t" });
+    assert.deepEqual(nativeTypes(beats), ["keyDown", "char", "keyUp", "keyDown", "char", "keyUp", "keyDown", "keyUp"]);
+  });
+
+  const charsOf = (beats: Beat[]) =>
+    beats.flatMap((beat) => ("native" in beat && beat.native.type === "char" ? [beat.native.keyCode] : []));
+
+  it("types a space and keeps a capital a capital", async () => {
+    const { beats } = await run({ type: "type", text: "Ada Lovelace, 42 (Buy milk)!" });
+    assert.deepEqual(charsOf(beats), [
+      "A",
+      "d",
+      "a",
+      "Space",
+      "L",
+      "o",
+      "v",
+      "e",
+      "l",
+      "a",
+      "c",
+      "e",
+      ",",
+      "Space",
+      "4",
+      "2",
+      "Space",
+      "(",
+      "B",
+      "u",
+      "y",
+      "Space",
+      "m",
+      "i",
+      "l",
+      "k",
+      ")",
+      "!",
+    ]);
+  });
+
+  it("presses Enter with its char, so a focused button is clicked and a form submits", async () => {
+    const { beats } = await run({ type: "press", combo: "Return" });
+    assert.deepEqual(nativeTypes(beats), ["keyDown", "char", "keyUp"]);
+    assert.deepEqual(charsOf(beats), ["\r"]);
   });
 
   it("an action with no keys, or of an unknown type, sends nothing", async () => {

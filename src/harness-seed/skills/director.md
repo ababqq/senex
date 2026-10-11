@@ -41,7 +41,7 @@ itself and keeps the memory file its brief names current.)
    kind can pass on every board, and tells every judge in one line what it is looking at. Declare
    nothing and it assumes nothing: no page rule, no navigation check, no typing check — and a form
    judged as a 3D walk comes back as "the player never moved". `play_script=` overrides the kind's
-   exercise with your own actions (click, type, press, drag, scroll, wait) when this project is
+   exercise with your own actions (click, focus, type, press, drag, scroll, wait) when this project is
    driven some other way; a part that is a different kind takes `kind=` on its own `worker_start`.
 
 ## Before anyone builds

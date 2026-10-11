@@ -263,7 +263,8 @@ async function applyType(target: InputTarget, action: ActionOf<"type">): Promise
     const [key] = normalizeKeys([TYPED_KEY[ch] ?? ch]);
     if (!key) continue;
     target.send({ type: "keyDown", keyCode: key.keyCode });
-    if (key.printable) sendChar(target, key);
+    // The character as typed ("A", not the key's lowercase "a"); a control character is its key's own.
+    if (key.printable) sendChar(target, key, ch in TYPED_KEY ? key.key : ch);
     await target.dispatch({ studio: { down: studioAliases([key]) }, dom: keysToDom([key], "keydown") });
     await sleep(TYPED_CHAR_MS);
     target.send({ type: "keyUp", keyCode: key.keyCode });
@@ -356,8 +357,11 @@ async function releaseModifiers(target: InputTarget, modifiers: NormalizedKey[])
     await target.dispatch({ studio: { up: studioAliases(modifiers) }, dom: keysToDom(modifiers, "keyup") });
 }
 
-function sendChar(target: InputTarget, key: NormalizedKey): void {
-  target.send({ type: "char", keyCode: key.key === " " ? "Space" : key.key });
+/** How Chromium is told the characters that are not their own name. */
+const CHAR_KEYCODE: Record<string, string> = { " ": "Space", Enter: "\r" };
+
+function sendChar(target: InputTarget, key: NormalizedKey, character = key.key): void {
+  target.send({ type: "char", keyCode: CHAR_KEYCODE[character] ?? character });
 }
 
 /** The `modifiers` a mouse event carries while a click's modifier keys are held. */

@@ -32,8 +32,10 @@ const DEFAULT_HOLD_MS = 120;
 
 const NAMED: Record<string, Omit<NormalizedKey, "printable"> & { printable?: boolean }> = {
   space: { keyCode: "Space", code: "Space", key: " ", which: 32, printable: true },
-  enter: { keyCode: "Enter", code: "Enter", key: "Enter", which: 13 },
-  return: { keyCode: "Enter", code: "Enter", key: "Enter", which: 13 },
+  // Enter carries a char: Chromium clicks a focused button, submits a form and breaks a line on the
+  // keypress it makes from one, never on the bare keyDown.
+  enter: { keyCode: "Enter", code: "Enter", key: "Enter", which: 13, printable: true },
+  return: { keyCode: "Enter", code: "Enter", key: "Enter", which: 13, printable: true },
   escape: { keyCode: "Escape", code: "Escape", key: "Escape", which: 27 },
   esc: { keyCode: "Escape", code: "Escape", key: "Escape", which: 27 },
   tab: { keyCode: "Tab", code: "Tab", key: "Tab", which: 9 },
@@ -74,6 +76,8 @@ const NAMED: Record<string, Omit<NormalizedKey, "printable"> & { printable?: boo
 
 export function normalizeKey(raw: unknown): NormalizedKey | null {
   if (raw == null) return null;
+  // A typed space is the Space key; trimmed, it would be nothing and `type` would drop it.
+  if (raw === " ") return { ...NAMED.space!, printable: true };
   let text = String(raw).trim();
   if (!text) return null;
   if (/^key[a-z]$/i.test(text)) text = text.slice(3);

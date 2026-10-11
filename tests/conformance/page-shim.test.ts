@@ -7,6 +7,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { PAGE_DISPATCH } from "../../src/main/page-dispatch.ts";
+import { SCROLL_TO_TOP } from "../../src/main/preview-page-scripts.ts";
+import vm from "node:vm";
 import { PROJECT_DISABLED_BLINK_FEATURES, projectViewPreferences } from "../../src/main/project-view.ts";
 import { installStudio, makeRng } from "../../src/project-template/src/studio.js";
 import {
@@ -704,5 +706,38 @@ describe("what a project's reset is told about why it runs", () => {
     } finally {
       page.restore();
     }
+  });
+});
+
+describe("starting a named view from the top of the page", () => {
+  /**
+   * Live Loop build (2026-10-11): the exercise leaves a page scrolled (Tab and focus scroll things
+   * into view), and the capture a reviewer is shown is of the viewport where it stopped, so the
+   * first verdict judged a page's middle. A named view starts from the top.
+   */
+  const run = (elements: Array<{ scrollTop: number; scrollLeft: number; scrollTo: (o: unknown) => void }>) => {
+    const scrolled: unknown[] = [];
+    const window = { scrollTo: (o: unknown) => void scrolled.push(o) };
+    const document = { querySelectorAll: () => elements };
+    const result = new vm.Script(SCROLL_TO_TOP).runInNewContext({ window, document });
+    return { result, scrolled };
+  };
+
+  it("scrolls the window, and only the containers that were scrolled, to the top-left at once", () => {
+    const moved: unknown[] = [];
+    const still = { scrollTop: 0, scrollLeft: 0, scrollTo: () => moved.push("still") };
+    const down = { scrollTop: 200, scrollLeft: 0, scrollTo: (o: unknown) => moved.push(o) };
+    const across = { scrollTop: 0, scrollLeft: 40, scrollTo: (o: unknown) => moved.push(o) };
+    const { result, scrolled } = run([still, down, across]);
+    const top = { top: 0, left: 0, behavior: "instant" };
+    assert.equal(result, true);
+    // The page is another realm: compare what it sent as data.
+    const plain = (value: unknown) => JSON.parse(JSON.stringify(value));
+    assert.deepEqual(
+      plain(scrolled),
+      [top],
+      "behavior: instant, so a page with smooth scrolling is not caught mid-way",
+    );
+    assert.deepEqual(plain(moved), [top, top]);
   });
 });

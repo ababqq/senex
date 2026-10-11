@@ -4,6 +4,18 @@
  * expression string for `webContents.executeJavaScript`.
  */
 
+/**
+ * Back to the top, at once: the window and every container that was scrolled. A named view starts
+ * from here, so a capture shows the page as it loads and not where an exercise's Tab or scroll left it;
+ * `instant` so a page with smooth scrolling is not photographed halfway.
+ */
+export const SCROLL_TO_TOP = `(() => {
+  const top = { top: 0, left: 0, behavior: "instant" };
+  window.scrollTo(top);
+  for (const el of document.querySelectorAll("*")) if (el.scrollTop || el.scrollLeft) el.scrollTo(top);
+  return true;
+})()`;
+
 /** Installed once per page: remembers whether any trusted (native) input ever arrived. */
 export const TRUSTED_PROBE = `(() => {
   if (window.__studioTrustedProbe) return true;

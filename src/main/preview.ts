@@ -58,6 +58,7 @@ import {
   PAGE_CAPTURE,
   PAGE_CAPTURE_TIMEOUT_MS,
   type PageCaptureInfo,
+  SCROLL_TO_TOP,
   TRUSTED_PROBE,
 } from "./preview-page-scripts.ts";
 import { computePixelStats, isEffectivelyBlack, type PixelDiff, type PixelStats } from "../substrate/pixel-stats.ts";
@@ -129,6 +130,8 @@ export interface ProjectPreviewOptions {
   shim?: Partial<ShimOptions>;
 }
 
+/** The studio method that shows a named view; the preview scrolls the page to the top before it runs. */
+const DEBUG_CAMERA = "debugCamera";
 const SCHEME = "project";
 /** What a stopped project's view holds: an empty page, allowed by the project partition (`data:`). */
 const STOPPED_PAGE = "data:text/html;charset=utf-8,";
@@ -1145,6 +1148,8 @@ export class ProjectPreview {
     await this.#profiler.invalidate(`studio ${method} during sample`);
     // The method name is interpolated into page JS: only a plain identifier may travel.
     if (!/^[A-Za-z_$][\w$]*$/.test(method)) throw new Error(MESSAGE.notMethodName(method));
+    // A named view starts from the top of the page; a view that scrolls itself still wins, it runs after.
+    if (method === DEBUG_CAMERA) await this.evaluate(SCROLL_TO_TOP).catch(() => undefined);
     const argument = arg === undefined ? "" : JSON.stringify(arg);
     return this.evaluate(
       `(window.__studio && typeof window.__studio.${method} === "function") ? window.__studio.${method}(${argument}) : { __missing: true }`,
