@@ -504,3 +504,29 @@ describe("how many workers a night may run (shared/builders.ts ↔ loop/director
       );
   });
 });
+
+describe("the seed a judged page boots on (loop/config.ts ↔ page/shim.ts ↔ the project template)", () => {
+  /**
+   * Live Loop validation, second pass (2026-10-11): the judge reseeded every page with 1234 while a person's
+   * page boots on 1, so a project that draws what it shows from `reset(seed)` showed the judge other numbers
+   * than the first screen (260 against 261). The judged seed is the boot seed.
+   */
+  it("reseeds the judged page with the seed the studio's shim and the template boot it on", async () => {
+    const { PAGE_SEED } = await import("../../src/harness-seed/loop/config.ts");
+    const { DEFAULT_SHIM_OPTIONS } = await import("../../src/page/shim.ts");
+    const { installStudio } = await import("../../src/project-template/src/studio.js");
+    assert.equal(PAGE_SEED, DEFAULT_SHIM_OPTIONS.seed, "the shim seeds Math.random with the boot seed");
+    const globals = globalThis as unknown as Record<string, unknown>;
+    const before = { window: globals.window, document: globals.document };
+    const canvas = { getBoundingClientRect: () => ({ left: 0, top: 0, width: 100, height: 100 }) };
+    globals.window = { addEventListener: () => {} };
+    globals.document = { addEventListener: () => {}, querySelector: () => canvas, pointerLockElement: canvas };
+    const boots: number[] = [];
+    try {
+      installStudio({ canvas, hud: false, reset: (seed: number) => boots.push(seed) } as never);
+    } finally {
+      Object.assign(globals, before);
+    }
+    assert.deepEqual(boots, [PAGE_SEED], "the page's own first reset runs on the seed every evidence pass uses");
+  });
+});

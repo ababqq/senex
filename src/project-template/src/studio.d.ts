@@ -227,7 +227,8 @@ export interface StudioConfig {
   /**
    * Back to a known state for this seed. It runs with `{ boot: true }` on every page load (seed 1) and with
    * `{ boot: false }` when the judge reseeds a hidden copy. Only a reseed may empty the store and load fixtures;
-   * on boot keep what a person saved and add no sample entries unless the brief asks for it.
+   * on boot keep what a person saved and add no sample entries unless the brief asks for it. The judge reseeds
+   * with 1, the seed the page loads on: draw the first screen only from `seed`, never from Date or Math.random.
    */
   reset?: (seed: number, info?: { boot: boolean }) => void;
   /** The canvas of a project that draws one. */

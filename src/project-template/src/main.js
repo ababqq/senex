@@ -10,6 +10,7 @@ const app = document.getElementById("app");
 installStudio({
   // Back to a known state for this seed, with `info.boot` true on the page load and false on the judge's reseeds.
   // On boot keep what a person saved and add no sample entries unless the brief asks; a reseed may empty the store and load fixtures.
+  // The judge reseeds with 1, the seed the page loads on: draw the first screen only from `seed`.
   reset(seed, info) {},
   // What the project holds, as numbers and short strings a check can compare: items, selection, route.
   probes() {
