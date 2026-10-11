@@ -128,7 +128,7 @@ export function scoutBrief({
     ``,
     `If the project does nothing until a real click — audio that waits for a gesture, pointer lock, a title screen that listens for mousedown — put "gesture": true in the setup (or {"x":480,"y":300} for one spot). The studio then delivers one trusted click before it waits for the project to be ready.`,
     ``,
-    `SETUP is the script the harness replays after every load, before anyone looks — the judges, the builders' captures, the playtester — so every eye lands on the requested state. Write it as input actions ({"type":"click","x":480,"y":300,"px":true}, {"type":"type","text":"ada@example.com"}, {"type":"press","combo":"Return"}, {"type":"wait","ms":500}; coordinates in pixels of your screenshots), or name a config.demos entry that reaches the state, plus verify: a dotted path in __studio.state() and the value it holds when the state is reached. If the project already boots into the requested state, setup is {"actions":[],"verify":{…}} with only the probe.`,
+    `SETUP is the script the harness replays after every load, before anyone looks — the judges, the builders' captures, the tester — so every eye lands on the requested state. Write it as input actions ({"type":"click","x":480,"y":300,"px":true}, {"type":"type","text":"ada@example.com"}, {"type":"press","combo":"Return"}, {"type":"wait","ms":500}; coordinates in pixels of your screenshots), or name a config.demos entry that reaches the state, plus verify: a dotted path in __studio.state() and the value it holds when the state is reached. If the project already boots into the requested state, setup is {"actions":[],"verify":{…}} with only the probe.`,
     ``,
     `Reply with JSON only, this shape: ${REPORT_SHAPE}`,
   ]

@@ -747,7 +747,7 @@ async function dirtyRefusal(night: Night, root: string, leadSits: boolean): Prom
   if (!dirty) return null;
   if (leadSits) return LEAD_LIVE_DIRTY;
   if (!lead)
-    return "your integration worktree has uncommitted edits — commit them first so the playtester plays what you see";
+    return "your integration worktree has uncommitted edits — commit them first so the tester plays what you see";
   try {
     await setAsideStrays(night, `director:${run.runId}:playtest`);
     return null;

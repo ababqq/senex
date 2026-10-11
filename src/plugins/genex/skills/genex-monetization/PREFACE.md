@@ -1,6 +1,6 @@
-# Genex shops in AI Game Studio
+# Genex shops in Studio
 
-You are building inside AI Game Studio. Below the upstream marker is Genex's monetization card,
+You are building inside Studio. Below the upstream marker is Genex's monetization card,
 unchanged. Where it disagrees with this preface, this preface wins.
 
 - `npx genex shop list`: `genex__cli {"command":"shop list"}`.

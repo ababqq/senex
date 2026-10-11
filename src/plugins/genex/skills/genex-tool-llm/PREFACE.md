@@ -1,6 +1,6 @@
-# Genex models at play time in AI Game Studio: the first step
+# Genex models at play time in Studio: the first step
 
-You are building inside AI Game Studio. Below the upstream marker is Genex's card on the play-time
+You are building inside Studio. Below the upstream marker is Genex's card on the play-time
 model lane, unchanged. Where it disagrees with this preface, this preface wins.
 
 - `npx genex llm models`: `genex__cli {"command":"llm models"}`. `npx genex doctor`:

@@ -1,6 +1,6 @@
-# Genex updates in AI Game Studio
+# Genex updates in Studio
 
-You are building inside AI Game Studio. Below the upstream marker is Genex's updates card,
+You are building inside Studio. Below the upstream marker is Genex's updates card,
 unchanged. Where it disagrees with this preface, this preface wins.
 
 - Studio ships and pins the Genex CLI, so ignore its update nudges and skills-refresh lines: never

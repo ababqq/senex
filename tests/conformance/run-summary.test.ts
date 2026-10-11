@@ -407,3 +407,14 @@ test("the structural sentence says when its passes were on an earlier revision",
 test("the village fixture still reads 4 structural checks passed", () => {
   assert.equal(structuralWords(structuralTally(summarize())), "4 structural checks passed.");
 });
+
+test("every state the preview can report is named in plain words, and an unknown one is not hidden", async () => {
+  const { PreviewIdentityState } = await import("../../src/main/core/internals.ts");
+  const { previewStateWords } = await import("../../src/renderer/words.ts");
+  for (const state of Object.values(PreviewIdentityState)) {
+    const words = previewStateWords(state);
+    assert.ok(words.length > 0, state);
+    assert.ok(!/[-_]/.test(words), `${state} reads as words, not as a code: ${words}`);
+  }
+  assert.equal(previewStateWords("from-a-newer-studio"), "from-a-newer-studio");
+});

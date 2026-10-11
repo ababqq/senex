@@ -117,7 +117,7 @@ function playResult(check: Check, entry: AnyRecord | undefined): CheckResult {
       ...base,
       pass: null,
       state: "unmeasured",
-      reason: "the playtester did not answer this question",
+      reason: "the tester did not answer this question",
       answer: null,
       note: "",
     };
@@ -128,7 +128,7 @@ function playResult(check: Check, entry: AnyRecord | undefined): CheckResult {
     pass,
     reason: pass
       ? ""
-      : `playtester answered ${answer}${entry?.note ? `: ${String(entry.note).slice(0, CLIP_DETAIL)}` : ""}`,
+      : `the tester answered ${answer}${entry?.note ? `: ${String(entry.note).slice(0, CLIP_DETAIL)}` : ""}`,
     answer,
     note: typeof entry?.note === "string" ? entry.note.slice(0, CLIP_REASON) : "",
   };

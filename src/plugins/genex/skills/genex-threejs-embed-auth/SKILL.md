@@ -1,6 +1,6 @@
-# Genex player identity in AI Game Studio
+# Genex player identity in Studio
 
-You are building inside AI Game Studio. Below the upstream marker is Genex's embed-auth card,
+You are building inside Studio. Below the upstream marker is Genex's embed-auth card,
 unchanged. Where it disagrees with this preface, this preface wins.
 
 ## Where each part can be tested

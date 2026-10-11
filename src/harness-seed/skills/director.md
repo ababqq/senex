@@ -238,4 +238,6 @@ itself and keeps the memory file its brief names current.)
   The outcome card says how the build was judged, not that it was: a landing no judge preferred
   reads *made live, not judged better*. Pass on what the landing may claim, and no more.
 - The summary is what the user reads first: what was built, what you verified and how, what
-  remains.
+  remains. Write it, and every note, in the user's words: a tester, a reviewer, the page, the
+  checks, a part by its title. Raw ids (workers, cameras, checks), revision hashes and state names
+  are your tools', not theirs.

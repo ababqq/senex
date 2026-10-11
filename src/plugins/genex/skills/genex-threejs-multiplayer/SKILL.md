@@ -1,6 +1,6 @@
-# Genex multiplayer in AI Game Studio
+# Genex multiplayer in Studio
 
-You are building inside AI Game Studio. Below the upstream marker is Genex's multiplayer card,
+You are building inside Studio. Below the upstream marker is Genex's multiplayer card,
 unchanged. Where it disagrees with this preface, this preface wins.
 
 ## Multiplayer works only on the published Genex draft

@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { ExecutionStatus } from "../../shared/run-state.ts";
 import { structuralTally, summaryCounts, summaryOutcome, type RunSummary } from "../../shared/run-summary.ts";
 import { plural } from "../../shared/skill-words.ts";
-import { outcomeTitle, structuralWords } from "../words.ts";
+import { outcomeTitle, previewStateWords, structuralWords } from "../words.ts";
 import { Icon } from "../ui/icons.tsx";
 import { FileText } from "../ui/FileText.tsx";
 import { openBuildGraph } from "../open-build.ts";
@@ -239,7 +239,8 @@ export function OutcomeDetails({ summary }: { summary: RunSummary }): JSX.Elemen
       <p className="text-ink-3">
         Live is showing:{" "}
         {summary.preview?.project === summary.project
-          ? (summary.preview.head?.slice(0, HEAD_CHARS) ?? `revision unknown (${summary.preview.state})`)
+          ? (summary.preview.head?.slice(0, HEAD_CHARS) ??
+            `revision unknown (${previewStateWords(summary.preview.state)})`)
           : "another project or no recorded preview"}
         {summary.preview?.error ? ` — ${summary.preview.error}` : ""}
       </p>

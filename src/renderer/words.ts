@@ -523,6 +523,21 @@ export function wasCancelled(reason: string | null | undefined): boolean {
   return /^stopped by the user\b/i.test((reason ?? "").trim());
 }
 
+/** What the live preview's state is called in the Result panel's technical details; an unlisted one is shown as it is. */
+const PREVIEW_STATE_WORDS: Record<string, string> = {
+  unknown: "not known yet",
+  loading: "still loading",
+  loaded: "loaded",
+  stale: "behind the newest build",
+  failed: "failed to load",
+  "revision-unverified": "could not confirm which build",
+};
+
+/** The preview's state (`RunSummary.preview.state`) in plain words, for the line that names what Live is showing. */
+export function previewStateWords(state: string): string {
+  return PREVIEW_STATE_WORDS[state] ?? state;
+}
+
 /**
  * The Result panel's count of structural checks. A new revision never inherits a pass, so a build whose
  * checks passed on the revision before it has none of its own; the sentence says that instead of
