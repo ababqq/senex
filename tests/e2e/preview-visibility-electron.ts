@@ -162,6 +162,7 @@ async function main() {
     );
     await checkStandIn();
     await checkMutedAgentWindow();
+    await checkAgentWindowFocus();
   } catch (error) {
     mark("error", { error: String(error) });
     check("fixture completed", false);
@@ -303,6 +304,63 @@ async function checkMutedAgentWindow(): Promise<void> {
   } finally {
     port.destroy();
     win.destroy();
+  }
+}
+/**
+ * An agent's window is hidden and never the OS-focused one, yet its page answers as focused (a DevTools
+ * focus emulation): Tab puts a ring on the control it reaches, as in Live, so a tester looking at the
+ * window can see rings. Live's own view is never given a debugger (dev control owns it).
+ */
+async function checkAgentWindowFocus(): Promise<void> {
+  await writeFile(
+    path.join(root, "fixture/focus.html"),
+    `<style>button:focus-visible{outline:4px solid #f00;outline-offset:2px}</style>
+    <button id="send">Send</button><input id="note" aria-label="Note">`,
+  );
+  const open = async (partition: string, offscreen: boolean) => {
+    const win = new BrowserWindow({
+      width: 320,
+      height: 240,
+      show: false,
+      focusable: !offscreen,
+      skipTaskbar: true,
+      webPreferences: { offscreen },
+    });
+    const port = new ProjectPreview({
+      projectsRoot: root,
+      vendorDir: path.join(process.cwd(), "dist/resources/vendor"),
+      partition,
+      offscreen,
+    });
+    port.attachTo(win, { x: 0, y: 0, width: 320, height: 200 });
+    await port.load("fixture", "focus.html");
+    return { win, port };
+  };
+  const agent = await open("visibility-focus-agent", true);
+  const live = await open("visibility-focus-live", false);
+  try {
+    await agent.port.input([{ type: "press", combo: "Tab" }]);
+    const ringed = await agent.port.evaluate(
+      "({ focused: document.hasFocus(), id: document.activeElement && document.activeElement.id, visible: document.activeElement.matches(':focus-visible'), outline: getComputedStyle(document.activeElement).outlineStyle })",
+    );
+    mark("focus-agent", { ringed });
+    check(
+      "focus: an agent's window answers as focused, and Tab draws the ring on the control it reaches",
+      JSON.stringify(ringed) === JSON.stringify({ focused: true, id: "send", visible: true, outline: "solid" }),
+    );
+    check(
+      "focus: the agent's window is still hidden and unfocused as a window",
+      !agent.win.isVisible() && !agent.win.isFocused(),
+    );
+    check(
+      "focus: Live's own view is never given a debugger",
+      live.port.view!.webContents.debugger.isAttached() === false,
+    );
+  } finally {
+    agent.port.destroy();
+    agent.win.destroy();
+    live.port.destroy();
+    live.win.destroy();
   }
 }
 void main();

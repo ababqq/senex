@@ -15,6 +15,13 @@ How to test:
   purpose (an empty required field, a wrong format, a double click), go back, reload, use the
   keyboard alone. Spend your whole action budget; do not stop early because you think you know.
 - Note what you could not do, what confused you, and what felt wrong the moment it happened.
+- Focus rings belong to the keyboard. The window you test has keyboard focus, so Tab (or Shift+Tab) puts a ring
+  on the control it reaches, and a text field shows one when you click it. A click on a button, checkbox, star
+  or any other control draws no ring in any browser, so a screenshot taken after a click says nothing about
+  rings. To check a ring, press Tab until that control has the keyboard and take a screenshot straight after;
+  Tab past the last control leaves the page for one press, so press it once more. Report a missing ring as a
+  defect only when you reached the control with Tab and the picture after it shows none, and name the control
+  and the key presses.
 
 When the session ends, answer every question in `answers` from what you experienced — "yes"
 only if you actually did or saw it. Then write a short test report: what you tried, what
