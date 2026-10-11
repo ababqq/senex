@@ -7,7 +7,7 @@ import { statusWords, UPDATE_WORDS } from "../words.ts";
 import type { ConversationRecord, Project, ThreadMeta } from "../types.ts";
 import { Dot, IconButton } from "../ui/kit.tsx";
 import { Icon, type IconName } from "../ui/icons.tsx";
-import { GenexLogo } from "../ui/GenexLogo.tsx";
+import { SenexLogo } from "../ui/SenexLogo.tsx";
 import { ProjectAvatar } from "../ui/ProjectAvatar.tsx";
 import { Shortcut } from "../ui/Shortcut.tsx";
 import { Tooltip, TooltipTrigger, TooltipContent } from "../ui/tooltip.tsx";
@@ -305,7 +305,7 @@ function SidebarTop({
           aria-current={atHome ? "page" : undefined}
           onClick={onHome}
         >
-          <GenexLogo className="brand sidebar-wordmark" />
+          <SenexLogo className="brand sidebar-wordmark" />
         </button>
         <div className="sidebar-brand-actions">
           <IconButton

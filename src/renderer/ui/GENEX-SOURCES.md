@@ -11,7 +11,7 @@ rights in the Genex name or logo.
 
 | Source | Local adaptation |
 | --- | --- |
-| `public/genex-logo-dark.svg` | `ui/GenexLogo.tsx`: original dark wordmark paths and gradients, JSX attribute names and accessible image name |
+| `public/genex-logo-dark.svg` | `ui/SenexLogo.tsx`: the E, N, E and X paths and the gradients of the original dark wordmark, moved 2 units left, with JSX attribute names; the S and the accessible image name ("Senex") are this app's own |
 | `app/globals.css`, `app/layout.tsx` | `src/renderer/theme.css`: dark tokens, type roles, offline font faces, tracking, surfaces and motion; desktop semantic aliases preserved |
 | `app/fonts/{ZalandoSansSemiExpanded,GeistMono,Geist}-variable.woff2` | The same binaries in `src/renderer/fonts/` |
 | `components/dom/ui/button.tsx`, `accent-chip.tsx` | `ui/Button.tsx`, `accent-chip.tsx`; secondary default for existing Studio actions, primary intents explicitly mapped |
