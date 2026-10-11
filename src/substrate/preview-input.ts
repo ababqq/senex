@@ -13,6 +13,12 @@ export interface NormalizedKey {
   code: string;
   /** `KeyboardEvent.key` (`w`, ` `, `ArrowUp`). */
   key: string;
+  /**
+   * What a keypress of this key types, when that is not `key`: a typed capital stays a capital (`A`) while
+   * `key` stays the key's own (`a`), so a game's `event.key === "a"` still matches. Only the `char` event
+   * reads it; see {@link keyChar}.
+   */
+  char?: string;
   which: number;
   printable: boolean;
 }
@@ -49,6 +55,11 @@ const NAMED: Record<string, Omit<NormalizedKey, "printable"> & { printable?: boo
   meta: { keyCode: "Meta", code: "MetaLeft", key: "Meta", which: 91 },
   command: { keyCode: "Meta", code: "MetaLeft", key: "Meta", which: 91 },
   cmd: { keyCode: "Meta", code: "MetaLeft", key: "Meta", which: 91 },
+  // The code names a computer-use click or hold_key hands back (`computerToInput`).
+  shiftleft: { keyCode: "Shift", code: "ShiftLeft", key: "Shift", which: 16 },
+  controlleft: { keyCode: "Control", code: "ControlLeft", key: "Control", which: 17 },
+  altleft: { keyCode: "Alt", code: "AltLeft", key: "Alt", which: 18 },
+  metaleft: { keyCode: "Meta", code: "MetaLeft", key: "Meta", which: 91 },
   up: { keyCode: "Up", code: "ArrowUp", key: "ArrowUp", which: 38 },
   arrowup: { keyCode: "Up", code: "ArrowUp", key: "ArrowUp", which: 38 },
   down: { keyCode: "Down", code: "ArrowDown", key: "ArrowDown", which: 40 },
@@ -80,7 +91,8 @@ export function normalizeKey(raw: unknown): NormalizedKey | null {
   if (raw === " ") return { ...NAMED.space!, printable: true };
   let text = String(raw).trim();
   if (!text) return null;
-  if (/^key[a-z]$/i.test(text)) text = text.slice(3);
+  // A code name (`KeyW`, as hold_key hands it back) names the key, not a capital: it types `w`.
+  if (/^key[a-z]$/i.test(text)) text = text.slice(3).toLowerCase();
   else if (/^digit[0-9]$/i.test(text)) text = text.slice(5);
   else if (/^arrow/i.test(text)) text = text.slice(5);
   else if (/^kp_/i.test(text)) text = text.slice(3);
@@ -95,7 +107,14 @@ export function normalizeKey(raw: unknown): NormalizedKey | null {
     const ch = text;
     if (/[a-zA-Z]/.test(ch)) {
       const up = ch.toUpperCase();
-      return { keyCode: up, code: `Key${up}`, key: ch.toLowerCase(), which: up.charCodeAt(0), printable: true };
+      return {
+        keyCode: up,
+        code: `Key${up}`,
+        key: ch.toLowerCase(),
+        char: ch,
+        which: up.charCodeAt(0),
+        printable: true,
+      };
     }
     if (/[0-9]/.test(ch)) {
       return { keyCode: ch, code: `Digit${ch}`, key: ch, which: ch.charCodeAt(0), printable: true };
@@ -103,6 +122,23 @@ export function normalizeKey(raw: unknown): NormalizedKey | null {
     return { keyCode: ch, code: ch, key: ch, which: ch.charCodeAt(0), printable: true };
   }
   return { keyCode: text, code: text, key: text, which: 0, printable: false };
+}
+
+/** The character a keypress of `key` types: its own `char`, else its `key`. */
+export function keyChar(key: NormalizedKey): string {
+  return key.char ?? key.key;
+}
+
+/**
+ * The text striking `key` while `modifiers` are held types, or null when it types none: a lone key types its
+ * character, Shift turns a letter into its capital, and any other held modifier (ctrl, alt, meta) makes a
+ * shortcut, which types nothing.
+ */
+export function chordChar(modifiers: NormalizedKey[], key: NormalizedKey | null): string | null {
+  if (!key?.printable) return null;
+  if (modifiers.length === 0) return keyChar(key);
+  const shiftOnly = modifiers.every((modifier) => modifier.code === SHIFT_CODE);
+  return shiftOnly && /^[a-z]$/.test(key.key) ? key.key.toUpperCase() : null;
 }
 
 /** A single key, a list of keys, or nothing, as a list. */
@@ -220,7 +256,8 @@ export function parseCombo(raw: unknown): { modifiers: NormalizedKey[]; key: Nor
   return { modifiers: modifiers.slice(0, 4), key };
 }
 
-const MODIFIER_CODES = new Set(["ShiftLeft", "ControlLeft", "AltLeft", "MetaLeft"]);
+const SHIFT_CODE = "ShiftLeft";
+const MODIFIER_CODES = new Set([SHIFT_CODE, "ControlLeft", "AltLeft", "MetaLeft"]);
 
 /** Modifier names on a click ("shift", "ctrl+alt") → the keys held for it. */
 export function clickModifiers(raw: unknown): string[] {

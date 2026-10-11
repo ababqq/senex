@@ -5,7 +5,9 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   capActions,
+  chordChar,
   clampHoldMs,
+  keyChar,
   mouseButton,
   normalizeKey,
   normalizeKeys,
@@ -14,6 +16,31 @@ import {
 } from "../../src/substrate/preview-input.ts";
 
 describe("preview input mapping", () => {
+  it("keeps the key's own letter in key and the typed case in char", () => {
+    const capital = normalizeKey("A");
+    const lower = normalizeKey("a");
+    const named = normalizeKey("KeyA");
+    assert.ok(capital && lower && named);
+    assert.deepEqual([capital.key, capital.code, capital.keyCode], ["a", "KeyA", "A"]);
+    assert.equal(keyChar(capital), "A");
+    assert.equal(keyChar(lower), "a");
+    assert.equal(keyChar(named), "a", "a code name names the key; it carries no capital");
+  });
+
+  it("types a letter, its capital under shift, and nothing for a shortcut", () => {
+    const [shift, ctrl, a, capital, one, enter] = ["shift", "ctrl", "a", "A", "1", "Return"].map((k) =>
+      normalizeKey(k),
+    );
+    assert.ok(shift && ctrl && a && capital && one && enter);
+    assert.equal(chordChar([], capital), "A");
+    assert.equal(chordChar([shift], a), "A");
+    assert.equal(chordChar([ctrl], a), null);
+    assert.equal(chordChar([shift, ctrl], a), null);
+    assert.equal(chordChar([], enter), "Enter");
+    assert.equal(chordChar([shift], one), null, "a shifted digit needs a layout; it types nothing, as before");
+    assert.equal(chordChar([], null), null);
+  });
+
   it("maps WASD and aliases onto Electron + KeyboardEvent codes", () => {
     const w = normalizeKey("w");
     assert.equal(w?.keyCode, "W");

@@ -6,9 +6,11 @@
  * the target: its view's `sendInputEvent`, its page dispatch, its clock and its pointer.
  */
 import {
+  chordChar,
   clampHoldMs,
   clampLook,
   clampRepeat,
+  keyChar,
   MAX_HOLD_KEY_MS,
   mouseButton,
   type NormalizedKey,
@@ -264,7 +266,7 @@ async function applyType(target: InputTarget, action: ActionOf<"type">): Promise
     if (!key) continue;
     target.send({ type: "keyDown", keyCode: key.keyCode });
     // The character as typed ("A", not the key's lowercase "a"); a control character is its key's own.
-    if (key.printable) sendChar(target, key, ch in TYPED_KEY ? key.key : ch);
+    if (key.printable) sendChar(target, ch in TYPED_KEY ? key.key : ch);
     await target.dispatch({ studio: { down: studioAliases([key]) }, dom: keysToDom([key], "keydown") });
     await sleep(TYPED_CHAR_MS);
     target.send({ type: "keyUp", keyCode: key.keyCode });
@@ -276,12 +278,11 @@ async function applyPress(target: InputTarget, action: ActionOf<"press">): Promi
   const { modifiers, key } = parseCombo(action.combo);
   const chord: NormalizedKey[] = [...modifiers, ...(key ? [key] : [])];
   if (!chord.length) return;
+  const typed = chordChar(modifiers, key);
   const times = clampRepeat(action.repeat ?? 1);
   for (let n = 0; n < times; n++) {
-    for (const k of chord) {
-      target.send({ type: "keyDown", keyCode: k.keyCode });
-      if (k.printable && !modifiers.length) sendChar(target, k);
-    }
+    for (const k of chord) target.send({ type: "keyDown", keyCode: k.keyCode });
+    if (typed !== null) sendChar(target, typed);
     await target.dispatch({ studio: { down: studioAliases(chord) }, dom: keysToDom(chord, "keydown") });
     await sleep(KEY_STROKE_MS);
     for (const k of [...chord].reverse()) target.send({ type: "keyUp", keyCode: k.keyCode });
@@ -331,7 +332,7 @@ async function keysDown(target: InputTarget, keys: NormalizedKey[]): Promise<voi
   if (keys.length === 0) return;
   for (const key of keys) {
     target.send({ type: "keyDown", keyCode: key.keyCode });
-    if (key.printable) sendChar(target, key);
+    if (key.printable) sendChar(target, keyChar(key));
   }
   await target.dispatch({ studio: { down: studioAliases(keys) }, dom: keysToDom(keys, "keydown") });
 }
@@ -360,7 +361,8 @@ async function releaseModifiers(target: InputTarget, modifiers: NormalizedKey[])
 /** How Chromium is told the characters that are not their own name. */
 const CHAR_KEYCODE: Record<string, string> = { " ": "Space", Enter: "\r" };
 
-function sendChar(target: InputTarget, key: NormalizedKey, character = key.key): void {
+/** Type one character: how Chromium is told it is in {@link CHAR_KEYCODE}. */
+function sendChar(target: InputTarget, character: string): void {
   target.send({ type: "char", keyCode: CHAR_KEYCODE[character] ?? character });
 }
 
