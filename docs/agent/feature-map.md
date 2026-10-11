@@ -155,7 +155,8 @@ around every plugin tool call.
 
 Build keeps the task graph with an outcome summary above it. The summary shows delivery, revision-specific check failures and independent interaction
 limits immediately. The result panel's **Technical details** exposes recorded integration/evaluated-attempt counts,
-revision identities and learning accounting; its **Checks** exposes failed questions and historical evidence; `View capture`
+revision identities and learning accounting; its **Checks** exposes failed questions and historical evidence (the structural
+count is of the revision on offer, and says so when its passes were on an earlier one); `View capture`
 uses the existing protected still reader. Tries fold into their step; a part's panel (its row
 label, keyboard-accessible) lists its steps. Explicit replacements remain one part; its technical
 details retain worker identities and reasons. `Open` / `Open latest` uses the existing scratch-preview

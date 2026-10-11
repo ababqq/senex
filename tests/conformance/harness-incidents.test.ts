@@ -8243,3 +8243,60 @@ describe("a picture of a page is a window onto it (live validation, second pass,
     }
   });
 });
+
+/**
+ * Live Loop validation, second pass (2026-10-11): the lead's `judge` tool scored a check it had written
+ * with no expression as a FAILED probe, so the board named a failure nobody had measured. The planner's
+ * checks were always validated before they were scored; the lead's were not.
+ */
+describe("the checks a lead hands the judge are read before they are scored (live validation, second pass, 2026-10-11)", () => {
+  const run: Run = {
+    runId: "ee",
+    project: "fixture",
+    goal: "Judge a tracker",
+    reference: { name: "fixture", shots: [] },
+    budgets: { wallClockMs: 1000 },
+  };
+  const scoreLeadChecks = async (checksRaw: unknown[]) => {
+    const { scoreJudgeChecks } = await import("../../src/harness-seed/loop/director/tools.ts");
+    const { ctx } = ctxRecorder();
+    const out: Record<string, any> = {};
+    const judgement: Record<string, any> = {};
+    const evidence = { ok: true, problems: [], warnings: [], shots: [], consoleErrors: [], state: { items: 3 } };
+    const scored = await scoreJudgeChecks(
+      { ctx, run } as never,
+      {
+        cameras: [],
+        checksRaw,
+        evidence,
+        handle: null,
+        n: 1,
+        out,
+        judgement,
+      } as never,
+    );
+    return { scored, out, judgement };
+  };
+
+  it("EE-1. a check with nothing to measure is reported to the lead and never scored as a failure", async () => {
+    const { scored, out } = await scoreLeadChecks([
+      { id: "count-ok", kind: "probe", expr: "state.items >= 0" },
+      { kind: "probe" },
+    ]);
+    assert.equal(scored.length, 1, "only the readable check is on the board");
+    assert.deepEqual(out.board.summary.failing, []);
+    assert.equal(out.board.summary.total, 1);
+    assert.equal(out.checkProblems.length, 1, "the lead is told which one could not be read");
+  });
+
+  it("EE-2. a lead whose every check is unreadable gets no board, and a readable set adds no field", async () => {
+    const none = await scoreLeadChecks([{ kind: "probe" }, { kind: "pixel" }]);
+    assert.deepEqual(none.scored, []);
+    assert.equal(none.out.board, undefined, "an empty board would read as a pass of nothing");
+    assert.notEqual(none.judgement.boardAllPass, true);
+    assert.ok(none.out.checkProblems.length >= 2);
+    const fine = await scoreLeadChecks([{ id: "count-ok", kind: "probe", expr: "state.items >= 0" }]);
+    assert.equal(fine.out.checkProblems, undefined);
+    assert.equal(fine.out.board.summary.total, 1);
+  });
+});

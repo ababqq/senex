@@ -3,9 +3,9 @@ import { ResultButton } from "../ui/ResultButton.tsx";
 import type { JSX } from "react";
 import { useEffect, useState } from "react";
 import { ExecutionStatus } from "../../shared/run-state.ts";
-import { summaryCounts, summaryOutcome, type RunSummary } from "../../shared/run-summary.ts";
+import { structuralTally, summaryCounts, summaryOutcome, type RunSummary } from "../../shared/run-summary.ts";
 import { plural } from "../../shared/skill-words.ts";
-import { outcomeTitle } from "../words.ts";
+import { outcomeTitle, structuralWords } from "../words.ts";
 import { Icon } from "../ui/icons.tsx";
 import { FileText } from "../ui/FileText.tsx";
 import { openBuildGraph } from "../open-build.ts";
@@ -143,11 +143,10 @@ function interactionWords(summary: RunSummary, current: Evidence[]): string {
  */
 export function coverageWords(summary: RunSummary): string {
   const current = summary.evidence.filter((e) => e.head === summary.head);
-  const passed = current.filter((e) => e.category === "structural" && e.status === "passed").length;
   const visual = current.some((e) => e.category === "visual" && e.status === "failed")
     ? " A visual question failed."
     : "";
-  return `${passed} structural check${passed === 1 ? "" : "s"} passed.${visual} ${interactionWords(summary, current)}`;
+  return `${structuralWords(structuralTally(summary))}${visual} ${interactionWords(summary, current)}`;
 }
 
 /** Who took a check: the independent playtester, a judge (visual and structural), or a recorded check. */

@@ -16,7 +16,14 @@ import { isRunning, WorkerMode } from "../outcomes.ts";
 import { runPlaytest } from "../playtester.ts";
 import { attemptRef } from "../repo.ts";
 import { RunEvent, SteeringSource } from "../run-events.ts";
-import { CheckKind, CheckWeight, MoveOwner, normalizeFacetSpec, normalizeMilestone } from "../spec.ts";
+import {
+  CheckKind,
+  CheckWeight,
+  MoveOwner,
+  normalizeFacetSpec,
+  normalizeMilestone,
+  validateFacetSpec,
+} from "../spec.ts";
 import { CLIP_REASON } from "../text.ts";
 import { MINUTE_MS, minutes, SECOND_MS, sleep } from "../time.ts";
 import { Against, againstWords, observedFrom, VerdictPass, VerdictRule } from "../verdict.ts";
@@ -312,13 +319,27 @@ async function visionAsksFor(night: Night, pass: JudgePass, pending: Check[], re
   return asks;
 }
 
-/** Score the typed checks the director handed the judge; the checks it scored, one entry each. */
-async function scoreJudgeChecks(night: Night, pass: JudgePass): Promise<CheckResult[]> {
+/** The intent the lead's checks are read under: `validateFacetSpec` refuses a spec that has none. */
+const JUDGE_CHECKS_INTENT = "the lead's checks";
+
+/**
+ * Score the typed checks the director handed the judge; the checks it scored, one entry each. They
+ * are read the way the planner's are first: a check with nothing to measure is answered to the lead
+ * as a problem (`checkProblems`) and never scored, because a probe with no expression used to land
+ * on the board as a failure nobody had measured.
+ */
+export async function scoreJudgeChecks(night: Night, pass: JudgePass): Promise<CheckResult[]> {
   const { ctx, run } = night;
   const { cameras, checksRaw, evidence, handle, n, out, judgement } = pass;
   const namesChecks = Array.isArray(checksRaw) && checksRaw.length > 0;
   if (!namesChecks || !evidence.ok) return [];
-  const spec = normalizeFacetSpec({ id: `judge-${n}`, title: "judge", intent: "", checks: checksRaw, cameras }, 0);
+  const named = normalizeFacetSpec(
+    { id: `judge-${n}`, title: "judge", intent: JUDGE_CHECKS_INTENT, checks: checksRaw, cameras },
+    0,
+  );
+  const { problems, spec } = validateFacetSpec(named);
+  if (problems.length) out.checkProblems = problems;
+  if (spec.checks.length === 0) return [];
   const { results, pending } = await runDeterministicChecks(ctx, {
     spec,
     evidence,

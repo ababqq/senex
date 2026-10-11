@@ -620,6 +620,24 @@ function isShownAsIs(execution: string): execution is OutcomeView["state"] {
   return OPEN_OR_FAILED_STATES.has(execution);
 }
 
+/** The structural checks as the Result panel counts them: those on the revision on offer, and the passes it did not inherit. */
+export interface StructuralTally {
+  recorded: number;
+  passed: number;
+  earlierPassed: number;
+}
+
+/** How many structural checks the revision on offer has, how many passed, and how many passed on earlier revisions. */
+export function structuralTally(s: RunSummary): StructuralTally {
+  const structural = s.evidence.filter((e) => e.category === "structural");
+  const current = structural.filter((e) => e.head === s.head);
+  return {
+    recorded: current.length,
+    passed: current.filter((e) => e.status === "passed").length,
+    earlierPassed: structural.filter((e) => e.head !== s.head && e.status === "passed").length,
+  };
+}
+
 /** A run summary's outcome as data (see {@link OutcomeView}). */
 export function summaryOutcome(s: RunSummary): OutcomeView {
   const current = s.evidence.filter((e) => e.head === s.head);
