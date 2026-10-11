@@ -5,7 +5,9 @@ owned by [AGENTS.md](../AGENTS.md); this page describes product behavior.
 
 What the harness may assume of any served page (studio-ultra M4). Every page the studio serves
 carries the studio's own shim before the project's first line, so `window.__studio` answers on a project
-that never heard of the contract, the studio owns the clock, `seed(n)` is reproducible, draw calls
+that never heard of the contract, the studio owns the clock, `seed(n)` is reproducible (the template calls a
+project's `reset(seed, { boot })` with `boot: true` on every page load and `false` on a reseed, so only a
+reseed may empty the store), draw calls
 are counted at the graphics API, and readiness is a fact the page reports rather than a wait. That
 holds for any web page of any shape — inline, ES modules with an import map, a Vite bundle (which adds
 the two-line `installStudio({ probes })` and nothing else), a canvas, WebGL or WebGPU. What people did
@@ -16,8 +18,8 @@ shim itself and rides on `state().ui`. It does not hold for an engine export: a 
 The kind of project (`loop/kinds.ts`). Eight kinds — dashboard, form-flow, list-manager, content-site,
 editor, data-viz, utility, graphics. Each names the traits it implies, the state axes its navigation,
 edit, look and move probes read, whether it wants eye cameras, its critic and its exercise script
-(clicks, typing, Tab, scrolling; `graphics` walks and looks). Every trait is
-OFF until the planner, the director or `studio.json`'s nested `project` block declares it, so a project
+(clicks, focusing the first text field, typing, Tab, scrolling; `graphics` walks and looks). Every trait is
+OFF until the planner, the director or `studio.json`'s nested `app` block declares it, so a project
 nobody described carries no harness input check at all; a declared kind supplies its traits and an
 explicit boolean beside it wins. The harness drives that kind's play script before every
 judgement, and `appLine(run.app)` is the first line of every judge call. Two critics, not one:

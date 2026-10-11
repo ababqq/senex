@@ -816,6 +816,16 @@ function identityChecksOf(
   return { checks, cameras };
 }
 
+const WORLD_PLAY_ASK =
+  "Could you move through the world, reach what the goal describes, and use its core verb without getting stuck, falling through, or losing sight of what to do?";
+const SOFTWARE_PLAY_ASK =
+  "Could you use the project's main flow from start to finish, reach what the goal describes, and never get stuck, lose your work, or lose sight of what to do?";
+
+/** What the integration playtester is asked: a walked world for a graphics project (or an undeclared kind), the main flow for software. */
+export function integrationPlayAsk(app: AnyRecord | null | undefined): string {
+  return measuresRenderer(app) ? WORLD_PLAY_ASK : SOFTWARE_PLAY_ASK;
+}
+
 /** The integration facet's spec: every facet's identity checks on the merged build, and one play check. */
 function integrationSpec(
   plan: AnyRecord,
@@ -828,7 +838,7 @@ function integrationSpec(
     kind: CheckKind.Play,
     weight: CheckWeight.Normal,
     hard: false,
-    ask: "Could you move through the world, reach what the goal describes, and use its core verb without getting stuck, falling through, or losing sight of what to do?",
+    ask: integrationPlayAsk(plan.app),
     expect: "yes",
   });
   return withHarnessChecks(
@@ -957,7 +967,7 @@ async function newPlan(pipeline: Pipeline): Promise<AnyRecord> {
   const { ctx, ownShape, run } = pipeline;
   const scouted = ctx.cancelled ? null : await scoutTheProject(pipeline);
   const scout = scouted?.report ?? null;
-  // studio.json's nested `project` block — the third declaration source, and the file the plan's
+  // studio.json's nested `app` block — the third declaration source, and the file the plan's
   // own declaration is written back into once a night.
   const storedApp = await readDeclaredApp(ctx, run.project).catch(() => null);
   pipeline.storedApp = storedApp;

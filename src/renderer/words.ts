@@ -44,7 +44,7 @@ import type { ProviderBuilderUse } from "../shared/provider-skills.ts";
 import type { IterationStatus } from "./run-graph.ts";
 import type { CommandState } from "./state/command-runs.ts";
 import type { JobState } from "./panels/plugins/genex/genex-view.ts";
-import { plural } from "../shared/skill-words.ts";
+import { plural, skillWords } from "../shared/skill-words.ts";
 import { type ScreenAct, ScreenDeed } from "../shared/agent-screen.ts";
 import { HOUR_MS, MINUTE_MS, SECOND_MS } from "../shared/duration.ts";
 
@@ -114,8 +114,11 @@ const PHRASES: Array<[RegExp, (match: RegExpMatchArray) => StatusWords]> = [
   [/^thinking$/i, () => ({ line: "Thinking", short: "Thinking" })],
   [/^compacting the conversation$/i, () => ({ line: "Compacting the conversation", short: "Compacting" })],
   [
-    /^self-improving(?: · (.+))?$/i,
-    (m) => ({ line: m[1] ? `Improving its own craft · ${m[1]}` : "Improving its own craft", short: "Improving" }),
+    /^self-improving(?: · ([^\s(]+)(.*))?$/i,
+    (m) => ({
+      line: m[1] ? `Improving its own craft · ${skillWords(m[1])}${m[2] ?? ""}` : "Improving its own craft",
+      short: "Improving",
+    }),
   ],
   [/^planning facets$/i, () => ({ line: "Planning the parts", short: "Planning" })],
   [
@@ -2322,7 +2325,7 @@ export const GENEX_WORDS = {
     title: "Generate project assets in chat",
     models: { title: "3D models and characters", text: "Rigged, animated and ready for your project." },
     media: { title: "Sound, music and art", text: "Effects, soundtracks, voices and textures." },
-    publish: { title: "Publish with a playable link", text: "Anyone can play it in their browser." },
+    publish: { title: "Publish with a shareable link", text: "Anyone can open it in their browser." },
     learnMore: "Learn more",
     learnMoreLabel: "Learn more about Genex Tools",
     linkCopied: "Link copied",

@@ -41,7 +41,7 @@ itself and keeps the memory file its brief names current.)
    kind can pass on every board, and tells every judge in one line what it is looking at. Declare
    nothing and it assumes nothing: no page rule, no navigation check, no typing check — and a form
    judged as a 3D walk comes back as "the player never moved". `play_script=` overrides the kind's
-   exercise with your own actions (click, type, press, drag, scroll, wait) when this project is
+   exercise with your own actions (click, focus, type, press, drag, scroll, wait) when this project is
    driven some other way; a part that is a different kind takes `kind=` on its own `worker_start`.
 
 ## Before anyone builds
@@ -138,8 +138,10 @@ itself and keeps the memory file its brief names current.)
   never your ladder.
 - Size the ladder to the builder. A strong builder lands a rung a round and often the next one
   with it — a single worker once built most of its ladder in its first round. Give four to six
-  rungs, and add the next big step before a ladder runs out. When a ladder is climbed and you add
-  nothing, the worker builds its reviewer's big move (the digest shows it).
+  rungs, and add the next big step the brief calls for before a ladder runs out. When a ladder is
+  climbed and you add nothing, the worker builds its reviewer's big move (the digest shows it).
+- Build what the brief asks for. Don't add features it didn't ask for because time remains. Don't
+  pre-fill what a person adds themselves (a list, a form) or leave test data in saved storage.
 - Measure what changes over a flow (a registered demo) with `delta("…")`, never one frame's snapshot:
   a one-frame probe of a list that is still loading fails on whichever frame catches the spinner, and
   the worker then tunes the project to the probe instead of building.

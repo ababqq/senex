@@ -12,7 +12,7 @@ import type { HarnessHostMethod, MessageImage, PreviewInputAction } from "../typ
 
 /**
  * One control the harness drives: keys held or tapped, text typed, a key chord, a look, a click,
- * a drag, a pointer move, a scroll, a wait, a view switch. A declared script is normalised to
+ * a drag, a pointer move, a scroll, a wait, a view switch, the keyboard put in the first text field. A declared script is normalised to
  * these (`kinds.ts`).
  */
 export interface PlayAction {
@@ -60,6 +60,34 @@ export const WALK_EXERCISE: PlayAction[] = [
 
 /** The frame a stepped tap, look, click or drag is given to land in. */
 const INPUT_FRAME_MS = 48;
+
+/**
+ * Runs in the page: leave the keyboard where it is when a text field already has it, else focus the
+ * first visible, enabled, writable one. A fixed click lands on whatever the layout puts there (once
+ * a masthead), blurs a field that took focus on load, and says nothing about a list that re-renders
+ * and drops focus on Return; typing into that reaches no field and reads as a dead input.
+ */
+const FOCUS_FIELD = `(() => {
+  var TEXT = /^(text|search|email|url|tel|password|number)?$/i;
+  var fieldOf = function (el) {
+    if (!el || el.disabled || el.readOnly) return false;
+    var tag = String(el.tagName || "").toUpperCase();
+    if (tag === "TEXTAREA") return true;
+    if (tag === "INPUT") return TEXT.test(String(el.getAttribute("type") || ""));
+    return el.isContentEditable === true;
+  };
+  if (fieldOf(document.activeElement)) return true;
+  var all = document.querySelectorAll("input, textarea, [contenteditable]");
+  for (var i = 0; i < all.length; i++) {
+    var el = all[i];
+    if (!fieldOf(el) || el.closest("[hidden],[inert],[aria-hidden='true']")) continue;
+    var rects = el.getClientRects();
+    if (rects && rects.length === 0) continue;
+    el.focus();
+    if (document.activeElement === el) return true;
+  }
+  return false;
+})()`;
 
 /** What every action of a script drives through: the preview (on its lease), the clock, and the pictures taken. */
 interface Drive {
@@ -114,6 +142,13 @@ const ACTION_STEPS = new Map<string, (drive: Drive, action: ScriptAction) => Pro
   [
     "look",
     (drive, action) => inputThenFrame(drive, { type: "look", dx: Number(action.dx) || 0, dy: Number(action.dy) || 0 }),
+  ],
+  [
+    "focus",
+    async (drive) => {
+      await drive.call(HostMethod.PreviewEvaluate, { expression: FOCUS_FIELD });
+      await stepFrame(drive);
+    },
   ],
   // Literal text, one character at a time the way a keyboard delivers it; the frame after lets a
   // field that formats or validates as you type answer.

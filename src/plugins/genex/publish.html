@@ -39,7 +39,7 @@ studioPlugin.call('context').then(c=>{const t=c?.theme,root=document.documentEle
 const controls=document.querySelector('#controls'),status=document.querySelector('#status'),phase=document.querySelector('#phase'),error=document.querySelector('#error');
 const ui=studioPlugin.ui;
 const call=(name,args={})=>studioPlugin.call('action',name,args);
-const PHASES={checking:'Checking this project',exporting:'Exporting a public copy',"creating-project":'Creating the hosted Genex project',uploading:'Uploading to the draft page',promoting:'Making it the public version',listing:'Uploading and making it public',done:'Finished',failed:'Upload failed','verifying-deployment':'Uploaded · Checking playable files',ready:'Ready to play',unresolved:'Uploaded · Still checking availability'};
+const PHASES={checking:'Checking this project',exporting:'Exporting a public copy',"creating-project":'Creating the hosted Genex project',uploading:'Uploading to the draft page',promoting:'Making it the public version',listing:'Uploading and making it public',done:'Finished',failed:'Upload failed','verifying-deployment':'Uploaded · Checking the published files',ready:'Ready to open',unresolved:'Uploaded · Still checking availability'};
 let running=false,timer;
 const button=(label,ariaLabel,disabled,onclick)=>{const b=document.createElement('button');b.type='button';b.textContent=label;b.ariaLabel=ariaLabel;b.disabled=!!disabled;b.onclick=onclick;controls.append(b);return b;};
 
@@ -86,7 +86,7 @@ function renderControls(state,job,live){
   openButtons(state,job);
 }
 function openButtons(state,job){
-  if(state.readyDraft&&job?.phase==='ready')button('Open playable draft','Open the verified playable draft',false,()=>act('publish-open',{target:'play'}));
+  if(state.readyDraft&&job?.phase==='ready')button('Open draft','Open the verified draft',false,()=>act('publish-open',{target:'play'}));
   if(state.draftUrl)button('View deployment page (may still be unavailable)','View deployment page',false,()=>act('publish-open',{target:'draft'}));
   if(listed(state)&&state.galleryUrl)button('Open gallery page','Open the Genex gallery page',false,()=>act('publish-open',{target:'gallery'}));
 }

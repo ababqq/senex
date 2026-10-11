@@ -21,6 +21,9 @@ describe("preview input mapping", () => {
     assert.equal(w?.key, "w");
     assert.equal(normalizeKey("KeyW")?.code, "KeyW");
     assert.equal(normalizeKey("space")?.code, "Space");
+    assert.equal(normalizeKey(" ")?.code, "Space", "a typed space is the Space key, not an empty one");
+    assert.equal(normalizeKey(" ")?.printable, true);
+    assert.equal(normalizeKey("Enter")?.printable, true, "Enter carries a char, or Chromium never acts on it");
     assert.equal(normalizeKey("arrowup")?.keyCode, "Up");
     assert.equal(normalizeKey("Shift")?.code, "ShiftLeft");
   });

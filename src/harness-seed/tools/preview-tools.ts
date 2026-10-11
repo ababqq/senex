@@ -191,7 +191,7 @@ export const tools: HarnessTool[] = [
         script: {
           type: "array",
           description:
-            "optional controls after seed. e.g. [{type:'click', x:0.5, y:0.4}, {type:'type', text:'Ada'}, {type:'press', combo:'Tab'}, {type:'screenshot', camera:'default'}]; a canvas project can also take {type:'hold', keys:['w'], ms:2000} and {type:'look', dx:40}",
+            "optional controls after seed. e.g. [{type:'focus'}, {type:'type', text:'Ada'}, {type:'press', combo:'Tab'}, {type:'click', x:0.5, y:0.4}, {type:'screenshot', camera:'default'}] ({type:'focus'} puts the keyboard in the first text field); a canvas project can also take {type:'hold', keys:['w'], ms:2000} and {type:'look', dx:40}",
         },
       },
       required: ["seed"],

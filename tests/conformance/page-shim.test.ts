@@ -7,6 +7,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { PAGE_DISPATCH } from "../../src/main/page-dispatch.ts";
+import { SCROLL_TO_TOP } from "../../src/main/preview-page-scripts.ts";
+import vm from "node:vm";
 import { PROJECT_DISABLED_BLINK_FEATURES, projectViewPreferences } from "../../src/main/project-view.ts";
 import { installStudio, makeRng } from "../../src/project-template/src/studio.js";
 import {
@@ -666,4 +668,76 @@ it("budgets GPU error drains to one per thirty frames", () => {
   });
   for (let i = 0; i < 90; i++) frame();
   assert.equal(reads, 3);
+});
+
+describe("what a project's reset is told about why it runs", () => {
+  /**
+   * Live builds (2026-10-11): the page runs `reset(1)` on every load, and a generated `reset` that
+   * "empties the store and loads the fixtures" wiped a reading list and prefilled sample books for
+   * the person who opened the page. The judge's reseeds are the only calls that should do that.
+   */
+  function install(calls: Array<[number, unknown]>) {
+    const globals = globalThis as unknown as Record<string, unknown>;
+    const before = { window: globals.window, document: globals.document };
+    const canvas = { getBoundingClientRect: () => ({ left: 0, top: 0, width: 100, height: 100 }) };
+    globals.window = { addEventListener: () => {} };
+    globals.document = { addEventListener: () => {}, querySelector: () => canvas, pointerLockElement: canvas };
+    const restore = () => Object.assign(globals, before);
+    try {
+      const api = installStudio({
+        canvas,
+        hud: false,
+        reset: (seed: number, info?: unknown) => calls.push([seed, info]),
+      } as never) as { seed(value: number): number };
+      return { api, restore };
+    } catch (error) {
+      restore();
+      throw error;
+    }
+  }
+
+  it("says boot on the page load and not-boot on the judge's reseed", () => {
+    const calls: Array<[number, unknown]> = [];
+    const page = install(calls);
+    try {
+      assert.deepEqual(calls, [[1, { boot: true }]]);
+      page.api.seed(7);
+      assert.deepEqual(calls.at(-1), [7, { boot: false }]);
+    } finally {
+      page.restore();
+    }
+  });
+});
+
+describe("starting a named view from the top of the page", () => {
+  /**
+   * Live Loop build (2026-10-11): the exercise leaves a page scrolled (Tab and focus scroll things
+   * into view), and the capture a reviewer is shown is of the viewport where it stopped, so the
+   * first verdict judged a page's middle. A named view starts from the top.
+   */
+  const run = (elements: Array<{ scrollTop: number; scrollLeft: number; scrollTo: (o: unknown) => void }>) => {
+    const scrolled: unknown[] = [];
+    const window = { scrollTo: (o: unknown) => void scrolled.push(o) };
+    const document = { querySelectorAll: () => elements };
+    const result = new vm.Script(SCROLL_TO_TOP).runInNewContext({ window, document });
+    return { result, scrolled };
+  };
+
+  it("scrolls the window, and only the containers that were scrolled, to the top-left at once", () => {
+    const moved: unknown[] = [];
+    const still = { scrollTop: 0, scrollLeft: 0, scrollTo: () => moved.push("still") };
+    const down = { scrollTop: 200, scrollLeft: 0, scrollTo: (o: unknown) => moved.push(o) };
+    const across = { scrollTop: 0, scrollLeft: 40, scrollTo: (o: unknown) => moved.push(o) };
+    const { result, scrolled } = run([still, down, across]);
+    const top = { top: 0, left: 0, behavior: "instant" };
+    assert.equal(result, true);
+    // The page is another realm: compare what it sent as data.
+    const plain = (value: unknown) => JSON.parse(JSON.stringify(value));
+    assert.deepEqual(
+      plain(scrolled),
+      [top],
+      "behavior: instant, so a page with smooth scrolling is not caught mid-way",
+    );
+    assert.deepEqual(plain(moved), [top, top]);
+  });
 });

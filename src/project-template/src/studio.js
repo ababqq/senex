@@ -388,7 +388,7 @@ export function installStudio(config) {
       look.y = 0;
       wheel.x = 0;
       wheel.y = 0;
-      config.reset?.(seed);
+      config.reset?.(seed, { boot: false });
       renderAll();
       return seed;
     },
@@ -602,7 +602,7 @@ export function installStudio(config) {
   }
 
   window.__studio = api;
-  config.reset?.(seed);
+  config.reset?.(seed, { boot: true });
   renderAll();
   if (typeof config.update === "function") rafHandle = requestAnimationFrame(loop);
   return api;

@@ -179,7 +179,15 @@ describe("statusWords", () => {
     assert.equal(statusWords("run run_x · integrating facets").line, "Putting the parts together");
     assert.equal(statusWords("run run_x · iteration 4 — judging blind").line, "Round 4 · reviewing");
     assert.equal(statusWords("thinking").line, "Thinking");
-    assert.equal(statusWords("self-improving · night-brief (2/4)").line, "Improving its own craft · night-brief (2/4)");
+    // Flipped (live validation, 2026-10-11): the instruction file's slug is not a word a person reads.
+    assert.equal(
+      statusWords("self-improving · night-brief (2/4)").line,
+      "Improving its own craft · Harness's night brief instructions (2/4)",
+    );
+    assert.equal(
+      statusWords("self-improving · facet-decomposition (1/2)").line,
+      "Improving its own craft · how Harness plans a build (1/2)",
+    );
     assert.equal(statusWords("self-improving · night-brief (2/4)").short, "Improving");
     assert.deepEqual(statusWords("idle"), { line: "", short: "" });
     assert.deepEqual(statusWords(""), { line: "", short: "" });

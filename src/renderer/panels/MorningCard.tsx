@@ -17,6 +17,7 @@ import { MorningAction, morningWords } from "../morning-words.ts";
 import { type Notify, ToastTone } from "../state/toasts.ts";
 import { problemWords } from "../words.ts";
 import { ResultButton as Button } from "../ui/ResultButton.tsx";
+import { Icon } from "../ui/icons.tsx";
 import { Markdown } from "../ui/Markdown.tsx";
 import { FileText } from "../ui/FileText.tsx";
 import { AssetResults } from "../chat/AssetResults.tsx";
@@ -148,9 +149,7 @@ export function MorningCard({
     if (action === MorningAction.Play) {
       return (
         <Button key={action} onClick={showLive}>
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M8 5v14l11-7z" />
-          </svg>
+          <Icon name="arrow-up-right" size={13} />
           Open
         </Button>
       );
@@ -165,9 +164,7 @@ export function MorningCard({
           onShowLive?.();
         }}
       >
-        <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M8 5v14l11-7z" />
-        </svg>
+        <Icon name="arrow-up-right" size={13} />
         Open
       </Button>
     );

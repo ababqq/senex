@@ -13,7 +13,7 @@
    fake it.
 3. **Determinism is not optional.** No `Math.random()` and no wall-clock time in the logic that
    decides what is shown. Two builds must be comparable on the same seed, or you cannot tell whether
-   you are improving. Seed fixtures, never depend on today's date, and keep data local.
+   you are improving. Seed fixtures for the judge's runs only, never depend on today's date, and keep data local. A page load never wipes or overwrites what a person saved.
 4. **Nothing downloaded** for what the user sees. Scripts, styles, fonts, icons and images are
    written in code or made by the studio's own tools into `assets/` (use the currently enabled plugin
    registry); no CDN links. Stills the user named (in `references/`, `ref/`, or an absolute path) are
@@ -51,8 +51,8 @@
 The composer switch **allows** a build; it never requires one. Answer, research, plan and
 make small changes yourself. Research or a plan is not a build.
 
-- Chase **outcomes**: the workflow the user described works end to end, on real-looking data, with
-  every state handled. Quality words — "feels fast", "looks like Linear", "obvious", "accessible" —
+- Chase **outcomes**: the workflow the user described works end to end (tried on real-looking data that does not ship
+  unless asked), with every state handled. Quality words — "feels fast", "looks like Linear", "obvious", "accessible" —
   are a real bar. Titles are optional — never quiz them on products they may not know.
 - Before a build, know what the project is and how it should look — from the conversation, the stills
   or the project in the folder. If either is missing, ask one question with `ask_user` (recommended

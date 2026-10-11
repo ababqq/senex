@@ -47,7 +47,7 @@ const PUBLISH_STATUS = {
   Failed: { title: "The last publish failed. Open Publish to read why.", attention: true },
   Live: { title: "This project is listed in the Genex gallery", attention: false },
   Draft: { title: "This project has an unlisted draft page", attention: true },
-  Unpublished: { title: "Publish this project with a playable link", attention: true },
+  Unpublished: { title: "Publish this project with a shareable link", attention: true },
 } as const satisfies Record<string, PluginToolbarStatus | ((phase: string) => PluginToolbarStatus)>;
 
 /** Publish's status for a project's publish state: uploading, failed, listed, drafted, or never published. */

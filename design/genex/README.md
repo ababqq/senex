@@ -460,7 +460,7 @@ composer. It holds a 19:10 muted looping
 film (`src/renderer/media`, rendered with Remotion from `design/genex-promo-video/`; its poster
 under Reduce Motion), a 28px translucent close over it, a 13px ink-3 eyebrow, a 17px title,
 three 18px-glyph rows (14px medium title, one 13px ink-3 line: models, sound and art, publishing
-with a playable link), then Learn more ↗ and the filled
+with a shareable link), then Learn more ↗ and the filled
 **Connect Genex plugin** (32px buttons, 12px insets; Learn more is a quiet button outlined on
 hover, and copies the link where the browser may not open). A failure only turns the primary into
 ↻ Try again, its reason in the tooltip. Waiting shows the LoaderGrid with Cancel; connected, a

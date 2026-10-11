@@ -3,7 +3,7 @@
  *
  * Welcome: the sent prompt streams letter by letter onto the Planner's sheet, where a pen writes it
  * down with three tasks and ticks them off; the Workers' crane stacks blocks; the Reviewers' screen
- * plays the prompt's project (a space shooter), a scan passes and a stamp lands. Every second round the
+ * plays the prompt's project (an app's window), a scan passes and a stamp lands. Every second round the
  * stamp is a ✕: the screen glitches, redraws, is scanned again and passes.
  * Connect: the Claude Code and Codex marks, extruded, rocking over their buttons.
  * Local: a chip whose pins and layers fill while a model downloads.
@@ -289,34 +289,43 @@ const boxGlyph = (cu: number, cv: number, h: number): Uv[] => [
   [cu - h, cv - h],
   [cu - h, cv + h],
 ];
-const shipGlyph = (cu: number, cv: number): Uv[] => [
-  [cu, cv + 0.11],
-  [cu + 0.09, cv - 0.08],
-  [cu, cv - 0.03],
-  [cu - 0.09, cv - 0.08],
-  [cu, cv + 0.11],
+/** A small window: its frame and title bar. */
+const windowGlyph = (cu: number, cv: number): Uv[][] => [
+  [
+    [cu - 0.09, cv + 0.07],
+    [cu + 0.09, cv + 0.07],
+    [cu + 0.09, cv - 0.07],
+    [cu - 0.09, cv - 0.07],
+    [cu - 0.09, cv + 0.07],
+  ],
+  [
+    [cu - 0.09, cv + 0.03],
+    [cu + 0.09, cv + 0.03],
+  ],
 ];
-function ringGlyph(cu: number, cv: number, rx: number, ry: number, n: number, bump: (j: number) => number): Uv[] {
-  const pts: Uv[] = [];
-  for (let j = 0; j <= n; j++) {
-    const a = (j / n) * TAU;
-    pts.push([cu + rx * bump(j) * Math.cos(a), cv + ry * bump(j) * Math.sin(a)]);
-  }
-  return pts;
-}
-const rockGlyph = (cu: number, cv: number) => ringGlyph(cu, cv, 0.09, 0.09, 9, (j) => 0.78 + 0.4 * rnd((j % 9) + 40));
-const zeroGlyph = (cu: number, cv: number) => ringGlyph(cu, cv, 0.028, 0.05, 14, () => 1);
+/** A list: three short rows. */
+const listGlyph = (cu: number, cv: number): Uv[][] =>
+  [0.06, 0, -0.06].map((dv) => [
+    [cu - 0.08, cv + dv],
+    [cu + 0.08, cv + dv],
+  ]);
+/** A bar chart: three bars of different heights on one baseline. */
+const barsGlyph = (cu: number, cv: number): Uv[][] =>
+  [-0.06, 0, 0.06].map((du, i) => [
+    [cu + du, cv - 0.07],
+    [cu + du, cv - 0.07 + [0.08, 0.16, 0.11][i]!],
+  ]);
 
 /** A stroke in its ink, with the stretch of the line it covers. */
 function stroke(pts: Uv[], c: Tone, k: number): Stroke {
   const us = pts.map((q) => q[0]);
   return { pts, from: Math.min(...us), to: Math.max(...us), c, k };
 }
-/** Each task's piece: a ship, an asteroid, and the score's three zeros. */
+/** Each task's piece: a window, a list, and a chart. */
 function taskPieces(row: number, v: number): Uv[][] {
-  if (row === 0) return [shipGlyph(-0.43, v)];
-  if (row === 1) return [rockGlyph(-0.43, v)];
-  return [-0.07, 0, 0.07].map((du) => zeroGlyph(-0.43 + du, v));
+  if (row === 0) return windowGlyph(-0.43, v);
+  if (row === 1) return listGlyph(-0.43, v);
+  return barsGlyph(-0.43, v);
 }
 /** When the pen passes along each line: the title, three tasks and the arrow, with short hops between. */
 const LINE_TIMES: Array<[number, number]> = [
@@ -569,203 +578,111 @@ function rnd(i: number) {
   const x = Math.sin(i * 127.1 + 311.7) * 43758.5453;
   return x - Math.floor(x);
 }
-let ICO: { v: Vec3[]; e: Array<[number, number]> } | null = null;
-function icosahedron() {
-  if (ICO) return ICO;
-  const g = (1 + Math.sqrt(5)) / 2;
-  const raw: Vec3[] = [
-    [-1, g, 0],
-    [1, g, 0],
-    [-1, -g, 0],
-    [1, -g, 0],
-    [0, -1, g],
-    [0, 1, g],
-    [0, -1, -g],
-    [0, 1, -g],
-    [g, 0, -1],
-    [g, 0, 1],
-    [-g, 0, -1],
-    [-g, 0, 1],
-  ];
-  const faces = [
-    [0, 11, 5],
-    [0, 5, 1],
-    [0, 1, 7],
-    [0, 7, 10],
-    [0, 10, 11],
-    [1, 5, 9],
-    [5, 11, 4],
-    [11, 10, 2],
-    [10, 7, 6],
-    [7, 1, 8],
-    [3, 9, 4],
-    [3, 4, 2],
-    [3, 2, 6],
-    [3, 6, 8],
-    [3, 8, 9],
-    [4, 9, 5],
-    [2, 4, 11],
-    [6, 2, 10],
-    [8, 6, 7],
-    [9, 8, 1],
-  ];
-  const seen = new Set<string>(),
-    e: Array<[number, number]> = [];
-  for (const f of faces)
-    for (const [a, b] of [
-      [f[0]!, f[1]!],
-      [f[1]!, f[2]!],
-      [f[2]!, f[0]!],
-    ] as const) {
-      const key = a < b ? `${a}_${b}` : `${b}_${a}`;
-      if (!seen.has(key)) {
-        seen.add(key);
-        e.push([a, b]);
-      }
-    }
-  return (ICO = {
-    v: raw.map((p) => {
-      const l = len(p);
-      return [p[0] / l, p[1] / l, p[2] / l] as Vec3;
-    }),
-    e,
-  });
-}
-function orient(p: Vec3, spin: number, tilt: number, r: number, c: Vec3): Vec3 {
-  const y = p[1] * Math.cos(tilt) - p[2] * Math.sin(tilt),
-    z = p[1] * Math.sin(tilt) + p[2] * Math.cos(tilt);
-  const x = p[0] * Math.cos(spin) + z * Math.sin(spin),
-    z2 = -p[0] * Math.sin(spin) + z * Math.cos(spin);
-  return [c[0] + x * r, c[1] + y * r, c[2] + z2 * r];
-}
+/** The seconds one pass of the project's list takes: rows arrive, get ticked off, and fade for the next pass. */
+const APP_CYCLE_S = 4.4;
+/** The list's rows, top to bottom, and how long each row's text runs. */
+const APP_ROWS = [0.95, 0.55, 0.15] as const;
+const APP_TEXT = [1.2, 1.55, 0.95] as const;
 
-/** The project's scrolling floor grid and its drifting stars. */
-function spaceField(I: Scene, t: number) {
-  for (let i = 0; i < 9; i++) {
-    const gz = -3 + ((i / 9 + t * 0.5) % 1) * 4.5;
-    I.L.push({
-      c: 2,
-      k: 0.5,
-      p: [
-        [-2.2, -0.7, gz],
-        [2.2, -0.7, gz],
-      ],
-    });
-  }
-  for (let i = -4; i <= 4; i++)
-    I.L.push({
-      c: 2,
-      k: 0.4,
-      p: [
-        [i * 0.5, -0.7, -3],
-        [i * 0.5, -0.7, 1.5],
-      ],
-    });
-  for (let i = 0; i < 20; i++) {
-    I.D.push({
-      c: 1,
-      a: 0.3 + 0.5 * rnd(i + 230),
-      p: [-2.5 + 5 * rnd(i + 260), -0.3 + 2.1 * rnd(i + 290), -3.5 + ((rnd(i + 200) + t * 0.35) % 1) * 5],
-      r: 0.8,
-    });
-  }
-}
+const rect = (x0: number, y0: number, x1: number, y1: number): Vec3[] => [
+  [x0, y0, 0],
+  [x1, y0, 0],
+  [x1, y1, 0],
+  [x0, y1, 0],
+  [x0, y0, 0],
+];
 
-/** The ship weaving and banking, its engine glow and its shots flying ahead; returns its height. */
-function ship(I: Scene, t: number): number {
-  const sx = 0.55 * Math.sin(t * 1.1),
-    bank = -0.5 * Math.cos(t * 1.1),
-    sy = 0.05 * Math.sin(t * 2.3),
-    sz = 0.9;
-  const cb = Math.cos(bank),
-    sb = Math.sin(bank);
-  const Sh = (x: number, y: number, z: number): Vec3 => [sx + x * cb - y * sb, sy + x * sb + y * cb, sz + z];
-  const nose = Sh(0, 0, -0.38),
-    wl = Sh(-0.32, -0.02, 0.12),
-    wr = Sh(0.32, -0.02, 0.12),
-    fin = Sh(0, 0.12, 0.1),
-    tail = Sh(0, -0.05, 0.14);
+/** The app's window: its frame, title bar, heading and the field new items are typed into. */
+function appWindow(I: Scene, hold: number, t: number) {
   I.L.push(
-    { c: 0, k: 1, p: [nose, wl, tail, wr, nose] },
-    { c: 0, k: 1, p: [nose, fin, wl] },
-    { c: 0, k: 1, p: [fin, wr] },
-    { c: 0, k: 0.8, p: [fin, tail] },
+    { c: 2, k: 1, p: rect(-1.5, -0.5, 1.5, 1.6) },
+    {
+      c: 2,
+      k: 0.8,
+      p: [
+        [-1.5, 1.38, 0],
+        [1.5, 1.38, 0],
+      ],
+    },
+    {
+      c: 1,
+      k: 0.9 * hold,
+      p: [
+        [-1.3, 1.15, 0],
+        [-0.3, 1.15, 0],
+      ],
+    },
+    { c: 0, k: 0.7 * hold, p: rect(-1.3, -0.42, 1.3, -0.24) },
   );
-  I.F.push({ c: 0, a: 0.18, p: [nose, wl, tail, wr] });
-  I.D.push({ c: 4, a: 0.6 + 0.4 * Math.sin(t * 30), p: Sh(0, 0.02, 0.18), r: 1.8 });
-  for (let i = 0; i < 3; i++) {
-    const u = (t * 2 + i / 3) % 1,
-      tf = t - u * 0.5,
-      bx = 0.55 * Math.sin(tf * 1.1),
-      bz = sz - 0.45 - u * 3.5;
+  I.F.push({ c: 2, a: 0.07, p: rect(-1.5, -0.5, 1.5, 1.6).slice(0, 4) });
+  for (const x of [-1.35, -1.25, -1.15]) I.D.push({ c: 2, a: 0.8, p: [x, 1.49, 0], r: 1.6 });
+  if (Math.floor(t * 2) % 2 === 0)
     I.L.push({
       c: 0,
-      k: 1 - u * 0.6,
+      k: hold,
       p: [
-        [bx, sy, bz],
-        [bx, sy, bz - 0.25],
+        [-1.22, -0.39, 0],
+        [-1.22, -0.27, 0],
       ],
     });
-  }
-  return sy;
 }
 
-/** Four asteroids tumbling towards the ship, fading in and out at the ends of their run. */
-function asteroids(I: Scene, t: number) {
-  const ico = icosahedron();
-  for (let i = 0; i < 4; i++) {
-    const ph = (rnd(i + 300) + t * 0.28) % 1,
-      ar = 0.16 + 0.14 * rnd(i + 390);
-    const ac: Vec3 = [-1.3 + 2.6 * rnd(i + 330), -0.2 + 0.9 * rnd(i + 360), -3 + ph * 4.2];
-    const P = ico.v.map((p) => orient(p, t * (0.8 + i * 0.3), t * 0.6 + i, ar, ac));
-    const fade = Math.min(1, ph * 4, (1 - ph) * 6);
-    for (const [a, b] of ico.e) I.L.push({ c: 2, k: 0.9 * fade, p: [P[a]!, P[b]!] });
-  }
+/** One row of the list: it slides in, then its box is ticked and its text struck through. */
+function appRow(I: Scene, i: number, cycle: number, hold: number) {
+  const v = APP_ROWS[i]!;
+  const born = easeOut((cycle - 0.3 - i * 0.45) / 0.5);
+  const done = easeOut((cycle - 1.9 - i * 0.45) / 0.35);
+  const k = born * hold;
+  if (k < 0.01) return;
+  const x = -0.5 * (1 - born);
+  const text: Vec3[] = [
+    [x - 0.95, v, 0],
+    [x - 0.95 + APP_TEXT[i]!, v, 0],
+  ];
+  const [box0, box1] = [x - 1.3, x - 1.12];
+  I.L.push({ c: done > 0.5 ? 3 : 1, k, p: rect(box0, v - 0.09, box1, v + 0.09) }, { c: 1, k: 0.8 * k, p: text });
+  if (done < 0.01) return;
+  I.L.push(
+    {
+      c: 3,
+      k: done * hold,
+      p: [
+        [x - 1.27, v, 0],
+        [x - 1.21, v - 0.06, 0],
+        [x - 1.14, v + 0.07, 0],
+      ],
+    },
+    {
+      c: 3,
+      k: 0.9 * done * hold,
+      p: [
+        [x - 0.95, v, 0],
+        [x - 0.95 + APP_TEXT[i]! * done, v, 0],
+      ],
+    },
+  );
 }
 
-/** The asteroid ahead bursting, once every 2.6 s, at the ship's height `sy`. */
-function blast(I: Scene, t: number, sy: number) {
-  const ec = t % 2.6,
-    ek = ec / 0.6;
-  if (ek < 1) {
-    const ex = 0.55 * Math.sin((t - ec) * 1.1),
-      ez = -1.5;
-    for (let j = 0; j < 8; j++) {
-      const ea = (j / 8) * TAU + 0.3,
-        r0 = 0.08 + 0.35 * easeOut(ek),
-        r1 = r0 + 0.12,
-        dz = 0.1 * Math.sin(j);
-      I.L.push({
-        c: 4,
-        k: 1 - ek,
-        p: [
-          [ex + r0 * Math.cos(ea), sy + r0 * Math.sin(ea), ez + dz],
-          [ex + r1 * Math.cos(ea), sy + r1 * Math.sin(ea), ez + dz],
-        ],
-      });
-    }
-    I.D.push({ c: 1, a: 1 - ek, p: [ex, sy, ez], r: 2.5 * (1 - ek) + 0.5 });
-  }
-}
-
-/** The prompt's project: a ship weaves through tumbling asteroids and blasts the one ahead. */
-function space(t: number): Scene & { cam: Camera } {
+/** The prompt's project: a small app window whose list fills in and is ticked off, one row at a time. */
+function app(t: number): Scene & { cam: Camera } {
   const I = scene();
-  spaceField(I, t);
-  const sy = ship(I, t);
-  asteroids(I, t);
-  blast(I, t, sy);
+  const cycle = t % APP_CYCLE_S;
+  const hold = 1 - clamp((cycle - (APP_CYCLE_S - 0.5)) / 0.4);
+  appWindow(I, hold, t);
+  APP_ROWS.forEach((_, i) => appRow(I, i, cycle, hold));
+  const next = ease((cycle - 1.5) / 1.35);
+  I.D.push({ c: 0, a: hold, p: [-1.06, lerp(APP_ROWS[0], APP_ROWS[2], next), 0.02], r: 2.2 });
   return {
     ...I,
     cam: {
-      yaw: 0.12 * Math.sin(t * 0.3),
-      pitch: 0.28,
-      scale: 0.75,
+      yaw: 0.3 * Math.sin(t * 0.3),
+      pitch: 0.12,
+      scale: 0.78,
       cx: 0,
       cy: 0.1,
       dist: 5,
       tx: 0,
-      ty: 0.2,
+      ty: 0.5,
       tz: 0,
       R: 2.5,
     },
@@ -936,7 +853,7 @@ function appLine(S: Scene, ln: Line, idx: number, cam: Camera, t: number, glitch
 function projectOnScreen(S: Scene, t: number, beat: JudgeBeat) {
   const { halfWidth: HX, halfHeight: HY } = PICTURE;
   const right = -HX + 2 * HX * beat.reveal;
-  const G = space(t),
+  const G = app(t),
     cam = G.cam;
   const inside = (q: Vec3) => q[0] > -HX && q[0] < right && q[1] > -HY && q[1] < HY;
   G.L.forEach((ln, idx) => appLine(S, ln, idx, cam, t, beat.glitch, right));

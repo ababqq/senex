@@ -795,7 +795,7 @@ function RunDetails({
       <div className="flex flex-wrap gap-2">
         {head && project && (
           <Button variant="secondary" onClick={() => onPlayCommit(project, head)}>
-            <Icon name="play" size={13} />
+            <Icon name="arrow-up-right" size={13} />
             Open build
           </Button>
         )}

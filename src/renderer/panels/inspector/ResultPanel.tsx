@@ -62,7 +62,7 @@ function BuildActions({
             .catch(refuse)
         }
       >
-        <Icon name="play" size={13} />
+        <Icon name="arrow-up-right" size={13} />
         Open this build
       </Button>
       <Button

@@ -29,9 +29,11 @@ import { evaluateProbeCheck, evaluateSceneCheck, sceneCheckExpression } from "..
 import {
   criticFor,
   appLine,
+  describePlayScript,
   inputProbesFor,
   KIND_NAMES,
   normalizeAppTraits,
+  normalizePlayScript,
   playScriptFor,
   readDeclaredApp,
   wantsEyeCameras,
@@ -472,7 +474,7 @@ describe("the kind a project declares, and what the harness assumes without one"
     // Null-safe: evidence is gathered from many places that have no declared project at all.
     assert.equal(playScriptFor(undefined), CONTROL_EXERCISE);
     assert.equal(playScriptFor(null), CONTROL_EXERCISE);
-    assert.equal(playScriptFor({ kind: "form-flow" })[0]!.type, "click");
+    assert.equal(playScriptFor({ kind: "form-flow" })[0]!.type, "focus");
     assert.deepEqual(playScriptFor({ playScript: [{ type: "tap", keys: ["x"] }] }), [{ type: "tap", keys: ["x"] }]);
   });
 
@@ -490,7 +492,7 @@ describe("the kind a project declares, and what the harness assumes without one"
     assert.equal(appLine(undefined), "", "an undeclared project tells the judge nothing about a kind");
     assert.match(
       appLine({ kind: "form-flow" }),
-      /Before every judgement the harness drives the same controls: click \(0\.5, 0\.35\), type "Ada Lovelace", press Tab/,
+      /Before every judgement the harness drives the same controls: focus the first text field, type "Ada Lovelace", press Tab/,
     );
   });
 
@@ -653,6 +655,23 @@ describe("the play script under the stepped clock", () => {
     assert.equal(drag.payload.actions[0].fromX, 0.4);
     assert.equal(drag.payload.actions[0].fromY, 0.6);
     assert.equal(drag.payload.actions[0].x, 0.6);
+  });
+
+  it("puts the keyboard in the first text field through the lease, then gives it a frame", async () => {
+    const { calls, ctx } = record();
+    await applyPlayScript(ctx as never, [{ type: "focus" }], { clock: "step", handle: "h1" });
+    assert.equal(calls.length, 2);
+    assert.equal(calls[0]!.method, "preview.evaluate");
+    assert.equal(calls[0]!.payload.handle, "h1");
+    assert.deepEqual(calls[1], { method: "preview.call", payload: { method: "step", arg: 48, handle: "h1" } });
+  });
+
+  it("lets a plan declare focus, and says so in words", () => {
+    assert.deepEqual(normalizePlayScript([{ type: "focus" }]), [{ type: "focus" }]);
+    assert.equal(
+      describePlayScript([{ type: "focus" }, { type: "type", text: "hi" }]),
+      'focus the first text field, type "hi"',
+    );
   });
 
   it("keeps the wall clock waiting on the wall", async () => {

@@ -99,9 +99,9 @@ const EDIT_PATHS = ["ui.edits"];
 const LOOK_PATHS = ["player.yaw"];
 const MOVE_PATHS = ["player.x", "player.z"];
 
-/** Click a spot, type into whatever took focus, move on with Tab, submit with Return. */
+/** Put the keyboard in the first field, type, move on with Tab, submit with Return. */
 const FORM_EXERCISE: PlayAction[] = [
-  { type: "click", x: 0.5, y: 0.35 },
+  { type: "focus" },
   { type: "type", text: "Ada Lovelace" },
   { type: "press", combo: "Tab" },
   { type: "type", text: "ada@example.com" },
@@ -112,10 +112,11 @@ const FORM_EXERCISE: PlayAction[] = [
 
 /** Add an item, add another, then touch the first one. */
 const LIST_EXERCISE: PlayAction[] = [
-  { type: "click", x: 0.5, y: 0.2 },
+  { type: "focus" },
   { type: "type", text: "Buy milk" },
   { type: "press", combo: "Return" },
   { type: "wait", ms: 200 },
+  { type: "focus" },
   { type: "type", text: "Call Ada" },
   { type: "press", combo: "Return" },
   { type: "wait", ms: 200 },
@@ -163,7 +164,7 @@ const EXPLORE_EXERCISE: PlayAction[] = [
 
 /** Give a tool its inputs and ask for the result. */
 const UTILITY_EXERCISE: PlayAction[] = [
-  { type: "click", x: 0.5, y: 0.4 },
+  { type: "focus" },
   { type: "type", text: "42" },
   { type: "press", combo: "Tab" },
   { type: "type", text: "7" },
@@ -344,6 +345,7 @@ const ACTIONS: Record<string, (raw: AnyRecord) => PlayAction | null> = {
   move: (raw) => pointerAction("move", raw),
   scroll: (raw) => ({ type: "scroll", dx: number(raw.dx, 0), dy: number(raw.dy, 0) }),
   wait: (raw) => ({ type: "wait", ms: clamp(raw.ms ?? WAIT_DEFAULT_MS, 0, MAX_ACTION_MS) }),
+  focus: () => ({ type: "focus" }),
   camera: (raw) => {
     const name = typeof raw.name === "string" ? raw.name.trim().slice(0, CAMERA_NAME_CHARS) : "";
     return name ? { type: "camera", name } : null;
@@ -422,6 +424,7 @@ const ACTION_CLAUSES: Record<string, (action: PlayAction) => string> = {
   move: (a) => `move the pointer to ${at(a.x, a.y)}`,
   scroll: (a) => `scroll ${number(a.dx, 0)}, ${number(a.dy, 0)}`,
   wait: (a) => `wait ${seconds(a.ms ?? 100)}`,
+  focus: () => "focus the first text field",
   camera: (a) => `switch to the ${a.name} view`,
   type: (a) => `type "${clip(String(a.text ?? ""), CLIP_QUOTE)}"`,
   press: (a) => `press ${a.combo}${(a.repeat ?? 1) > 1 ? ` ${a.repeat} times` : ""}`,
@@ -596,7 +599,7 @@ export function wantsEyeCameras(app: AnyRecord | null | undefined): boolean {
 }
 
 /**
- * The third declaration source: the `project` block inside the project's own studio.json. The
+ * The third declaration source: the `app` block inside the project's own studio.json. The
  * top-level `kind` there is the project SHAPE (three-modules, three-vite) and is never read
  * as a project kind.
  */
