@@ -28,7 +28,7 @@ import type { ModelInstallJob } from "../../shared/model-install.ts";
 import { EngineId } from "../../shared/providers.ts";
 import { type ModelPullProgress, UiEvent } from "../../shared/ui-events.ts";
 import { Button } from "../ui/Button.tsx";
-import { GenexLogo } from "../ui/GenexLogo.tsx";
+import { SenexLogo } from "../ui/SenexLogo.tsx";
 import { Icon } from "../ui/icons.tsx";
 import { LoaderGrid } from "../ui/LoadingState.tsx";
 import { CODE_FALLBACK_LABEL, useCodeFallback } from "../ui/SignInCard.tsx";
@@ -520,7 +520,7 @@ function Welcome({
     <section className={`onboarding-screen onboarding-welcome ${back ? "onboarding-enter-back" : ""}`}>
       <header className="onboarding-hello">
         <p>welcome to</p>
-        <GenexLogo className="onboarding-wordmark" />
+        <SenexLogo className="onboarding-wordmark" />
       </header>
       <div ref={fit} className="onboarding-fit">
         <div style={{ width: STAGE.width * scale, height: STAGE.height * scale }}>

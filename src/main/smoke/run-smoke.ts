@@ -2413,9 +2413,9 @@ async function checkChromeAndCursors(buildSmoke: BuildSmoke): Promise<void> {
     ),
   );
   check(
-    "Genex wordmark is accessible and navigation uses pointer cursors",
+    "Senex wordmark is accessible and navigation uses pointer cursors",
     await wc.executeJavaScript(
-      `!!document.querySelector('svg[role="img"][aria-label="Genex"]') && Array.from(document.querySelectorAll('nav button:not(:disabled), nav button:not(:disabled) svg')).every(e=>getComputedStyle(e).cursor==='pointer')`,
+      `!!document.querySelector('svg[role="img"][aria-label="Senex"]') && Array.from(document.querySelectorAll('nav button:not(:disabled), nav button:not(:disabled) svg')).every(e=>getComputedStyle(e).cursor==='pointer')`,
     ),
   );
 }
