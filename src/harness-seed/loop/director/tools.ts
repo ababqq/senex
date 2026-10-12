@@ -673,7 +673,7 @@ function finallyJudged(judged: LastJudge | null, head: string | null): boolean {
  * prompt of a hurried night (the wrap-up, the user's finish, the goal card) sent it straight to
  * finish, so builds went live with no judge having looked. A build the user had a picture of is
  * compared blind with it; a new project, or one whose start nobody could photograph, is asked whether
- * it shows what the user asked for. It looks through the studio's window when every other is
+ * it shows the goal it was built for. It looks through the studio's window when every other is
  * taken, its calls end by `FINAL_JUDGE_MS` (and with the user's Stop), and its word is kept as
  * every judge's is (`state.lastJudge`, a judge verdict), for the landing's claim.
  */

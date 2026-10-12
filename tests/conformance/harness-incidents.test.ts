@@ -6315,12 +6315,17 @@ describe("the final judge when the user is in a hurry", () => {
   });
 
   it("hurry-2. a new project finished in a hurry: the close asks a judge whether the build does what was asked, and the card says what it answered", async () => {
-    const { finished, judgedLanding, results } = await hurriedNight("hurry-scratch", { fromScratch: true });
+    const { asked, finished, judgedLanding, results } = await hurriedNight("hurry-scratch", { fromScratch: true });
 
     assert.equal(finished.landed, true, `${finished.stoppedBecause} | ${results.finished}`);
     assert.equal(judgedLanding.length, 1, "the build made live was judged once, by the close");
     const [verdict] = judgedLanding;
-    assert.match(String(verdict.seen.question), /a blue sky over the plaza/, "asked about the user's own goal");
+    assert.match(String(verdict.seen.question), /a blue sky over the plaza/, "asked about the build's goal");
+    const question = asked.find((text) => text.includes("QUESTION:"));
+    assert.ok(question, "the judge was sent the question");
+    const [, introduction] = /QUESTION: ([^]*?)a blue sky over the plaza/.exec(question) ?? [];
+    assert.ok(introduction, "the goal is quoted in the judge's question");
+    assert.doesNotMatch(introduction, /\b(user|you|asked)\b/i, "and no author is claimed for it");
     assert.equal(verdict.seen.answer, true, JSON.stringify(verdict));
     assert.equal(finished.landingResult.how, LandingHow.JudgeAnsweredYes, JSON.stringify(finished.landingResult));
     assert.match(finished.landingResult.line, /a judge found it does what you asked/);
@@ -8318,5 +8323,27 @@ describe("a required goal's playtest asks about multiplayer only for a multiplay
     assert.ok(online.includes("two players meet in a lobby"));
     assert.match(online, /hosted two-client route/);
     assert.match(online, /cannot prove multiplayer/);
+  });
+});
+
+/**
+ * Live Loop validation, third pass (2026-10-12): the close's question introduced the build's goal as "The user asked
+ * for:" and quoted details the user never wrote (a fixed-seed sample data set, a storage mechanism), because the goal
+ * is the chat's launch paragraph or, once a build is reopened, the asks since. The label no longer names an author.
+ */
+describe("the close's question does not say who wrote the goal (live validation, third pass, 2026-10-12)", () => {
+  it("UA-1. a fresh goal and a reopened one are both introduced as the build's goal, in full", async () => {
+    const { workingGoal } = await import("../../src/harness-seed/loop/goal-prompts.ts");
+    const { finalJudgeQuestion } = await import("../../src/harness-seed/loop/director/close-prompts.ts");
+    const goals = [
+      "A check-in dashboard for a gym. Use realistic sample data generated from a fixed seed.",
+      workingGoal({ goal: "A reading list", asks: ["Keep the list in the browser (localStorage)."] }),
+    ];
+    for (const goal of goals) {
+      const question = finalJudgeQuestion(goal);
+      const at = question.indexOf(goal);
+      assert.ok(at > 0, "the judge still reads the whole goal, so what was built stays checkable");
+      assert.doesNotMatch(question.slice(0, at), /\b(user|you|your|asked)\b/i, "no author is claimed for it");
+    }
   });
 });
