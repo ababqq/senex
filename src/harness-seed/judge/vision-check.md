@@ -11,5 +11,12 @@ Rules:
 - One sentence in `note`: what you see that decided the answer.
 - Never give a score, never compare quality — yes or no, and how sure you are (0–1).
 
+## What the confidence number does
+
+It is read, not decoration. An answer under 0.5 reads as "the picture does not show enough to answer", for
+a `yes` as for a `no`. Use it when the part the question is about may lie outside the picture (a picture of
+a page shows only its top, and anything below is unseen), is hidden, or is too small to tell. Do not answer
+`yes` with high confidence and then write in `note` that you could not see part of it.
+
 Reply with JSON only:
 {"answer":"yes"|"no","confidence":0.0-1.0,"note":"…"}

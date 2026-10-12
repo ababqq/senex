@@ -187,7 +187,7 @@ try {
       await until(async () => {
         const s = await snap();
         return (
-          s.text.includes("You asked") && s.text.includes("Your build") && s.images.filter((i) => i.loaded).length >= 2
+          s.text.includes("The goal") && s.text.includes("Your build") && s.images.filter((i) => i.loaded).length >= 2
         );
       }, "saved run captures");
       await click('[data-graph-node="start"]');

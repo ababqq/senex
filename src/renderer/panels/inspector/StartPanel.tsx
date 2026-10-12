@@ -1,4 +1,4 @@
-/** The panel of "You asked": the prompt, the user's reference pictures, and the starting point every part builds on. */
+/** The panel of "The goal": the goal, the user's reference pictures, and the starting point every part builds on. */
 import type { JSX } from "react";
 import { providerInfo, SUBSCRIPTION_ENGINES } from "../../../shared/providers.ts";
 import {
@@ -141,8 +141,8 @@ export function StartPanel(props: InspectorProps): JSX.Element {
   return (
     <Panel
       id={GraphSelection.Start}
-      label="What you asked"
-      title="You asked"
+      label="The goal"
+      title="The goal"
       nav={false}
       onPrev={props.onPrev}
       onNext={props.onNext}
@@ -151,7 +151,7 @@ export function StartPanel(props: InspectorProps): JSX.Element {
       onReply={props.onReply}
     >
       <p className="text-chat-sub whitespace-pre-wrap text-ink [overflow-wrap:anywhere]">
-        {run.goal || "No prompt was recorded."}
+        {run.goal || "No goal was recorded."}
       </p>
       <References references={references} onLight={props.onLight} />
       <StartedFrom graph={graph} base={base} baseSrc={props.baseSrc} building={building} />

@@ -571,7 +571,7 @@ const RowLabels = memo(function RowLabels({
   );
 });
 
-/** Every node of the graph, from what you asked to your build. */
+/** Every node of the graph, from the goal to your build. */
 const GraphNodes = memo(function GraphNodes({
   model,
   project,

@@ -1,7 +1,7 @@
 /**
  * The goal a build works and is judged to, as its lead, builders, judges and playtester read it.
  * A finished build reopened keeps what it was commissioned as (`run.goal`, which the Builds graph
- * shows as "You asked") and records each ask since on `run.asks`, the latest first (reopen-run.ts).
+ * shows as "The goal") and records each ask since on `run.asks`, the latest first (reopen-run.ts).
  */
 
 /** How the asks a reopened build was given read ahead of its commission. */

@@ -2,7 +2,7 @@ import { memo } from "react";
 import { PerformanceBoundary } from "../../performance.tsx";
 import { PerformanceComponent } from "../../../shared/performance.ts";
 /**
- * The Builds graph's nodes: what you asked, the assets tile, every step, the optimization tile,
+ * The Builds graph's nodes: the goal, the assets tile, every step, the optimization tile,
  * your build and — while it has the run between parts — the lead. Every picture node is one size:
  * its picture fills it and its words sit on the picture, so no state changes its height. A node at
  * work is its agent's screen: the window's newest frame, the agent's cursor, what it is doing.
@@ -33,8 +33,10 @@ import { StateGlyph, TONE } from "../inspector/tone.tsx";
 import { sameStepNode, type StepNodeProps } from "./step-props.ts";
 import { useRoundStill } from "../run-stills.ts";
 
-/** How much of the prompt the start node shows. */
+/** How much of the goal the start node shows. */
 const GOAL_CHARS = 48;
+/** What the start node is called: the goal is the chat's launch paragraph, not a quotation of the user. */
+const START_NAME = "The goal";
 /** How many asset pictures the assets tile shows before it counts the rest. */
 const ASSETS_SHOWN = 3;
 
@@ -342,7 +344,7 @@ function StartFace({
       <NodeFace
         src={src}
         fill={Fill.Shimmer}
-        name="You asked"
+        name={START_NAME}
         word="Starting point…"
         tone={Tone.Accent}
         glyph={<StateGlyph state={StepState.Building} />}
@@ -353,16 +355,16 @@ function StartFace({
       <NodeFace
         src={src}
         fill={Fill.Flat}
-        name="You asked"
+        name={START_NAME}
         word="Start failed"
         tone={Tone.Red}
         glyph={<StateGlyph state={StepState.Undone} />}
       />
     );
-  return <NodeFace src={src} fill={Fill.Flat} name="You asked" word={`“${goal}”`} tone={Tone.Muted} glyph={null} />;
+  return <NodeFace src={src} fill={Fill.Flat} name={START_NAME} word={goal} tone={Tone.Muted} glyph={null} />;
 }
 
-/** What you asked: the project's starting still and the prompt. */
+/** The goal: the project's starting still and the goal the build was commissioned with. */
 export function StartNode({
   run,
   base,
@@ -382,14 +384,14 @@ export function StartNode({
 }): JSX.Element | null {
   if (!rect) return null;
   const building = active && base !== null && !base.done;
-  const goal = run.goal ? truncate(run.goal, GOAL_CHARS) : "No prompt recorded";
+  const goal = run.goal ? truncate(run.goal, GOAL_CHARS) : "No goal recorded";
   return (
     <NodeFrame
       id={GraphSelection.Start}
       rect={rect}
       variant={building ? Variant.Working : Variant.Normal}
       selected={selected}
-      label={`You asked: ${goal}`}
+      label={`${START_NAME}: ${goal}`}
       onSelect={onSelect}
     >
       <StartFace src={src} building={building} failed={base?.ok === false} goal={goal} />
