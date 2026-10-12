@@ -35,6 +35,7 @@ import { setAsideStrays } from "./lead-session.ts";
 import { LEAD_DIRTY, LEAD_LIVE_DIRTY } from "./lead-session-prompts.ts";
 import { BuildTarget, WindowLease } from "./night.ts";
 import { finalJudgeQuestion } from "./close-prompts.ts";
+import { goalPlaytestAsk } from "./playtest-prompts.ts";
 import { plainly } from "./rules.ts";
 import { DirectorTool, headSynced } from "./tool-specs.ts";
 import { passDeadline } from "./wake-schedule.ts";
@@ -831,7 +832,7 @@ export async function playtest(night: Night, args: AnyRecord) {
     return "scenario must name a zero-based acceptance index from run_status";
   const scenarios = scenario === undefined ? goal?.acceptance : [goal?.acceptance[scenario]];
   const ask = goal
-    ? `Verify every required scenario through actual interaction: ${scenarios?.join("; ")}. Report no or unmeasured when a dependency or hosted two-client route is unavailable. Screenshots and protocol tests alone cannot prove multiplayer.`
+    ? goalPlaytestAsk(scenarios?.join("; ") ?? "", goal.multiplayer === true)
     : String(args.ask ?? "").trim();
   if (!ask) return "playtest needs one yes/no question (ask)";
   const n = ++state.plays;

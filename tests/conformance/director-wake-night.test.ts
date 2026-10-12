@@ -1086,6 +1086,51 @@ it("G3. current integrated acceptance permits early completion and keeps a recov
   assert.equal(String(kept.stdout).trim(), head, "checkpoint remains reachable after worktree cleanup");
 });
 
+/**
+ * Live Loop validation, third pass (2026-10-12): a required goal's playtest told every build's tester about "a hosted
+ * two-client route" and "protocol tests", and the same words were the Result panel's check label. Only a goal the
+ * lead flagged multiplayer is asked about that route.
+ */
+for (const { name, multiplayer } of [
+  { name: "G3b. a goal that is not multiplayer is not asked about a hosted two-client route", multiplayer: false },
+  { name: "G3c. a goal the lead flagged multiplayer still is", multiplayer: true },
+]) {
+  it(name, { timeout: RIG_TIMEOUT_MS }, async () => {
+    const { rig, dispatch, finished } = await night(multiplayer ? "goal-ask-online" : "goal-ask-plain", {
+      reference: { kind: "direction", name: "Dusk", shots: [] },
+      budgets: { wallClockMs: 24 * 60 * 60_000, untilSatisfied: true },
+    });
+    const asked: string[] = [];
+    fakeEngine(rig, async (request) => {
+      if (request.playtest) {
+        asked.push(request.prompt);
+        return turnResult(
+          "playtester",
+          JSON.stringify({ answers: { "director-play": { answer: "yes", note: "ok" } } }),
+        );
+      }
+      assert.ok(request.director && request.onLiveTool);
+      await request.onLiveTool("plan", {
+        ...plan,
+        workers: JSON.stringify([
+          { id: "sky", done: ["the sky reads as dusk"], ...(multiplayer ? { multiplayer: true } : {}) },
+        ]),
+      });
+      await request.onLiveTool("playtest", { target: "integration", goal: "sky" });
+      await request.onLiveTool("finish", { summary: "asked", land: "no", victory: "no" });
+      return turnResult("lead", "asked");
+    });
+    const running = dispatch();
+    await finished();
+    await running;
+    assert.equal(asked.length, 1, "the tester was sent in once");
+    assert.match(asked[0]!, /Verify every required scenario through actual interaction: the sky reads as dusk/);
+    const online = /hosted two-client route|cannot prove multiplayer/;
+    if (multiplayer) assert.match(asked[0]!, online);
+    else assert.doesNotMatch(asked[0]!, /two-client|multiplayer|hosted|protocol test/i);
+  });
+}
+
 it("G4. multiplayer prerequisites are host-checked before any worker is delegated", {
   timeout: RIG_TIMEOUT_MS,
 }, async () => {

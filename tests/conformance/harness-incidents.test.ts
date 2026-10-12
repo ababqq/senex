@@ -8300,3 +8300,23 @@ describe("the checks a lead hands the judge are read before they are scored (liv
     assert.equal(fine.out.board.summary.total, 1);
   });
 });
+
+/**
+ * Live Loop validation, third pass (2026-10-12): the lead's required-goal playtest told every build's tester that "a
+ * hosted two-client route" might be unavailable and that "protocol tests alone cannot prove multiplayer", and the
+ * words were the check's label in the Result panel's technical details: a dashboard and a reading list carried them.
+ */
+describe("a required goal's playtest asks about multiplayer only for a multiplayer goal (live validation, third pass, 2026-10-12)", () => {
+  const TWO_CLIENT = /two-client|multiplayer|hosted|protocol test/i;
+
+  it("G6. the question names the scenarios, and the hosted two-client line is a multiplayer goal's alone", async () => {
+    const { goalPlaytestAsk } = await import("../../src/harness-seed/loop/director/playtest-prompts.ts");
+    const plain = goalPlaytestAsk("add a book; mark it read", false);
+    assert.ok(plain.includes("add a book; mark it read"), "the scenarios are still the question");
+    assert.doesNotMatch(plain, TWO_CLIENT);
+    const online = goalPlaytestAsk("two players meet in a lobby", true);
+    assert.ok(online.includes("two players meet in a lobby"));
+    assert.match(online, /hosted two-client route/);
+    assert.match(online, /cannot prove multiplayer/);
+  });
+});
