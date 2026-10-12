@@ -29,7 +29,7 @@ broken lights Reload (accent dot, a tooltip naming it), which brings it in. Whil
 not stopped, all but a new build go in at once. A loaded page alone is not a successful build. The
 preview reaches only public library CDNs; Open Project names other hosts.
 
-**Builds** is a graph: You asked, a row per part, Your build, then the lead while no part
+**Builds** is a graph: The goal, a row per part, Your build, then the lead while no part
 works. Tries at one step fold into one node; what reached the build forms the line, the rest
 hangs below. An eye marks nodes the reviewers looked at. A new build is “Checking it starts…” until
 it has run. Its header shows only time worked. A working node shows its agent's screen and action (“Pressing Space · 3s”). A selected
