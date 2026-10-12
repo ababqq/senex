@@ -178,8 +178,8 @@ export interface UiActivity {
   /** Interactive elements with no accessible name. */
   unnamedControls: number;
   unnamedSample: string[];
-  /** Whether the page scrolls sideways. */
-  overflowX: boolean;
+  /** How many pixels the document runs past the window's width (0 when it does not). */
+  overflowX: number;
 }
 
 /** The JSON snapshot every judge and every `state.*` check reads, plus the project's own probes. */
