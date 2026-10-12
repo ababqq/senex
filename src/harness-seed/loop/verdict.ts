@@ -160,7 +160,7 @@ const BECAUSE: Record<string, string> = {
   satisfied: "Kept: everything this part was asked for now passes.",
   "checks-regressed": "Undone: something that used to work stopped working.",
   vetoed: "Undone: the judge preferred the round before.",
-  "no-change": "Undone: every camera showed exactly what the round before showed.",
+  "no-change": "Undone: nothing on screen changed from the round before.",
   "no-move": "Undone: the step it was asked for did not arrive.",
   unfixed: "Undone: the problem it was told to fix is still there.",
   broken: "Undone: the project did not start after this build.",

@@ -307,7 +307,7 @@ async function decideOnBoard(loop: FacetLoop, round: FacetRound): Promise<void> 
     return;
   }
   if (comparison.flips.length === 0 && isInvisibleDiff(round.diffs)) {
-    const reason = "no visible change — every camera reads identical to the accepted build (no judge call spent)";
+    const reason = "no visible change from the accepted build (no judge call spent)";
     refuse(VerdictSource.Invisible, loop.biggestGap, reason);
     return;
   }

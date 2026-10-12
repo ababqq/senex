@@ -8404,3 +8404,19 @@ describe("a judge's hedged answer to the lead's question is no answer (live vali
     }
   });
 });
+
+/**
+ * Live Loop validation, fourth pass (2026-10-12): sentences the harness itself writes for the cards of a round it
+ * undid named "cameras", the studio's word for a view; the person who asked for a form reads "views" or nothing.
+ */
+describe("the sentence for an undone round uses the person's words (live validation, fourth pass, 2026-10-12)", () => {
+  it("CW-1. no verdict rule explains itself with the studio's word for a view", async () => {
+    const { verdictRecord, VerdictRule } = await import("../../src/harness-seed/loop/verdict.ts");
+    for (const rule of Object.values(VerdictRule)) {
+      for (const kept of [true, false]) {
+        const { because } = verdictRecord({ rule, kept, against: "the round before" });
+        assert.doesNotMatch(because, /\bcameras?\b/i, `${rule}: ${because}`);
+      }
+    }
+  });
+});

@@ -430,6 +430,7 @@ describe("facet loop v2: scoreboard, veto, memory, spikes, review", () => {
     assert.ok(rig.preview.crops.length >= 1, "the crop was cut from the judged frame");
     assert.equal(sky[1]!.winner, "incumbent");
     assert.equal(sky[1]!.verdictSource, "invisible");
+    assert.doesNotMatch(String(sky[1]!.reason), /\bcameras?\b/i, "the card says nothing changed, not which cameras");
     assert.equal(tasteCalls.Sky, 2, "the invisible iteration spent no judge call");
     assert.equal(sky.at(-1)!.satisfied, true);
 
