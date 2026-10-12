@@ -69,9 +69,9 @@ export { minutes } from "../time.ts";
  */
 export const LandingHow = {
   JudgePick: "judge-pick",
-  /** Nothing to compare it with (a new project, an unseen start): the close's judge found it shows what was asked. */
+  /** Nothing to compare it with (a new project, an unseen start): the close's judge found it shows the build's goal. */
   JudgeAnsweredYes: "judge-answered-yes",
-  /** Nothing to compare it with: the close's judge was sure it does not show what was asked yet. */
+  /** Nothing to compare it with: the close's judge was sure it does not show the build's goal yet. */
   JudgeAnsweredNo: "judge-answered-no",
   FreshHealthPass: "fresh-health-pass",
   JudgeSawLoad: "judge-saw-load",
@@ -146,7 +146,7 @@ export function startingHeads({
  * the same thing, because nothing recorded what the comparison had been against.
  *
  * A new project, or one whose start nobody could photograph, has nothing to be preferred over: the
- * close asks its judge whether the build shows what the user asked for (integrate.ts
+ * close asks its judge whether the build shows its goal (integrate.ts
  * `judgeTheLanding`), and only that answer — never a lead's free-text question — is said on the card.
  *
  * `how` is a token for the screen to read; `line` is the sentence the morning card can show.

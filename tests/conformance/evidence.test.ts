@@ -23,6 +23,8 @@ import {
   withObservationPatience,
 } from "../../src/harness-seed/loop/gauntlet.ts";
 import { observationOnlyFailure } from "../../src/harness-seed/loop/autopilot.ts";
+import { SIDEWAYS_SCROLL_WARN_PX } from "../../src/harness-seed/loop/evidence.ts";
+import { describeEvidence } from "../../src/harness-seed/loop/judge.ts";
 import { demosNamedByChecks, withHarnessChecks } from "../../src/harness-seed/loop/spec.ts";
 import type { Check } from "../../src/harness-seed/loop/spec.ts";
 import { evaluateProbeCheck, evaluateSceneCheck, sceneCheckExpression } from "../../src/harness-seed/loop/checks.ts";
@@ -68,6 +70,8 @@ interface StubOptions {
   failConsole?: string;
   /** Answers for `preview.evaluate` that are not the step witness. */
   evaluate?: (expression: string) => unknown;
+  /** Fields the page's `state()` carries beside its frame counter. */
+  state?: Record<string, unknown>;
 }
 
 const READY_NOW = {
@@ -111,7 +115,7 @@ function stubCtx(options: StubOptions) {
         case "preview.status":
           return { loadError: null, crashed: false };
         case "preview.state":
-          return { version: 1, frame: shotIndex };
+          return { version: 1, frame: shotIndex, ...(options.state ?? {}) };
         case "preview.gesture":
           return { knocked: true, trusted: null };
         case "preview.input":
@@ -1607,5 +1611,86 @@ describe("how tall the page is, beside the picture of its top", () => {
       },
     });
     assert.equal((await gather(ctx)).pageExtent, null);
+  });
+});
+
+describe("what a page that reports an error is told", () => {
+  /**
+   * Live Loop validation, third pass (2026-10-12): a starting point was rejected as "runtime error: undefined".
+   * The pass read `state().error.message`, and the contract lets `error` be a string, a serialized Error (`{}`),
+   * or an object with a message: a page that said something got "undefined" back, and nobody could tell what.
+   */
+  const problemsFor = async (state: Record<string, unknown>) =>
+    (await gather(stubCtx({ frames: ["AAAA"], state }).ctx)).problems as string[];
+  const runtimeProblems = (problems: string[]) => problems.filter((problem) => problem.startsWith("runtime error"));
+
+  it("names what the page said, whichever shape it said it in", async () => {
+    assert.deepEqual(runtimeProblems(await problemsFor({ error: "Could not load the reading list" })), [
+      "runtime error: Could not load the reading list",
+    ]);
+    assert.deepEqual(
+      runtimeProblems(await problemsFor({ error: { message: "TypeError: x is not a function", stack: "at x" } })),
+      ["runtime error: TypeError: x is not a function"],
+    );
+  });
+
+  it("says the page gave no message when it gave none, and quotes what it did give and what the page recorded", async () => {
+    for (const error of [{}, true, 42, ["a"], { message: "" }, { message: "undefined" }]) {
+      const [problem, ...rest] = runtimeProblems(await problemsFor({ error }));
+      assert.equal(rest.length, 0, JSON.stringify(error));
+      assert.ok(problem, JSON.stringify(error));
+      assert.ok(!/\bundefined\b/.test(problem) || JSON.stringify(error).includes("undefined"), problem);
+    }
+    const [recorded] = runtimeProblems(await problemsFor({ error: {}, ui: { lastError: "Title is required" } }));
+    assert.ok(recorded.includes("Title is required"), "the page's own record of its last error rides along");
+    const [given] = runtimeProblems(await problemsFor({ error: true }));
+    assert.ok(given.includes("true"), "what the page gave is quoted");
+  });
+
+  it("reports nothing for an error that is not one", async () => {
+    for (const error of [null, "", 0, false])
+      assert.deepEqual(runtimeProblems(await problemsFor({ error })), [], JSON.stringify(error));
+  });
+});
+
+describe("a page that runs past the window's width, told to the judge", () => {
+  /**
+   * Live Loop validation, third pass (2026-10-12): a dashboard's table ran 211 px past the window and its "Date & time"
+   * column was cut off; `state().ui.overflowX` said so, but the pass turned it into no warning and a judge read it only
+   * as the last key of a clipped state. Now the pass says it.
+   */
+  const warningsFor = async (state: Record<string, unknown>, extra: Record<string, unknown> = {}) =>
+    (await gather(stubCtx({ frames: ["AAAA"], state }).ctx, extra)).warnings as string[];
+
+  it("warns, with the number, when the document runs 8 px or more past the window, and never voids the pass", async () => {
+    const evidence = await gather(stubCtx({ frames: ["AAAA"], state: { ui: { overflowX: 211 } } }).ctx);
+    assert.ok(
+      evidence.warnings.some((warning: string) => warning.includes("211")),
+      JSON.stringify(evidence.warnings),
+    );
+    assert.equal(evidence.problems.length, 0, "a layout defect is a warning, never a problem");
+    const edge = await warningsFor({ ui: { overflowX: SIDEWAYS_SCROLL_WARN_PX } });
+    assert.ok(
+      edge.some((warning) => warning.includes(String(SIDEWAYS_SCROLL_WARN_PX))),
+      "the floor itself warns",
+    );
+  });
+
+  it("says nothing for rounding, for a value that is not a measured number, for a scene or a project's own shape", async () => {
+    const quiet = async (state: Record<string, unknown>, extra: Record<string, unknown> = {}) => {
+      const baseline = await warningsFor({ ui: { overflowX: 0 } }, extra);
+      assert.deepEqual(await warningsFor(state, extra), baseline, JSON.stringify([state, Object.keys(extra)]));
+    };
+    for (const overflowX of [SIDEWAYS_SCROLL_WARN_PX - 1, true, "211", Number.NaN, Number.POSITIVE_INFINITY, null])
+      await quiet({ ui: { overflowX } });
+    await quiet({});
+    await quiet({ ui: { overflowX: 211 } }, { run: { ...run, app: { kind: "graphics" } } });
+    await quiet({ ui: { overflowX: 211 } }, { run: { ...run, ownShape: true } });
+  });
+
+  it("reaches the judge even when the state is too long to be quoted whole", async () => {
+    const sessions = Array.from({ length: 80 }, (_, i) => ({ id: `session-${i}`, day: "Monday", checkIns: i }));
+    const evidence = await gather(stubCtx({ frames: ["AAAA"], state: { sessions, ui: { overflowX: 211 } } }).ctx);
+    assert.ok(describeEvidence(evidence).includes("211"), "the judge's evidence text carries the warning");
   });
 });

@@ -6315,12 +6315,17 @@ describe("the final judge when the user is in a hurry", () => {
   });
 
   it("hurry-2. a new project finished in a hurry: the close asks a judge whether the build does what was asked, and the card says what it answered", async () => {
-    const { finished, judgedLanding, results } = await hurriedNight("hurry-scratch", { fromScratch: true });
+    const { asked, finished, judgedLanding, results } = await hurriedNight("hurry-scratch", { fromScratch: true });
 
     assert.equal(finished.landed, true, `${finished.stoppedBecause} | ${results.finished}`);
     assert.equal(judgedLanding.length, 1, "the build made live was judged once, by the close");
     const [verdict] = judgedLanding;
-    assert.match(String(verdict.seen.question), /a blue sky over the plaza/, "asked about the user's own goal");
+    assert.match(String(verdict.seen.question), /a blue sky over the plaza/, "asked about the build's goal");
+    const question = asked.find((text) => text.includes("QUESTION:"));
+    assert.ok(question, "the judge was sent the question");
+    const [, introduction] = /QUESTION: ([\s\S]*?)a blue sky over the plaza/.exec(question) ?? [];
+    assert.ok(introduction, "the goal is quoted in the judge's question");
+    assert.doesNotMatch(introduction, /\b(user|you|asked)\b/i, "and no author is claimed for it");
     assert.equal(verdict.seen.answer, true, JSON.stringify(verdict));
     assert.equal(finished.landingResult.how, LandingHow.JudgeAnsweredYes, JSON.stringify(finished.landingResult));
     assert.match(finished.landingResult.line, /a judge found it does what you asked/);
@@ -8298,5 +8303,104 @@ describe("the checks a lead hands the judge are read before they are scored (liv
     const fine = await scoreLeadChecks([{ id: "count-ok", kind: "probe", expr: "state.items >= 0" }]);
     assert.equal(fine.out.checkProblems, undefined);
     assert.equal(fine.out.board.summary.total, 1);
+  });
+});
+
+/**
+ * Live Loop validation, third pass (2026-10-12): the lead's required-goal playtest told every build's tester that "a
+ * hosted two-client route" might be unavailable and that "protocol tests alone cannot prove multiplayer", and the
+ * words were the check's label in the Result panel's technical details: a dashboard and a reading list carried them.
+ */
+describe("a required goal's playtest asks about multiplayer only for a multiplayer goal (live validation, third pass, 2026-10-12)", () => {
+  const TWO_CLIENT = /two-client|multiplayer|hosted|protocol test/i;
+
+  it("G6. the question names the scenarios, and the hosted two-client line is a multiplayer goal's alone", async () => {
+    const { goalPlaytestAsk } = await import("../../src/harness-seed/loop/director/playtest-prompts.ts");
+    const plain = goalPlaytestAsk("add a book; mark it read", false);
+    assert.ok(plain.includes("add a book; mark it read"), "the scenarios are still the question");
+    assert.doesNotMatch(plain, TWO_CLIENT);
+    const online = goalPlaytestAsk("two players meet in a lobby", true);
+    assert.ok(online.includes("two players meet in a lobby"));
+    assert.match(online, /hosted two-client route/);
+    assert.match(online, /cannot prove multiplayer/);
+  });
+});
+
+/**
+ * Live Loop validation, third pass (2026-10-12): the close's question introduced the build's goal as "The user asked
+ * for:" and quoted details the user never wrote (a fixed-seed sample data set, a storage mechanism), because the goal
+ * is the chat's launch paragraph or, once a build is reopened, the asks since. The label no longer names an author.
+ */
+describe("the close's question does not say who wrote the goal (live validation, third pass, 2026-10-12)", () => {
+  it("UA-1. a fresh goal and a reopened one are both introduced as the build's goal, in full", async () => {
+    const { workingGoal } = await import("../../src/harness-seed/loop/goal-prompts.ts");
+    const { finalJudgeQuestion } = await import("../../src/harness-seed/loop/director/close-prompts.ts");
+    const goals = [
+      "A check-in dashboard for a gym. Use realistic sample data generated from a fixed seed.",
+      workingGoal({ goal: "A reading list", asks: ["Keep the list in the browser (localStorage)."] }),
+    ];
+    for (const goal of goals) {
+      const question = finalJudgeQuestion(goal);
+      const at = question.indexOf(goal);
+      assert.ok(at > 0, "the judge still reads the whole goal, so what was built stays checkable");
+      assert.doesNotMatch(question.slice(0, at), /\b(user|you|your|asked)\b/i, "no author is claimed for it");
+    }
+  });
+});
+
+/**
+ * Live Loop validation, third pass (2026-10-12): the judge said a part of the page was "below the fold" and the
+ * answer was recorded anyway. The close already keeps only an answer the judge was surer of than a coin flip; the
+ * lead's own question recorded a hedged "no" (or a "yes" below the floor, which a check reads as not passed) as a
+ * failed visual check.
+ */
+describe("a judge's hedged answer to the lead's question is no answer (live validation, third pass, 2026-10-12)", () => {
+  const run: Run = {
+    runId: "ha",
+    project: "fixture",
+    goal: "Judge a form",
+    reference: { name: "fixture", shots: [] },
+    budgets: { wallClockMs: 1000 },
+  };
+
+  const answerTo = async (reply: string, final: boolean) => {
+    const { askJudgeQuestion } = await import("../../src/harness-seed/loop/director/tools.ts");
+    const { ctx } = ctxRecorder({
+      handlers: { "engine.complete": () => ({ message: { content: reply } }) },
+    });
+    const out: Record<string, any> = {};
+    const judgement: Record<string, any> = {};
+    const now = 1_000_000;
+    await askJudgeQuestion(
+      { ctx, run, softDeadline: now + 3_600_000, finalDeadline: now + 7_200_000 } as never,
+      {
+        cameras: [],
+        evidence: { ok: true, shots: [{ camera: "default", base64: JPEG_BYTES.toString("base64") }] },
+        judgement,
+        out,
+        question: "Is the comment box there?",
+        final,
+        until: Number.POSITIVE_INFINITY,
+      } as never,
+    );
+    return { out, judgement };
+  };
+
+  it("HA-1. only an answer the judge was surer of than a coin flip is recorded, by the lead as by the close", async () => {
+    const rows: Array<[string, boolean | null]> = [
+      ['{"answer":"yes","confidence":0.4,"note":"the comment box is below the picture"}', null],
+      ['{"answer":"no","confidence":0.3,"note":"cannot see the rest of the page"}', null],
+      ['{"answer":"yes","confidence":0.9,"note":"the lower half is below the fold"}', true],
+      ['{"answer":"no","confidence":0.9,"note":"no comment box"}', false],
+      ["sorry, I cannot tell from one picture", null],
+    ];
+    for (const final of [false, true]) {
+      for (const [reply, expected] of rows) {
+        const { out, judgement } = await answerTo(reply, final);
+        assert.equal(judgement.answer, expected, `${final ? "the close" : "the lead"}: ${reply}`);
+        assert.equal(out.answer.yes, expected, `${final ? "the close" : "the lead"}: ${reply}`);
+        assert.ok(typeof out.answer.note === "string", "the judge's note is kept for the lead to read");
+      }
+    }
   });
 });
