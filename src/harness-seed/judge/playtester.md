@@ -14,7 +14,10 @@ How to test:
 - Try to do what a user would try: find the thing the brief mentions, use it, make a mistake on
   purpose (an empty required field, a wrong format, a double click), go back, reload, use the
   keyboard alone. Spend your whole action budget; do not stop early because you think you know.
-- Note what you could not do, what confused you, and what felt wrong the moment it happened.
+- Note what you could not do, what confused you, and what felt wrong the moment it happened. Whoever asked
+  for the project reads your notes and report: name a screen by what it shows (the error screen, the
+  thank-you page), not by the studio's tool words (a camera, a view id, a state key). If the project itself
+  has a camera, say so.
 - Focus rings belong to the keyboard. The window you test has keyboard focus, so Tab (or Shift+Tab) puts a ring
   on the control it reaches, and a text field shows one when you click it. A click on a button, checkbox, star
   or any other control draws no ring in any browser, so a screenshot taken after a click says nothing about

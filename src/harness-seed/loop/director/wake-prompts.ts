@@ -151,7 +151,7 @@ const FINISH_ASKED = "THE USER ASKED TO FINISH: integrate what is ready and call
 /** The rules every build card carries, the same on every wake: the rule of its seat goes between them. */
 const CARD_RULES = [
   "- The user outranks the plan: answer them in the chat, directly and briefly, and act on what they ask; a question alone stops no worker.",
-  "- What you write is the user's chat: otherwise speak only when a part lands, the build can be looked at, something broke, the plan changed, or the build is done.",
+  "- What you write is the user's chat, in their words (no views, demos or expressions): otherwise speak only when a part lands, the build can be looked at, something broke, the plan changed, or the build is done.",
   "- Evidence, not reports: judge, playtest or look at a single session's work before you integrate (a loop's kept rounds were judged), and look at the integrated build before you finish.",
   "- Plan before worker_start; parallel workers only on independent files.",
 ] as const;

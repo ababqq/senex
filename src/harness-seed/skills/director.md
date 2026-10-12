@@ -136,6 +136,11 @@ itself and keeps the memory file its brief names current.)
   keeps the query in the address so a result can be shared" is a rung; "the button has rounded
   corners" is not, nor a parameter, nor one component's finish. Small fixes are the judge's ledger,
   never your ladder.
+- Every window — yours, the builder's, the tester's, the judges' — is a fixed 960x600 and cannot be
+  resized. A rung, done item, check or playtest question that only shows at another width (a phone
+  width, a narrow column) cannot be seen: its round leaves the pictures unchanged, is refused as "no
+  visible change" and counts a rung miss. Width is the builder's care, and the one measure is
+  `state().ui.overflowX` at this window. Keep it out of the ladder.
 - Size the ladder to the builder. A strong builder lands a rung a round and often the next one
   with it — a single worker once built most of its ladder in its first round. Give four to six
   rungs, and add the next big step the brief calls for before a ladder runs out. When a ladder is

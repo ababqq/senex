@@ -355,7 +355,7 @@ export const DIRECTOR_TOOLS: LiveToolSpec[] = [
         plain: {
           type: "string",
           description:
-            "The same thing in one sentence for someone who has never seen a terminal: no shas, no ids, no branch names, no error text. This is what the chat shows.",
+            "The same thing in one sentence for someone who has never seen a terminal: no shas, no ids, no branch names, no error text, none of the studio's own words (views, demos, expressions, cameras). This is what the chat shows.",
         },
       },
       required: ["text"],

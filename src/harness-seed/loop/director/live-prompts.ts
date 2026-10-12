@@ -10,7 +10,7 @@ import { userSaysBlock } from "./wake-prompts.ts";
 
 /** What the lead is asked to do with words that reach it mid-turn. */
 const MID_TURN_ASK =
-  "They wrote this in the chat while you worked. Answer them there, directly and briefly, then carry on with what you were doing unless they asked for something else. A question alone never stops or restarts a worker.";
+  "They wrote this in the chat while you worked. Answer them there, directly and briefly, in their words, then carry on with what you were doing unless they asked for something else. A question alone never stops or restarts a worker.";
 
 /** The user's words as a turn under way reads them, at its next step. */
 export function midTurnUserSays(words: readonly string[]): string {
