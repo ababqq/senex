@@ -270,7 +270,7 @@ says why. Frames that ran and drew nothing are a verdict on a base with content 
 on an empty scaffold — the same exemption the blank-pixel rule already had, settled by inspection
 (`EMPTY_SCENE_PROBE`) rather than by the project's own word. A page that draws no 3D world has no
 camera to place, and a generated one that shows no text and no visible element at all
-(`BLANK_PAGE_PROBE`) is a problem, because canvas draw counts cannot see a blank DOM page. One classifier answers for every caller: `none`, `observation`, `race` or `build` — an
+(`BLANK_PAGE_PROBE`) is a problem, because canvas draw counts cannot see a blank DOM page. A page of DOM whose document runs 8 px or more past the window's width (`state().ui.overflowX`) earns a warning with the number, never a void; a scene and a project's own shape are spared. One classifier answers for every caller: `none`, `observation`, `race` or `build` — an
 observation failure is not a build defect, and "evidence pass failed" is not a race.
 
 What a rollback may assume of a project folder. `snapshot.restore` on a project commits a rescue
@@ -474,7 +474,7 @@ or, for a new project or one whose start nobody could photograph, a yes-or-no on
 picked, stands in for it. The judge borrows the studio's window, and its model calls must be done
 four minutes after it starts (judge.ts's per-call deadline, for engines that honour a request's
 timeout), because the close runs inside the lead's ten-minute `finish` call; an answer it was not
-surer of than a coin flip counts as none. A head that never moved beyond the start is not judged,
+surer of than a coin flip counts as none, a lead's own question included. A head that never moved beyond the start is not judged,
 and a Stop before or during the close lands nothing. The verdict is reported, not a veto: the build
 lands when the close's look loaded it or a judge saw it load, the close's own included.
 `landingResult` says what the landing may claim (`judge-pick`; `judge-answered-yes` or

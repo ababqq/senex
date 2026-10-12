@@ -389,8 +389,18 @@ function sureAnswer(result: Partial<CheckResult>): boolean | null {
   return null;
 }
 
+/**
+ * The vision judge's word on a lead's question: its pass as a yes or a no, except that an answer it gave
+ * with less confidence than a coin flip is no answer, as in the close. A hedged "yes" does not pass a check,
+ * and used to be recorded as a failed one.
+ */
+function leadAnswer(result: Partial<CheckResult>): boolean | null {
+  if (typeof result.confidence === "number" && result.confidence < COIN_FLIP) return null;
+  return answerOf(result.pass);
+}
+
 /** The one yes/no question the director asked of the vision judge, on its first (or default) camera. */
-async function askJudgeQuestion(night: Night, pass: JudgePass): Promise<void> {
+export async function askJudgeQuestion(night: Night, pass: JudgePass): Promise<void> {
   const { ctx, run } = night;
   const { cameras, evidence, judgement, out, question } = pass;
   if (!question || !evidence.ok) return;
@@ -410,7 +420,8 @@ async function askJudgeQuestion(night: Night, pass: JudgePass): Promise<void> {
     (err): Partial<CheckResult> => ({ pass: null, reason: String(err?.message ?? err) }),
   );
   // The close's word is what the judge said, not whether it passed: an answer it could not give is no "no".
-  const said = pass.final ? sureAnswer(answer) : answerOf(answer.pass);
+  // The lead's question gets the same floor: nothing the judge was unsure of is recorded as a yes or a no.
+  const said = pass.final ? sureAnswer(answer) : leadAnswer(answer);
   out.answer = { question: String(question), camera: shot.camera, yes: said, note: answer.note ?? answer.reason ?? "" };
   judgement.answer = said;
 }

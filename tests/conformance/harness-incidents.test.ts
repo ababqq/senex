@@ -6323,7 +6323,7 @@ describe("the final judge when the user is in a hurry", () => {
     assert.match(String(verdict.seen.question), /a blue sky over the plaza/, "asked about the build's goal");
     const question = asked.find((text) => text.includes("QUESTION:"));
     assert.ok(question, "the judge was sent the question");
-    const [, introduction] = /QUESTION: ([^]*?)a blue sky over the plaza/.exec(question) ?? [];
+    const [, introduction] = /QUESTION: ([\s\S]*?)a blue sky over the plaza/.exec(question) ?? [];
     assert.ok(introduction, "the goal is quoted in the judge's question");
     assert.doesNotMatch(introduction, /\b(user|you|asked)\b/i, "and no author is claimed for it");
     assert.equal(verdict.seen.answer, true, JSON.stringify(verdict));
@@ -8344,6 +8344,63 @@ describe("the close's question does not say who wrote the goal (live validation,
       const at = question.indexOf(goal);
       assert.ok(at > 0, "the judge still reads the whole goal, so what was built stays checkable");
       assert.doesNotMatch(question.slice(0, at), /\b(user|you|your|asked)\b/i, "no author is claimed for it");
+    }
+  });
+});
+
+/**
+ * Live Loop validation, third pass (2026-10-12): the judge said a part of the page was "below the fold" and the
+ * answer was recorded anyway. The close already keeps only an answer the judge was surer of than a coin flip; the
+ * lead's own question recorded a hedged "no" (or a "yes" below the floor, which a check reads as not passed) as a
+ * failed visual check.
+ */
+describe("a judge's hedged answer to the lead's question is no answer (live validation, third pass, 2026-10-12)", () => {
+  const run: Run = {
+    runId: "ha",
+    project: "fixture",
+    goal: "Judge a form",
+    reference: { name: "fixture", shots: [] },
+    budgets: { wallClockMs: 1000 },
+  };
+
+  const answerTo = async (reply: string, final: boolean) => {
+    const { askJudgeQuestion } = await import("../../src/harness-seed/loop/director/tools.ts");
+    const { ctx } = ctxRecorder({
+      handlers: { "engine.complete": () => ({ message: { content: reply } }) },
+    });
+    const out: Record<string, any> = {};
+    const judgement: Record<string, any> = {};
+    const now = 1_000_000;
+    await askJudgeQuestion(
+      { ctx, run, softDeadline: now + 3_600_000, finalDeadline: now + 7_200_000 } as never,
+      {
+        cameras: [],
+        evidence: { ok: true, shots: [{ camera: "default", base64: JPEG_BYTES.toString("base64") }] },
+        judgement,
+        out,
+        question: "Is the comment box there?",
+        final,
+        until: Number.POSITIVE_INFINITY,
+      } as never,
+    );
+    return { out, judgement };
+  };
+
+  it("HA-1. only an answer the judge was surer of than a coin flip is recorded, by the lead as by the close", async () => {
+    const rows: Array<[string, boolean | null]> = [
+      ['{"answer":"yes","confidence":0.4,"note":"the comment box is below the picture"}', null],
+      ['{"answer":"no","confidence":0.3,"note":"cannot see the rest of the page"}', null],
+      ['{"answer":"yes","confidence":0.9,"note":"the lower half is below the fold"}', true],
+      ['{"answer":"no","confidence":0.9,"note":"no comment box"}', false],
+      ["sorry, I cannot tell from one picture", null],
+    ];
+    for (const final of [false, true]) {
+      for (const [reply, expected] of rows) {
+        const { out, judgement } = await answerTo(reply, final);
+        assert.equal(judgement.answer, expected, `${final ? "the close" : "the lead"}: ${reply}`);
+        assert.equal(out.answer.yes, expected, `${final ? "the close" : "the lead"}: ${reply}`);
+        assert.ok(typeof out.answer.note === "string", "the judge's note is kept for the lead to read");
+      }
     }
   });
 });
