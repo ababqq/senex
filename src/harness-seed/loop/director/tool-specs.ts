@@ -304,7 +304,7 @@ export const DIRECTOR_TOOLS: LiveToolSpec[] = [
   {
     name: DirectorTool.Playtest,
     description:
-      "Send a playtester into a build with one question (can you reach X, does Y work, is Z obvious). It uses the build with the computer tool for a few minutes and answers yes/no with a report. Costs minutes; use it for what only use can tell.",
+      "Send a tester into a build with one question (can you reach X, does Y work, is Z obvious). It uses the build with the computer tool for a few minutes and answers yes/no with a report. Costs minutes; use it for what only use can tell.",
     parameters: {
       type: "object",
       properties: {
@@ -370,7 +370,8 @@ export const DIRECTOR_TOOLS: LiveToolSpec[] = [
       properties: {
         summary: {
           type: "string",
-          description: "What was built, what was verified, what remains — the user's report.",
+          description:
+            "What was built, what was verified, what remains — the user's report, in their words: no raw ids, camera names or revision hashes.",
         },
         land: { type: "string", description: "yes (default) or no." },
         victory: { type: "string", description: "yes or no (default)." },

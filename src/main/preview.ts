@@ -46,6 +46,7 @@ import {
   tooLargeNote,
 } from "./page-serve.ts";
 import { PAGE_DISPATCH } from "./page-dispatch.ts";
+import { emulatePageFocus } from "./preview-focus.ts";
 import { anchoredBounds } from "./preview-anchor.ts";
 import { projectViewPreferences } from "./project-view.ts";
 import { capActions, type PreviewInputAction } from "../substrate/preview-input.ts";
@@ -309,6 +310,8 @@ export class ProjectPreview {
     if (this.options.offscreen) wc.setFrameRate(60);
     if (this.#audioMuted) wc.setAudioMuted(true);
     confinePreviewContents(wc);
+    // An agent's window is never the OS-focused one: its page answers as focused, so focus rings draw as in Live.
+    void emulatePageFocus(wc, this.options);
     wc.on("did-start-navigation", () => {
       void this.#profiler.invalidate("navigation changed");
     });
@@ -1210,7 +1213,8 @@ export class ProjectPreview {
     }
     try {
       // Focusing a hidden observation view can order its native host window onto macOS.
-      // Offscreen input has native delivery probing and DOM fallback; it needs no OS focus.
+      // Offscreen input has native delivery probing and DOM fallback; it needs no OS focus
+      // (its page's focus is emulated in create()).
       if (!this.options.offscreen) view.webContents.focus();
     } catch {
       /* a background window can still take DOM events */

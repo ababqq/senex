@@ -267,7 +267,7 @@ async function playResults(scoring: Scoring, playChecks: Check[]): Promise<Check
   if (!worth || !timeToPlay(scoring)) {
     const why = worth
       ? "no time left for a play session"
-      : "the playtester runs once the measured mechanical checks pass (or for identity play checks)";
+      : "the tester runs once the measured mechanical checks pass (or for identity play checks)";
     return playChecks.map((check) => unmeasured(check, why));
   }
   const { ctx, run, spec, worktree, projectDir, handle, deadline, iteration, label, withPreview } = scoring;
@@ -293,6 +293,6 @@ async function playResults(scoring: Scoring, playChecks: Check[]): Promise<Check
     return played?.results ?? [];
   } catch (err: any) {
     if (err?.kind === EngineFailure.Aborted || ctx.cancelled) throw err;
-    return playChecks.map((check) => unmeasured(check, `playtester unavailable: ${err?.message ?? err}`));
+    return playChecks.map((check) => unmeasured(check, `tester unavailable: ${err?.message ?? err}`));
   }
 }

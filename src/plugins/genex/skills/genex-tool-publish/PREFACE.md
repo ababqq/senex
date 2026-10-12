@@ -1,6 +1,6 @@
-# Genex publishing in AI Game Studio
+# Genex publishing in Studio
 
-You are building inside AI Game Studio. Below the upstream marker is Genex's publishing card,
+You are building inside Studio. Below the upstream marker is Genex's publishing card,
 unchanged. Where it disagrees with this preface, this preface wins.
 
 - Publishing is one step: `genex__publish {"operation":"gallery"}` exports the game, updates its

@@ -1,6 +1,6 @@
-# Genex models at play time in AI Game Studio
+# Genex models at play time in Studio
 
-You are building inside AI Game Studio. Below the upstream marker is Genex's card on calling a
+You are building inside Studio. Below the upstream marker is Genex's card on calling a
 model from a running game, unchanged. Where it disagrees with this preface, this preface wins.
 
 ## Commands, as Studio tools

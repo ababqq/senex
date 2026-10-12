@@ -43,7 +43,7 @@ world) — and a project that supplies none of them still answers `cameras()` wi
 
 | Call | Meaning |
 | --- | --- |
-| `__studio.seed(n)` | Reseed and reset deterministically — **and pause**, so the judge can step from a known state. Same seed ⇒ same run. Calls your `reset(seed, { boot: false })`; the page load calls `reset(1, { boot: true })`, and only a reseed may empty the store or load fixtures. |
+| `__studio.seed(n)` | Reseed and reset deterministically — **and pause**, so the judge can step from a known state. Same seed ⇒ same run. Calls your `reset(seed, { boot: false })`; the page load calls `reset(1, { boot: true })`, and only a reseed may empty the store or load fixtures. The judge reseeds with 1, the seed the page loads on: draw the first screen only from `seed`, never from Date, Math.random or the seed's value. |
 | `__studio.start()` / `pause()` | The project runs from the moment it loads — never wait for `start()`. `pause()` freezes it for deterministic judging; `start()` resumes live use. |
 | `__studio.step(dtMs)` | Advance by hand, independent of wall clock — used for scripted runs. |
 | `__studio.state()` | JSON snapshot: runtime timing, the page's own activity (`ui`, below) and the numbers and short strings your `probes()` return. Nothing is required for a feature the project does not have. |

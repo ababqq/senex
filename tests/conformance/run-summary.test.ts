@@ -4,11 +4,12 @@ import { test } from "node:test";
 import {
   RunSummaryAccumulator,
   summarizeRun,
+  structuralTally,
   summaryOutcome,
   type OutcomeView,
   type RunSummary,
 } from "../../src/shared/run-summary.ts";
-import { outcomeTitle } from "../../src/renderer/words.ts";
+import { outcomeTitle, structuralWords } from "../../src/renderer/words.ts";
 import type { EventEnvelope } from "../../src/substrate/types.ts";
 const events: EventEnvelope[] = JSON.parse(
   readFileSync(new URL("../fixtures/village-outcome.json", import.meta.url), "utf8"),
@@ -342,4 +343,78 @@ test("incremental summaries match the full fold after every append without recou
     assert.deepEqual(accumulator.summary(), expected);
     assert.deepEqual(accumulator.summary(), expected, "reading twice cannot count attempts twice");
   }
+});
+
+/**
+ * Live validation, second pass (2026-10-11): the Result panel said "0 structural checks passed" about a
+ * build whose checks had passed on the revision before it. The count is of the revision on offer (a new
+ * revision never inherits a pass), so the sentence now says so and names the earlier passes.
+ */
+test("the structural sentence says when its passes were on an earlier revision", () => {
+  const verdict = (head: string, payload: Record<string, unknown>, index: number) =>
+    extra("director_verdict", { build: { head }, ...payload }, index);
+  const passing = [1, 2, 3, 4].map((i) => ({ id: `ok-${i}`, pass: true }));
+  const finished = (head: string) => extra("run_finished", { landed: true, integrationHead: head }, 9);
+  const earlier = summarizeRun(
+    [
+      verdict("a", { measured: { planned: passing } }, 1),
+      verdict("b", { seen: { question: "Is it shown?", answer: true } }, 2),
+      finished("b"),
+    ],
+    "fixture-village",
+    "run_village",
+  );
+  assert.deepEqual(structuralTally(earlier), { recorded: 0, passed: 0, earlierPassed: 4 });
+  assert.equal(
+    structuralWords(structuralTally(earlier)),
+    "No structural check was recorded on this revision; 4 passed on earlier ones.",
+  );
+
+  const same = summarizeRun(
+    [verdict("a", { measured: { planned: passing } }, 1), finished("a")],
+    "fixture-village",
+    "run_village",
+  );
+  assert.deepEqual(structuralTally(same), { recorded: 4, passed: 4, earlierPassed: 0 });
+  assert.equal(
+    structuralWords(structuralTally(same)),
+    "4 structural checks passed.",
+    "the ordinary sentence is untouched",
+  );
+
+  const both = summarizeRun(
+    [
+      verdict("a", { measured: { planned: passing } }, 1),
+      verdict("b", { measured: { planned: passing.slice(0, 1) } }, 2),
+      finished("b"),
+    ],
+    "fixture-village",
+    "run_village",
+  );
+  assert.equal(
+    structuralWords(structuralTally(both)),
+    "1 structural check passed.",
+    "a revision with checks of its own gets the plain count, whatever the earlier ones did",
+  );
+
+  assert.equal(
+    structuralWords({ recorded: 0, passed: 0, earlierPassed: 0 }),
+    "0 structural checks passed.",
+    "nothing recorded anywhere stays as it was",
+  );
+});
+
+test("the village fixture still reads 4 structural checks passed", () => {
+  assert.equal(structuralWords(structuralTally(summarize())), "4 structural checks passed.");
+});
+
+test("every state the preview can report is named in plain words, and an unknown one is not hidden", async () => {
+  const { PreviewIdentityState } = await import("../../src/main/core/internals.ts");
+  const { previewStateWords } = await import("../../src/renderer/words.ts");
+  for (const state of Object.values(PreviewIdentityState)) {
+    const words = previewStateWords(state);
+    assert.ok(words.length > 0, state);
+    assert.ok(!/[-_]/.test(words), `${state} reads as words, not as a code: ${words}`);
+  }
+  assert.equal(previewStateWords("from-a-newer-studio"), "from-a-newer-studio");
 });

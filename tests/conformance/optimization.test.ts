@@ -3,6 +3,7 @@ import { it } from "node:test";
 import { mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { PAGE_SEED } from "../../src/harness-seed/loop/config.ts";
 import { runOptimization } from "../../src/harness-seed/loop/optimization.ts";
 import { ProjectCandidates } from "../../src/substrate/project-candidate.ts";
 import { SnapshotEngine } from "../../src/substrate/snapshots.ts";
@@ -271,7 +272,7 @@ it("the built-in sampler prepares the scenario, arms the profiler and ends the s
     const r = await runOptimization(f.ctx, f.options);
     assert.equal(r.outcome, "skipped", failure);
     assert.equal(r.reasonCode, failure === "begin" ? "renderer_not_ready" : "capability_missing", failure);
-    const prepared = ["seed:1234", "pause", "step:960", "debugCamera:default"];
+    const prepared = [`seed:${PAGE_SEED}`, "pause", "step:960", "debugCamera:default"];
     const armed = ["pause", ...prepared, "start", ...prepared, "profile:begin"];
     const opened = ["profile:start", "profile:read", "profile:end"];
     assert.deepEqual(steps, failure === "begin" ? armed : [...armed, ...opened], failure);

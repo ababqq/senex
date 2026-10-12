@@ -287,7 +287,7 @@ const CHECK_GRAMMAR: Record<string, { shape: string; says: string; more?: string
   },
   play: {
     shape: `{"kind":"play","ask":"Could you add a task, mark it done and find it again?"}`,
-    says: "one yes/no question answered by a playtester who uses the build. At most one per facet.",
+    says: "one yes/no question answered by a tester who uses the build. At most one per facet.",
   },
 };
 

@@ -162,6 +162,7 @@
   "tests/conformance/plugins.test.ts",
   "tests/conformance/preview-animation-gate.test.ts",
   "tests/conformance/preview-checkpoint.test.ts",
+  "tests/conformance/preview-focus.test.ts",
   "tests/conformance/preview-frame-performance.test.ts",
   "tests/conformance/preview-input-driver.test.ts",
   "tests/conformance/preview-input.test.ts",

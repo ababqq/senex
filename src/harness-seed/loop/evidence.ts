@@ -15,7 +15,7 @@
  * exported, so a harness file the in-app agent edited before the move keeps its imports.
  */
 import { applyPlayScript } from "./play-script.ts";
-import { playScriptFor, wantsEyeCameras } from "./kinds.ts";
+import { drawsScene, playScriptFor, wantsEyeCameras } from "./kinds.ts";
 import { LOAD_RACE_RETRY_MS, OBSERVATION_RETRY_MS, RACE_RETRY_MS, WINDOW_RETRIES_MS } from "./config.ts";
 import { HostMethod } from "./host-methods.ts";
 import { PageMethod } from "./page-contract.ts";
@@ -615,6 +615,22 @@ const BLANK_PAGE_PROBE = `(() => {
   }
 })()`;
 
+/**
+ * How tall the window is and how tall the document: a shot of a page is the window's pixels, so the
+ * second number says how much of the page no picture shows. Answers `[windowPx, documentPx]`, or
+ * nothing it can stand behind.
+ */
+const DOCUMENT_EXTENT_PROBE = `(() => {
+  try {
+    var root = document.documentElement;
+    var body = document.body;
+    var document_px = Math.max(root ? root.scrollHeight : 0, body ? body.scrollHeight : 0);
+    return [Math.round(window.innerHeight), Math.round(document_px)];
+  } catch (err) {
+    return null;
+  }
+})()`;
+
 /** The sentence a blank page earns. */
 const BLANK_PAGE_PROBLEM = "the page shows nothing — no text and no visible element, so the build has no first screen";
 
@@ -1024,6 +1040,23 @@ async function readSurfaces(look: Look): Promise<LookEnd> {
   look.uiCoverage = uiCoverage;
   const uiPrimary = look.pageUi ? look.pageUi.uiPrimary === true || (uiCoverage !== null && uiCoverage >= 0.25) : false;
   look.uiPrimary = uiPrimary;
+  look.pageExtent = look.bootedFor ? await readPageExtent(look) : null;
+}
+
+/** The page's window and document heights when the probe answers two positive numbers; a scene has no page to measure. */
+async function readPageExtent(look: Look): Promise<{ windowPx: number; documentPx: number } | null> {
+  const { ctx, h, run } = look;
+  if (drawsScene(run.app)) return null;
+  try {
+    const answer = await ctx.call(HostMethod.PreviewEvaluate, { expression: DOCUMENT_EXTENT_PROBE, ...h });
+    if (!Array.isArray(answer) || answer.length !== 2) return null;
+    const [windowPx, documentPx] = answer;
+    const positive = (n: unknown): n is number => typeof n === "number" && Number.isFinite(n) && n > 0;
+    return positive(windowPx) && positive(documentPx) ? { windowPx, documentPx } : null;
+  } catch {
+    /* a page that cannot be measured is judged as before: by its pictures */
+    return null;
+  }
 }
 
 /** A shot the camera could not give: it is not registered, and the sentence says what is. */
@@ -1634,6 +1667,8 @@ async function reportLook(look: Look): Promise<LookEnd> {
       clock: look.clockProof,
       surface: judged?.surface ?? "canvas",
       pageUi: look.pageUi ? { entries: uiEntries, coverage: uiCoverage, primary: uiPrimary } : null,
+      // How much of the page the window's pictures leave out (null for a scene or a page that would not say).
+      pageExtent: look.pageExtent ?? null,
       canvas: judgedCanvas(judged),
     },
   };

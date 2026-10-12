@@ -26,7 +26,7 @@ import type { CustomEvent, CustomPayload } from "../shared/custom-events.ts";
 import type { GithubLookupProblem } from "../shared/plugins.ts";
 import type { GenexPublishPhase } from "../shared/genex.ts";
 import { RoundOutcome, roundOutcome, stoppedSource } from "../shared/run-state.ts";
-import type { OutcomeView } from "../shared/run-summary.ts";
+import type { OutcomeView, StructuralTally } from "../shared/run-summary.ts";
 import {
   GrantKind,
   isPlanRequest,
@@ -521,6 +521,33 @@ export function ranToItsEnd(reason: string | null | undefined): boolean {
 /** Was the night ended by the owner rather than by the lead, the clock or the engine? */
 export function wasCancelled(reason: string | null | undefined): boolean {
   return /^stopped by the user\b/i.test((reason ?? "").trim());
+}
+
+/** What the live preview's state is called in the Result panel's technical details; an unlisted one is shown as it is. */
+const PREVIEW_STATE_WORDS: Record<string, string> = {
+  unknown: "not known yet",
+  loading: "still loading",
+  loaded: "loaded",
+  stale: "behind the newest build",
+  failed: "failed to load",
+  "revision-unverified": "could not confirm which build",
+};
+
+/** The preview's state (`RunSummary.preview.state`) in plain words, for the line that names what Live is showing. */
+export function previewStateWords(state: string): string {
+  return PREVIEW_STATE_WORDS[state] ?? state;
+}
+
+/**
+ * The Result panel's count of structural checks. A new revision never inherits a pass, so a build whose
+ * checks passed on the revision before it has none of its own; the sentence says that instead of
+ * "0 structural checks passed", which reads as a failure. Once the revision has checks of its own the
+ * sentence is the plain count, whatever the earlier revisions did.
+ */
+export function structuralWords({ recorded, passed, earlierPassed }: StructuralTally): string {
+  if (recorded === 0 && earlierPassed > 0)
+    return `No structural check was recorded on this revision; ${earlierPassed} passed on earlier ones.`;
+  return `${passed} structural check${passed === 1 ? "" : "s"} passed.`;
 }
 
 /**

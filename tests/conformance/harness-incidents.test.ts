@@ -8176,3 +8176,127 @@ describe("a first version that starts with entries nobody made (live validation,
     assert.doesNotMatch(brief, /realistic fixture data/);
   });
 });
+
+/**
+ * Live Loop validation, second pass (2026-10-11): judges saw only the top of a DOM page and failed it for
+ * what lay below the picture ("the bars are cut off at the bottom of the frame", "the table is below the
+ * crop and can't be confirmed"). Every judge is now told what a picture of a page is.
+ */
+describe("a picture of a page is a window onto it (live validation, second pass, 2026-10-11)", () => {
+  it("PX-1. a vision judge is told what lies below the picture of a page, and a scene is left alone", async () => {
+    const { PICTURE_EXTENT_LINE } = await import("../../src/harness-seed/loop/kinds.ts");
+    const run: Run = {
+      runId: "px-1",
+      project: "fixture",
+      goal: "Judge a page",
+      reference: { name: "fixture", shots: [] },
+      budgets: { wallClockMs: 1000 },
+    };
+    const check: Check = {
+      id: "seen",
+      kind: "vision",
+      camera: "default",
+      ask: "Is the table of classes visible?",
+      weight: "normal",
+      hard: false,
+      note: "",
+    };
+    const promptFor = async (app: Record<string, unknown> | undefined) => {
+      let sent = "";
+      const { ctx } = ctxRecorder({
+        handlers: {
+          "engine.complete": (params) => {
+            sent = JSON.stringify(params);
+            return { message: { content: '{"answer":"yes","confidence":0.9}' } };
+          },
+        },
+      });
+      await visionCheck(ctx, {
+        run: { ...run, ...(app ? { app } : {}) },
+        check,
+        crop: { base64: JPEG_BYTES.toString("base64") },
+      });
+      return sent;
+    };
+    const line = JSON.stringify(PICTURE_EXTENT_LINE).slice(1, -1);
+    assert.ok((await promptFor({ kind: "dashboard" })).includes(line), "a declared page is told");
+    assert.ok(
+      (await promptFor(undefined)).includes(line),
+      "so is a run that declared nothing: it is a page until it says otherwise",
+    );
+    assert.ok(!(await promptFor({ kind: "graphics" })).includes(line), "a scene is a canvas: no page extends past it");
+  });
+
+  it("PX-2. a judge is told how tall the page is and that the picture shows its top, only when it is taller", async () => {
+    const { describeEvidence } = await import("../../src/harness-seed/loop/judge.ts");
+    const shots = [{ camera: "default", base64: "AAAA" }];
+    const tall = describeEvidence({ shots, pageExtent: { windowPx: 600, documentPx: 1840 } } as never);
+    assert.ok(tall.includes("1840") && tall.includes("600"), tall);
+    for (const pageExtent of [
+      null,
+      undefined,
+      { windowPx: 600, documentPx: 610 },
+      { windowPx: 600, documentPx: 600 },
+    ]) {
+      const flat = describeEvidence({ shots, pageExtent } as never);
+      assert.ok(!flat.includes("1840") && !flat.includes("below"), JSON.stringify(pageExtent));
+    }
+  });
+});
+
+/**
+ * Live Loop validation, second pass (2026-10-11): the lead's `judge` tool scored a check it had written
+ * with no expression as a FAILED probe, so the board named a failure nobody had measured. The planner's
+ * checks were always validated before they were scored; the lead's were not.
+ */
+describe("the checks a lead hands the judge are read before they are scored (live validation, second pass, 2026-10-11)", () => {
+  const run: Run = {
+    runId: "ee",
+    project: "fixture",
+    goal: "Judge a tracker",
+    reference: { name: "fixture", shots: [] },
+    budgets: { wallClockMs: 1000 },
+  };
+  const scoreLeadChecks = async (checksRaw: unknown[]) => {
+    const { scoreJudgeChecks } = await import("../../src/harness-seed/loop/director/tools.ts");
+    const { ctx } = ctxRecorder();
+    const out: Record<string, any> = {};
+    const judgement: Record<string, any> = {};
+    const evidence = { ok: true, problems: [], warnings: [], shots: [], consoleErrors: [], state: { items: 3 } };
+    const scored = await scoreJudgeChecks(
+      { ctx, run } as never,
+      {
+        cameras: [],
+        checksRaw,
+        evidence,
+        handle: null,
+        n: 1,
+        out,
+        judgement,
+      } as never,
+    );
+    return { scored, out, judgement };
+  };
+
+  it("EE-1. a check with nothing to measure is reported to the lead and never scored as a failure", async () => {
+    const { scored, out } = await scoreLeadChecks([
+      { id: "count-ok", kind: "probe", expr: "state.items >= 0" },
+      { kind: "probe" },
+    ]);
+    assert.equal(scored.length, 1, "only the readable check is on the board");
+    assert.deepEqual(out.board.summary.failing, []);
+    assert.equal(out.board.summary.total, 1);
+    assert.equal(out.checkProblems.length, 1, "the lead is told which one could not be read");
+  });
+
+  it("EE-2. a lead whose every check is unreadable gets no board, and a readable set adds no field", async () => {
+    const none = await scoreLeadChecks([{ kind: "probe" }, { kind: "pixel" }]);
+    assert.deepEqual(none.scored, []);
+    assert.equal(none.out.board, undefined, "an empty board would read as a pass of nothing");
+    assert.notEqual(none.judgement.boardAllPass, true);
+    assert.ok(none.out.checkProblems.length >= 2);
+    const fine = await scoreLeadChecks([{ id: "count-ok", kind: "probe", expr: "state.items >= 0" }]);
+    assert.equal(fine.out.checkProblems, undefined);
+    assert.equal(fine.out.board.summary.total, 1);
+  });
+});

@@ -17,6 +17,7 @@ import { countImages, flattenMessageContent, newestFixtureBuild, type FakeReply 
 import { EngineError, type Engine } from "../../src/substrate/engines/types.ts";
 import { combineFacetVerdict, normalizeDefects } from "../../src/harness-seed/loop/judge.ts";
 import { buildBrief } from "../../src/harness-seed/loop/gauntlet.ts";
+import { PAGE_SEED } from "../../src/harness-seed/loop/config.ts";
 import { SnapshotScope } from "../../src/shared/event-log.ts";
 
 const rigs: Rig[] = [];
@@ -590,7 +591,7 @@ describe("gauntlet: evidence and artefacts", () => {
     const stepped = rig.preview.calls.filter((call) => call.method === "step");
     assert.ok(seeded.length >= 1, "the run seeds the project before judging");
     assert.ok(stepped.length >= 5, "the run steps the project deterministically");
-    assert.equal(seeded[0]!.arg, 1234, "the same seed is used every iteration so builds compare");
+    assert.equal(seeded[0]!.arg, PAGE_SEED, "the same seed is used every iteration so builds compare");
     assert.ok(
       rig.preview.inputs.length >= 1,
       "the critic drives WASD/look, not only the clock — otherwise feel/play judge an idle scene",

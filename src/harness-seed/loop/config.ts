@@ -31,9 +31,11 @@ export const LIGHT_EFFORT = "low";
 
 /**
  * The seed every evidence pass drives the project's randomness with, so two looks at a build — and
- * two builds — see the same world. Every mode uses this one number.
+ * two builds — see the same world. Every mode uses this one number. It is the seed the page itself boots
+ * on (the studio's shim and `installStudio` both start at 1), so a project that draws what it shows from
+ * `reset(seed)` shows the judge the numbers a person sees on their first load.
  */
-export const PAGE_SEED = 1234;
+export const PAGE_SEED = 1;
 
 /** A run's wall clock when its spec names none: a day (the classic run keeps its own, shorter one). */
 export const DEFAULT_WALL_CLOCK_MS = 24 * HOUR_MS;

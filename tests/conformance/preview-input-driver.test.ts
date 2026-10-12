@@ -178,6 +178,46 @@ describe("preview input driver", () => {
     ]);
   });
 
+  // Live validation, 2026-10-11 (second pass): a tapped "A" arrived as "a".
+  it("a tapped, held or pressed capital types a capital; lowercase stays lowercase", async () => {
+    assert.deepEqual(charsOf((await run({ type: "tap", keys: ["A"] })).beats), ["A"]);
+    assert.deepEqual(charsOf((await run({ type: "tap", keys: ["a"] })).beats), ["a"]);
+    assert.deepEqual(charsOf((await run({ type: "down", keys: ["Q"] })).beats), ["Q"]);
+    assert.deepEqual(charsOf((await run({ type: "press", combo: "A" })).beats), ["A"]);
+    assert.deepEqual(charsOf((await run({ type: "press", combo: "a" })).beats), ["a"]);
+  });
+
+  it("shift plus a letter types its capital, and every other shortcut types nothing", async () => {
+    for (const combo of ["shift+a", "Shift+A"])
+      assert.deepEqual(charsOf((await run({ type: "press", combo })).beats), ["A"], combo);
+    for (const combo of ["ctrl+a", "alt+a", "cmd+a", "ctrl+shift+a", "shift", "shift+Tab"])
+      assert.deepEqual(charsOf((await run({ type: "press", combo })).beats), [], combo);
+  });
+
+  it("a held W is still the w key to a game and a capital W to a text field", async () => {
+    const { beats } = await run({ type: "hold", keys: ["W"], ms: 1 });
+    assert.deepEqual(charsOf(beats), ["W"]);
+    const page = beats.flatMap((beat) => ("page" in beat ? [beat.page] : []));
+    assert.deepEqual(page[0]?.dom?.[0], { kind: "key", type: "keydown", key: "w", code: "KeyW", keyCode: 87 });
+    assert.deepEqual(page[0]?.studio?.down, ["KeyW", "w", "W"]);
+  });
+
+  it("hold_key's code names carry no case, and the modifiers' code names are the modifiers", async () => {
+    assert.deepEqual(charsOf((await run({ type: "hold", keys: ["KeyW"], ms: 1 })).beats), ["w"]);
+    const { beats } = await run({ type: "hold", keys: ["ShiftLeft", "KeyW"], ms: 1 });
+    const down = beats.flatMap((beat) =>
+      "native" in beat && beat.native.type === "keyDown" ? [beat.native.keyCode] : [],
+    );
+    assert.deepEqual(down, ["Shift", "W"]);
+  });
+
+  it("a computer-use click's code-named modifiers reach its mouse events", async () => {
+    const { beats } = await run({ type: "click", x: 5, y: 5, px: true, modifiers: ["ShiftLeft", "ControlLeft"] });
+    const down = beats.find((beat) => "native" in beat && beat.native.type === "mouseDown");
+    assert.ok(down && "native" in down);
+    assert.deepEqual((down.native as Electron.MouseInputEvent).modifiers, ["shift", "control"]);
+  });
+
   it("presses Enter with its char, so a focused button is clicked and a form submits", async () => {
     const { beats } = await run({ type: "press", combo: "Return" });
     assert.deepEqual(nativeTypes(beats), ["keyDown", "char", "keyUp"]);

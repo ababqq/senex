@@ -31,7 +31,7 @@ export interface Bounds {
   size: Vec3;
 }
 
-/** Where the player is, as the studio reports it: every axis present, 0 where the project has none. */
+/** Where the user's avatar is (a map pin, a 3D viewer's body), as the studio reports it: every axis present, 0 where the project has none. */
 export interface PlayerPose {
   x: number;
   y: number;
@@ -41,10 +41,10 @@ export interface PlayerPose {
 }
 
 /**
- * Where the project says its player is. `x` plus at least one of `y`/`z` is a position: a
- * side-scroller locates its player in x/y and a top-down project in x/z, and the axis a project leaves
+ * Where the project says its avatar is. `x` plus at least one of `y`/`z` is a position: a
+ * flat layout locates it in x/y and a top-down one in x/z, and the axis a project leaves
  * out is reported as 0 rather than missing, so a check that names `player.z` reads a number
- * whatever the genre.
+ * whatever the layout.
  */
 export interface PlayerLocation {
   x: number;
@@ -64,7 +64,7 @@ export interface SceneObject {
   [key: string]: any;
 }
 
-/** The one input path: everything the player did since the last step, and nothing else. */
+/** The one input path: everything the user did since the last step, and nothing else. */
 export interface UpdateContext {
   /** Seeded RNG — the only randomness a comparable run may use. */
   rng: () => number;
@@ -227,7 +227,8 @@ export interface StudioConfig {
   /**
    * Back to a known state for this seed. It runs with `{ boot: true }` on every page load (seed 1) and with
    * `{ boot: false }` when the judge reseeds a hidden copy. Only a reseed may empty the store and load fixtures;
-   * on boot keep what a person saved and add no sample entries unless the brief asks for it.
+   * on boot keep what a person saved and add no sample entries unless the brief asks for it. The judge reseeds
+   * with 1, the seed the page loads on: draw the first screen only from `seed`, never from Date or Math.random.
    */
   reset?: (seed: number, info?: { boot: boolean }) => void;
   /** The canvas of a project that draws one. */

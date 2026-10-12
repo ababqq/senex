@@ -13,7 +13,7 @@
    fake it.
 3. **Determinism is not optional.** No `Math.random()` and no wall-clock time in the logic that
    decides what is shown. Two builds must be comparable on the same seed, or you cannot tell whether
-   you are improving. Seed fixtures for the judge's runs only, never depend on today's date, and keep data local. A page load never wipes or overwrites what a person saved.
+   you are improving. Seed fixtures for the judge's runs only, never depend on today's date, and keep data local. A page load never wipes or overwrites what a person saved, and what the first screen shows comes only from the seed the page loads on (1).
 4. **Nothing downloaded** for what the user sees. Scripts, styles, fonts, icons and images are
    written in code or made by the studio's own tools into `assets/` (use the currently enabled plugin
    registry); no CDN links. Stills the user named (in `references/`, `ref/`, or an absolute path) are
