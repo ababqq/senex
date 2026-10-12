@@ -669,6 +669,8 @@ const listWords = (names: string[]): string =>
 
 /** How many steps that missed the build the finished line names before it only counts them. */
 const MAX_NAMED_MISSING = 2;
+/** The longest the joined names of those steps may be to read inside the sentence; a step's name is a clipped sentence. */
+const MAX_NAMED_CHARS = 40;
 
 interface LineFacts {
   /** how long the build has worked, pauses aside: "1 h 5 min" */
@@ -798,13 +800,14 @@ function failedChecks(summary: RunSummary | null): number {
   return current.filter((row) => row.status === "failed" && row.category !== "comparison").length;
 }
 
-/** Which of the night's steps reached the build, named when only one or two did not. */
+/** Which of the night's steps reached the build, named when only one or two did not and their names are short. */
 function landedWords(rows: PartRow[]): string {
   const steps = rows.flatMap((row) => row.steps).filter((step) => step.state !== StepState.Waiting);
   if (!steps.length) return "";
   const missing = steps.filter((step) => step.state !== StepState.InBuild).map((step) => lowerFirst(step.name));
   if (!missing.length) return steps.length === 1 ? "it landed" : "every step landed";
-  if (missing.length <= MAX_NAMED_MISSING) return `all but ${listWords(missing)} landed`;
+  const named = listWords(missing);
+  if (missing.length <= MAX_NAMED_MISSING && named.length <= MAX_NAMED_CHARS) return `all but ${named} landed`;
   return `${steps.length - missing.length} of ${steps.length} steps landed`;
 }
 

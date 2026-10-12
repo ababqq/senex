@@ -312,6 +312,30 @@ describe("the status line", () => {
     });
   });
 
+  /**
+   * Live Loop validation, fourth pass (2026-10-12): a step whose title was a whole sentence was spliced into
+   * "all but <title> landed", and the clip at the end of the title landed mid-sentence: "all but it holds up at narrow
+   * widths (around 380px) and from the keyboa… landed".
+   */
+  it("counts the steps that missed the build when the name of the one that did not is too long to read in the sentence", () => {
+    const longStep = "It holds up at narrow widths (around 380px) and from the keyboard";
+    const events = night().map((entry) => {
+      const payload = (entry.data as { payload?: Record<string, unknown> }).payload;
+      if (payload?.milestoneId !== "mountain" || typeof payload.what !== "string") return entry;
+      return { ...entry, data: { ...entry.data, payload: { ...payload, what: longStep } } } as typeof entry;
+    });
+    const { graph, summary, rows } = rowsOf(events);
+    const line = statusLine(graph, summary, rows);
+    assert.equal(line.strong, "Live in your project · 17 min");
+    assert.equal(line.rest, "3 of 4 steps landed");
+  });
+
+  it("names the steps that missed the build only while their names stay short", () => {
+    const { graph, summary, rows } = rowsOf(night());
+    const short = statusLine(graph, summary, rows).rest;
+    assert.equal(short, "all but tall mountain landed", "the common sentence is untouched");
+  });
+
   it("keeps failed checks in the line instead of the good news", () => {
     const events = night();
     events.splice(
