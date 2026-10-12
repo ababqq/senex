@@ -5,6 +5,7 @@ import { normalizeReason } from "../../replan.ts";
 import { GIT, commitAll, shortSha } from "../../git.ts";
 import { StopCode, stopWith } from "../../outcomes.ts";
 import { RunEvent } from "../../run-events.ts";
+import { isRecord } from "../../json.ts";
 import { CLIP_REASON } from "../../text.ts";
 import type { AnyRecord } from "../../../types/harness.d.ts";
 import { FacetRole, type FacetLoop, type FacetRound } from "../state.ts";
@@ -162,6 +163,12 @@ function judgeBrokenness(loop: FacetLoop, round: FacetRound): void {
     loop.circuitBreak = `${brokenStreakWords(policy.brokenStreakLimit)} with the same cause: ${reason}`;
 }
 
+/** What the page's `__studio_error` said: its message when it has one, else the value as JSON (never "[object Object]"). */
+function pageErrorText(error: unknown): string {
+  const message = isRecord(error) && typeof error.message === "string" ? error.message : null;
+  return (message ?? (typeof error === "string" ? error : JSON.stringify(error))).slice(0, CLIP_REASON);
+}
+
 /** The actual errors of a build that cannot be judged, for the next brief. */
 function brokenDetailOf(round: FacetRound): string {
   const { buildFailed, evidence } = round;
@@ -169,7 +176,7 @@ function brokenDetailOf(round: FacetRound): string {
     buildFailed ? `build turn: ${buildFailed}` : "",
     evidence.problems?.length ? `problems: ${evidence.problems.join("; ")}` : "",
     evidence.consoleErrors?.length ? `console errors: ${evidence.consoleErrors.join(" | ")}` : "",
-    evidence.state?.error ? `window.__studio_error: ${String(evidence.state.error).slice(0, CLIP_REASON)}` : "",
+    evidence.state?.error ? `window.__studio_error: ${pageErrorText(evidence.state.error)}` : "",
     evidence.gpuErrors?.length ? `WebGL: ${evidence.gpuErrors.slice(0, GPU_ERRORS_QUOTED).join(" | ")}` : "",
   ]
     .filter(Boolean)

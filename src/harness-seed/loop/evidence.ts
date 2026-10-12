@@ -145,6 +145,13 @@ const INHERITED_ERRORS_QUOTED = 2;
 const INHERITED_ERROR_CHARS = 160;
 const MAX_CONSOLE_BASELINE = 200;
 const MAX_GPU_ERRORS = 16;
+/** The document counts as running sideways from this many pixels: under it is rounding, and a classic scrollbar (15) still counts. */
+export const SIDEWAYS_SCROLL_WARN_PX = 8;
+/** How much of an error the page wrote a pass quotes, and how much of a value that is not a message. */
+const PAGE_ERROR_CHARS = 300;
+const PAGE_ERROR_GIVEN_CHARS = 80;
+/** Where the page reports how far the document runs past the window's width. */
+const OVERFLOW_PATH = "ui.overflowX";
 
 /** The sentence this pass pushes when the page carries no contract at all. Exported because the
  * race classifier is built from it: a sentence two files re-type is a sentence that drifts. */
@@ -956,12 +963,49 @@ async function driveProject(look: Look): Promise<void> {
   }
 }
 
+/** The words a page's `state().error` carries: a string, or an object's non-empty `message`; nothing otherwise. */
+function pageErrorMessage(error: unknown): string | null {
+  if (typeof error === "string") return error.trim() || null;
+  if (!isRecord(error) || typeof error.message !== "string") return null;
+  const message = error.message.trim();
+  return message && message !== "undefined" ? message : null;
+}
+
+/**
+ * The problem a truthy `state().error` earns. The contract lets a page report a string, an object
+ * with a message, or something that serialized to nothing (`{}`, `true`); a pass that read only
+ * `.message` called every other shape "undefined", and nobody could tell what had gone wrong.
+ */
+function runtimeErrorProblem(error: unknown, ui: unknown): string {
+  const message = pageErrorMessage(error);
+  if (message) return `runtime error: ${clip(message, PAGE_ERROR_CHARS)}`;
+  const given = clip(JSON.stringify(error) ?? error, PAGE_ERROR_GIVEN_CHARS);
+  const recorded = isRecord(ui) && typeof ui.lastError === "string" ? ui.lastError.trim() : "";
+  const last = recorded ? ` — the last error the page recorded: ${clip(recorded, PAGE_ERROR_CHARS)}` : "";
+  return `runtime error: the page reported an error with no message (it gave ${given})${last}`;
+}
+
+/**
+ * The warning a page earns for running past the window's width: its pictures are the window's pixels, so a column
+ * cut off at the right edge is in none of them. Nothing for a scene, for a project's own shape, or for a value
+ * the page did not measure as a finite number of pixels.
+ */
+function sidewaysScrollWarning(state: unknown, run: Pick<Run, "app" | "ownShape">): string | null {
+  if (drawsScene(run.app) || run.ownShape === true) return null;
+  const overflow = lookupState(state, OVERFLOW_PATH);
+  if (typeof overflow !== "number" || !Number.isFinite(overflow)) return null;
+  if (overflow < SIDEWAYS_SCROLL_WARN_PX) return null;
+  return `the page runs ${Math.round(overflow)}px past the window's width, so the document scrolls sideways or cuts off what lies beyond; find the element wider than the window (a table, a fixed width, an unbroken line)`;
+}
+
 /** The state the drive left, what it says is wrong with the page, and what the project sounds like. */
 async function readDrivenState(look: Look): Promise<void> {
   const { audio, ctx, h, problems } = look;
   look.state = await ctx.call(HostMethod.PreviewState, { ...h });
   if (look.state?.__missing) problems.push(MISSING_CONTRACT);
-  if (look.state?.error) problems.push(`runtime error: ${look.state.error.message}`);
+  if (look.state?.error) problems.push(runtimeErrorProblem(look.state.error, look.state.ui));
+  const sideways = sidewaysScrollWarning(look.state, look.run);
+  if (sideways) look.warnings.push(sideways);
   if (!audio || look.state?.__missing) return;
   try {
     const probe = (await ctx.call(HostMethod.PreviewCall, { method: PageMethod.Audio, ...h })) as AnyRecord | null;
