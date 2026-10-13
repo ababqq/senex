@@ -2,16 +2,17 @@
 
 ## From a request to a project
 
-Auto edits directly; Loop can delegate workers while the chat leads and reviews. Timed builds
+Auto edits directly; Loop can delegate workers while the chat leads and reviews. A Loop chat that
+builds by hand says no reviewers checked it. Timed builds
 use their working window. Until-satisfied builds finish on verified required
 outcomes; time is a safety ceiling. Acceptance persists across workers and restarts. External
 blockers pause the run, keeping its checkpoint. User Finish overrides the clock, never the
-final judge. Maximum concurrent workers defaults to eight; saved choices stay. [Harness runtime](../harness-runtime.md#goal-completion-and-worker-approvals)
+final judge. Concurrent workers default to eight; saved choices stay. [Harness runtime](../harness-runtime.md#goal-completion-and-worker-approvals)
 owns completion and recovery details.
 
 An active run opens Builds once; later tab choices are the user's, except that showing a
 build from the chat opens Live. Without a plan or run, a stored Builds
-choice falls back to Live. A file or image opened from the chat adds a tab named for it until
+choice falls back to Live. A file or image opened from the chat adds a tab until
 closed, with Show in Finder for files in the project folder.
 
 ## The two views
@@ -19,9 +20,8 @@ closed, with Show in Finder for files in the project folder.
 **Live** runs the browser project in a native view (WebGL and WebGPU); hidden unobserved previews
 pause. The strip holds Live/Builds/Assets, Run/Stop, Reload, the sound switch (⌥⌘M; only a shown
 Live in front is heard), Full screen (hold Esc to leave) and plugin actions such as Publish (accent
-until listed). Stop halts the project until Run or Reload. Slow loads show a halftone loader and
-shimmering “Loading project”. An empty scaffold shows “Ready for your first idea” (a computer), or
-“Building your project” (a crane) with Watch progress while a run works, Open latest once a build is
+until listed). Stop halts the project until Run or Reload. Slow loads show “Loading project”. An empty scaffold shows “Ready for your first idea”, or
+“Building your project” with Watch progress while a run works, Open latest once a build is
 ready; the first healthy build then shows itself. Otherwise only the user changes Live (opening a
 project, Reload, Open, Make live, a chat request while Live is hidden). A newer healthy build, a
 changed project folder (checkpoint, landing, rewind), a chat's show or landing, or a shown build found

@@ -8642,3 +8642,100 @@ describe("the words the harness types are its own test input (live validation, f
     assert.doesNotMatch(await promptFor("dashboard"), /test input/);
   });
 });
+
+/**
+ * Live Loop validation, seventh pass (2026-10-13): with Loop on and a fully specified ask for a new feedback form, the
+ * chat wrote the project itself in 47 seconds and started no build. Nothing in the chat said so, so the person who
+ * picked a Loop read a finished app with no reviewers, no card and no sign that none had looked. A finished build the
+ * chat changed by hand already says "made directly" (golden-boot-glory); a project with no build yet said nothing.
+ */
+describe("a Loop chat that built the project by hand says so (live validation, seventh pass, 2026-10-13)", () => {
+  type Stamp = { all: string; source: string };
+  const DIRECT = /no build ran, so no reviewers checked it/;
+
+  /** One delegated Loop (or Auto) chat turn in a blank project; `after` is what the turn left in the folder. */
+  const chatTurn = async ({
+    loop = true,
+    calls = [],
+    after = { all: "b", source: "b" },
+    ok = true,
+  }: {
+    loop?: boolean;
+    calls?: Array<{ name: string; args: Record<string, unknown> }>;
+    after?: Stamp;
+    ok?: boolean;
+  } = {}) => {
+    const { runDelegatedTurn } = await import("../../src/harness-seed/loop/delegated-turn.ts");
+    const { ctxRecorder } = await import("../helpers/ctx-recorder.ts");
+    let stamped = 0;
+    const recorder = ctxRecorder({
+      threadId: "t1",
+      unknown: { value: null },
+      handlers: {
+        "events.messages": () => [{ role: "user", content: "Build a customer feedback form for a restaurant" }],
+        "events.list": () => [],
+        "project.list": () => [{ name: "feedback", title: "Feedback", dir: "/g/feedback" }],
+        "project.contentStamp": () => (stamped++ === 0 ? { all: "a", source: "a" } : after),
+        "run.exec": (params) =>
+          String(params.command).includes("rev-list")
+            ? { code: 0, stdout: "1\n", stderr: "" }
+            : { code: 0, stdout: "", stderr: "" },
+        "preview.ready": () => ({ ready: true, ms: 5 }),
+        "preview.status": () => ({ loadError: null }),
+        "preview.console": () => [],
+        "engine.delegate": () => ({
+          ok,
+          engine: "claude-code",
+          turns: 1,
+          usage: {},
+          sessionId: "s1",
+          summary: "Here is your form.",
+          studioToolCalls: calls,
+        }),
+      },
+    });
+    const outcome = await runDelegatedTurn(
+      recorder.ctx as never,
+      {
+        threadId: "t1",
+        turnId: "turn-1",
+        text: "Build a customer feedback form for a restaurant",
+        engine: "claude-code",
+        engineLabel: "Claude Code",
+        project: "feedback",
+        ...(loop ? { autopilot: { frames: [] } } : {}),
+      } as never,
+    );
+    const said = recorder
+      .paramsOf("turn.append")
+      .flatMap((params) => (params.batch as Array<{ messages?: Array<{ content?: string }> }>) ?? [])
+      .flatMap((item) => item.messages ?? [])
+      .map((message) => String(message.content));
+    return { outcome, said: said.join("\n\n") };
+  };
+
+  it("DM-1. a Loop chat that wrote the new project's source itself and launched nothing says no reviewers checked it", async () => {
+    const { said } = await chatTurn();
+    assert.match(said, DIRECT, said);
+    assert.match(said, /Ask for a build/, "and says how to get one");
+  });
+
+  it("DM-2. nothing is said when a build started, when Loop is off, when only docs changed, or when the session failed", async () => {
+    const launched = await chatTurn({
+      calls: [{ name: "start_autopilot", args: { goal: "A feedback form", direction: "warm bistro" } }],
+    });
+    assert.equal(launched.outcome.stopped, "launch_run", "the recorded launch still starts the build");
+    assert.doesNotMatch(launched.said, DIRECT);
+    assert.doesNotMatch((await chatTurn({ loop: false })).said, DIRECT, "Auto never promised a build");
+    assert.doesNotMatch(
+      (await chatTurn({ after: { all: "b", source: "a" } })).said,
+      DIRECT,
+      "a plan or notes written to docs/ changed no source",
+    );
+    assert.doesNotMatch(
+      (await chatTurn({ ok: false })).said,
+      DIRECT,
+      "a session that failed made nothing to vouch for",
+    );
+  });
+});
