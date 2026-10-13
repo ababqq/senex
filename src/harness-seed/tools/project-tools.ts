@@ -47,6 +47,19 @@ const SLUG_STOP = new Set([
 
 const str = (description: string) => ({ type: "string", description });
 
+/** The words a launch's closing line says about the bar the build is held to. */
+const MESSAGE = {
+  towardNamed: (name: string) => ` toward "${name}"`,
+  feelingIsTheBar: " — the feeling is the bar.",
+  goalIsTheBar: " — the goal is the bar.",
+  stillsAreTheBar: (stills: number) => ` with ${stills} stills as the bar.`,
+} as const;
+
+/** A tool argument as the words it holds: trimmed text, and nothing for any value that is not text, a missing one included. */
+function said(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
 /** Does the call name a folder other than the one this chat is pinned to? */
 function pinnedElsewhere(args: AnyRecord, ctx: ToolCtx): boolean {
   return Boolean(ctx.project && args.project && args.project !== ctx.project);
@@ -303,14 +316,19 @@ export const tools: HarnessTool[] = [
       const project = slugProject(args.project || args.direction || args.goal);
       const hours = clampRunHours(loop.hours);
       const { engine: builderEngine, model: builderModel } = commissionedBuilder(loop, ctx);
+      // The lead's own words for the bar, kept apart from the goal the critics fall back to: the
+      // chat's line quotes the first and never the second, and a missing argument is no words.
+      const goal = said(args.goal);
+      const named = said(args.direction);
+      const notes = said(args.notes);
       const run = {
-        goal: String(args.goal).trim(),
+        goal,
         project,
         reference: {
-          name: String(args.direction).trim() || String(args.goal).trim(),
+          name: named || goal,
           shots: [],
           kind,
-          ...(args.notes ? { notes: String(args.notes).trim() } : {}),
+          ...(notes ? { notes } : {}),
           ...(frames.length ? { frames } : {}),
         },
         hours,
@@ -319,7 +337,7 @@ export const tools: HarnessTool[] = [
       };
       return {
         ok: true,
-        content: `Starting ${hours}h${towardTheBar(kind, run.reference.name, frames.length)}`,
+        content: `Starting ${hours}h${towardTheBar(kind, named, frames.length)}`,
         stopTurn: TurnStop.LaunchRun,
         details: { run },
       };
@@ -365,12 +383,16 @@ export const tools: HarnessTool[] = [
       // Same leak guard as start_unattended_run: the interview's borrowed local model must not
       // become the contractor's model.
       const { engine: builderEngine, model: builderModel } = commissionedBuilder(autopilot, ctx);
+      // The lead's own words for the bar, kept apart from the goal the critics fall back to (see
+      // start_unattended_run).
+      const goal = said(args.goal);
+      const named = said(args.textual_reference) || said(args.direction);
       const run = {
-        goal: String(args.goal).trim(),
+        goal,
         project,
         mode: RunMode.Autopilot,
         reference: {
-          name: String(args.textual_reference || args.direction).trim() || String(args.goal).trim(),
+          name: named || goal,
           shots: [],
           kind,
           ...(notes ? { notes } : {}),
@@ -389,7 +411,7 @@ export const tools: HarnessTool[] = [
       const clock = capped ? `Building for up to ${hours} h` : `Building until the critics are satisfied`;
       return {
         ok: true,
-        content: `${clock}${towardTheBar(kind, run.reference.name, frames.length)}`,
+        content: `${clock}${towardTheBar(kind, named, frames.length)}`,
         stopTurn: TurnStop.LaunchRun,
         details: { run },
       };
@@ -427,10 +449,11 @@ function commissionedBuilder(commission: AnyRecord, ctx: ToolCtx): { engine: str
   return { engine, model };
 }
 
-/** The launch line's second half: the bar the run builds toward. */
-function towardTheBar(kind: string, name: string, stills: number): string {
-  if (kind === ReferenceKind.Reference) return ` toward "${name}" with ${stills} stills as the bar.`;
-  return ` toward "${name}" — the feeling is the bar.`;
+/** The launch line's second half: the bar the run builds toward, as the lead named it (nothing named, no name quoted). */
+function towardTheBar(kind: string, named: string, stills: number): string {
+  const toward = named ? MESSAGE.towardNamed(named) : "";
+  if (kind === ReferenceKind.Reference) return `${toward}${MESSAGE.stillsAreTheBar(stills)}`;
+  return `${toward}${named ? MESSAGE.feelingIsTheBar : MESSAGE.goalIsTheBar}`;
 }
 
 /** A new folder's name from the words of the ask: its first few telling words, joined by dashes. */

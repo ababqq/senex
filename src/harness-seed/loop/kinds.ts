@@ -465,6 +465,10 @@ function seconds(ms: unknown): string {
   return n >= SECOND_MS ? `${(n / SECOND_MS).toFixed(1)}s` : `${Math.round(n)} ms`;
 }
 
+/** Said beside controls that type: a list holding "Buy milk" in a reading list's picture is the harness's doing, not the build's. */
+const TYPED_TEXT_NOTE =
+  " The text those controls type is the harness's own test input, not the content this project is meant to show: an entry that matches it is no defect of the project.";
+
 /**
  * The one sentence every judge is given about the project in front of it: what kind it is, which
  * controls the harness drove before the shots were taken, and which state paths are the
@@ -479,7 +483,10 @@ export function appLine(app: AnyRecord | null | undefined): string {
   const kind = traits.kind ? APP_KINDS[traits.kind] : null;
   const script = playScriptFor(traits);
   const drove = describePlayScript(script);
-  const drives = drove ? ` Before every judgement the harness drives the same controls: ${drove}.` : "";
+  const types = script.slice(0, MAX_PLAY_SCRIPT).some((action) => Boolean(action.text));
+  const drives = drove
+    ? ` Before every judgement the harness drives the same controls: ${drove}.${types ? TYPED_TEXT_NOTE : ""}`
+    : "";
   if (!kind) {
     if (!traits.playScript) return "";
     return `PROJECT: nothing declared what kind of project this is.${drives}`;

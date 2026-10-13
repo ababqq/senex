@@ -371,7 +371,7 @@ export const DIRECTOR_TOOLS: LiveToolSpec[] = [
         summary: {
           type: "string",
           description:
-            "What was built, what was verified, what remains — the user's report, in their words: no raw ids, camera names or revision hashes.",
+            "What was built, what was verified, what remains, and any feature you added beyond the ask — the user's report, in their words: no raw ids, camera names or revision hashes.",
         },
         land: { type: "string", description: "yes (default) or no." },
         victory: { type: "string", description: "yes or no (default)." },

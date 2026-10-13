@@ -364,6 +364,15 @@ export function verdictSentence(record: { because?: string | null } | null | und
   return typeof record?.because === "string" ? reviewerWords(withoutIds(record.because)) : "";
 }
 
+/**
+ * The close's own sentence about how the build landed ("made live, a judge preferred it"), ready for a card
+ * to print: a capital and the app's role names, like every other sentence the harness wrote.
+ */
+export function landingSentence(line: string | null | undefined): string {
+  const text = reviewerWords(withoutIds((line ?? "").trim()));
+  return text ? capitalise(text) : "";
+}
+
 /** Why an undone round was undone — the reason alone, for a card that already says "Undone". */
 export function undoneBecause(source: string | null | undefined, record: Verdict["record"] = null): string {
   const written = verdictSentence(record);
@@ -541,12 +550,14 @@ export function previewStateWords(state: string): string {
 /**
  * The Result panel's count of structural checks. A new revision never inherits a pass, so a build whose
  * checks passed on the revision before it has none of its own; the sentence says that instead of
- * "0 structural checks passed", which reads as a failure. Once the revision has checks of its own the
- * sentence is the plain count, whatever the earlier revisions did.
+ * "0 structural checks passed", which reads as a failure. A revision with no check recorded anywhere says
+ * so the same way: reviewers can answer questions about a build without scoring a single named check.
+ * Once the revision has checks of its own the sentence is the plain count, whatever the earlier revisions did.
  */
 export function structuralWords({ recorded, passed, earlierPassed }: StructuralTally): string {
   if (recorded === 0 && earlierPassed > 0)
     return `No structural check was recorded on this revision; ${earlierPassed} passed on earlier ones.`;
+  if (recorded === 0) return "No structural check was recorded on this revision.";
   return `${passed} structural check${passed === 1 ? "" : "s"} passed.`;
 }
 

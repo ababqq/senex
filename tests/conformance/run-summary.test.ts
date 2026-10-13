@@ -397,10 +397,12 @@ test("the structural sentence says when its passes were on an earlier revision",
     "a revision with checks of its own gets the plain count, whatever the earlier ones did",
   );
 
+  // Flipped (fifth pass): nothing recorded anywhere used to read "0 structural checks passed.", which a person
+  // takes for a failure; a build whose reviewers answered questions but scored no named check has none.
   assert.equal(
     structuralWords({ recorded: 0, passed: 0, earlierPassed: 0 }),
-    "0 structural checks passed.",
-    "nothing recorded anywhere stays as it was",
+    "No structural check was recorded on this revision.",
+    "nothing recorded anywhere says so instead of counting zero passes",
   );
 });
 
