@@ -107,6 +107,9 @@ const MESSAGE = {
   stopped: "Stopped. Finished edits are preserved; send a message to continue.",
   /** Loop allowed the finished build to go on, and the session made the change itself. */
   madeDirectly: "Small change — made directly, no build.",
+  /** Loop was on and the chat wrote the project's source itself: no build ran, so no reviewer looked. */
+  builtDirectly:
+    "Made directly in the chat — no build ran, so no reviewers checked it. Ask for a build to have them check it.",
   stoppedBeforeWork: "stopped before it started",
   launchedAnyway: (ending: string) =>
     `The session ended early (${ending}) after recording the launch — starting the build anyway.`,
@@ -1047,9 +1050,7 @@ async function reportBuild(
 ): Promise<TurnOutcome> {
   const { turnId, engine } = options;
   const check = change.source ? await lookAtBuild(ctx, options, handoff, result) : NOTHING_SEEN;
-  // A finished build Loop could have reopened, changed by the session's own hands: say so, since
-  // the person picked a Loop and no build started (golden-boot-glory).
-  const direct = handoff.reopening && change.source && result.ok ? MESSAGE.madeDirectly : null;
+  const direct = madeByHand(handoff, change, result);
   // Model, turns, time and cost stay in the recorded report above; chat replies carry no
   // per-message model labels, and there is no Continue button: a message continues the work.
   const content = [buildSummary(result), check.health, direct].filter(Boolean).join("\n\n");
@@ -1067,6 +1068,17 @@ async function reportBuild(
   });
   ctx.notify("chat.message", { role: "assistant", content });
   return { stopped: TurnStop.Done, round: 0, engine };
+}
+
+/**
+ * What the chat says when Loop was on, no build started and the session changed the project's source by
+ * its own hands: the person picked a Loop, so they are told nothing reviewed it (a finished build changed
+ * this way: golden-boot-glory; a new project written this way: live validation, seventh pass).
+ */
+function madeByHand(handoff: Handoff, change: FolderChange, result: DelegateResult): string | null {
+  if (!change.source || !result.ok) return null;
+  if (handoff.reopening) return MESSAGE.madeDirectly;
+  return handoff.launchTool ? MESSAGE.builtDirectly : null;
 }
 
 /**
