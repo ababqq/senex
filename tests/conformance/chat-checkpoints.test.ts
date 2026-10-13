@@ -10,10 +10,11 @@ import {
   chatCheckpointRef,
 } from "../../src/main/chat-checkpoints.ts";
 import { ensureRepo, git } from "../../src/substrate/snapshots.ts";
+import { removeTree } from "../helpers/tmp.ts";
 
 async function project(t: { after: (fn: () => Promise<void>) => void }) {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "studio-chat-checkpoint-"));
-  t.after(() => fs.rm(root, { recursive: true, force: true }));
+  t.after(() => removeTree(root));
   const dir = path.join(root, "project");
   await fs.mkdir(path.join(dir, "src"), { recursive: true });
   await fs.writeFile(path.join(dir, ".gitignore"), "dist/\n");
@@ -128,7 +129,7 @@ test("files stay as they are once the project’s history moved, or when there i
 
 test("a folder whose repository has no commit yet is checkpointed and restored too", async (t) => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "studio-chat-checkpoint-"));
-  t.after(() => fs.rm(root, { recursive: true, force: true }));
+  t.after(() => removeTree(root));
   const dir = path.join(root, "project");
   await fs.mkdir(dir);
   await git(dir, ["init", "-q", "-b", "main"]);
@@ -307,7 +308,7 @@ test("a folder standing where the checkpoint had a file is kept while it holds a
 test("a user whose git converts line endings gets every file back byte for byte", async (t) => {
   // Git for Windows installs with core.autocrlf=true: a restore wrote LF files back as CRLF.
   const config = await fs.mkdtemp(path.join(os.tmpdir(), "studio-autocrlf-"));
-  t.after(() => fs.rm(config, { recursive: true, force: true }));
+  t.after(() => removeTree(config));
   await fs.writeFile(path.join(config, "gitconfig"), "[core]\n\tautocrlf = true\n");
   const saved = process.env.GIT_CONFIG_GLOBAL;
   process.env.GIT_CONFIG_GLOBAL = path.join(config, "gitconfig");
