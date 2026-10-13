@@ -24,6 +24,7 @@ import {
   flagWords,
   isKept,
   isPlanning,
+  landingSentence,
   livenessWords,
   liveBehindLabel,
   liveBehindWords,
@@ -460,6 +461,17 @@ describe("verdicts", () => {
     // The graph card already says "Undone"; it wants the reason on its own.
     assert.equal(undoneBecause("broken"), "the build was broken");
     assert.equal(undoneBecause(null), "it was not clearly better than the round before");
+  });
+
+  it("prints the close's landing line as a sentence in the app's role names (fifth pass: a lowercase 'judge' in a tooltip)", () => {
+    assert.equal(landingSentence("made live, a judge preferred it"), "Made live, a reviewer preferred it");
+    assert.equal(
+      landingSentence("made live, a judge found it does what you asked"),
+      "Made live, a reviewer found it does what you asked",
+    );
+    assert.equal(landingSentence("made live, not judged better"), "Made live, not reviewed better");
+    assert.equal(landingSentence("  "), "");
+    assert.equal(landingSentence(null), "");
   });
 
   it("says the harness's judge as the app's reviewer, and leaves the verb alone", () => {

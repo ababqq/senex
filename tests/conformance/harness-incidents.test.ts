@@ -5069,6 +5069,32 @@ describe("one session, reviewed", () => {
     assert.match(ours.landed.reason, /a merge under way/);
     assert.ok(await ours.git("rev-parse", "-q", "--verify", "MERGE_HEAD"), "their merge is still under way");
   });
+
+  /**
+   * Live validation, fifth pass (2026-10-12): the lead's `finish` summary is the build's outcome card in the chat, and
+   * the answer to `finish` then asked the same lead for "a one-paragraph summary for the user" to end its session
+   * with. Two builds showed the same summary twice, one after the other. The closing words are for what the card
+   * cannot say: what the landing may claim, and why nothing went live.
+   */
+  it("OS7. finish asks the lead for what its outcome card cannot say, not a second summary of the same build", async () => {
+    const landed = await leadClose("os7-landed", async () => {});
+    assert.equal(landed.finished.landed, true, landed.results.finished);
+    assert.doesNotMatch(landed.results.finished, /one-paragraph summary/, landed.results.finished);
+    assert.match(landed.results.finished, /already shown to the user in the chat as the run's outcome card/);
+    assert.match(
+      landed.results.finished,
+      /what the landing may claim, in brackets above/,
+      "the landing claim is still passed on",
+    );
+
+    const held = await leadClose("os7-held", async (request) => {
+      await writeFile(path.join(request.cwd, "src", "sky.js"), "export const sky = 'what the lead tried';\n");
+    });
+    assert.equal(held.finished.landed, false, String(held.finished.stoppedBecause));
+    assert.doesNotMatch(held.results.finished, /one-paragraph summary/, held.results.finished);
+    assert.match(held.results.finished, /already shown to the user in the chat as the run's outcome card/);
+    assert.match(held.results.finished, /why nothing went live/, "the reason is still the lead's to give");
+  });
 });
 
 describe("the Loop's time limit", () => {
@@ -8418,5 +8444,201 @@ describe("the sentence for an undone round uses the person's words (live validat
         assert.doesNotMatch(because, /\bcameras?\b/i, `${rule}: ${because}`);
       }
     }
+  });
+});
+
+/**
+ * Live Loop validation, fifth pass (2026-10-12): two builds launched without a named direction told the chat
+ * `Building until the critics are satisfied toward "undefined"…`. The launch tools turned a missing argument into
+ * the word "undefined" (and a missing goal likewise), so the fallback to the goal never ran and every brief
+ * and the chat's own start sentence carried the word as the bar. On Claude Code the call that the studio's tool
+ * server refused for the missing argument was also the one the chat launched from, ahead of the model's
+ * corrected retry.
+ */
+describe("a launch the lead sent without a named bar (live validation, fifth pass, 2026-10-12)", () => {
+  const GOAL = "A reading list where I can add, mark and remove books, with a cozy look.";
+  const LAUNCHES = [
+    {
+      tool: "start_autopilot",
+      commission: "autopilot",
+      settings: {},
+      opening: "Building until the critics are satisfied",
+    },
+    { tool: "start_unattended_run", commission: "loop", settings: { hours: 2 }, opening: "Starting 2h" },
+  ] as const;
+
+  const launch = async (
+    spec: (typeof LAUNCHES)[number],
+    args: Record<string, unknown>,
+    frames: unknown[] = [],
+  ): Promise<{ content: string; reference: Record<string, unknown> }> => {
+    const { tools } = await import("../../src/harness-seed/tools/project-tools.ts");
+    const { ctxRecorder } = await import("../helpers/ctx-recorder.ts");
+    const tool = tools.find((candidate) => candidate.name === spec.tool);
+    assert.ok(tool, `the seed ships ${spec.tool}`);
+    const extra = { [spec.commission]: { ...spec.settings, frames } };
+    const outcome = await tool.execute(args, ctxRecorder({ extra }).ctx as never);
+    assert.ok(typeof outcome === "object" && outcome.details, `${spec.tool} answers with the run`);
+    return { content: String(outcome.content), reference: (outcome.details.run as { reference: never }).reference };
+  };
+
+  it("LD-1. no direction, whatever shape the lead left it in, never reaches the chat or the briefs as a word", async () => {
+    const { ReferenceKind } = await import("../../src/harness-seed/loop/run-events.ts");
+    const missing: Array<[string, Record<string, unknown>]> = [
+      ["left out", { goal: GOAL }],
+      ["null", { goal: GOAL, direction: null }],
+      ["empty", { goal: GOAL, direction: "", textual_reference: "" }],
+      ["only an empty reference", { goal: GOAL, textual_reference: "" }],
+      ["only spaces", { goal: GOAL, direction: "   ", textual_reference: "  " }],
+      ["not text", { goal: GOAL, direction: { calm: true }, textual_reference: 7 }],
+    ];
+    for (const spec of LAUNCHES) {
+      for (const [label, args] of missing) {
+        const { content, reference } = await launch(spec, args);
+        const where = `${spec.tool}, direction ${label}: ${content}`;
+        assert.doesNotMatch(content, /undefined|null/, where);
+        assert.ok(!content.includes(GOAL), `the line does not quote the goal back (${where})`);
+        assert.equal(content, `${spec.opening} — the goal is the bar.`, where);
+        assert.equal(reference.name, GOAL, `the critics' bar falls back to the goal (${where})`);
+        assert.equal(reference.kind, ReferenceKind.Direction, where);
+      }
+    }
+  });
+
+  it("LD-1. a named direction, a named vibe and attached pictures read exactly as they did", async () => {
+    const stills = [{ data: "a" }, { data: "b" }];
+    const [autopilot, loop] = LAUNCHES;
+    const direction = await launch(autopilot, { goal: GOAL, direction: "calm like Linear" });
+    assert.equal(direction.content, `${autopilot.opening} toward "calm like Linear" — the feeling is the bar.`);
+    const vibe = await launch(autopilot, { goal: GOAL, direction: "calm", textual_reference: "Linear" });
+    assert.equal(vibe.content, `${autopilot.opening} toward "Linear" — the feeling is the bar.`);
+    const loopNamed = await launch(loop, { goal: GOAL, direction: "calm like Linear" });
+    assert.equal(loopNamed.content, `${loop.opening} toward "calm like Linear" — the feeling is the bar.`);
+    for (const spec of LAUNCHES) {
+      const pictured = await launch(spec, { goal: GOAL, direction: "calm like Linear" }, stills);
+      assert.equal(pictured.content, `${spec.opening} toward "calm like Linear" with 2 stills as the bar.`, spec.tool);
+      const unnamed = await launch(spec, { goal: GOAL }, stills);
+      assert.equal(unnamed.content, `${spec.opening} with 2 stills as the bar.`, spec.tool);
+    }
+  });
+
+  /** A delegated Loop chat whose session recorded these studio-tool calls, in order, and what it launched or asked. */
+  const chatThatRecorded = async (calls: Array<{ name: string; args: Record<string, unknown> }>) => {
+    const { runDelegatedTurn } = await import("../../src/harness-seed/loop/delegated-turn.ts");
+    const { ctxRecorder } = await import("../helpers/ctx-recorder.ts");
+    const recorder = ctxRecorder({
+      threadId: "t1",
+      unknown: { value: null },
+      handlers: {
+        "events.messages": () => [{ role: "user", content: "Make me a reading list" }],
+        "events.list": () => [],
+        "project.list": () => [{ name: "reading", title: "Reading", dir: "/g/reading" }],
+        "project.contentStamp": () => ({ all: "same", source: "same" }),
+        "run.exec": () => ({ code: 0, stdout: "1\n", stderr: "" }),
+        "engine.delegate": () => ({
+          ok: true,
+          engine: "claude-code",
+          turns: 1,
+          usage: {},
+          sessionId: "s1",
+          summary: "On it.",
+          studioToolCalls: calls,
+        }),
+      },
+    });
+    const outcome = await runDelegatedTurn(
+      recorder.ctx as never,
+      {
+        threadId: "t1",
+        turnId: "turn-1",
+        text: "Make me a reading list",
+        engine: "claude-code",
+        engineLabel: "Claude Code",
+        project: "reading",
+        autopilot: { frames: [] },
+      } as never,
+    );
+    return { outcome, recorder };
+  };
+
+  it("LD-2. the call the chat stood behind is the last one: a refused first launch does not beat the retry", async () => {
+    const refused = { name: "start_autopilot", args: { goal: GOAL } };
+    const retried = { name: "start_autopilot", args: { goal: GOAL, direction: "calm like Linear" } };
+    const { outcome } = await chatThatRecorded([refused, retried]);
+    const run = outcome.details?.run as { reference: { name: string } } | undefined;
+    assert.equal(run?.reference.name, "calm like Linear", "the corrected call launched");
+  });
+
+  it("LD-2. a refused first question does not beat the retry either", async () => {
+    const refused = { name: "ask_user", args: {} };
+    const retried = { name: "ask_user", args: { question: "Which look do you want?" } };
+    const { recorder } = await chatThatRecorded([refused, retried]);
+    const appended = JSON.stringify(recorder.paramsOf("turn.append"));
+    assert.match(appended, /Which look do you want\?/, "the retried question was asked");
+  });
+});
+
+/**
+ * Live Loop validation, fifth pass (2026-10-12): a reading list's reviewer note listed 'Call Ada' and 'Buy milk' as
+ * entries that do not belong in a list of books. They are the harness's own: every judgement is preceded by the
+ * kind's scripted controls, and a list's types two to-do items. The judges were told which controls were driven,
+ * not that the typed words are test input and not the project's content, and a judge that raises such an entry
+ * sends the builder after a defect the harness itself keeps putting back.
+ */
+describe("the words the harness types are its own test input (live validation, fifth pass, 2026-10-12)", () => {
+  const NOTE = /the harness's own test input, not the content this project is meant to show/;
+
+  it("HT-1. a kind whose controls type says so beside them; a kind that types nothing is left as it was", async () => {
+    const { appLine } = await import("../../src/harness-seed/loop/kinds.ts");
+    for (const kind of ["list-manager", "form-flow", "utility", "editor"]) {
+      assert.match(appLine({ kind }), NOTE, kind);
+    }
+    assert.match(
+      appLine({ playScript: [{ type: "type", text: "Dune" }] }),
+      NOTE,
+      "a script of the lead's own that types",
+    );
+    for (const kind of ["dashboard", "content-site", "data-viz", "graphics"]) {
+      assert.doesNotMatch(appLine({ kind }), /test input/, kind);
+    }
+    assert.equal(appLine(undefined), "", "an undeclared project is told nothing");
+  });
+
+  it("HT-2. the judge that looks at a list is given the note with the controls", async () => {
+    const run = {
+      runId: "ht-2",
+      project: "fixture",
+      goal: "A reading list",
+      reference: { name: "fixture", shots: [] },
+      budgets: { wallClockMs: 1000 },
+    };
+    const check = {
+      id: "empty",
+      kind: "vision",
+      camera: "default",
+      ask: "Does the list look like a list of books?",
+      weight: "normal",
+      hard: false,
+      note: "",
+    } as Check;
+    const promptFor = async (kind: string) => {
+      let sent = "";
+      const { ctx } = ctxRecorder({
+        handlers: {
+          "engine.complete": (params) => {
+            sent = JSON.stringify(params);
+            return { message: { content: '{"answer":"yes","confidence":0.9}' } };
+          },
+        },
+      });
+      await visionCheck(ctx, {
+        run: { ...run, app: { kind } } as never,
+        check,
+        crop: { base64: JPEG_BYTES.toString("base64") },
+      });
+      return sent;
+    };
+    assert.match(await promptFor("list-manager"), NOTE);
+    assert.doesNotMatch(await promptFor("dashboard"), /test input/);
   });
 });

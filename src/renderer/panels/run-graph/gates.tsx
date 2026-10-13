@@ -10,7 +10,7 @@ import {
 } from "../../run-graph.ts";
 import { Gate, type GatePoint, judgesOn, type Step } from "../../run-steps.ts";
 import { Icon } from "../../ui/icons.tsx";
-import { verdictSentence } from "../../words.ts";
+import { landingSentence, verdictSentence } from "../../words.ts";
 import { GraphSelection } from "../inspector/selection.ts";
 import { WORKING_PULSE } from "../inspector/tone.tsx";
 
@@ -31,7 +31,7 @@ const GATE_LABEL: Record<Gate, string> = {
   [Gate.Kept]: "Reviewers kept it",
   [Gate.Undone]: "Reviewers undid it",
   [Gate.Looking]: "Reviewers looking now",
-  [Gate.Waiting]: "No reviewer compared it",
+  [Gate.Waiting]: "Not compared with an earlier build",
 };
 
 /** A gate's eye: pressing it opens what the judges said, hovering or focusing it shows the tooltip. */
@@ -66,12 +66,11 @@ export const GateButton = memo(function GateButton({ gate, notesId, onOpen, onTi
 
 /** What the judges made of the build behind the result gate. */
 function resultGateWords(gate: GatePoint, graph: RunGraphModel): { title: string; line: string } {
-  const verdict = headVerdict(graph);
-  const line = finalNodeOf(graph)?.landing?.line ?? verdictSentence(verdict);
+  const line = landingSentence(finalNodeOf(graph)?.landing?.line) || verdictSentence(headVerdict(graph));
   if (gate.gate === Gate.Waiting)
     return {
       title: GATE_LABEL[Gate.Waiting],
-      line: line || "It runs, but no reviewer compared it with the project you had.",
+      line: line || "It runs, but no reviewer compared it with an earlier build.",
     };
   return {
     title: gate.gate === Gate.Kept ? "Reviewers preferred it" : "Reviewers preferred the project you had",

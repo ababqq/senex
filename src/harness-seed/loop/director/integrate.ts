@@ -552,16 +552,19 @@ export async function closeTheNight(
 /** What `finish` tells the director once the run is closed. */
 function finishAnswer(night: Night, landed: AnyRecord): string {
   const { state } = night;
-  const end = "End your session now with a one-paragraph summary for the user";
+  // The `finish` summary is the run's outcome card in the user's chat, so the closing words add to it:
+  // a second summary of the same build was read twice, one after the other.
+  const end =
+    "Your summary is already shown to the user in the chat as the run's outcome card, so do not write it again. End your session now with a sentence or two on what that card cannot say";
   // The close judged the build after the lead's summary was written: what the landing may claim
   // is the lead's to pass on, and no more.
   const left = landed.leftInProject
     ? ` — ${LANDING_WORDS.leftInProject(landed.leftInProject)} — tell the user, and leave them as they are`
     : "";
   if (landed.ok)
-    return `the run is closed — the integrated build ${shortSha(state.integrationHead)} is live in the project folder (${landed.line})${left}. ${end}; say what the landing may claim, in brackets above, and claim no more.`;
+    return `the run is closed — the integrated build ${shortSha(state.integrationHead)} is live in the project folder (${landed.line})${left}. ${end}: what the landing may claim, in brackets above, and no more.`;
   const outcome = landed.reason ? ` — not landed: ${landed.reason}` : "";
-  return `the run is closed${outcome}. ${end}.`;
+  return `the run is closed${outcome}. ${end}: why nothing went live.`;
 }
 
 /**
