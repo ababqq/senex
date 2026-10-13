@@ -8460,10 +8460,11 @@ describe("a launch the lead sent without a named bar (live validation, fifth pas
   const LAUNCHES = [
     {
       tool: "start_autopilot",
-      ctx: { autopilot: { frames: [] } },
+      commission: "autopilot",
+      settings: {},
       opening: "Building until the critics are satisfied",
     },
-    { tool: "start_unattended_run", ctx: { loop: { hours: 2, frames: [] } }, opening: "Starting 2h" },
+    { tool: "start_unattended_run", commission: "loop", settings: { hours: 2 }, opening: "Starting 2h" },
   ] as const;
 
   const launch = async (
@@ -8475,7 +8476,7 @@ describe("a launch the lead sent without a named bar (live validation, fifth pas
     const { ctxRecorder } = await import("../helpers/ctx-recorder.ts");
     const tool = tools.find((candidate) => candidate.name === spec.tool);
     assert.ok(tool, `the seed ships ${spec.tool}`);
-    const extra = { [Object.keys(spec.ctx)[0] ?? ""]: { ...Object.values(spec.ctx)[0], frames } };
+    const extra = { [spec.commission]: { ...spec.settings, frames } };
     const outcome = await tool.execute(args, ctxRecorder({ extra }).ctx as never);
     assert.ok(typeof outcome === "object" && outcome.details, `${spec.tool} answers with the run`);
     return { content: String(outcome.content), reference: (outcome.details.run as { reference: never }).reference };
@@ -8488,6 +8489,8 @@ describe("a launch the lead sent without a named bar (live validation, fifth pas
       ["null", { goal: GOAL, direction: null }],
       ["empty", { goal: GOAL, direction: "", textual_reference: "" }],
       ["only an empty reference", { goal: GOAL, textual_reference: "" }],
+      ["only spaces", { goal: GOAL, direction: "   ", textual_reference: "  " }],
+      ["not text", { goal: GOAL, direction: { calm: true }, textual_reference: 7 }],
     ];
     for (const spec of LAUNCHES) {
       for (const [label, args] of missing) {
