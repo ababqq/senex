@@ -16,6 +16,7 @@ import { visionCheck } from "./judge.ts";
 import { type Check, CheckKind, CheckWeight, demosNamedByChecks, type FacetSpec, renderChecks } from "./spec.ts";
 import { recipeFromSpike, saveRecipe } from "./library.ts";
 import { learningOn } from "./learning.ts";
+import { drawsScene } from "./kinds.ts";
 import { buildTurn } from "./build-turn.ts";
 import { parseSpikeVerdict, readSpikeVerdict } from "./replan.ts";
 import { spikeRef } from "./repo.ts";
@@ -201,6 +202,7 @@ export function spikeBrief({
   ownShape?: boolean;
   build?: string | null;
 }): string {
+  const scene = drawsScene(run.app);
   return [
     `You are building a SPIKE inside Autopilot run ${run.runId} — a throwaway mini-page that proves ONE technique against ONE check, in isolation from the project. Nothing you write here ships; the technique does.`,
     ``,
@@ -212,7 +214,7 @@ export function spikeBrief({
     ``,
     `BUILD EXACTLY THIS:`,
     `- ${page}: a page that carries this import map verbatim (it is for a canvas or 3D technique; a DOM technique simply never imports three) and loads ./${script.split("/").pop()} as a module. The studio serves this page itself, so the map's five keys resolve from its vendored three with no install and no bundler:\n${importMap}`,
-    `- ${script}: builds ONLY the subsystem the check is about — real elements for a DOM technique, objects tagged (userData.tag) for a canvas or 3D one — with views { default${check.camera && check.camera !== "default" ? `, ${check.camera}` : ""} } registered. Register them by calling installStudio({ probes, views, scene, renderer, camera }) — import it from ${contract} if this project keeps the contract module there; if that import does not resolve, leave it out and just render: the studio puts its own code on every page it serves, so the harness can still see and photograph what your page draws.`,
+    `- ${script}: builds ONLY the subsystem the check is about — real elements for a DOM technique, objects tagged (userData.tag) for a canvas or 3D one — with views { default${check.camera && check.camera !== "default" ? `, ${check.camera}` : ""} } registered. Register them by calling installStudio({ probes, views${scene ? ", scene, renderer, camera" : ""} })${scene ? " (scene, renderer and camera are the canvas or 3D world's own — pass them if you have them)" : ""} — import it from ${contract} if this project keeps the contract module there; if that import does not resolve, leave it out and just render: the studio puts its own code on every page it serves, so the harness can still see and photograph what your page draws.`,
     ownShape
       ? `- Do NOT edit the project: nothing under its own source folders, not its entry, not its page. The spike lives in ${page.slice(0, page.lastIndexOf("/"))}/ only, plus spike/VERDICT.md${build ? `. \`${build}\` must still build this project exactly as it does now — do not change what it does` : ""}.`
       : `- Do NOT edit src/, index.html or any file of the project. The spike lives in ${page.slice(0, page.lastIndexOf("/"))}/ only.`,

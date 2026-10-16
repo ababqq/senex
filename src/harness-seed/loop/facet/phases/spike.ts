@@ -1,5 +1,5 @@
 /** The spike: a hard or twice-failed identity check is solved in isolation before the round builds. */
-import { loadRecipes, recipesForChecks } from "../../library.ts";
+import { loadRecipes, recipesForChecks, recipesForKind } from "../../library.ts";
 import { describeSpike, runSpike, spikeCandidates, type SpikeOutcome } from "../../spike.ts";
 import { MINUTE_MS } from "../../time.ts";
 import type { AnyRecord } from "../../../types/harness.d.ts";
@@ -77,7 +77,7 @@ async function spikeOn(loop: FacetLoop, round: FacetRound, check: Check): Promis
 }
 
 /** What the spike leaves the facet: its record, its worktree to read from, a replan when it says the check cannot pass, and its recipe. */
-async function keepSpike(loop: FacetLoop, checkId: string, spike: SpikeOutcome): Promise<void> {
+export async function keepSpike(loop: FacetLoop, checkId: string, spike: SpikeOutcome): Promise<void> {
   loop.result.spikes.push({
     checkId,
     ok: spike.ok,
@@ -94,5 +94,8 @@ async function keepSpike(loop: FacetLoop, checkId: string, spike: SpikeOutcome):
       reason: `spike verdict: ${spike.unsatisfiable}`,
       source: ReplanSource.Spike,
     });
-  if (spike.recipe) loop.recipes = await loadRecipes(loop.ctx.workspace).catch(() => loop.recipes);
+  if (spike.recipe)
+    loop.recipes = await loadRecipes(loop.ctx.workspace)
+      .then((library) => recipesForKind(library, loop.run?.app?.kind))
+      .catch(() => loop.recipes);
 }

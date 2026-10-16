@@ -1037,6 +1037,9 @@ function kindFamily(kind: unknown): string | null {
   return `${criticFor({ kind })}/${wantsEyeCameras({ kind }) ? "eyes" : "flat"}`;
 }
 
+/** The family a run that declared no kind is offered the catalogue of: software, as every other default reads it. */
+const UNDECLARED_FAMILY = `${criticFor(null)}/${wantsEyeCameras(null) ? "eyes" : "flat"}`;
+
 /**
  * The requested state, on every board (computer use, 2026-09-07): a harness-owned probe that says the scout's
  * setup landed — the map, mode or scene the brief is about is what the cameras are looking
@@ -1239,7 +1242,7 @@ export function renderCatalogueForPlanner(
   }: { limit?: number; app?: AnyRecord | null; screen?: boolean } = typeof options === "number"
     ? { limit: options }
     : (options ?? {});
-  const wantedFamily = kindFamily(app?.kind ?? null);
+  const wantedFamily = kindFamily(app?.kind ?? null) ?? UNDECLARED_FAMILY;
   const all = Object.entries(catalogue?.checks ?? {}).filter(
     ([id, c]) => !HARNESS_CHECKS[id] && catalogueEntryEarned(c) && forFamily(c, wantedFamily),
   );

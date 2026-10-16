@@ -29,7 +29,7 @@ import { EngineId, roleEffort, RoleKey } from "./model-roles.ts";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { bestStyleDistance, nearestReference, styleDistance } from "./style.ts";
-import { appLine, pictureLine } from "./kinds.ts";
+import { appLine, drawsScene, pictureLine } from "./kinds.ts";
 import { LIGHT_EFFORT } from "./config.ts";
 import { HostMethod } from "./host-methods.ts";
 import { EngineFailure } from "./outage.ts";
@@ -213,9 +213,9 @@ export const ARTEFACT_MARKER = "{{artefact-classes}}";
  * Drop the class bullets this run cannot have, and strip the `{when:}` clauses off the rest.
  *
  * A bullet with no `{when:}` is always rendered. A bullet with one is rendered when the run's
- * tokens name any of its words. An EMPTY token set renders everything — a run that declared
- * nothing gets the block it always got, byte for byte, which is what makes the shared file safe
- * to introduce. The clause itself never reaches a judge.
+ * tokens name any of its words. An EMPTY token set renders everything — the identity filter, for a
+ * caller that passes no tokens at all; every judge call site passes `artefactTokens(run)`, which is
+ * never empty. The clause itself never reaches a judge.
  */
 export function filterArtefactClasses(text: unknown, tokens: readonly unknown[] | null = []): string {
   const wanted = new Set(
@@ -260,7 +260,8 @@ export function filterArtefactClasses(text: unknown, tokens: readonly unknown[] 
  *
  * It reads the RUN RECORD because neither `ownShape` nor `genres` is in scope at any judge call
  * site — threading them through three signatures would be a worse change than stamping them on
- * the run when it launches. A run that declared nothing returns nothing, and nothing is filtered.
+ * the run when it launches. A run that declared nothing still returns its shape word, which no
+ * `{when:}` clause names, so it is shown the classes every project can have and none of a scene's.
  */
 export function artefactTokens(run: Pick<Run, "genres" | "app" | "ownShape"> | null | undefined): string[] {
   const tokens = new Set<string>();
@@ -274,9 +275,9 @@ export function artefactTokens(run: Pick<Run, "genres" | "app" | "ownShape"> | n
     .trim()
     .toLowerCase();
   if (kind) tokens.add(kind);
-  // The shape word rides along only once something else is declared, so "declared nothing"
-  // stays the case that filters nothing.
-  if (tokens.size > 0) tokens.add(run?.ownShape ? "own-shape" : "template");
+  // The shape word always rides along: a run that declared nothing is software, so the token set
+  // is never empty and the identity filter (which renders a scene's classes) is never reached.
+  tokens.add(run?.ownShape ? "own-shape" : "template");
   return [...tokens];
 }
 
@@ -985,10 +986,18 @@ function tasteCameras(cameras: string[] | null, facet: AnyRecord | null | undefi
   return [...own, ...(eye ? [eye] : [])];
 }
 
-/** A facet with a play check, an intent about motion, or a play result on the board is judged on motion too. */
-function tasteWantsMotion(facet: AnyRecord | null | undefined, board: Scoreboard | null): boolean {
+/**
+ * A facet with a play check or a play result on the board is judged on motion too, and so is a
+ * scene whose intent is about motion. The English heuristic reads only a graphics project: a page's
+ * "run the report" or "walk through onboarding" is not a feel a strip of frames can show.
+ */
+function tasteWantsMotion(
+  run: Pick<Run, "app"> | null | undefined,
+  facet: AnyRecord | null | undefined,
+  board: Scoreboard | null,
+): boolean {
   const playChecked = (facet?.checks ?? []).some((c: AnyRecord) => c.kind === CheckKind.Play);
-  const aboutMotion = MOTION_WORDS.test(String(facet?.intent ?? facet?.brief ?? ""));
+  const aboutMotion = drawsScene(run?.app) && MOTION_WORDS.test(String(facet?.intent ?? facet?.brief ?? ""));
   const playOnBoard = Object.values(board ?? {}).some((e) => e.kind === CheckKind.Play);
   return playChecked || aboutMotion || playOnBoard;
 }
@@ -1032,7 +1041,7 @@ export function tasteImages({
   const perSide = tasteCameras(cameras, facet);
   const a = imagesForCandidate(A, "BUILD A", perSide, { motion: false });
   const b = imagesForCandidate(B, "BUILD B", perSide, { motion: false });
-  const wantsMotion = tasteWantsMotion(facet, board);
+  const wantsMotion = tasteWantsMotion(run, facet, board);
   const motion = wantsMotion ? { a: motionSample(A, "BUILD A"), b: motionSample(B, "BUILD B") } : { a: [], b: [] };
   const wanted = a.length + b.length + motion.a.length + motion.b.length;
   const challengerShots = (A.incumbent ? B : A)?.shots ?? [];
