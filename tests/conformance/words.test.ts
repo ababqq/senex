@@ -1236,5 +1236,12 @@ describe("why a check on the board is not a pass", () => {
     assert.ok(said.length <= 120, `${said.length}`);
     assert.doesNotMatch(said, /run_[0-9a-z]+|\b[0-9a-f]{7,40}\b/);
     assert.match(said, /^false/);
+    // Ids inside the first 120 characters, where the clip cannot hide them: only the stripping removes these.
+    const early = checkReasonWords({
+      pass: false,
+      reason: "build run_fixture123456 at 69f573d failed: the button is cut off",
+    });
+    assert.doesNotMatch(early, /run_|69f573d/);
+    assert.match(early, /failed: the button is cut off/);
   });
 });

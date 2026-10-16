@@ -403,6 +403,23 @@ test("a build to start or a question to ask is shown once, by the harness's own 
   }
   // Another server's tool that shares the name is not the studio's: the harness records nothing for it.
   assert.equal(rows([mirrored(1, "mcp__github__start_autopilot", "a2")]).length, 1);
+  // A launch the harness's own tool answers not-ok is one failed row, by the harness's record.
+  const refused = [
+    mirrored(1, "mcp__studio__start_unattended_run", "a3"),
+    answered(2, "a3"),
+    event(3, {
+      type: "tool_requested",
+      tool_call_id: "dlg_2_intake",
+      request: { name: "start_unattended_run", arguments: { goal: "a form" } },
+    }),
+    event(4, {
+      type: "tool_result",
+      tool_call_id: "dlg_2_intake",
+      result: { ok: false, content: "Loop is off in the composer." },
+    }),
+  ];
+  assert.equal(rows(refused).length, 1, "a refused launch is one row");
+  assert.equal(rows(refused)[0]?.failed, true);
 
   // The question card is the harness's: the mirrored call and the model-facing reply stay out of the chat.
   const asked = [

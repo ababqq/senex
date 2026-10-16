@@ -814,7 +814,8 @@ function readDelegatedTurn(chat: ChatDraft, eventId: string, scope: string, payl
  * records its request and result when it runs it (conversation.ts `coordinatorTool`). A call the
  * session only recorded runs once its reply ends and shows then, by the harness's own record: a
  * resume, a build to start or reopen (the run card, the reopen promise), a question to ask (the
- * question card). A launch the harness refused, dropped for a question or a Stop shows none.
+ * question card). A launch the harness drops (a question beside it, a Stop, a plan sent back, a reopen taking
+ * precedence) shows none; one its launch tool answers not-ok shows a failed row, by the harness's own record.
  */
 function recordedByHost(chat: ChatDraft, name: string): boolean {
   if (chat.hostedTools.has(pluginToolKey(name))) return true;

@@ -287,6 +287,8 @@ it("registers this device under the product's name, not the old game studio's", 
     const tools = fixtureTools(temp, `http://127.0.0.1:${(server.address() as any).port}`);
     await tools.connect();
     const status = tools.status();
+    // Handled from the start: a failing assertion below must read as itself, not as this poll's "fetch failed".
+    status.catch(() => {});
     await registered;
     assert.equal(label, "Genex");
     await tools.disconnect();
