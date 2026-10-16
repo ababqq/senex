@@ -37,9 +37,7 @@ Genex is early: expect rough edges, and tell us about them in
 → Web apps, dashboards, forms, editors and sites: each build is opened, clicked through and judged on the page itself\
 → Make 3D assets locally with the Blender plugin\
 → Meshy, Tripo, ElevenLabs and more through the Genex tools router\
-→ Export anywhere, or publish to the web\
-→ Unity and Unreal plugins soon\
-→ Native C++ projects soon
+→ Export anywhere, or publish to the web
 
 > [!TIP]
 > Have a tool your projects need? [Build a plugin](#build-a-plugin) and put it in the Genex

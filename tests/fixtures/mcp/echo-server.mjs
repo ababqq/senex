@@ -21,6 +21,8 @@
  *               token is never in argv, the environment or a file.
  *   --long      register two tools whose names share a 50-character prefix, so their sanitized
  *               names collide at the 48-character limit.
+ *   --client    register a `client` tool that echoes the name the connecting client introduced itself
+ *               by, which is what a server's operator reads in their logs.
  *   --identity  introduce itself with a title and icons (a data: PNG and a refused javascript: one),
  *               the way a real server names itself and ships its picture.
  *   --leak      print `--env NAME` and its value on stderr and exit without speaking MCP: a real
@@ -94,6 +96,7 @@ const empty = { type: 'object', properties: {}, additionalProperties: false };
 if (envName) tools.push({ name: 'env', description: `Report ${envName} as this process sees it.`, inputSchema: empty }, { name: 'env_digest', description: `Report the fingerprint of ${envName}.`, inputSchema: empty }, { name: 'env_fail', description: `Fail with ${envName} in the error.`, inputSchema: empty });
 if (wantsFd3) tools.push({ name: 'fd3', description: 'Report what arrived on file descriptor 3.', inputSchema: empty }, { name: 'fd3_digest', description: 'Report the fingerprint of what arrived on file descriptor 3.', inputSchema: empty });
 if (argv.includes('--long')) tools.push({ name: `${LONG}_one`, description: 'A long name.', inputSchema: empty }, { name: `${LONG}_two`, description: 'Another long name.', inputSchema: empty });
+if (argv.includes('--client')) tools.push({ name: 'client', description: 'Report the name the connecting client gave.', inputSchema: empty });
 if (argv.includes('--context')) tools.push({ name: 'context', description: 'Report bound process context.', inputSchema: { type: 'object', properties: {}, additionalProperties: false } });
 
 function textResult(text, isError = false) {
@@ -125,6 +128,8 @@ async function call(name, args, signal) {
     }
     case 'weird.name/x':
       return textResult('weird tool answered');
+    case 'client':
+      return textResult(String(server.getClientVersion()?.name ?? ''));
     case 'env':
       return textResult(`${envName}=${process.env[envName] ?? ''}`);
     case 'env_fail':

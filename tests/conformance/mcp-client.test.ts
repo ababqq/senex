@@ -994,3 +994,12 @@ test("a server's own name and picture, from its initialize answer, reach the con
     await f.close();
   }
 });
+
+test("a server is told the app's name, not the old game studio's", async () => {
+  const connection = new McpConnection({ connector: draft({ args: [SERVER, "--client"] }), secrets: null });
+  try {
+    assert.equal(await connection.callTool("client", {}), "genex");
+  } finally {
+    await connection.close();
+  }
+});

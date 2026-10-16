@@ -35,7 +35,7 @@ const GENERIC_NAME = "Project studio";
 /** Who the packages name as their authors. */
 const AUTHORS = "Genex contributors";
 const DESCRIPTION =
-  "A desktop studio where coding agents build three.js projects, run them in a live preview, judge the result and improve their own harness.";
+  "A desktop studio where coding agents build web apps, tools and sites, run them in a live preview, judge the result and improve their own harness.";
 // Renditions of the 1024x1024 app icon master: .icns for macOS, .png for Linux, .ico for Windows.
 const ICON = path.join(__dirname, "build", "icon");
 /** The install window's 660x400 art; appdmg picks up the @2x file beside it for Retina. */
@@ -47,7 +47,8 @@ const DMG_APPLICATIONS_X = 495;
 const DMG_ICON_SIZE = 128;
 /** What the app refuses to start without on Linux: the process sandbox and code search. */
 const LINUX_DEPENDS = ["bubblewrap", "socat", "ripgrep"];
-const LINUX_CATEGORIES = ["Development", "Project"];
+// Registered freedesktop categories only: a desktop-file validator rejects any other name.
+const LINUX_CATEGORIES = ["Development", "IDE"];
 /** The Windows installer's file name, the same for every version so a download link can stay put. */
 const WINDOWS_SETUP_EXE = "Genex-Setup.exe";
 /** Only with a WINDOWS_SIGN_* certificate, parameters or hook; otherwise unsigned. */

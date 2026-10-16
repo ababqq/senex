@@ -18,6 +18,7 @@ import * as seedOutage from "../../src/harness-seed/loop/outage.ts";
 import * as seedOutcomes from "../../src/harness-seed/loop/outcomes.ts";
 import * as seedJudgeProvenance from "../../src/harness-seed/loop/judge-provenance.ts";
 import * as seedRunEvents from "../../src/harness-seed/loop/run-events.ts";
+import { STUDIO_COMMITTER as seedCommitter } from "../../src/harness-seed/loop/repo.ts";
 import * as seedSkills from "../../src/harness-seed/loop/skills.ts";
 import { SteerDelivery as seedSteerDelivery } from "../../src/harness-seed/loop/steer-delivery.ts";
 import * as seedTime from "../../src/harness-seed/loop/time.ts";
@@ -30,6 +31,7 @@ import { tools as seedProjectTools } from "../../src/harness-seed/tools/project-
 import * as seedVerdict from "../../src/harness-seed/loop/verdict.ts";
 import { endsChatSessions } from "../../src/shared/chat-rewind.ts";
 import * as coordinator from "../../src/shared/coordinator.ts";
+import { STUDIO_COMMITTER } from "../../src/substrate/snapshots.ts";
 import {
   CUSTOM_EVENT_TYPES,
   CompletionRole,
@@ -166,6 +168,13 @@ describe("the coordinator contract (shared/coordinator.ts ↔ loop/run-inbox.ts)
     assert.equal(coordinator.BuildLaunch.ReopenRun, seedReopenRun);
     assert.equal(coordinator.BuildLaunch.ResumeRun, seedResumeRun);
     assert.equal(coordinator.isBuildLaunch("ask_user"), false, "a question is no launch");
+  });
+
+  it("signs every studio commit with one name, the seed's and the substrate's, and not the old game studio's", () => {
+    assert.deepEqual(seedCommitter, STUDIO_COMMITTER);
+    assert.doesNotMatch(STUDIO_COMMITTER.name, /game/i, "a user's `git log` names the product, not a game studio");
+    // The address is already in users' repositories and is what a landing recognises, so it is not renamed with the name.
+    assert.equal(STUDIO_COMMITTER.email, "studio@ai-game-studio.local");
   });
 
   it("names the question a chat's own session asks as the seed's tool does", () => {
