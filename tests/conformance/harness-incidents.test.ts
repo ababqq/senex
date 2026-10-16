@@ -5085,7 +5085,7 @@ describe("one session, reviewed", () => {
     // lead filled it with the list of what it had not tested, which its summary already gave. It asks for the one thing
     // the summary could not know, how the close judged the build, and says not to list what was tested again.
     assert.match(landed.results.finished, /one sentence: how the landing was judged, in the bracketed words above/);
-    assert.match(landed.results.finished, /do not list again what your summary says was or was not tested/);
+    assert.match(landed.results.finished, /Do not list again what your summary says was or was not tested/);
     assert.doesNotMatch(landed.results.finished, /a sentence or two/);
 
     const held = await leadClose("os7-held", async (request) => {
