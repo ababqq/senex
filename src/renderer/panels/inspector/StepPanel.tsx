@@ -25,7 +25,7 @@ import {
 } from "../../run-steps.ts";
 import { useStill } from "../../stills.ts";
 import { Icon, type IconName } from "../../ui/icons.tsx";
-import { checkCounts, undoneBecause } from "../../words.ts";
+import { checkCounts, checkReasonWords, stillCaptionWords, undoneBecause } from "../../words.ts";
 import { useRoundStill } from "../run-stills.ts";
 import { Details, NotesSection, Panel, Para, Quote, Row, Rows } from "./chrome.tsx";
 import { capitalise, listOrNull, modelLine } from "./format.ts";
@@ -103,6 +103,7 @@ function CheckList({ node }: { node: IterationNode }): JSX.Element {
     <ul className="flex flex-col gap-1.5">
       {board.results.map((row) => {
         const mark = passMark(row.pass);
+        const said = checkReasonWords(row);
         return (
           <li key={row.id} className="flex items-start gap-2 text-body-sm">
             <span className="mt-[3px]" style={{ color: mark.color }}>
@@ -111,7 +112,7 @@ function CheckList({ node }: { node: IterationNode }): JSX.Element {
             <span className="min-w-0 text-ink-2 [overflow-wrap:anywhere]">
               {capitalise(checkWords(row.id))}
               {flips.has(row.id) ? <span className="text-green"> · newly passing</span> : null}
-              {row.reason ? <span className="block text-ink-3">{row.reason}</span> : null}
+              {said ? <span className="block text-ink-3">{said}</span> : null}
             </span>
           </li>
         );
@@ -278,7 +279,7 @@ function StepView(props: StepPanelProps & { node: IterationNode; onPick: (at: nu
       path: shot.path,
       src: null,
       title: `${step.name} · try ${n}`,
-      caption: `view: ${shot.camera}`,
+      caption: stillCaptionWords(shot.camera),
     }));
     props.onLight(
       items,

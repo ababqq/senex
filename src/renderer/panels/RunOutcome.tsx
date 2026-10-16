@@ -5,7 +5,13 @@ import { useEffect, useState } from "react";
 import { ExecutionStatus } from "../../shared/run-state.ts";
 import { structuralTally, summaryCounts, summaryOutcome, type RunSummary } from "../../shared/run-summary.ts";
 import { plural } from "../../shared/skill-words.ts";
-import { outcomeTitle, previewStateWords, structuralWords } from "../words.ts";
+import {
+  evidenceCategoryWords,
+  evidenceStatusWords,
+  outcomeTitle,
+  previewStateWords,
+  structuralWords,
+} from "../words.ts";
 import { Icon } from "../ui/icons.tsx";
 import { FileText } from "../ui/FileText.tsx";
 import { openBuildGraph } from "../open-build.ts";
@@ -169,7 +175,8 @@ function EvidenceRow({
     <div className="flex flex-col gap-0.5">
       <span className={e.status === "failed" ? "text-red" : "text-ink"}>{e.label}</span>
       <span className="text-micro text-ink-3">
-        {e.status} · {e.category} · {e.head?.slice(0, HEAD_CHARS) ?? "revision unknown"}
+        {evidenceStatusWords(e.status)} · {evidenceCategoryWords(e.category)} ·{" "}
+        {e.head?.slice(0, HEAD_CHARS) ?? "revision unknown"}
         {e.head !== head ? " · historical" : ""} · {checkSource(e)}
       </span>
       {e.note && <span className="break-words text-ink-3">{e.note}</span>}

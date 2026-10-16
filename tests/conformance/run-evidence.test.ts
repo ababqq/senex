@@ -21,6 +21,8 @@ test("historical playtest stays incomplete with unknown revision; escaping repor
     assert.equal(summary.evidence[0]?.head, null);
     assert.equal(summary.evidence[0]?.status, "incomplete");
     assert.equal(summary.evidence[0]?.source, "independent-playtester");
+    assert.equal(summary.evidence[0]?.label, "Independent test 1 (question not recorded)");
+    assert.equal(summary.evidence[0]?.id, "play_1:director-play", "the id still names the check, for the record");
     await supplementRunEvidence(summary, root);
     assert.equal(summary.evidence.length, 1, "supplement does not duplicate durable or existing interaction evidence");
     const escapeDir = path.join(root, "run_test", "director", "play_2");
@@ -155,6 +157,27 @@ test("a judge that agrees with a recorded visual answer lends it its note and th
     assert.equal(sign?.note, "Lit from the top");
     assert.equal(sign?.capture, await realpath(frame));
     assert.equal(summary.captures?.current, undefined, "a worker's judge never becomes the delivered capture");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("a historical report with several answers labels each distinctly, and no label carries a check id", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "run-evidence-"));
+  try {
+    const dir = path.join(root, "run_test", "director", "play_3");
+    await mkdir(dir, { recursive: true });
+    await writeFile(
+      path.join(dir, "playtest.json"),
+      JSON.stringify({ answers: { "a-check": { pass: true, note: "ok" }, "b-check": { pass: false, note: "no" } } }),
+    );
+    const summary = summarizeRun([], "project", "run_test");
+    await supplementRunEvidence(summary, root);
+    const labels = summary.evidence.map((e) => e.label);
+    assert.equal(labels.length, 2);
+    assert.equal(new Set(labels).size, 2, `distinct labels: ${labels.join(" | ")}`);
+    for (const label of labels) assert.doesNotMatch(label, /-check/);
+    assert.deepEqual(summary.evidence.map((e) => e.id).sort(), ["play_3:a-check", "play_3:b-check"]);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

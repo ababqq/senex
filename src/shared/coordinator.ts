@@ -181,6 +181,14 @@ export function isBuildLaunch(name: string): name is BuildLaunch {
   return BUILD_LAUNCHES.has(name);
 }
 
+/**
+ * The question a Loop chat's session asks the person. The harness shows its card itself once the reply
+ * ends, so the chat shows the session's own mirror of the call as no row (`seed-contracts.test.ts`
+ * holds the name to the seed's `ask_user`).
+ */
+export const ChatQuestionTool = { AskUser: "ask_user" } as const;
+export type ChatQuestionTool = (typeof ChatQuestionTool)[keyof typeof ChatQuestionTool];
+
 /** The coordinator's reading of a run: its start payload merged with later closes, and a state. */
 export type CoordinatorRunState = "running" | "paused" | "finished";
 export type CoordinatorRun = Record<string, unknown> & {

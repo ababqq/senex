@@ -9,6 +9,7 @@ import {
 import type { OptimizationNode } from "../../run-graph.ts";
 import type { Tone } from "../../run-steps.ts";
 import { type DetailRow, Details, Panel, Para, Row, Rows, Section } from "./chrome.tsx";
+import { scenarioLabel } from "./optimization-words.ts";
 import { GraphSelection } from "./selection.ts";
 import { Status } from "./tone.tsx";
 import type { InspectorProps } from "./types.ts";
@@ -101,7 +102,7 @@ function MetricRow({
 
 function ScenarioTable({ scenario }: { scenario: ScenarioResult }): JSX.Element {
   return (
-    <Section label={scenario.workload?.demo ? `Demo: ${String(scenario.workload.demo)}` : "Default view"}>
+    <Section label={scenarioLabel(scenario.workload)}>
       <table className="w-full text-left text-micro text-ink-2">
         <thead className="text-ink-3">
           <tr>
@@ -131,6 +132,7 @@ const optimizationRows = (r: OptimizationResultV1): DetailRow[] => [
   ["changed files", r.changedFiles.join(", ") || null],
   ["report", r.reportPath],
   ...r.scenarios.flatMap((s): DetailRow[] => [
+    ["demo", typeof s.workload?.demo === "string" ? s.workload.demo : null],
     ["backend", s.before[0]?.backend ?? null],
     ["renderer", s.before[0]?.renderer ?? null],
     ["Three version", s.before[0]?.version ?? null],

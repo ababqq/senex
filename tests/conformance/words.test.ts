@@ -1156,3 +1156,85 @@ describe("a plugin's permission request", () => {
     assert.equal(consentAskWords({ prompt: "Make it red" }), "A plugin asks to run a tool — Make it red");
   });
 });
+
+describe("names a view and a recorded check in words (completion audit)", () => {
+  it("reads a view's name in words: the harness's own two, and any the project declared", async () => {
+    const { cameraWords, stillCaptionWords, HarnessCamera } = await import("../../src/renderer/words.ts");
+    const table: Array<[camera: string, words: string]> = [
+      [HarnessCamera.Default, "Page"],
+      [HarnessCamera.UserView, "Full page"],
+      ["empty-state", "Empty state"],
+      ["settings_page", "Settings page"],
+      ["demo:add-task", "Add task"],
+      ["weird:thing", "Thing"],
+    ];
+    for (const [camera, words] of table) {
+      assert.equal(cameraWords(camera), words, camera);
+      assert.doesNotMatch(cameraWords(camera), /[:_]/, `${camera} reads as words`);
+      assert.equal(stillCaptionWords(camera), `View: ${words}`);
+    }
+    assert.equal(cameraWords(""), "", "nothing to name stays nothing");
+  });
+
+  it("reads a recorded check's result and sort in words, and does not hide a code from a newer Studio", async () => {
+    const { evidenceStatusWords, evidenceCategoryWords } = await import("../../src/renderer/words.ts");
+    const statuses = ["passed", "failed", "unknown", "incomplete"] as const;
+    const categories = ["health", "structural", "visual", "interaction", "comparison"] as const;
+    for (const status of statuses) {
+      assert.notEqual(evidenceStatusWords(status), status, status);
+      assert.match(evidenceStatusWords(status), /^[A-Z]/);
+    }
+    for (const category of categories) {
+      assert.notEqual(evidenceCategoryWords(category), category, category);
+      assert.match(evidenceCategoryWords(category), /^[A-Z]/);
+    }
+    assert.equal(new Set(categories.map(evidenceCategoryWords)).size, categories.length, "no two sorts read alike");
+    assert.equal(evidenceStatusWords("from-a-newer-studio" as never), "from-a-newer-studio");
+  });
+});
+
+describe("the header of an optimization scenario", () => {
+  it("names the project's demo in words, and says the default view when it ran none", async () => {
+    const { scenarioLabel } = await import("../../src/renderer/panels/inspector/optimization-words.ts");
+    assert.equal(scenarioLabel({ demo: "add-task" }), "Demo: Add task");
+    assert.equal(scenarioLabel({ demo: "orbit_tour-2" }), "Demo: Orbit tour 2");
+    assert.equal(scenarioLabel({ demo: "  walk--to  door " }), "Demo: Walk to door");
+    for (const workload of [
+      undefined,
+      null,
+      {},
+      { demo: null },
+      { demo: "" },
+      { demo: "   " },
+      { demo: {} },
+      { demo: 7 },
+    ])
+      assert.equal(scenarioLabel(workload), "Default view", JSON.stringify(workload));
+  });
+});
+
+describe("why a check on the board is not a pass", () => {
+  it("says only that a check nothing could measure was not measured, whatever the harness wrote for the model", async () => {
+    const { checkReasonWords } = await import("../../src/renderer/words.ts");
+    for (const reason of [
+      'camera "empty-state" was not captured — no frame to read',
+      "no state() on this build",
+      "the build does not report cart.items",
+      "judge unavailable: Error: 529 overloaded run_fixture123456",
+      "play checks need playtest; use it",
+    ])
+      assert.equal(checkReasonWords({ pass: null, reason }), "Couldn't measure this round", reason);
+  });
+
+  it("keeps a failed check's note readable, without ids, bounded, and says nothing for a pass", async () => {
+    const { checkReasonWords } = await import("../../src/renderer/words.ts");
+    assert.equal(checkReasonWords({ pass: true, reason: "ok" }), "");
+    const vision = "judge answered no (confidence 0.80): the submit button is cut off";
+    assert.equal(checkReasonWords({ pass: false, reason: vision }), vision);
+    const dump = `false — state ${JSON.stringify({ cart: { items: Array.from({ length: 80 }, (_, i) => `item-${i}`) } })} run_fixture123456 9f8e7d6c5b4a`;
+    const said = checkReasonWords({ pass: false, reason: dump });
+    assert.ok(said.length <= 120, `${said.length}`);
+    assert.doesNotMatch(said, /run_[0-9a-z]+|\b[0-9a-f]{7,40}\b/);
+    assert.match(said, /^false/);
+  });
+});

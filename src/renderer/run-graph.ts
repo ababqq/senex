@@ -26,7 +26,7 @@ import {
   recordedRunLoop,
   roundOutcome,
 } from "../shared/run-state.ts";
-import type { RunSummary } from "../shared/run-summary.ts";
+import type { RunEvidence, RunSummary } from "../shared/run-summary.ts";
 import {
   type AssetLedger,
   type AssetPlace,
@@ -1649,6 +1649,17 @@ export function checkWords(id: string): string {
     .replace(/^defect-/, "")
     .replace(/[-_]+/g, " ")
     .trim();
+}
+
+/**
+ * A failed check as a person reads it. A structural check's label is its id (`requested-state`), which
+ * reads as words; every other row's label is a question or a phrase already (a visual question, "Build
+ * health", "Independent test 1").
+ */
+export function failedCheckWords(row: Pick<RunEvidence, "category" | "label">): string {
+  if (row.category !== "structural") return row.label;
+  const words = checkWords(row.label);
+  return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
 /** The still a card shows for a round: the default camera when it exists, else the first shot. */

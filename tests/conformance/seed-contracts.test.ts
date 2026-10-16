@@ -24,6 +24,7 @@ import * as seedTime from "../../src/harness-seed/loop/time.ts";
 import * as seedWakeSchedule from "../../src/harness-seed/loop/director/wake-schedule.ts";
 import { DelegationRefusal as seedDelegationRefusal } from "../../src/harness-seed/loop/director/lead-session.ts";
 import { RESUME_RUN as seedResumeRun } from "../../src/harness-seed/loop/after-night.ts";
+import { askUser as seedAskUser } from "../../src/harness-seed/loop/interview-question.ts";
 import { REOPEN_RUN as seedReopenRun } from "../../src/harness-seed/loop/reopen-run-prompts.ts";
 import { tools as seedProjectTools } from "../../src/harness-seed/tools/project-tools.ts";
 import * as seedVerdict from "../../src/harness-seed/loop/verdict.ts";
@@ -165,6 +166,10 @@ describe("the coordinator contract (shared/coordinator.ts ↔ loop/run-inbox.ts)
     assert.equal(coordinator.BuildLaunch.ReopenRun, seedReopenRun);
     assert.equal(coordinator.BuildLaunch.ResumeRun, seedResumeRun);
     assert.equal(coordinator.isBuildLaunch("ask_user"), false, "a question is no launch");
+  });
+
+  it("names the question a chat's own session asks as the seed's tool does", () => {
+    assert.equal(coordinator.ChatQuestionTool.AskUser, seedAskUser.name);
   });
 
   it("one vocabulary names the coordinator's tools, in menu order, and the run's controls are some of them", () => {
