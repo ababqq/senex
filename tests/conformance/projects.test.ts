@@ -125,6 +125,8 @@ describe("project folders", () => {
     const system = String(first.messages.find((m) => m.role === "system")?.content ?? "");
     assert.match(system, /references\/mood\.png/);
     assert.match(system, /This project's folder/);
+    assert.doesNotMatch(system, /Do not load them as textures/, "a web project's stills are not textures");
+    assert.match(system, /Do not load them as project assets/);
   });
 
   it("a first message that names an existing folder works in that folder, not a new library copy", async () => {

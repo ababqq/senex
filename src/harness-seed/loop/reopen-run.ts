@@ -155,7 +155,7 @@ export function reopenAsked(
   recorded: ReadonlyArray<{ name: string; args?: AnyRecord }>,
 ): ReopenAsk | null {
   if (!reopens(night, commission)) return null;
-  const call = recorded.find((c) => c.name === REOPEN_RUN);
+  const call = recorded.findLast((c) => c.name === REOPEN_RUN);
   if (!call) return null;
   const text = typeof call.args?.text === "string" ? call.args.text.trim() : "";
   const roles = commission?.roles;

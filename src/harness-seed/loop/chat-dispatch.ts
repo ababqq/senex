@@ -58,6 +58,9 @@ const EMPTY_GOALS = new Set(["", "undefined", "null"]);
 /** The session phase a stopped turn leaves on its thread (`session_activity`). */
 const INTERRUPTED_PHASE = "interrupted";
 
+/** The language of the day and clock a promise names: the sentence around them is English, so they are too (wall-clock.ts keeps its own copy, so a kept older file of either still loads). */
+const CLOCK_LOCALE = "en-US";
+
 /** What the chat is told. */
 const MESSAGE = {
   studioThreadBuilds:
@@ -854,11 +857,11 @@ export function launchPromise(
 
 /** "Sunday 10:05 PM" — the day and wall clock this many milliseconds after `now`. */
 function dayAndClockAfter(ms: number, now: number): string {
-  return new Date(now + ms).toLocaleString([], { weekday: "long", hour: "numeric", minute: "2-digit" });
+  return new Date(now + ms).toLocaleString(CLOCK_LOCALE, { weekday: "long", hour: "numeric", minute: "2-digit" });
 }
 
 /**
- * "07:10", or "13:44 tomorrow" — the local wall clock this many milliseconds after `now`, with its
+ * "7:10 AM", or "1:44 PM tomorrow" — the local wall clock this many milliseconds after `now`, with its
  * day when that is not today (wall-clock.ts): a 24-hour build ends at the minute it began. A
  * duration is not an answer to "when can I look?".
  */

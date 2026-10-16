@@ -154,7 +154,7 @@ export function resumeAsked(
   recorded: ReadonlyArray<{ name: string; args?: AnyRecord }>,
 ): AnyRecord | null {
   if (night.state !== RunState.Paused) return null;
-  const call = recorded.find((c) => c.name === RESUME_RUN);
+  const call = recorded.findLast((c) => c.name === RESUME_RUN);
   if (!call) return null;
   const text = call.args?.text;
   return typeof text === "string" ? { text } : {};

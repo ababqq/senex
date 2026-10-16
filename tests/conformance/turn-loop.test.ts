@@ -1082,6 +1082,11 @@ describe("chat intake", () => {
       ["make a -neon racer", "neon-racer"],
       ["---", "project"],
       ["", "project"],
+      ["Build a music player", "music-player"],
+      ["make me a video player app", "video-player-app"],
+      ["a media player with playlists", "media-player-playlists"],
+      ["a general ledger app", "general-ledger-app"],
+      ["let's build a todo list", "todo-list"],
     ];
     for (const [ask, name] of cases) {
       assert.equal(nameFromAsk(ask), name, `nameFromAsk(${JSON.stringify(ask)})`);

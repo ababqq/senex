@@ -1121,10 +1121,14 @@ for (const { name, multiplayer } of [
       return turnResult("lead", "asked");
     });
     const running = dispatch();
-    await finished();
+    const events = await finished();
     await running;
     assert.equal(asked.length, 1, "the tester was sent in once");
     assert.match(asked[0]!, /Verify every required scenario through actual interaction: the sky reads as dusk/);
+    // The record names the check by the outcome it verifies, never by the tester's prompt (Technical details prints it).
+    const recorded = customEvents(events, "run_interaction_evidence");
+    assert.equal(recorded.length, 1, "one playtest, one row");
+    assert.equal(recorded[0]!.label, "the sky reads as dusk");
     const online = /hosted two-client route|cannot prove multiplayer/;
     if (multiplayer) assert.match(asked[0]!, online);
     else assert.doesNotMatch(asked[0]!, /two-client|multiplayer|hosted|protocol test/i);

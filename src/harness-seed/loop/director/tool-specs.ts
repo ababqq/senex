@@ -7,6 +7,7 @@ import { FACET_POLICY } from "../facet-loop.ts";
 import { KIND_NAMES } from "../kinds.ts";
 import { CHECK_KINDS, MAX_DONE, MAX_MILESTONES, renderCheckGrammar } from "../spec.ts";
 import { MAX_PLAN_WORKERS, MAX_WAIT_S } from "./budgets.ts";
+import { PLAN_WORKERS_EXAMPLE } from "./plan-prompts.ts";
 import type { AnyRecord } from "../../types/harness.d.ts";
 import type { LiveToolSpec } from "../../types/host-api.d.ts";
 
@@ -81,7 +82,7 @@ export const DIRECTOR_TOOLS: LiveToolSpec[] = [
         },
         workers: {
           type: "string",
-          description: `JSON array of the parts you mean to hand out, 1–${MAX_PLAN_WORKERS}: [{"id":"task-list","title":"Task list","seam":"the list view and its storage — nothing else touches it","owns":"src/tasks.js, src/store.js","done":["a task added in the form shows in the list and survives a reload"],"minutes":45}]. Set multiplayer:true on each outcome requiring Genex online play; its host prerequisites are checked before delegation. Use the same id in worker_start; a part you drop or add later is a new plan.`,
+          description: `JSON array of the parts you mean to hand out, 1–${MAX_PLAN_WORKERS}: ${PLAN_WORKERS_EXAMPLE}. Set multiplayer:true on each outcome requiring Genex online play; its host prerequisites are checked before delegation. Use the same id in worker_start; a part you drop or add later is a new plan.`,
         },
         base: {
           type: "string",

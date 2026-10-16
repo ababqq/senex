@@ -192,7 +192,7 @@ async function readProjectInventory(
         : `These files live in the folder the user opened.`,
       extra.length
         ? `The user named stills outside this folder. Look at them with \`read_file\` using those absolute paths. Do not copy them into this project.\n${extraLines.join("\n")}`
-        : `Stills may be in \`references/\`, \`ref/\`, or a path the user named. Look at them with \`read_file\`. Do not load them as textures.`,
+        : `Stills may be in \`references/\`, \`ref/\`, or a path the user named. Look at them with \`read_file\`. Do not load them as project assets.`,
       lines.length ? lines.join("\n") + more : "- (empty folder)",
     ].join("\n");
   } catch {

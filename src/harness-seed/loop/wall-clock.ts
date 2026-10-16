@@ -4,6 +4,9 @@
  * of that file the agent edited, which never imported it.
  */
 
+/** The language of the clock a promise names: the sentence around it is English, so the day and the hour are too. */
+const CLOCK_LOCALE = "en-US";
+
 /** Days from the local calendar day of `from` to that of `to`. */
 function calendarDays(from: Date, to: Date): number {
   const day = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
@@ -11,15 +14,16 @@ function calendarDays(from: Date, to: Date): number {
 }
 
 /**
- * "1:44 PM" — the local wall clock `ms` after `now`, the way the Mac writes it (12- or 24-hour,
- * as the renderer's door.ts does), with its day when that is not today: a 24-hour build ends at the
+ * "1:44 PM" — the local wall clock `ms` after `now`, always as English 12-hour (the harness's own
+ * default language is whatever LANG the app was launched with, and a Korean "오후 1:44" inside an
+ * English sentence reads as broken), with its day when that is not today: a 24-hour build ends at the
  * minute it began, and "until about 1:44 PM" without "tomorrow" reads as now.
  */
 export function endClock(ms: number, now: number): string {
   const end = new Date(now + ms);
-  const time = end.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  const time = end.toLocaleTimeString(CLOCK_LOCALE, { hour: "numeric", minute: "2-digit" });
   const days = calendarDays(new Date(now), end);
   if (days === 0) return time;
   if (days === 1) return `${time} tomorrow`;
-  return `${time} on ${end.toLocaleDateString([], { weekday: "long" })}`;
+  return `${time} on ${end.toLocaleDateString(CLOCK_LOCALE, { weekday: "long" })}`;
 }

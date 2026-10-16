@@ -798,7 +798,7 @@ async function folderState(night: Night, root: string): Promise<{ head: string |
 /** One playtest in a folder that is the build: play it, record what it established, and answer. */
 async function playIn(
   night: Night,
-  { target, ask, n, playRoot, handle, budget, goalId, scenario }: AnyRecord,
+  { target, ask, shown, n, playRoot, handle, budget, goalId, scenario }: AnyRecord,
 ): Promise<string> {
   const { appendRun, ctx, finalDeadline, note, run, softDeadline } = night;
   const before = await folderState(night, playRoot);
@@ -821,7 +821,8 @@ async function playIn(
   const words = playWords(result?.pass);
   await appendRun(RunEvent.RunInteractionEvidence, {
     head: untouched ? before.head : null,
-    label: ask,
+    // A goal's playtest is named by its outcomes; with none written the record says only "Independent test".
+    label: (shown === undefined ? ask : shown) || undefined,
     status: words.status,
     note: result?.note ?? result?.reason ?? null,
     source: "independent-playtester",
@@ -859,9 +860,8 @@ export async function playtest(night: Night, args: AnyRecord) {
   )
     return "scenario must name a zero-based acceptance index from run_status";
   const scenarios = scenario === undefined ? goal?.acceptance : [goal?.acceptance[scenario]];
-  const ask = goal
-    ? goalPlaytestAsk(scenarios?.join("; ") ?? "", goal.multiplayer === true)
-    : String(args.ask ?? "").trim();
+  const outcomes = scenarios?.join("; ") ?? "";
+  const ask = goal ? goalPlaytestAsk(outcomes, goal.multiplayer === true) : String(args.ask ?? "").trim();
   if (!ask) return "playtest needs one yes/no question (ask)";
   const n = ++state.plays;
   const budget =
@@ -876,6 +876,8 @@ export async function playtest(night: Night, args: AnyRecord) {
       return await playIn(night, {
         target,
         ask,
+        // The record names a goal's playtest by the outcomes it checks, not by the tester's prompt.
+        shown: goal ? outcomes : undefined,
         n,
         playRoot: folder.playRoot,
         handle,
