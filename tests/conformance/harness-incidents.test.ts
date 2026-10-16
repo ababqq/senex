@@ -8799,13 +8799,13 @@ describe("a run that declared no kind is software, not a game world (completion 
     }
   });
 
-  it("UK-2. the planner's check catalogue and the recipes offer nothing of a scene to a run that declared none", async () => {
+  it("UK-2. the planner's check catalogue offers nothing of a scene to a run that declared none", async () => {
     const { renderCatalogueForPlanner } = await import("../../src/harness-seed/loop/spec.ts");
-    const { loadRecipes, recipesForKind } = await import("../../src/harness-seed/loop/library.ts");
     const catalogue = await loadCatalogue(seedDir);
     const idsIn = (text: string) => [...text.matchAll(/"id":"([^"]+)"/g)].map((match) => match[1]);
     const sceneOnly = ["camera-player-eye", "demo-walk", "drawcalls-ceiling", "player-moved"];
     const dashboard = idsIn(renderCatalogueForPlanner(catalogue, { app: { kind: "dashboard" } } as never));
+    assert.ok(dashboard.length > 0, "the catalogue lists checks for software");
     for (const app of UNDECLARED) {
       const ids = idsIn(renderCatalogueForPlanner(catalogue, { app } as never));
       for (const id of sceneOnly) assert.equal(ids.includes(id), false, `${JSON.stringify(app)} is not offered ${id}`);
@@ -8815,16 +8815,70 @@ describe("a run that declared no kind is software, not a game world (completion 
       idsIn(renderCatalogueForPlanner(catalogue, { app: { kind: "graphics" } } as never)).includes("camera-player-eye"),
       "a graphics project still is",
     );
-    const recipes = await loadRecipes(seedDir);
-    assert.ok(
-      recipes.some((recipe) => recipe.appKinds.length > 0),
-      "the shipped library has kind-bound recipes",
-    );
-    for (const kind of [undefined, null, ""])
-      assert.ok(
-        recipesForKind(recipes, kind).every((recipe) => recipe.appKinds.length === 0),
-        `no kind (${JSON.stringify(kind)}) gets only the recipes that name none`,
+  });
+
+  describe("UK-2b. the recipes a facet loop is handed", () => {
+    const loopFor = async (app?: Record<string, unknown>) => {
+      const { createFacetLoopState } = await import("../../src/harness-seed/loop/facet/state.ts");
+      const ctx = {
+        workspace: seedDir,
+        cancelled: false,
+        notify: () => {},
+        setStatus: () => {},
+        call: async (method: string) => {
+          if (method === "run.exec") return { code: 0, stdout: "0123456789abcdef0123456789abcdef01234567", stderr: "" };
+          if (method === "engine.describe") return [{ id: "codex", kind: "delegated" }];
+          return null;
+        },
+      };
+      return createFacetLoopState(
+        ctx as never,
+        {
+          runThreadId: "run-thread",
+          facetThreadId: "facet-thread",
+          run: { runId: "r", project: "plaza", engine: "codex", ...(app ? { app } : {}) },
+          facet: { id: "plaza", title: "Plaza", intent: "paint the plaza", checks: [] },
+          worktree: "/scratch/autopilot/r/plaza",
+          deadline: Date.now() + 60_000,
+        } as never,
       );
+    };
+    const boundTo = (recipes: ReadonlyArray<{ appKinds: readonly string[] }>) =>
+      recipes.filter((recipe) => recipe.appKinds.length > 0).length;
+
+    it("a run that declared no kind gets only the recipes that name none; graphics keeps its own", async () => {
+      const undeclared = await loopFor();
+      assert.ok(undeclared.recipes.length > 0, "the kind-less recipes are still there");
+      assert.equal(boundTo(undeclared.recipes), 0, "no weapon's silhouette beside a settings form");
+      assert.ok(boundTo((await loopFor({ kind: "graphics" })).recipes) > 0, "a scene keeps its recipes");
+      const dashboard = (await loopFor({ kind: "dashboard" })).recipes;
+      assert.ok(dashboard.length > undeclared.recipes.length, "a declared kind adds the recipes written for it");
+    });
+
+    it("the library reloaded after a spike recipe is filtered the same way", async () => {
+      const { keepSpike } = await import("../../src/harness-seed/loop/facet/phases/spike.ts");
+      const spike = {
+        checkId: "rows",
+        ok: true,
+        reason: "",
+        files: [],
+        branch: null,
+        worktree: null,
+        recipe: { id: "spike-made" },
+        durationMs: 0,
+        unsatisfiable: null,
+      };
+      for (const [app, bound] of [
+        [undefined, false],
+        [{ kind: "graphics" }, true],
+      ] as const) {
+        const loop = await loopFor(app);
+        loop.recipes = []; // what the loop held before the spike
+        await keepSpike(loop, "rows", spike as never);
+        assert.ok(loop.recipes.length > 0, "the library was read again");
+        assert.equal(boundTo(loop.recipes) > 0, bound, JSON.stringify(app));
+      }
+    });
   });
 
   it("UK-3. the taste judge attaches a motion strip to a page only for a play check, never for a verb in English", async () => {
@@ -8869,9 +8923,14 @@ describe("a run that declared no kind is software, not a game world (completion 
     for (const app of [{ kind: "list-manager" }, { kind: "data-viz" }, ...UNDECLARED]) {
       const text = brief(app);
       assert.match(text, /installStudio\(\{ probes, views \}\)/, JSON.stringify(app));
-      assert.doesNotMatch(text, /scene,\s*renderer,\s*camera/, JSON.stringify(app));
+      assert.doesNotMatch(
+        text,
+        /scene,?\s*renderer,?\s*(and\s+)?camera|pass them if you have them/i,
+        JSON.stringify(app),
+      );
     }
     assert.match(brief({ kind: "graphics" }), /installStudio\(\{ probes, views, scene, renderer, camera \}\)/);
+    assert.match(brief({ kind: "graphics" }), /pass them if you have them/);
   });
 
   it("UK-5. the integration facet reconciles a page's seams for software, and a scene's for a graphics project", async () => {

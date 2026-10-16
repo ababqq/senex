@@ -77,7 +77,7 @@ async function spikeOn(loop: FacetLoop, round: FacetRound, check: Check): Promis
 }
 
 /** What the spike leaves the facet: its record, its worktree to read from, a replan when it says the check cannot pass, and its recipe. */
-async function keepSpike(loop: FacetLoop, checkId: string, spike: SpikeOutcome): Promise<void> {
+export async function keepSpike(loop: FacetLoop, checkId: string, spike: SpikeOutcome): Promise<void> {
   loop.result.spikes.push({
     checkId,
     ok: spike.ok,
