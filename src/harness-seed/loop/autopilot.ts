@@ -821,9 +821,18 @@ const WORLD_PLAY_ASK =
 const SOFTWARE_PLAY_ASK =
   "Could you use the project's main flow from start to finish, reach what the goal describes, and never get stuck, lose your work, or lose sight of what to do?";
 
-/** What the integration playtester is asked: a walked world for a graphics project (or an undeclared kind), the main flow for software. */
+/** What the integration playtester is asked: a walked world for a graphics project, the main flow for every other project, an undeclared one included. */
 export function integrationPlayAsk(app: AnyRecord | null | undefined): string {
   return measuresRenderer(app) ? WORLD_PLAY_ASK : SOFTWARE_PLAY_ASK;
+}
+
+const WORLD_SEAMS = "palette, scale, lighting, spawn";
+const SOFTWARE_SEAMS = "design tokens, navigation between screens, shared data and storage, wording";
+
+/** What the integration facet is for: the seams to reconcile are a scene's for a graphics project, a page's for every other project. */
+export function integrationIntent(app: AnyRecord | null | undefined, notes?: string): string {
+  const seams = measuresRenderer(app) ? WORLD_SEAMS : SOFTWARE_SEAMS;
+  return `The merged project: every facet's identity features present together, seams reconciled (${seams}), nothing a facet registered lost. ${notes ?? ""}`.trim();
 }
 
 /** The integration facet's spec: every facet's identity checks on the merged build, and one play check. */
@@ -845,8 +854,7 @@ function integrationSpec(
     {
       id: INTEGRATION_FACET,
       title: "Integration",
-      intent:
-        `The merged project: every facet's identity features present together, seams reconciled (palette, scale, lighting, spawn), nothing a facet registered lost. ${plan.integrationNotes ?? ""}`.trim(),
+      intent: integrationIntent(plan.app, plan.integrationNotes),
       brief: plan.integrationNotes ?? "",
       owns: [],
       identity: plan.facets.flatMap((f: AnyRecord) => f.identity ?? []).slice(0, INTEGRATION_IDENTITY),
@@ -2907,7 +2915,7 @@ async function restoreFrames(evidence: AnyRecord | null | undefined): Promise<an
 }
 /** Why a page-shaped project has no optimization pass: the stage only compares a renderer's counters. */
 const OPTIMIZATION_NEEDS_RENDERER =
-  "Final optimization compares a renderer's draw calls and triangles; this project is a page, so there is nothing to compare";
+  "Final optimization compares a renderer's draw calls and triangles; this project does not draw a scene, so there is nothing to compare";
 async function finalizeOptimization(
   ctx: HarnessCtx,
   {

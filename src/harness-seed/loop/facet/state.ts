@@ -647,9 +647,9 @@ export async function createFacetLoopState(ctx: HarnessCtx, raw: FacetLoopOption
   const engine = await builderEngine(ctx, options.run, facetParts.budgets);
   const resumed = restoreResumable(options.resumeState, freshResumable(facetParts.facet, options.initialDefects));
   const library = await loadRecipes(ctx.workspace).catch(() => []);
-  // Retrieval is by relevance, so a project whose kind nobody has declared keeps the whole library.
-  const kind = options.run?.app?.kind;
-  const recipes = kind ? recipesForKind(library, kind) : library;
+  // Retrieval is by relevance: a project whose kind nobody has declared gets only the recipes that
+  // name no kind, as the planner's craft menu does, not a weapon's silhouette beside a settings form.
+  const recipes = recipesForKind(library, options.run?.app?.kind);
   /**
    * Has a stop landed here? The build turn is not the only place one can arrive: `engine.abort`
    * reaches only a live delegation, and a worker spends most of its round in review, evidence,

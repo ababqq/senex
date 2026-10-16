@@ -24,7 +24,8 @@ nobody described carries no harness input check at all; a declared kind supplies
 explicit boolean beside it wins. The harness drives that kind's play script before every
 judgement, and `appLine(run.app)` is the first line of every judge call. Two critics, not one:
 `screen` for software a person reads and operates (the default) and `place` for a world a person moves
-through (`graphics`).
+through (`graphics`). A run that declared no kind is read as software everywhere: it is offered no scene's
+check, recipe or artefact class, gets the main-flow playtest, and skips the renderer-only optimization stage.
 
 Malformed facet ballots hold the current build and report an unmeasured comparison. A
 faceted vote needs all four explicit A/B/tie answers; an invalid legacy facet pick cannot

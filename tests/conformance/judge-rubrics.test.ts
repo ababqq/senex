@@ -55,11 +55,21 @@ describe("the artefact classes the three judges share", () => {
     assert.match(sharedBlock(), /^## Known artefact classes/);
   });
 
-  it("renders every class, with no clause showing, when the run declared nothing", () => {
+  it("renders every class, with no clause showing, for a caller that passes no tokens", () => {
     // An empty token set is the identity filter, and the fixture is the text it yields.
     assert.equal(filterArtefactClasses(sharedBlock(), []), frozenBlock());
-    assert.equal(filterArtefactClasses(sharedBlock(), artefactTokens({})), frozenBlock());
-    assert.equal(filterArtefactClasses(sharedBlock(), artefactTokens({ ownShape: true })), frozenBlock());
+  });
+
+  it("shows a run that declared nothing the classes every project can have, and none of a scene's", () => {
+    const bullets = (block: string) => (block.match(/^- `\[[a-z-]+\]`/gm) ?? []).length;
+    for (const run of [null, {}, { ownShape: true }, { genres: [], app: {} }]) {
+      const text = filterArtefactClasses(sharedBlock(), artefactTokens(run));
+      for (const scene of ["[haze-plane]", "[blob]", "[moire]", "[blown]", "[no-hands]"])
+        assert.equal(text.includes(scene), false, `${JSON.stringify(run)} is not told about ${scene}`);
+      for (const page of ["[overflow]", "[dead-input]", "[unstyled]"])
+        assert.ok(text.includes(page), `${JSON.stringify(run)} is told about ${page}`);
+      assert.ok(bullets(text) < bullets(frozenBlock()));
+    }
   });
 
   it("keeps every class for a first-person run and drops the scene classes for a dashboard", () => {
@@ -97,8 +107,8 @@ describe("the artefact classes the three judges share", () => {
   });
 
   it("reads its tokens off the run record", () => {
-    assert.deepEqual(artefactTokens(null), []);
-    assert.deepEqual(artefactTokens({ genres: [], app: {} }), []);
+    assert.deepEqual(artefactTokens(null), ["template"]);
+    assert.deepEqual(artefactTokens({ genres: [], app: {} }), ["template"]);
     assert.deepEqual(artefactTokens({ genres: ["FPS"], app: { kind: "first-person" } }).sort(), [
       "first-person",
       "fps",

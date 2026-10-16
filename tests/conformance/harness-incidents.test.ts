@@ -8778,3 +8778,110 @@ describe("a Loop chat that built the project by hand says so (live validation, s
     );
   });
 });
+
+describe("a run that declared no kind is software, not a game world (completion audit)", () => {
+  const seedDir = path.join(process.cwd(), "src", "harness-seed");
+  const UNDECLARED = [null, undefined, {}, { kind: "no-such-kind" }];
+  const SCENE_CLASSES = ["[haze-plane]", "[blob]", "[moire]", "[blown]", "[no-hands]"];
+
+  it("UK-1. the judges' artefact classes leave out a scene's when nothing was declared, and keep them for a graphics project", async () => {
+    const { artefactTokens, judgePrompt } = await import("../../src/harness-seed/loop/judge.ts");
+    for (const rubric of ["blind-compare.md", "facet-compare.md", "taste-veto.md"]) {
+      const asked = async (run: Parameters<typeof artefactTokens>[0]) =>
+        judgePrompt({ workspace: seedDir } as never, rubric, "fallback", artefactTokens(run));
+      for (const app of UNDECLARED) {
+        const text = await asked({ app } as never);
+        for (const scene of SCENE_CLASSES)
+          assert.equal(text.includes(scene), false, `${rubric} ${JSON.stringify(app)}`);
+        assert.ok(text.includes("[overflow]"), `${rubric}: the classes every project can have stay`);
+      }
+      assert.ok((await asked({ app: { kind: "graphics" } } as never)).includes("[haze-plane]"), rubric);
+    }
+  });
+
+  it("UK-2. the planner's check catalogue and the recipes offer nothing of a scene to a run that declared none", async () => {
+    const { renderCatalogueForPlanner } = await import("../../src/harness-seed/loop/spec.ts");
+    const { loadRecipes, recipesForKind } = await import("../../src/harness-seed/loop/library.ts");
+    const catalogue = await loadCatalogue(seedDir);
+    const idsIn = (text: string) => [...text.matchAll(/"id":"([^"]+)"/g)].map((match) => match[1]);
+    const sceneOnly = ["camera-player-eye", "demo-walk", "drawcalls-ceiling", "player-moved"];
+    const dashboard = idsIn(renderCatalogueForPlanner(catalogue, { app: { kind: "dashboard" } } as never));
+    for (const app of UNDECLARED) {
+      const ids = idsIn(renderCatalogueForPlanner(catalogue, { app } as never));
+      for (const id of sceneOnly) assert.equal(ids.includes(id), false, `${JSON.stringify(app)} is not offered ${id}`);
+      assert.deepEqual(ids, dashboard, `${JSON.stringify(app)} reads as the software it is`);
+    }
+    assert.ok(
+      idsIn(renderCatalogueForPlanner(catalogue, { app: { kind: "graphics" } } as never)).includes("camera-player-eye"),
+      "a graphics project still is",
+    );
+    const recipes = await loadRecipes(seedDir);
+    assert.ok(
+      recipes.some((recipe) => recipe.appKinds.length > 0),
+      "the shipped library has kind-bound recipes",
+    );
+    for (const kind of [undefined, null, ""])
+      assert.ok(
+        recipesForKind(recipes, kind).every((recipe) => recipe.appKinds.length === 0),
+        `no kind (${JSON.stringify(kind)}) gets only the recipes that name none`,
+      );
+  });
+
+  it("UK-3. the taste judge attaches a motion strip to a page only for a play check, never for a verb in English", async () => {
+    const { tasteImages } = await import("../../src/harness-seed/loop/judge.ts");
+    const candidate = {
+      ok: true,
+      shots: ["default", "close", "wide"].map((camera) => ({ camera, base64: "aGk=" })),
+      motion: [1, 2, 3].map(() => ({ base64: "aGk=" })),
+    };
+    const motionLabels = (app: unknown, facet: Record<string, unknown>) =>
+      tasteImages({
+        run: { runId: "r", app, reference: { name: "none", frames: [] } } as never,
+        facet,
+        A: candidate as never,
+        B: candidate as never,
+        cameras: ["default", "close", "wide"],
+        max: 12,
+      })
+        .map((image) => image.label ?? "")
+        .filter((label) => label.includes("MOTION"));
+    const nightly = { id: "report", intent: "run the nightly report and walk through onboarding", checks: [] };
+    for (const app of [{ kind: "dashboard" }, ...UNDECLARED])
+      assert.deepEqual(motionLabels(app, nightly), [], `${JSON.stringify(app)}: no strip for an English verb`);
+    assert.ok(motionLabels({ kind: "graphics" }, { ...nightly, intent: "the feel of the jump" }).length > 0);
+    const played = { ...nightly, checks: [{ id: "flow", kind: "play" }] };
+    assert.ok(motionLabels({ kind: "dashboard" }, played).length > 0, "a play check still earns one");
+  });
+
+  it("UK-4. a DOM spike is told to register probes and views, and a canvas spike also its scene, renderer and camera", async () => {
+    const { spikeBrief } = await import("../../src/harness-seed/loop/spike.ts");
+    const brief = (app: unknown) =>
+      spikeBrief({
+        run: { runId: "r", goal: "a task list", app },
+        spec: { title: "List", intent: "a list of tasks" },
+        check: { id: "rows", kind: "probe", expr: "rows > 0", weight: "identity" },
+        tried: [],
+        recipes: [],
+        page: "spike/rows.html",
+        script: "spike/rows.js",
+        recipeFile: "spike/RECIPE.md",
+      } as never);
+    for (const app of [{ kind: "list-manager" }, { kind: "data-viz" }, ...UNDECLARED]) {
+      const text = brief(app);
+      assert.match(text, /installStudio\(\{ probes, views \}\)/, JSON.stringify(app));
+      assert.doesNotMatch(text, /scene,\s*renderer,\s*camera/, JSON.stringify(app));
+    }
+    assert.match(brief({ kind: "graphics" }), /installStudio\(\{ probes, views, scene, renderer, camera \}\)/);
+  });
+
+  it("UK-5. the integration facet reconciles a page's seams for software, and a scene's for a graphics project", async () => {
+    const { integrationIntent } = await import("../../src/harness-seed/loop/autopilot.ts");
+    for (const app of [{ kind: "dashboard" }, { kind: "form-flow" }, ...UNDECLARED]) {
+      const intent = integrationIntent(app as never, "keep the header");
+      assert.doesNotMatch(intent, /\b(lighting|spawn)\b/i, JSON.stringify(app));
+      assert.match(intent, /navigation between screens/);
+      assert.match(intent, /keep the header$/);
+    }
+    assert.match(integrationIntent({ kind: "graphics" }), /palette, scale, lighting, spawn/);
+  });
+});

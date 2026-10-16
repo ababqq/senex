@@ -1063,9 +1063,13 @@ describe("autopilot: a 2-facet run on the fake engine", () => {
     assert.ok(customEvents(events, "run_iteration").length >= 1, "gauntlet iterations ran instead");
   });
 
-  it("skips the renderer-only optimization stage for a declared page, and keeps it for a graphics project", async () => {
+  it("skips the renderer-only optimization stage for a page or an undeclared project, and keeps it for a graphics project", async () => {
     const outcomes: Record<string, string> = {};
-    for (const app of [{ kind: "dashboard" }, { kind: "graphics" }]) {
+    for (const { name, app } of [
+      { name: "dashboard", app: { kind: "dashboard" } },
+      { name: "graphics", app: { kind: "graphics" } },
+      { name: "undeclared", app: {} },
+    ]) {
       const { respond } = makeAutopilotResponder({
         plan: {
           facets: [{ id: "whole", title: "Whole project", brief: "just build it", budgetShare: 1 }],
@@ -1080,7 +1084,7 @@ describe("autopilot: a 2-facet run on the fake engine", () => {
       await rig.core.dispatchRun({
         runId,
         goal: "one small project",
-        project: `skip-${app.kind}`,
+        project: `skip-${name}`,
         mode: "autopilot",
         classic: true,
         reference: { name: "a calm feeling", shots: [], kind: "direction" },
@@ -1090,13 +1094,14 @@ describe("autopilot: a 2-facet run on the fake engine", () => {
         rig.core,
         (log) => log.some((e) => e.data.type === "custom" && e.data.event_type === "run_finished"),
         90_000,
-        `${app.kind} run_finished`,
+        `${name} run_finished`,
       );
       const stage = customEvents(events, "optimization_updated").at(-1)!;
-      assert.ok(stage, `${app.kind}: the run still publishes a durable optimization outcome`);
-      outcomes[app.kind] = String(stage.summary ?? "");
+      assert.ok(stage, `${name}: the run still publishes a durable optimization outcome`);
+      outcomes[name] = String(stage.summary ?? "");
     }
     assert.match(outcomes.dashboard!, /draw calls|renderer/i, "the page says why it was not optimized");
+    assert.match(outcomes.undeclared!, /draw calls|renderer/i, "a run that declared nothing is software too");
     assert.doesNotMatch(
       outcomes.graphics!,
       /draw calls|renderer is measured/i,
