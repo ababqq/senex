@@ -554,15 +554,20 @@ function finishAnswer(night: Night, landed: AnyRecord): string {
   const { state } = night;
   // The `finish` summary is the run's outcome card in the user's chat, so the closing words add to it:
   // a second summary of the same build was read twice, one after the other.
-  const end =
-    "Your summary is already shown to the user in the chat as the run's outcome card, so do not write it again. End your session now with a sentence or two on what that card cannot say";
+  const shown =
+    "Your summary is already shown to the user in the chat as the run's outcome card, so do not write it again.";
+  const end = `${shown} End your session now with a sentence or two on what that card cannot say`;
   // The close judged the build after the lead's summary was written: what the landing may claim
   // is the lead's to pass on, and no more.
   const left = landed.leftInProject
     ? ` — ${LANDING_WORDS.leftInProject(landed.leftInProject)} — tell the user, and leave them as they are`
     : "";
-  if (landed.ok)
-    return `the run is closed — the integrated build ${shortSha(state.integrationHead)} is live in the project folder (${landed.line})${left}. ${end}: what the landing may claim, in brackets above, and no more.`;
+  const live = `the run is closed — the integrated build ${shortSha(state.integrationHead)} is live in the project folder (${landed.line})`;
+  // A clean landing leaves one thing the summary could not know, how the close judged the build. Given room for
+  // more, the lead listed again what it had not tested, which the summary already said.
+  if (landed.ok && !left)
+    return `${live}. ${shown} End your session now with one sentence: how the landing was judged, in the bracketed words above. Do not list again what your summary says was or was not tested, and give no advice or next steps.`;
+  if (landed.ok) return `${live}${left}. ${end}: what the landing may claim, in brackets above, and no more.`;
   const outcome = landed.reason ? ` — not landed: ${landed.reason}` : "";
   return `the run is closed${outcome}. ${end}: why nothing went live.`;
 }

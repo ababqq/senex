@@ -752,7 +752,8 @@ function readDelegatedSystem(chat: ChatDraft, event: EventEnvelope, engineId: st
       payload.data?.model,
       payload.data?.requested_model ?? (turn?.engine === engineId ? turn.model : undefined),
     );
-    group.rows.push({ key: `${event.id}-init`, icon: "run", ...identity });
+    // No call stands behind this row, so it has no outcome to wait for; without a state it read "Unknown".
+    group.rows.push({ key: `${event.id}-init`, icon: "run", state: ToolState.Succeeded, ...identity });
   } else if (subtype === "permission_denied") {
     toolGroup(chat, event.id).rows.push(deniedRow(event.id, payload.data ?? {}));
   }

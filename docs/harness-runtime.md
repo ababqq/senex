@@ -470,7 +470,8 @@ delivered into the run (`integrate.ts` `userQuoted`, checked against the run inb
 clock, the user's Finish, an engine limit — the close judges the head it is about to make live
 (`director/tools.ts` `judgeTheLanding`, from `integrate.ts`): blind against the build the user had,
 or, for a new project or one whose start nobody could photograph, a yes-or-no on the goal
-(`close-prompts.ts`). A lead's own blind judge of that head against the start, whichever build it
+(`close-prompts.ts`), which the run's record names in the person's words, not by the judge's prompt
+(`tools.ts` `MESSAGE.closeQuestion`). A lead's own blind judge of that head against the start, whichever build it
 picked, stands in for it. The judge borrows the studio's window, and its model calls must be done
 four minutes after it starts (judge.ts's per-call deadline, for engines that honour a request's
 timeout), because the close runs inside the lead's ten-minute `finish` call; an answer it was not
@@ -479,7 +480,8 @@ and a Stop before or during the close lands nothing. The verdict is reported, no
 lands when the close's look loaded it or a judge saw it load, the close's own included.
 `landingResult` says what the landing may claim (`judge-pick`; `judge-answered-yes` or
 `judge-answered-no` for a sure answer to the goal question; otherwise the health tokens), and
-`finish` tells the lead. A workspace that kept an agent-edited older `integrate.ts` keeps its older
+`finish` tells the lead, who after a clean landing adds one sentence on how it was judged, not a
+second account of what was tested. A workspace that kept an agent-edited older `integrate.ts` keeps its older
 close; one that kept an older `tools.ts` lands as before and notes that it did not judge.
 
 The initial plan freezes required acceptance scenarios in the versioned director journal. A
