@@ -5081,11 +5081,12 @@ describe("one session, reviewed", () => {
     assert.equal(landed.finished.landed, true, landed.results.finished);
     assert.doesNotMatch(landed.results.finished, /one-paragraph summary/, landed.results.finished);
     assert.match(landed.results.finished, /already shown to the user in the chat as the run's outcome card/);
-    assert.match(
-      landed.results.finished,
-      /what the landing may claim, in brackets above/,
-      "the landing claim is still passed on",
-    );
+    // Flipped (eighth pass): a clean landing used to ask for "a sentence or two on what the landing may claim", and the
+    // lead filled it with the list of what it had not tested, which its summary already gave. It asks for the one thing
+    // the summary could not know, how the close judged the build, and says not to list what was tested again.
+    assert.match(landed.results.finished, /one sentence: how the landing was judged, in the bracketed words above/);
+    assert.match(landed.results.finished, /do not list again what your summary says was or was not tested/);
+    assert.doesNotMatch(landed.results.finished, /a sentence or two/);
 
     const held = await leadClose("os7-held", async (request) => {
       await writeFile(path.join(request.cwd, "src", "sky.js"), "export const sky = 'what the lead tried';\n");
@@ -6346,7 +6347,6 @@ describe("the final judge when the user is in a hurry", () => {
     assert.equal(finished.landed, true, `${finished.stoppedBecause} | ${results.finished}`);
     assert.equal(judgedLanding.length, 1, "the build made live was judged once, by the close");
     const [verdict] = judgedLanding;
-    assert.match(String(verdict.seen.question), /a blue sky over the plaza/, "asked about the build's goal");
     const question = asked.find((text) => text.includes("QUESTION:"));
     assert.ok(question, "the judge was sent the question");
     const [, introduction] = /QUESTION: ([\s\S]*?)a blue sky over the plaza/.exec(question) ?? [];
@@ -6356,6 +6356,45 @@ describe("the final judge when the user is in a hurry", () => {
     assert.equal(finished.landingResult.how, LandingHow.JudgeAnsweredYes, JSON.stringify(finished.landingResult));
     assert.match(finished.landingResult.line, /a judge found it does what you asked/);
     assert.match(results.finished, /a judge found it does what you asked/);
+  });
+
+  /**
+   * Live validation, eighth pass (2026-10-16): Technical details named the close's check with the judge's whole prompt:
+   * `This build's goal: "…". Does this build visibly show that, working … say so with a low confidence.` The record
+   * kept the text sent to the model as the check's name. The judge is still sent the goal and the confidence rule; the
+   * record names the question in the person's words.
+   */
+  it("hurry-5. the close's question is named in the person's words in the run's record, and the judge is still sent the whole prompt", async () => {
+    const { summarizeRun } = await import("../../src/shared/run-summary.ts");
+    const { asked, events, finished, judgedLanding, project, results } = await hurriedNight("hurry-shown", {
+      fromScratch: true,
+    });
+    assert.equal(finished.landed, true, `${finished.stoppedBecause} | ${results.finished}`);
+
+    // What the judge reads is unchanged: the goal, and the rule to say so when one picture cannot show it.
+    const prompt = asked.find((text) => text.includes("QUESTION:"));
+    assert.ok(prompt, "the judge was sent the question");
+    assert.match(prompt, /a blue sky over the plaza/);
+    assert.match(prompt, /low confidence/);
+
+    // What the record keeps as the check's name is for a person.
+    const shown = String(judgedLanding[0].seen.question);
+    assert.ok(shown.length > 0 && shown.length <= 80, shown);
+    assert.doesNotMatch(shown, /a blue sky over the plaza|confidence|QUESTION|picture/i, shown);
+    const evidence = customEvents(events, "run_visual_evidence").filter((e) => e.runId === finished.runId);
+    assert.deepEqual(
+      evidence.map((e) => e.question),
+      [shown],
+      "the visual evidence carries the same name, so the summary and verdict.json still join on it",
+    );
+    const rows = summarizeRun(events as never, project.name, finished.runId).evidence.filter(
+      (row) => row.category === "visual",
+    );
+    assert.deepEqual(
+      rows.map((row) => row.label),
+      [shown],
+      "one visual row, named for the person",
+    );
   });
 
   it("hurry-3. a new project whose judge gave no usable answer: the card does not say the judge found it wanting", async () => {

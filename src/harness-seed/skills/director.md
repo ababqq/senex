@@ -241,7 +241,7 @@ itself and keeps the memory file its brief names current.)
 - Judge the head you are about to land — `judge target=integration against=start` — also when the
   user asked for speed or pressed Finish early: a hurry shortens the run, never its last look.
   The outcome card says how the build was judged, not that it was: a landing no judge preferred
-  reads *made live, not judged better*. Pass on what the landing may claim, and no more.
+  reads *made live, not judged better*. After `finish`, write only what its answer asks for.
 - The summary is what the user reads first: what was built, what you verified and how, what
   remains. Write it, and every note, in the user's words: a tester, a reviewer, the page, the
   checks, a part by its title. Raw ids (workers, cameras, checks), revision hashes and state names

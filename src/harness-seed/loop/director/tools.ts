@@ -65,6 +65,13 @@ const JUDGE_GPU_ERRORS = 4;
  * settle, the close's look and the judge's own look share that time.
  */
 const FINAL_JUDGE_MS = 4 * MINUTE_MS;
+/**
+ * How the run's record names the close's question. The judge is sent the goal and the rule to say so with a
+ * low confidence (`finalJudgeQuestion`); a person reading Technical details gets a question, not the prompt.
+ */
+const MESSAGE = {
+  closeQuestion: "Does the finished build show what it was built for?",
+} as const;
 /** judge.ts's confidence for an answer that states none — a coin flip; the close counts only a surer one. */
 const COIN_FLIP = 0.5;
 /** A playtest's minutes: at least two, at most eight, five unless the director says otherwise. */
@@ -222,6 +229,8 @@ interface JudgeAsk {
   head: string | null;
   /** The close's own judge of the build it makes live (`LastJudge.final`). */
   final: boolean;
+  /** How the record names `question` when the question addresses the judge rather than the person. */
+  shown?: string;
   /** When the judge's calls must be done by, when that is sooner than the pass's deadline (`judgeRun`). */
   until: number;
 }
@@ -232,6 +241,8 @@ interface JudgeOptions {
   borrow?: boolean;
   /** The close's own judge of the build it is about to make live. */
   final?: boolean;
+  /** See `JudgeAsk.shown`. */
+  shown?: string;
   /** See `JudgeAsk.until`. */
   until?: number;
 }
@@ -422,7 +433,12 @@ export async function askJudgeQuestion(night: Night, pass: JudgePass): Promise<v
   // The close's word is what the judge said, not whether it passed: an answer it could not give is no "no".
   // The lead's question gets the same floor: nothing the judge was unsure of is recorded as a yes or a no.
   const said = pass.final ? sureAnswer(answer) : leadAnswer(answer);
-  out.answer = { question: String(question), camera: shot.camera, yes: said, note: answer.note ?? answer.reason ?? "" };
+  out.answer = {
+    question: pass.shown ?? String(question),
+    camera: shot.camera,
+    yes: said,
+    note: answer.note ?? answer.reason ?? "",
+  };
   judgement.answer = said;
 }
 
@@ -634,7 +650,7 @@ async function judgeOnWindow(night: Night, ask: JudgeAsk, handle: string | null)
 export async function judge(
   night: Night,
   args: AnyRecord,
-  { borrow = false, final = false, until = Number.POSITIVE_INFINITY }: JudgeOptions = {},
+  { borrow = false, final = false, shown, until = Number.POSITIVE_INFINITY }: JudgeOptions = {},
 ) {
   const { resolveRoot, state, withLease } = night;
   const target = resolveRoot(args.target);
@@ -654,6 +670,7 @@ export async function judge(
     n,
     head,
     final,
+    ...(shown ? { shown } : {}),
     until,
   };
   // The lead's judge is a choice, not an obligation: when every window is a worker's, the director
@@ -695,7 +712,7 @@ export async function judgeTheLanding(night: Night, head: string | null): Promis
   const ask = comparable
     ? { target: BuildTarget.Integration, against: Against.Start }
     : { target: BuildTarget.Integration, against: Against.None, question: finalJudgeQuestion(workingGoal(run)) };
-  const options = { borrow: true, final: true, until: Date.now() + FINAL_JUDGE_MS };
+  const options = { borrow: true, final: true, shown: MESSAGE.closeQuestion, until: Date.now() + FINAL_JUDGE_MS };
   await judge(night, ask, options).catch((err: unknown) =>
     note(
       `the close could not judge ${shortSha(head)}: ${String((err as Error)?.message ?? err).slice(0, CLIP_REASON)}`,

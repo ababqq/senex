@@ -284,6 +284,32 @@ test("tools reconcile by identity and never infer success from missing mirrored 
   assert.equal((mirror[0] as any).rows[0].state, "unknown");
 });
 
+test("the row that names who is working is not a call whose ending went unrecorded (live validation, eighth pass)", () => {
+  // A turn that ends in a question: the identity row has no tool call behind it, so it has no outcome to record.
+  const entries = toEntries([
+    custom(1, "delegated.claude-code", { kind: "system", data: { subtype: "init", model: "claude-sonnet-5-5" } }),
+    custom(2, "delegated.claude-code", {
+      kind: "assistant",
+      data: { parts: [{ type: "tool_use", id: "ask", name: "ask_user", input: { question: "Which look?" } }] },
+    }),
+    custom(3, "delegated.claude-code", {
+      kind: "user",
+      data: { parts: [{ type: "tool_result", tool_use_id: "ask", content: "Asked.", is_error: false }] },
+    }),
+    event(4, { type: "turn_ended", status: "ok" }),
+  ]);
+  const rows = entries.flatMap((e) => (e.kind === "tools" ? e.rows : []));
+  const identity = rows.find((row) => row.label === "Claude Code");
+  assert.ok(identity, JSON.stringify(rows));
+  assert.equal(identity.chip, "claude-sonnet-5-5");
+  assert.equal(identity.state, "succeeded", "it reads as settled, not as 'Unknown / Outcome not recorded'");
+  assert.ok(!identity.failed);
+  assert.ok(
+    rows.every((row) => row.state !== "unknown"),
+    "no row of this turn is an unrecorded outcome",
+  );
+});
+
 test("parallel plugin calls match their own outcomes and delivered assets stay visible", () => {
   const entries = toEntries([
     custom(1, "plugin_tool_started", {
