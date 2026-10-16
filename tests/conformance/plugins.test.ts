@@ -1033,8 +1033,9 @@ test("watch reloads a local plugin from the folder it was loaded from, defers un
       ),
       "the edit did not reload within 5 s",
     );
+    // The tool already answers from the new code; the registry's change notification may land a beat after it.
     assert.ok(
-      changes.some((c) => c.id === "watched" && c.reason === "reloaded"),
+      await until(async () => changes.some((c) => c.id === "watched" && c.reason === "reloaded"), 5000),
       JSON.stringify(changes),
     );
     const release = f.registry.lease();
