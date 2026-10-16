@@ -295,7 +295,7 @@ function templateFindings({ file, added, template }: FileReview): Violation[] {
         line,
         category: "wall-clock",
         what: "wall-clock time drives the project — judging is stepped, not clocked",
-        fix: "derive time from dt in update() / the frame counter",
+        fix: "ids: a counter held in the store; a time a person reads: a fixed value seeded in reset(seed); only an animation or simulation loop derives time from dt in update()",
         source: "mechanical",
       });
     }

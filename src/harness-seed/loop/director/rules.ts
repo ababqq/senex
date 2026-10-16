@@ -32,6 +32,7 @@ import { CLIP_QUOTE, CLIP_REASON, clip } from "../text.ts";
 import { Against } from "../verdict.ts";
 import { KIND_QUOTED, lines, list, num, parseJson, slug } from "./args.ts";
 import { MAX_LEDGER, MAX_PLAN_WORKERS, PLAN_HOLD_SLICE_MS, SILENT_ROUND_MIN } from "./budgets.ts";
+import { PLAN_WORKERS_EXAMPLE } from "./plan-prompts.ts";
 import { SECOND_MS } from "../time.ts";
 import { NoteKind } from "./wake-schedule.ts";
 import type { AnyRecord } from "../../types/harness.d.ts";
@@ -277,7 +278,7 @@ function planParts(workers: unknown): { parts: PlanPart[]; error?: undefined } |
   if (parsed?.__error) return { error: `plan: workers ${parsed.__error}` };
   if (!Array.isArray(parsed) || !parsed.length) {
     return {
-      error: `plan: workers is a JSON array of the parts you mean to hand out — [{"id":"plaza-lighting","title":"Plaza lighting","seam":"the plaza's light","owns":"src/plaza.js","done":["the plaza reads as dusk"],"minutes":45}]`,
+      error: `plan: workers is a JSON array of the parts you mean to hand out — ${PLAN_WORKERS_EXAMPLE}`,
     };
   }
   if (parsed.length > MAX_PLAN_WORKERS)

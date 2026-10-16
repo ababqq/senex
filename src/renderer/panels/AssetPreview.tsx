@@ -33,7 +33,7 @@ const MESSAGE = {
   audio: "This audio codec could not be played. Try a WAV, MP3 or Ogg export.",
   video: "This video codec could not be played. Try an MP4 (H.264) or WebM export.",
   unsupported:
-    "This format needs its authoring app. For a 3D preview with materials and animation, export GLB; for a sprite animation, export animated GIF/WebP or video.",
+    "This format needs its authoring app. For a 3D preview with materials and animation, export GLB; for an animation, export animated GIF/WebP or video.",
   truncated: "\n… Preview truncated at 256 KiB; original unchanged.",
 } as const;
 

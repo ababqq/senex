@@ -495,7 +495,7 @@ const UNDONE_LESSON: Partial<Record<string, (n: number, of: number) => string>> 
   [VerdictRule.Unreachable]: (n, of) =>
     `${n} of ${of} rounds were undone because the judge could not be reached. Nothing was wrong with the build.`,
   [VerdictRule.NoChange]: (n, of) =>
-    `${n} of ${of} rounds were undone because every camera showed exactly what the round before showed.`,
+    `${n} of ${of} rounds were undone because nothing on screen changed from the round before.`,
 };
 
 /** The bracket tag the judges keep opening a gap with — `[floating]`, `[haze-plane]`. */

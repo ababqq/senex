@@ -383,6 +383,9 @@ describe("Windows sandbox: kill", { skip: SKIP, timeout: TEST_TIMEOUT_MS }, () =
     assert.ok((await beatsReach(file, 3)) >= 3, "the heartbeat started");
     const result = await run;
     assert.equal(result.timedOut, true);
+    // The kill reaches the tree a moment after the result: a beat already in flight lands in this first
+    // settle, and only a count taken after it can show whether anything keeps beating.
+    await sleep(KILL_SETTLE_MS);
     const atKill = await beats(file);
     await sleep(KILL_SETTLE_MS);
     assert.equal(await beats(file), atKill, "nothing keeps beating after the kill");
@@ -398,6 +401,8 @@ describe("Windows sandbox: kill", { skip: SKIP, timeout: TEST_TIMEOUT_MS }, () =
       killChild(child);
     }
     await exited;
+    // As above: let a beat already in flight land before counting.
+    await sleep(KILL_SETTLE_MS);
     const atKill = await beats(file);
     await sleep(KILL_SETTLE_MS);
     assert.equal(await beats(file), atKill, "the grandchild went with it");

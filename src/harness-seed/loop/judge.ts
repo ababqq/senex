@@ -1667,8 +1667,8 @@ export async function judgeAgainstReference(
     ctx,
     "reference-panel.md",
     [
-      "You are one vote on a panel comparing a project build against a named reference title.",
-      "You have no history with either. PAIR images are reference (left) | build (right). Compare materials, light, silhouette, palette.",
+      "You are one vote on a panel comparing a project build against a named reference product.",
+      "You have no history with either. PAIR images are reference (left) | build (right). Compare layout, hierarchy, type, spacing, colour and density (for a 3D scene: materials, light, silhouette).",
       "Answer three questions separately. Default is reference; picking the build requires naming what it does better.",
       "",
       'Reply with JSON only: {"looks":"build"|"reference"|"tie","plays":"build"|"reference"|"tie","better":"…or empty","biggest_gap":"…","reason":"…"}',

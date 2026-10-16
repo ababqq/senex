@@ -254,6 +254,52 @@ it("disconnect wins over an authorization response already in flight", async () 
   }
 });
 
+it("registers this device under the product's name, not the old game studio's", async () => {
+  const temp = await mkdtemp(path.join(os.tmpdir(), "studio-genex-label-"));
+  let label: unknown = null;
+  let started!: () => void;
+  const registered = new Promise<void>((resolve) => {
+    started = resolve;
+  });
+  const server = http.createServer(async (req, res) => {
+    let body = "";
+    for await (const chunk of req) body += chunk;
+    res.setHeader("content-type", "application/json");
+    if (req.url === "/api/cli/device/start") {
+      label = JSON.parse(body || "{}").label;
+      started();
+      return res.end(
+        JSON.stringify({
+          deviceCode: "private-code",
+          userCode: "PUBLIC",
+          verifyUrl: "https://genex.games/verify",
+          expiresIn: 600,
+          interval: 5,
+        }),
+      );
+    }
+    if (req.url === "/api/cli/device/poll") return; // never answered: the test disconnects first
+    res.statusCode = 404;
+    res.end("{}");
+  });
+  await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
+  try {
+    const tools = fixtureTools(temp, `http://127.0.0.1:${(server.address() as any).port}`);
+    await tools.connect();
+    const status = tools.status();
+    // Handled from the start: a failing assertion below must read as itself, not as this poll's "fetch failed".
+    status.catch(() => {});
+    await registered;
+    assert.equal(label, "Genex");
+    await tools.disconnect();
+    await status.catch(() => {});
+  } finally {
+    server.closeAllConnections();
+    await new Promise<void>((r) => server.close(() => r()));
+    await rm(temp, { recursive: true, force: true });
+  }
+});
+
 it("shows all character candidates before a real UI selection can authorize the chosen preview", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "studio-genex-approval-"));
   let creates = 0;

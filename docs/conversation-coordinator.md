@@ -74,8 +74,8 @@ The run's controls are host-owned tools (`shared/coordinator.ts` `CoordinatorToo
 `main/core/conversation.ts`) whichever session calls them: the coordinator all of them, the chat's
 own session after its night the ones it keeps (`RunControl`, named from `CoordinatorTool`). The
 host records each call it answers, so the chat shows the session's own mirror of one as no second
-row, and a resume the session only recorded shows once, when the chat does it
-(`renderer/chat-entries.ts` `recordedByHost`). `run_status` reads the run's durable progress (a
+row, and a resume, a build to start or a question the session only recorded shows once, by the
+harness's own record when its reply ends (`renderer/chat-entries.ts` `recordedByHost`). `run_status` reads the run's durable progress (a
 director's wakes, `director_continued`, and a steer's hand-overs, `run_steering_delivered`, are not
 progress and stay off its list). `steer_run` records an instruction addressed to
 that run, optionally to a facet. Only these instructions and explicit gallery feedback reach

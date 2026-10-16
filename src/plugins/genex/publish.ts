@@ -51,7 +51,7 @@ export const MESSAGE = {
   NeedsGitLfs:
     "Publishing needs git and git-lfs on this Mac (brew install git-lfs). Studio will not let the Genex CLI install software.",
   DraftFailedTest:
-    "The new build did not pass its test on the draft page, so it was not made public. Players still get the previous version.",
+    "The new build did not pass its test on the draft page, so it was not made public. People still get the previous version.",
   SignInNotRecorded: (shipped: string, reported: string) =>
     `Genex does not record this build's sign-in support (shipped ${shipped}, Genex reports ${reported})`,
 } as const;

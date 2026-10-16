@@ -3,6 +3,7 @@ import type { JSX } from "react";
 import { useState } from "react";
 import { type RunSummary, summaryOutcome } from "../../../shared/run-summary.ts";
 import {
+  failedCheckWords,
   type FinalNode,
   finalNodeOf,
   plainDefect,
@@ -13,7 +14,7 @@ import { buildReview, elapsedWords, resultStatus, workedSpan } from "../../run-s
 import { endedWords } from "../../round-status.ts";
 import { Button } from "../../ui/Button.tsx";
 import { Icon } from "../../ui/icons.tsx";
-import { TOAST_WORDS } from "../../words.ts";
+import { HarnessCamera, stillCaptionWords, TOAST_WORDS } from "../../words.ts";
 import { OutcomeChecks, OutcomeDetails } from "../RunOutcome.tsx";
 import { Details, Panel, Para, Quote, Row, Rows, Section } from "./chrome.tsx";
 import { formatTime, modelLine } from "./format.ts";
@@ -120,7 +121,7 @@ function StillOpen({ items }: { items: string[] }): JSX.Element | null {
 function stillOpenOf(outcome: RunSummary | null, final: FinalNode | null): string[] {
   const current = outcome ? outcome.evidence.filter((row) => row.head === outcome.head) : [];
   const failed = current.filter((row) => row.status === "failed" && row.category !== "comparison");
-  return [...failed.map((row) => row.label), ...(final?.globalVerdict?.defects ?? []).map(plainDefect)]
+  return [...failed.map(failedCheckWords), ...(final?.globalVerdict?.defects ?? []).map(plainDefect)]
     .filter(Boolean)
     .slice(0, STILL_OPEN_SHOWN);
 }
@@ -206,7 +207,11 @@ export function ResultPanel(props: InspectorProps): JSX.Element {
   const title = graph.active ? "Latest build" : "Your build";
   const ended = endedWords(graph);
   const open = (): void => {
-    if (resultSrc) props.onLight([{ path: resultPath, src: resultSrc, title, caption: "view: default" }], 0);
+    if (resultSrc)
+      props.onLight(
+        [{ path: resultPath, src: resultSrc, title, caption: stillCaptionWords(HarnessCamera.Default) }],
+        0,
+      );
   };
   const attention = outcome && checksNeedAttention(outcome) ? "checks need attention" : null;
   return (

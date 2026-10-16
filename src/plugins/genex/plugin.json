@@ -1,7 +1,7 @@
 {
   "apiVersion": 3,
   "id": "genex",
-  "version": "1.5.3",
+  "version": "1.5.4",
   "name": "Genex Tools",
   "publisher": "Genex",
   "description": "3D models, characters, sound and art for your projects, made in chat with Genex credits. Coding stays on your own provider.",
@@ -67,7 +67,7 @@
     },
     {
       "name": "cli",
-      "description": "Run a free Genex CLI command with the user's saved Genex account: doctor, budget, llm models, llm status, llm cancel or shop list. Studio runs its own pinned CLI in a folder of its own, never in the project, and returns the command's output. Commands that spend coin or credits or change what the game sells go through genex__cli-paid, generation through genex__asset and publishing through genex__publish; other commands are not available.",
+      "description": "Run a free Genex CLI command with the user's saved Genex account: doctor, budget, llm models, llm status, llm cancel or shop list. Studio runs its own pinned CLI in a folder of its own, never in the project, and returns the command's output. Commands that spend coin or credits or change what this project sells go through genex__cli-paid, generation through genex__asset and publishing through genex__publish; other commands are not available.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -91,7 +91,7 @@
     },
     {
       "name": "cli-paid",
-      "description": "Run a Genex CLI command that spends coin or credits or changes what this game sells: llm bench (with a whole-number max-coins option), shop add, shop set, shop remove or shop test. The user approves each call, so it can wait several minutes for the answer; never repeat a declined or expired request unless the user asks again. Parameters are as for genex__cli; the game needs a published Genex draft first.",
+      "description": "Run a Genex CLI command that spends coin or credits or changes what this project sells: llm bench (with a whole-number max-coins option), shop add, shop set, shop remove or shop test. The user approves each call, so it can wait several minutes for the answer; never repeat a declined or expired request unless the user asks again. Parameters are as for genex__cli; the project needs a published Genex draft first.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -111,12 +111,12 @@
         },
         "required": ["command"]
       },
-      "confirmation": "Run a Genex CLI command that spends coin or credits or changes what this game sells, with your saved Genex account.",
+      "confirmation": "Run a Genex CLI command that spends coin or credits or changes what this project sells, with your saved Genex account.",
       "host": "genex-cli-paid"
     },
     {
       "name": "package",
-      "description": "Add Genex's multiplayer package (@genex-ai/multiplayer) or player-identity package (@genex-ai/embed-sdk) to this game, at the version Studio pins, with the game's own package manager. A multiplayer request installs both multiplayer and player identity in one approved command. A game without package.json, such as one made from Studio's template, cannot add them.",
+      "description": "Add Genex's multiplayer package (@genex-ai/multiplayer) or player-identity package (@genex-ai/embed-sdk) to this project, at the version Studio pins, with the project's own package manager. A multiplayer request installs both multiplayer and player identity in one approved command. A project without package.json, such as one made from Studio's template, cannot add them.",
       "parameters": {
         "type": "object",
         "properties": {

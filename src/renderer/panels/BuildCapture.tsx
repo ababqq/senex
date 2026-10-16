@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { SECOND_MS } from "../../shared/duration.ts";
 import type { RunGraph } from "../run-graph.ts";
 import { IMAGE_OUTLINE } from "./inspector/pictures.tsx";
+import { cameraWords } from "../words.ts";
 import { pollWhile } from "./run-stills.ts";
 
 /** How often a working stage looks for a newer saved frame. */
@@ -21,7 +22,7 @@ async function latestCapture(
     if (!latest) return { file: null, caption: "Recorded check capture" };
     return {
       file: latest.path ?? null,
-      caption: `${latest.camera} · captured ${new Date(latest.capturedAt).toLocaleTimeString()}`,
+      caption: `${cameraWords(latest.camera)} · captured ${new Date(latest.capturedAt).toLocaleTimeString()}`,
     };
   } catch (error) {
     if (/No handler registered|not a function/i.test(String(error))) latestCaptureAvailable = false;

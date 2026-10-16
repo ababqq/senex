@@ -26,7 +26,7 @@ import type { CustomEvent, CustomPayload } from "../shared/custom-events.ts";
 import type { GithubLookupProblem } from "../shared/plugins.ts";
 import type { GenexPublishPhase } from "../shared/genex.ts";
 import { RoundOutcome, roundOutcome, stoppedSource } from "../shared/run-state.ts";
-import type { OutcomeView, StructuralTally } from "../shared/run-summary.ts";
+import type { OutcomeView, RunEvidence, StructuralTally } from "../shared/run-summary.ts";
 import {
   GrantKind,
   isPlanRequest,
@@ -547,6 +547,62 @@ export function previewStateWords(state: string): string {
   return PREVIEW_STATE_WORDS[state] ?? state;
 }
 
+/** A recorded check's result (`RunEvidence.status`) as a person reads it. */
+const EVIDENCE_STATUS_WORDS = {
+  passed: "Passed",
+  failed: "Failed",
+  unknown: "Unknown",
+  incomplete: "Incomplete",
+} as const satisfies Record<RunEvidence["status"], string>;
+
+/** The sort of recorded check (`RunEvidence.category`) as a person reads it. */
+const EVIDENCE_CATEGORY_WORDS = {
+  health: "Health check",
+  structural: "Structural check",
+  visual: "Visual question",
+  interaction: "Interaction check",
+  comparison: "Side-by-side comparison",
+} as const satisfies Record<RunEvidence["category"], string>;
+
+/** The views the harness names itself: the page as the window shows it, and the person's own view of it. */
+export const HarnessCamera = { Default: "default", UserView: "user:view" } as const;
+export type HarnessCamera = (typeof HarnessCamera)[keyof typeof HarnessCamera];
+
+const HARNESS_CAMERA_WORDS = {
+  [HarnessCamera.Default]: "Page",
+  [HarnessCamera.UserView]: "Full page",
+} as const satisfies Record<HarnessCamera, string>;
+
+/**
+ * A view's name as a person reads it. The harness's own two are `default` and `user:view`; a view the
+ * project declared (`empty-state`, `settings_page`) is humanised, with any `kind:` prefix left off.
+ */
+export function cameraWords(camera: string): string {
+  const named =
+    camera === HarnessCamera.Default || camera === HarnessCamera.UserView ? HARNESS_CAMERA_WORDS[camera] : "";
+  if (named) return named;
+  const plain = camera
+    .replace(/^[a-z]+:/i, "")
+    .replace(/[-_]+/g, " ")
+    .trim();
+  return plain ? plain.charAt(0).toUpperCase() + plain.slice(1) : camera;
+}
+
+/** The caption under a still: which view it is. */
+export function stillCaptionWords(camera: string): string {
+  return `View: ${cameraWords(camera)}`;
+}
+
+/** A recorded check's result in plain words; a code a newer Studio wrote that this one does not list stays as written. */
+export function evidenceStatusWords(status: RunEvidence["status"]): string {
+  return EVIDENCE_STATUS_WORDS[status] ?? status;
+}
+
+/** The sort of a recorded check in plain words; an unlisted code stays as written. */
+export function evidenceCategoryWords(category: RunEvidence["category"]): string {
+  return EVIDENCE_CATEGORY_WORDS[category] ?? category;
+}
+
 /**
  * The Result panel's count of structural checks. A new revision never inherits a pass, so a build whose
  * checks passed on the revision before it has none of its own; the sentence says that instead of
@@ -752,6 +808,22 @@ export interface CheckBoard {
   plannedPassing?: number | null;
   plannedUnmeasured?: number | null;
   grownTotal?: number | null;
+}
+
+/** The longest reason a failed check shows; the harness's own reason can end in a JSON dump of the page's state. */
+const CHECK_REASON_MAX = 120;
+const UNMEASURED_REASON = "Couldn't measure this round";
+
+/**
+ * Why a check on the board is not a pass, for a card. The harness writes these reasons for the model that
+ * reads the board (a camera name, a missing `state()`, an expression's error), so they are not copy: a
+ * check nothing could measure says only that, decided on its typed result and never on its wording; a
+ * failed one keeps its note, with ids stripped and its length bounded. A passed one has nothing to say.
+ */
+export function checkReasonWords(row: { pass: boolean | null; reason: string }): string {
+  if (row.pass === true) return "";
+  if (row.pass === null) return UNMEASURED_REASON;
+  return clip(withoutIds(row.reason), CHECK_REASON_MAX);
 }
 
 export function checkCounts(board: CheckBoard | null | undefined): string {
@@ -2423,10 +2495,10 @@ export const GENEX_WORDS = {
       tripo: { name: "Tripo", line: "3D · rig · animate" },
       meshy: { name: "Meshy", line: "3D · characters" },
       uthana: { name: "Uthana", line: "Rigging · animation" },
-      "gpt-image": { name: "GPT Image 2.5", line: "Images · sprites" },
+      "gpt-image": { name: "GPT Image 2.5", line: "Images · illustrations" },
       "nano-banana": { name: "Nano Banana 2", line: "Textures" },
       minimax: { name: "MiniMax H3 Max Turbo", line: "Video" },
-      blender: { name: "Blender", line: "Scenes · blockouts" },
+      blender: { name: "Blender", line: "Scenes · renders" },
       elevenlabs: { name: "ElevenLabs", line: "SFX · music · voice" },
       publishing: { name: "Genex", line: "Publishing" },
     },

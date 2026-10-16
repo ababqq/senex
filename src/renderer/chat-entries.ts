@@ -16,7 +16,7 @@ import {
   delegatedPayload,
 } from "../shared/custom-events.ts";
 import { isHandoffNarration } from "../shared/chat-presentation.ts";
-import { isCoordinatorTool } from "../shared/coordinator.ts";
+import { ChatQuestionTool, isBuildLaunch, isCoordinatorTool } from "../shared/coordinator.ts";
 import { SessionActivityRole } from "../shared/chat-activity.ts";
 import type { EventData, Message } from "../shared/event-log.ts";
 import { EventKind } from "../shared/event-log.ts";
@@ -811,12 +811,21 @@ function readDelegatedTurn(chat: ChatDraft, eventId: string, scope: string, payl
 /**
  * A call the host records itself, so its mirror would be a second row: a plugin's (`plugin_tool`),
  * and a run control of the coordinator's or of the chat's own session after a night — the host
- * records its request and result when it runs it (conversation.ts `coordinatorTool`). A resume the
- * session only recorded runs once its reply ends, and shows then.
+ * records its request and result when it runs it (conversation.ts `coordinatorTool`). A call the
+ * session only recorded runs once its reply ends and shows then, by the harness's own record: a
+ * resume, a build to start or reopen (the run card, the reopen promise), a question to ask (the
+ * question card). A launch the harness drops (a question beside it, a Stop, a plan sent back, a reopen taking
+ * precedence) shows none; one its launch tool answers not-ok shows a failed row, by the harness's own record.
  */
 function recordedByHost(chat: ChatDraft, name: string): boolean {
   if (chat.hostedTools.has(pluginToolKey(name))) return true;
-  return isCoordinatorTool(name.trim().replace(STUDIO_TOOL_PREFIX, ""));
+  const bare = name.trim().replace(STUDIO_TOOL_PREFIX, "");
+  return isCoordinatorTool(bare) || showsLater(bare);
+}
+
+/** A call the chat's session records and the harness answers itself once the reply ends. */
+function showsLater(bare: string): boolean {
+  return isBuildLaunch(bare) || bare === ChatQuestionTool.AskUser;
 }
 
 /**

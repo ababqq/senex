@@ -55,7 +55,7 @@ export function resolveChatProject(
 }
 
 // Filler that says nothing about the project — a polite ask must not become the project's name
-// ("Could you please make a project where I am a seller…" once named a project
+// ("Could you please make a project where I track my invoices" once named a project
 // `could-you-please-make`). The name comes from the CONTENT words.
 const NAME_STOPWORDS = new Set([
   "a",
@@ -128,7 +128,6 @@ const NAME_STOPWORDS = new Set([
   "project",
   "projects",
   "play",
-  "player",
   "where",
   "when",
   "what",
@@ -141,11 +140,8 @@ const NAME_STOPWORDS = new Set([
   "really",
   "very",
   "new",
-  "general",
   "come",
   "comes",
-  "sell",
-  "sellers",
 ]);
 
 /** The folder name an ask with no words at all gets. */
@@ -158,6 +154,7 @@ export function nameFromAsk(ask: string): string {
   // threw out of the whole turn.
   const words = ask
     .toLowerCase()
+    .replace(/['’]/g, "")
     .replace(/[^a-z0-9\s-]+/g, " ")
     .split(/\s+/)
     .filter((w) => w && !/^-+$/.test(w));
@@ -304,7 +301,7 @@ function contractorRules(engine: string | undefined): string[] {
   return [
     TEMPLATE_RULE,
     "Helper scripts of your own (an inspector, a syntax check, a probe) go under .studio/ (gitignored); source scripts for generated assets live under assets/src/.",
-    "Before you build or change how the project looks, if the folder has a references/ or ref/ directory with stills, look at those pictures — they are the visual bar, not files to load as textures.",
+    "Before you build or change how the project looks, if the folder has a references/ or ref/ directory with stills, look at those pictures — they are the visual bar, not files to load as project assets.",
     "The project's work happens in this workspace: never in another copy of this project or in another project's folder, and a path the user named is a stills folder to look at, not a parent to walk. When the user asks about something elsewhere on their Mac (another folder, their Downloads, their disk), that is the ask: what you may reach is your session's permissions, not this brief.",
     "When your shell is sandboxed, it rejects commands it cannot statically analyze — avoid $-expansions, escaped whitespace, heredocs and long && chains; run one simple command at a time, and put multi-step logic in a script file you then run with node.",
     `When a sandbox blocks a step only the user's own Mac can do (an install or download that needs the network, such as brew or pip, a system tool, a sign-in), do not work around it: end your reply with that one command on a single line in a \`\`\`${USER_COMMAND_FENCE} block and one plain sentence on why. The chat shows it with a Run button; how it went comes back as the user's next message. Never offer a command you can run yourself, sudo, or anything piped into a shell.`,

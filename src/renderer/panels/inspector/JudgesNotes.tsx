@@ -16,7 +16,14 @@ import {
   roundStep,
   type Scoreboard,
 } from "../../run-graph.ts";
-import { checkCounts, sideBySideWords, stoppedWords, undoneBecause, verdictSentence } from "../../words.ts";
+import {
+  checkCounts,
+  checkReasonWords,
+  sideBySideWords,
+  stoppedWords,
+  undoneBecause,
+  verdictSentence,
+} from "../../words.ts";
 import { capitalise } from "./format.ts";
 
 /** The most failing checks and named defects the sheet lists. */
@@ -109,7 +116,7 @@ function StillFailing({ board, problem }: { board: Scoreboard; problem: string }
         {failing.slice(0, FAILING_SHOWN).map((row) => (
           <li key={row.id}>
             {capitalise(checkWords(row.id))}
-            {row.reason ? <span className="text-ink-3"> — {row.reason}</span> : null}
+            {row.reason ? <span className="text-ink-3"> — {checkReasonWords(row)}</span> : null}
           </li>
         ))}
         {failing.length > FAILING_SHOWN ? (

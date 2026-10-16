@@ -46,6 +46,8 @@ import {
   redactValues,
 } from "../../shared/redact.ts";
 
+/** The name the app gives every MCP server it connects to: what a server's operator reads in their logs. */
+export const MCP_CLIENT_NAME = "genex";
 export const CONNECT_TIMEOUT_MS = 10 * SECOND_MS;
 export const CALL_TIMEOUT_MS = 2 * MINUTE_MS;
 export const CALL_TOTAL_TIMEOUT_MS = 10 * MINUTE_MS;
@@ -522,7 +524,7 @@ export class McpConnection {
     const { Client } = (await import("@modelcontextprotocol/sdk/client/index.js")) as unknown as {
       Client: new (info: { name: string; version: string }, options?: unknown) => SdkClient;
     };
-    const client = new Client({ name: "ai-game-studio", version: "1" }, { capabilities: { roots: {} } });
+    const client = new Client({ name: MCP_CLIENT_NAME, version: "1" }, { capabilities: { roots: {} } });
     const { ListRootsRequestSchema } = await import("@modelcontextprotocol/sdk/types.js");
     client.setRequestHandler(ListRootsRequestSchema, () => ({
       roots:

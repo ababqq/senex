@@ -31,3 +31,18 @@ test("Windows packages as a per-user Squirrel installer named Genex-Setup.exe, w
   const { CompanyName, ProductName } = config.packagerConfig.win32metadata;
   assert.deepEqual([CompanyName, ProductName], ["Genex", "Genex"]);
 });
+
+test("the Linux packages describe the product as it is, under categories freedesktop registers", () => {
+  const config = require("../../forge.config.cjs");
+  const linuxMakers = config.makers.filter((maker: { name: string }) =>
+    ["@electron-forge/maker-deb", "@electron-forge/maker-rpm"].includes(maker.name),
+  );
+  const registered = new Set(["Development", "IDE", "Utility", "Building", "ProjectManagement", "WebDevelopment"]);
+  for (const maker of linuxMakers) {
+    const { productDescription, categories } = maker.config.options;
+    assert.doesNotMatch(productDescription, /three\.js|\bgames?\b/i, `${maker.name}: ${productDescription}`);
+    assert.match(productDescription, /web apps/);
+    assert.ok(categories.includes("Development"), maker.name);
+    for (const category of categories) assert.ok(registered.has(category), `${maker.name}: ${category}`);
+  }
+});

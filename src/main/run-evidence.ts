@@ -96,14 +96,19 @@ async function supplementPlaytests(summary: RunSummary, dir: string, entries: re
   for (const folder of entries.filter((e) => e.isDirectory() && /^play_\d+$/.test(e.name))) {
     // Corrupt historical reports do not become evidence.
     const report = await readReport(dir, path.join(dir, folder.name, "playtest.json"));
-    for (const [check, value] of Object.entries(report?.answers ?? {})) {
+    const answers = Object.entries(report?.answers ?? {}).filter(([, value]) => value && typeof value === "object");
+    for (const [index, [check, value]] of answers.entries()) {
       const answer = value as { pass?: boolean | null; note?: string };
-      if (!answer || typeof answer !== "object") continue;
+      // The check's own id is the harness's; a person reads which test it was, and which of several.
+      const which =
+        answers.length > 1
+          ? `Independent test ${folder.name.slice(5)}, check ${index + 1}`
+          : `Independent test ${folder.name.slice(5)}`;
       summary.evidence.push({
         id: `${folder.name}:${check}`,
         head: null,
         category: "interaction",
-        label: `Independent test ${folder.name.slice(5)} — ${check} (question not recorded)`,
+        label: `${which} (question not recorded)`,
         status: playtestStatus(answer.pass),
         note: typeof answer.note === "string" ? answer.note : null,
         source: "independent-playtester",

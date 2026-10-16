@@ -5138,7 +5138,7 @@ describe("the Loop's time limit", () => {
   it("L2. an ∞ build's launch promise names the critics and a dated ceiling, never a bare end time", async () => {
     const { launchPromise } = await import("../../src/harness-seed/loop/chat-dispatch.ts");
     const now = new Date(2026, 8, 26, 22, 5).getTime();
-    const ceilingDay = new Date(now + 86_400_000).toLocaleDateString([], { weekday: "long" });
+    const ceilingDay = new Date(now + 86_400_000).toLocaleDateString("en-US", { weekday: "long" });
 
     const unbounded = launchPromise({ wallClockMs: 86_400_000, untilSatisfied: true }, null, now);
     assert.doesNotMatch(unbounded, /Building until about/, "∞ has no end time to promise");
@@ -8942,5 +8942,140 @@ describe("a run that declared no kind is software, not a game world (completion 
       assert.match(intent, /keep the header$/);
     }
     assert.match(integrationIntent({ kind: "graphics" }), /palette, scale, lighting, spawn/);
+  });
+});
+
+describe("the calls a chat stood behind, and the clock it speaks in (completion audit)", () => {
+  it("CB-1. the last reopen or resume call is the one the chat stood behind, as for a launch and a question", async () => {
+    const { reopenAsked } = await import("../../src/harness-seed/loop/reopen-run.ts");
+    const { resumeAsked } = await import("../../src/harness-seed/loop/after-night.ts");
+    const finished = { runId: "run_x", state: "finished", goal: "a plaza", reopenable: true };
+    const paused = { ...finished, state: "paused", stoppedBecause: "stopped by the user" };
+    const bounced = { name: "reopen_run", args: {} };
+    const retried = { name: "reopen_run", args: { text: "add enemies to the plaza" } };
+    assert.deepEqual(reopenAsked(finished as never, { hours: 2 }, [bounced, retried]), {
+      hours: 2,
+      text: "add enemies to the plaza",
+    });
+    assert.deepEqual(reopenAsked(finished as never, { hours: 2 }, [bounced]), { hours: 2 }, "a lone call still counts");
+    const refused = { name: "resume_run", args: {} };
+    const resumed = { name: "resume_run", args: { text: "go on with a red moon" } };
+    assert.deepEqual(resumeAsked(paused as never, [refused, resumed]), { text: "go on with a red moon" });
+    assert.deepEqual(resumeAsked(paused as never, [refused]), {}, "a lone call still counts");
+  });
+
+  it("CB-2. the chat's promise of when a build ends is written in English whatever the machine's language", async () => {
+    const { spawnSync } = await import("node:child_process");
+    const script = `
+      import { launchPromise } from ${JSON.stringify(pathToFileURL(path.resolve("src/harness-seed/loop/chat-dispatch.ts")).href)};
+      import { endClock } from ${JSON.stringify(pathToFileURL(path.resolve("src/harness-seed/loop/wall-clock.ts")).href)};
+      const now = new Date(2026, 8, 26, 22, 5).getTime();
+      console.log(JSON.stringify({
+        locale: Intl.DateTimeFormat().resolvedOptions().locale,
+        unbounded: launchPromise({ wallClockMs: 86_400_000, untilSatisfied: true }, null, now),
+        capped: launchPromise({ wallClockMs: 3_600_000 }, null, now),
+        tomorrow: endClock(24 * 3_600_000, now),
+        later: endClock(48 * 3_600_000, now),
+      }));`;
+    let judged = 0;
+    for (const language of ["ko_KR.UTF-8", "de_DE.UTF-8", "ja_JP.UTF-8"]) {
+      const child = spawnSync(process.execPath, ["--input-type=module", "-e", script], {
+        encoding: "utf8",
+        env: { ...process.env, LC_ALL: language, LANG: language },
+      });
+      assert.equal(child.status, 0, child.stderr);
+      const raw = JSON.parse(child.stdout.trim().split("\n").at(-1) ?? "{}") as Record<string, string>;
+      // ICU writes a narrow no-break space before "PM"; it is the same English clock.
+      const said = Object.fromEntries(
+        Object.entries(raw).map(([name, text]) => [name, text.replace(/[\u202f\u00a0]/g, " ")]),
+      );
+      // The machine may not honour the language (no ICU data, a non-POSIX host): then nothing was proven.
+      if (!said.locale?.toLowerCase().startsWith(language.slice(0, 2))) continue;
+      judged += 1;
+      for (const [name, text] of Object.entries(said))
+        if (name !== "locale") assert.doesNotMatch(text, /[^\u0000-ɏ -⁯]/u, `${language} ${name}: ${text}`);
+      assert.match(said.capped ?? "", /Building until about 11:05 PM/, language);
+      assert.equal(said.tomorrow, "10:05 PM tomorrow", language);
+      assert.match(said.unbounded ?? "", /Sunday 10:05 PM/, language);
+    }
+    if (judged === 0) assert.ok(true, "no foreign locale is available on this machine");
+  });
+
+  it("CB-3. the plan error teaches the format the plan tool teaches, and a plan written from it compiles", async () => {
+    const { compilePlan } = await import("../../src/harness-seed/loop/director/rules.ts");
+    const { DIRECTOR_TOOLS } = await import("../../src/harness-seed/loop/director/tool-specs.ts");
+    const { error } = compilePlan({ summary: "s" }) as unknown as { error: string };
+    const example = error.slice(error.indexOf("["));
+    const parts = JSON.parse(example) as Array<{ id: string; owns: string }>;
+    assert.doesNotMatch(error, /plaza|lighting|dusk/i, "a web app's lead is not taught a game's part");
+    assert.equal(
+      (compilePlan({ summary: "s", workers: example }) as unknown as { error?: string }).error,
+      undefined,
+      "the example is a plan that compiles",
+    );
+    const tool = DIRECTOR_TOOLS.find((candidate) => candidate.name === "plan");
+    const described = JSON.stringify(tool?.parameters ?? {});
+    assert.ok(described.includes(parts[0]!.id), "the schema teaches the same part");
+  });
+
+  it("CB-4. an undone round that changed nothing on screen is explained as the verdict explains it", async () => {
+    const { deriveLessons, roundRecord } = await import("../../src/harness-seed/loop/ledger.ts");
+    const { VerdictRule } = await import("../../src/harness-seed/loop/verdict.ts");
+    const records = [1, 2, 3].map((round) => ({
+      ...roundRecord({ runId: "r1", part: "form", round, winner: "incumbent", verdictSource: "checks" }),
+      rule: VerdictRule.NoChange,
+    }));
+    const lessons = deriveLessons(records as never);
+    assert.ok(lessons.some((lesson) => /3 of 3 rounds were undone because nothing on screen changed/.test(lesson)));
+    assert.equal(lessons.join(" ").match(/\bcameras?\b/i), null, lessons.join(" | "));
+  });
+
+  it("CB-5. mechanical review does not send a list or form to a game loop to fix a clock read", async () => {
+    const { mechanicalReview } = await import("../../src/harness-seed/loop/review.ts");
+    const diff = [
+      "diff --git a/src/list.js b/src/list.js",
+      "--- a/src/list.js",
+      "+++ b/src/list.js",
+      "@@ -1,1 +1,2 @@",
+      " export const todos = [];",
+      "+export const todo = { id: Date.now(), title: 'Call Ada' };",
+    ].join("\n");
+    const found = mechanicalReview(diff, { template: true } as never) as unknown as Array<{
+      category: string;
+      fix: string;
+      file: string;
+    }>;
+    const clock = found.filter((violation) => violation.category === "wall-clock");
+    assert.equal(clock.length, 1, JSON.stringify(found));
+    assert.equal(clock[0]!.file, "src/list.js");
+    assert.doesNotMatch(
+      clock[0]!.fix,
+      /^derive time from dt in update\(\)/,
+      "the fix names ids and displayed times first",
+    );
+    assert.match(clock[0]!.fix, /counter held in the store/);
+  });
+
+  it("CB-6. the reference panel's fallback prompt compares a product on layout and type, not a title's materials", async () => {
+    const { judgeAgainstReference } = await import("../../src/harness-seed/loop/judge.ts");
+    const still = { label: "ref", mimeType: "image/jpeg", data: "aGk=" };
+    const recorder = ctxRecorder({
+      unknown: { value: null },
+      handlers: {
+        "engine.complete": () => ({
+          message: { content: '{"looks":"build","plays":"build","better":"x","biggest_gap":"","reason":"r"}' },
+        }),
+      },
+    });
+    const run = { runId: "r", reference: { name: "Linear", frames: [still, still] } };
+    await judgeAgainstReference(recorder.ctx as never, {
+      run: run as never,
+      evidence: { shots: [{ camera: "default", base64: "aGk=" }] } as never,
+      votes: 1,
+    });
+    const system = JSON.stringify(recorder.paramsOf("engine.complete")[0] ?? {});
+    assert.doesNotMatch(system, /reference title|Compare materials, light, silhouette, palette/);
+    assert.match(system, /named reference product/);
+    assert.match(system, /layout, hierarchy, type, spacing/);
   });
 });

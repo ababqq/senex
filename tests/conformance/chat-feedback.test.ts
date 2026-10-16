@@ -358,3 +358,81 @@ test("a run control the host records itself is one row, and a recorded resume sh
     "shown once, when it runs",
   );
 });
+
+test("a build to start or a question to ask is shown once, by the harness's own record, never as the session's mirrored call", () => {
+  const mirrored = (id: number, name: string, callId: string, input: unknown = {}) =>
+    custom(id, "delegated.claude-code", {
+      kind: "assistant",
+      role: "planner",
+      delegationId: "d1",
+      data: { parts: [{ type: "tool_use", id: callId, name, input }] },
+    });
+  const answered = (id: number, callId: string) =>
+    custom(id, "delegated.claude-code", {
+      kind: "user",
+      role: "planner",
+      delegationId: "d1",
+      data: {
+        parts: [
+          { type: "tool_result", tool_use_id: callId, content: "Recorded - the studio launches this", is_error: false },
+        ],
+      },
+    });
+  const hosted = (id: number, name: string, callId: string, content: string) => [
+    event(id, { type: "tool_requested", tool_call_id: callId, request: { name, arguments: { goal: "a form" } } }),
+    event(id + 1, { type: "tool_result", tool_call_id: callId, result: { ok: true, content } }),
+  ];
+  const rows = (events: EventEnvelope[]) => toEntries(events).flatMap((e) => (e.kind === "tools" ? e.rows : []));
+
+  for (const [mirror, host, label] of [
+    ["mcp__studio__start_autopilot", "start_autopilot", "requested an iterative build"],
+    ["mcp__studio__start_unattended_run", "start_unattended_run", "started the build"],
+  ] as const) {
+    assert.deepEqual(
+      rows([mirrored(1, mirror, "a1"), answered(2, "a1"), ...hosted(3, host, "dlg_1_intake", "Started.")]).map(
+        (row) => row.label,
+      ),
+      [label],
+      `${host}: one row for one launch`,
+    );
+    assert.deepEqual(
+      rows([mirrored(1, mirror, "a1"), answered(2, "a1")]),
+      [],
+      `${host}: a launch that never ran shows none`,
+    );
+  }
+  // Another server's tool that shares the name is not the studio's: the harness records nothing for it.
+  assert.equal(rows([mirrored(1, "mcp__github__start_autopilot", "a2")]).length, 1);
+  // A launch the harness's own tool answers not-ok is one failed row, by the harness's record.
+  const refused = [
+    mirrored(1, "mcp__studio__start_unattended_run", "a3"),
+    answered(2, "a3"),
+    event(3, {
+      type: "tool_requested",
+      tool_call_id: "dlg_2_intake",
+      request: { name: "start_unattended_run", arguments: { goal: "a form" } },
+    }),
+    event(4, {
+      type: "tool_result",
+      tool_call_id: "dlg_2_intake",
+      result: { ok: false, content: "Loop is off in the composer." },
+    }),
+  ];
+  assert.equal(rows(refused).length, 1, "a refused launch is one row");
+  assert.equal(rows(refused)[0]?.failed, true);
+
+  // The question card is the harness's: the mirrored call and the model-facing reply stay out of the chat.
+  const asked = [
+    mirrored(1, "mcp__studio__ask_user", "q1", { question: "Which look?", options: ["Warm"] }),
+    answered(2, "q1"),
+    custom(3, "interview_question", { question: "Which look?", intakeId: "i1" }),
+  ];
+  assert.deepEqual(rows(asked), [], "no 'asked you a question' row beside the card");
+  assert.equal(toEntries(asked).filter((entry) => entry.kind === "question").length, 1, "exactly one card");
+  assert.deepEqual(rows([mirrored(1, "mcp__studio__reopen_run", "r1", { text: "more" }), answered(2, "r1")]), []);
+  assert.equal(
+    rows([mirrored(1, "Read", "x1", { file_path: "a.ts" })]).length,
+    1,
+    "an ordinary tool still gets its row",
+  );
+});

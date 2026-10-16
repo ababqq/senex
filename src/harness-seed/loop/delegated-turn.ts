@@ -227,8 +227,9 @@ async function finishTurn(
   const resume = options.afterNight ? resumeAsked(options.afterNight, recorded) : null;
   if (resume) return handBack(ctx, options, result, MESSAGE.resumedAnyway, { resumeRun: resume });
   const calls = launchTool ? recorded : [];
-  // The last call stands: the studio's tool server turns a call that left out a required argument
-  // back to the session, which then calls again, and both are recorded. A lone call still counts.
+  // The last call stands, for the question, the launch, a reopen and a resume alike: the studio's tool
+  // server turns a call that left out a required argument back to the session, which then calls again,
+  // and both are recorded. A lone call still counts.
   const question = calls.findLast((c) => c.name === askUser.name);
   const launch = calls.findLast((c) => c.name === launchTool?.name);
   // A question is not approval to start. Even if the model also recorded a launch, wait for

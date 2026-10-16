@@ -81,6 +81,7 @@ import {
 import { summarizeScoreboard, toScoreboard } from "../../src/harness-seed/loop/checks.ts";
 import { CHECK_KINDS, renderCheckGrammar, renderChecks } from "../../src/harness-seed/loop/spec.ts";
 import { KIND_NAMES } from "../../src/harness-seed/loop/kinds.ts";
+import { STUDIO_COMMITTER } from "../../src/substrate/snapshots.ts";
 
 const rigs: Rig[] = [];
 afterEach(async () => {
@@ -3522,7 +3523,11 @@ describe("a director's night through the real core and harness", () => {
     );
     // One committer, not the five a night used to leave in `git log`.
     const committers = new Set((await inProject("git log --format='%an|%cn'")).split("\n").filter(Boolean));
-    assert.deepEqual([...committers], ["AI Game Studio|AI Game Studio"], [...committers].join(" | "));
+    assert.deepEqual(
+      [...committers],
+      [`${STUDIO_COMMITTER.name}|${STUDIO_COMMITTER.name}`],
+      [...committers].join(" | "),
+    );
 
     // A single session the director stops says the same thing: the engine's "stopped by you"
     // is the engine's word for an abort, not a report about the owner.
@@ -3965,9 +3970,9 @@ describe("a director's night through the real core and harness", () => {
         await git(request.cwd, ["add", "-A"]);
         await git(request.cwd, [
           "-c",
-          "user.name=AI Game Studio",
+          `user.name=${STUDIO_COMMITTER.name}`,
           "-c",
-          "user.email=studio@ai-game-studio.local",
+          `user.email=${STUDIO_COMMITTER.email}`,
           "commit",
           "-q",
           "-m",

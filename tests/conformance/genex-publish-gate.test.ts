@@ -205,6 +205,7 @@ describe("publishing tests the build before players get it", () => {
       const failed = await fx.publish("Racing Demo");
       assert.equal(failed.job?.state, "failed");
       assert.equal(failed.job?.error, PUBLISH_MESSAGE.DraftFailedTest);
+      assert.doesNotMatch(String(failed.job?.error), /\bPlayers\b/, "the person who opens a project is not a player");
       assert.equal(fx.seen.deploys.length, 2, "one more upload before giving up");
       assert.ok(!fx.seen.events.includes("promote"), "the untested build never replaced the public one");
       assert.ok(!fx.seen.events.includes("list"));

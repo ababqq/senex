@@ -6,7 +6,7 @@ import { type IterationNode, type RunGraph as RunGraphModel, thumbShot } from ".
 import { TRY_GLYPH, TRY_WORD } from "../../round-status.ts";
 import { Icon } from "../../ui/icons.tsx";
 import { useRoundStill } from "../run-stills.ts";
-import { capitalise } from "./format.ts";
+import { cameraWords } from "../../words.ts";
 
 /** Where the compare handle starts, how far it may go toward either edge, and one arrow key's step. */
 const SPLIT_START = 0.5;
@@ -172,7 +172,7 @@ export function Cameras({
           className={`inline-flex h-[26px] cursor-pointer items-center gap-1.5 rounded-[8px] px-2.5 font-mono text-xs focus-visible:outline-2 focus-visible:outline-accent ${name === value ? "bg-line-strong text-ink" : "text-ink-3 hover:bg-control-hover hover:text-control-text-hover"}`}
         >
           <Icon name="camera" size={13} />
-          {capitalise(name.replace(/[-_]+/g, " "))}
+          {cameraWords(name)}
         </button>
       ))}
     </div>
