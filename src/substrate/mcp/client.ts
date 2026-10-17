@@ -47,7 +47,7 @@ import {
 } from "../../shared/redact.ts";
 
 /** The name the app gives every MCP server it connects to: what a server's operator reads in their logs. */
-export const MCP_CLIENT_NAME = "genex";
+export const MCP_CLIENT_NAME = "senex";
 export const CONNECT_TIMEOUT_MS = 10 * SECOND_MS;
 export const CALL_TIMEOUT_MS = 2 * MINUTE_MS;
 export const CALL_TOTAL_TIMEOUT_MS = 10 * MINUTE_MS;

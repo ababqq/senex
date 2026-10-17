@@ -107,7 +107,7 @@ export interface WorkspaceSpec {
  * committee had been through their project overnight.
  */
 // The name is what a person reads in `git log`; the address is already in users' repositories, so it stays.
-export const STUDIO_COMMITTER = { name: "Genex", email: "studio@ai-game-studio.local" };
+export const STUDIO_COMMITTER = { name: "Senex", email: "studio@ai-game-studio.local" };
 
 /** Where a snapshot is bookmarked: a ref of the studio's own, never a tag `push --tags` ships. */
 export const snapshotRef = (snapshotId: string): string => `refs/studio/snap/${snapshotId}`;

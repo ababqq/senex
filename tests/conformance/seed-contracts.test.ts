@@ -172,7 +172,7 @@ describe("the coordinator contract (shared/coordinator.ts ↔ loop/run-inbox.ts)
 
   it("signs every studio commit with one name, the seed's and the substrate's, and not the old game studio's", () => {
     assert.deepEqual(seedCommitter, STUDIO_COMMITTER);
-    assert.doesNotMatch(STUDIO_COMMITTER.name, /game/i, "a user's `git log` names the product, not a game studio");
+    assert.equal(STUDIO_COMMITTER.name, "Senex", "a user's `git log` names the app, not a game studio");
     // The address is already in users' repositories and is what a landing recognises, so it is not renamed with the name.
     assert.equal(STUDIO_COMMITTER.email, "studio@ai-game-studio.local");
   });

@@ -254,7 +254,7 @@ it("disconnect wins over an authorization response already in flight", async () 
   }
 });
 
-it("registers this device under the product's name, not the old game studio's", async () => {
+it("registers this device under the app's name, Senex, not the old game studio's", async () => {
   const temp = await mkdtemp(path.join(os.tmpdir(), "studio-genex-label-"));
   let label: unknown = null;
   let started!: () => void;
@@ -290,7 +290,7 @@ it("registers this device under the product's name, not the old game studio's", 
     // Handled from the start: a failing assertion below must read as itself, not as this poll's "fetch failed".
     status.catch(() => {});
     await registered;
-    assert.equal(label, "Genex");
+    assert.equal(label, "Senex");
     await tools.disconnect();
     await status.catch(() => {});
   } finally {
