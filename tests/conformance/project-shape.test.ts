@@ -1756,31 +1756,6 @@ describe("the Open Project sheet", () => {
     );
   });
 
-  it("reads a served folder only from inside the project: studio.json and the bundler config cannot point it out", async () => {
-    const root = await tmpDir("studio-serve-");
-    const dir = path.join(root, "site");
-    await viteFolder(dir);
-    const hostile = ["../..", "../../escape", "/etc", "a;b", "dist/../..", "~"];
-    for (const serve of hostile) {
-      await writeFile(
-        path.join(dir, "studio.json"),
-        JSON.stringify({ entry: "dist/index.html", build: "npm run build", serve, own: true }),
-      );
-      const shape = await readProjectShape(dir);
-      assert.ok(shape.serve === "." || shape.serve === "dist", `${serve} -> ${shape.serve}`);
-    }
-    await writeFile(
-      path.join(dir, "studio.json"),
-      JSON.stringify({ entry: "../../elsewhere/index.html", build: "npm run build", own: true }),
-    );
-    assert.equal((await readProjectShape(dir)).serve, ".", "an entry outside the folder names no folder to serve");
-    await rm(path.join(dir, "studio.json"));
-    for (const outDir of ["../../..", "/tmp/out", "a;b"]) {
-      await writeFile(path.join(dir, "vite.config.ts"), `export default { build: { outDir: "${outDir}" } };\n`);
-      assert.equal((await detectProjectShape(dir))!.serve, "dist", `outDir ${outDir} is not a folder of the project`);
-    }
-  });
-
   it("exports a build that is the project folder itself only through the files the project declared", async () => {
     const { projects, base } = await workspaces();
     const dir = path.join(base, "library", "calc");

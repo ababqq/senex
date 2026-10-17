@@ -129,24 +129,12 @@ function kindOf(evidence: KindEvidence): ProjectKind {
   return "own-script";
 }
 
-/**
- * A folder of the project, spelled plainly (`.` or a relative path with no `..`), or null. The
- * folder a page is served from is read from files the project holds — a bundler config,
- * studio.json — and anything that leaves the project is not a folder the studio builds into or
- * serves.
- */
-function projectFolder(value: string): string | null {
-  const folder = value.trim().replace(/^\.\//, "").replace(/\/+$/, "") || ".";
-  return folder === "." || plainRelativePath(folder) ? folder : null;
-}
-
 /** Where the bundler writes its output. Vite (and most others) use dist/ unless told otherwise. */
 async function outputDir(dir: string): Promise<string> {
   for (const name of VITE_CONFIGS) {
     const text = await readFile(path.join(dir, name), "utf8").catch(() => null);
     const found = text ? /\boutDir\s*:\s*["']([^"']+)["']/.exec(text)?.[1] : null;
-    const folder = found ? projectFolder(found) : null;
-    if (folder) return folder;
+    if (found) return found.replace(/^\.\//, "").replace(/\/+$/, "") || ".";
   }
   return DEFAULT_OUTPUT_DIR;
 }
@@ -231,11 +219,6 @@ function serveDirOf(entry: string): string {
   return dir === "" ? "." : dir;
 }
 
-/** The folder studio.json serves from: its `serve` if that is a folder of the project, else the one the entry is in, else the project's own. */
-function servedFolder(named: string | null, entry: string): string {
-  return (named ? projectFolder(named) : null) ?? projectFolder(serveDirOf(entry)) ?? ".";
-}
-
 /** studio.json as `readProjectShape` reads it: every field unchecked until it is used. */
 interface ShapeMeta {
   entry?: unknown;
@@ -292,7 +275,7 @@ async function recordedShape(dir: string, meta: ShapeMeta): Promise<ProjectShape
     install: recordedInstall(meta, detected),
     own,
     kind: kind ?? (own ? "own-script" : TEMPLATE_SHAPE.kind),
-    serve: servedFolder(trimmedText(meta.serve), entry),
+    serve: trimmedText(meta.serve) ?? serveDirOf(entry),
   };
 }
 

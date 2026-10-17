@@ -28,7 +28,7 @@ import {
   packageCommands,
   resolveToolchain,
 } from "../../src/substrate/toolchain.ts";
-import type { ProjectShape } from "../../src/substrate/project-workspace.ts";
+import { readProjectShape, type ProjectShape } from "../../src/substrate/project-workspace.ts";
 import { GENEX_PROJECT_PACKAGES } from "../../src/shared/genex.ts";
 import type { RunRequest, RunResult } from "../../src/substrate/spawn.ts";
 import { tmpDir } from "../helpers/tmp.ts";
@@ -539,6 +539,36 @@ describe("building a project the user owns", () => {
     for (const shadow of await readdir(root)) {
       const last = await readdir(path.join(root, shadow, "last")).catch(() => [] as string[]);
       assert.ok(!last.includes("secret.txt"), "nothing from outside the project was copied in");
+    }
+  });
+
+  it("refuses the folder studio.json or the bundler config names when it is not inside the project", async () => {
+    const dir = await projectRepo("named");
+    const root = path.join(await tmpDir("studio-shadow-"), "builds");
+    const hostile = ["../..", "../../escape", "/etc", "dist/../.."];
+    for (const serve of hostile) {
+      await writeFile(
+        path.join(dir, "studio.json"),
+        JSON.stringify({ entry: "dist/index.html", build: "npm run build", serve, own: true }),
+      );
+      const runner = fakeRunner();
+      const builds = new ProjectBuilds({ root, run: runner.run });
+      const outcome = await builds.ensure({ project: "named", dir, shape: await readProjectShape(dir) });
+      assert.equal(outcome.ok, false, `studio.json serve ${serve}`);
+      assert.equal(runner.calls.length, 0, `${serve}: nothing was built`);
+    }
+    await rm(path.join(dir, "studio.json"));
+    await writeFile(
+      path.join(dir, "package.json"),
+      JSON.stringify({ name: "named", scripts: { build: "vite build" } }),
+    );
+    for (const outDir of ["../../..", "/tmp/out"]) {
+      await writeFile(path.join(dir, "vite.config.ts"), `export default { build: { outDir: "${outDir}" } };\n`);
+      const runner = fakeRunner();
+      const builds = new ProjectBuilds({ root, run: runner.run });
+      const outcome = await builds.ensure({ project: "named", dir, shape: await readProjectShape(dir) });
+      assert.equal(outcome.ok, false, `outDir ${outDir}`);
+      assert.equal(runner.calls.length, 0, `${outDir}: nothing was built`);
     }
   });
 
