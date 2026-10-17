@@ -510,22 +510,28 @@ function attributeValue(attributes: string, name: string): string | null {
   return found ? (found[1] ?? found[2] ?? "") : null;
 }
 
+/** The `url()` targets in a piece of CSS. */
+function cssUrls(css: string): string[] {
+  return [...css.matchAll(/url\(\s*["']?([^"')]+)["']?\s*\)/g)].map((found) => (found[1] ?? "").trim());
+}
+
+/** The files one tag names loosely: a responsive image, an inline style, a link, an object, a social card. */
+function looseOfTag(name: string, attributes: string): string[] {
+  const value = (key: string) => attributeValue(attributes, key) ?? "";
+  const candidates = ["srcset", "imagesrcset"].flatMap((key) => value(key).split(","));
+  const refs = [...cssUrls(value("style")), ...candidates.map((entry) => entry.trim().split(/\s+/)[0] ?? "")];
+  if (name === "a" || name === "area") refs.push(value("href"));
+  if (name === "object") refs.push(value("data"));
+  if (name === "meta" && /\b(?:property|name)\s*=\s*["'](?:og:image|twitter:image)["']/i.test(attributes))
+    refs.push(value("content"));
+  return refs;
+}
+
 /** What a page loads outside its tags' `src` and `href`, or links to as a file: for gathering only, never checked. */
 function looseReferences(html: string): string[] {
-  const refs: string[] = [];
-  const urls = (css: string) => [...css.matchAll(/url\(\s*["']?([^"')]+)["']?\s*\)/g)].map((m) => (m[1] ?? "").trim());
-  for (const [, body = ""] of html.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/gi)) refs.push(...urls(body));
-  for (const [, tag = "", attributes = ""] of html.matchAll(/<([a-z][\w:-]*)\b([^>]*)>/gi)) {
-    const name = tag.toLowerCase();
-    refs.push(...urls(attributeValue(attributes, "style") ?? ""));
-    for (const key of ["srcset", "imagesrcset"])
-      for (const candidate of (attributeValue(attributes, key) ?? "").split(","))
-        refs.push(candidate.trim().split(/\s+/)[0] ?? "");
-    if (name === "a" || name === "area") refs.push(attributeValue(attributes, "href") ?? "");
-    if (name === "object") refs.push(attributeValue(attributes, "data") ?? "");
-    const social = /\b(?:property|name)\s*=\s*["'](?:og:image|twitter:image)["']/i.test(attributes);
-    if (name === "meta" && social) refs.push(attributeValue(attributes, "content") ?? "");
-  }
+  const refs = [...html.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/gi)].flatMap((found) => cssUrls(found[1] ?? ""));
+  for (const [, tag = "", attributes = ""] of html.matchAll(/<([a-z][\w:-]*)\b([^>]*)>/gi))
+    refs.push(...looseOfTag(tag.toLowerCase(), attributes));
   return refs.filter(Boolean);
 }
 
