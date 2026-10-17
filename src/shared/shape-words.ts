@@ -150,29 +150,56 @@ export function openOptions(inspection: FolderInspection): OpenOption[] {
   // `starter` is empty when the folder is a project of its own — its own row above says it.
   if (inspection.starter.length > 0) {
     const beside = inspection.candidates.length > 0;
+    const software = inspection.packageWithoutPage;
+    const words = folderWords(beside, software);
     options.push({
       id: ".",
       label: "This folder",
-      headline: beside ? "no project of its own" : "an empty folder",
-      detail: beside
-        ? "the project inside it stays exactly where it is"
-        : "Senex adds a starter project, then you describe the one you want",
-      facts: [
-        ...(beside ? ["No starter project is written beside the project you already have."] : []),
-        ...nestedWords(inspection.nested),
-      ],
+      headline: words.headline,
+      detail: words.detail,
+      facts: [...words.facts, ...nestedWords(inspection.nested)],
       problems: [],
       writes: inspection.starter,
       engineExport: false,
-      // Keeping the parent must never drop a second index.html beside somebody's real project.
+      // Keeping the parent must never drop a second index.html beside somebody's real project, and
+      // neither may a folder of software that has no page of its own yet.
       choice: {
-        ...(beside ? { template: false } : {}),
+        ...(beside || software ? { template: false } : {}),
         ...(inspection.nested.length > 0 ? { versionNested: true } : {}),
       },
-      button: beside ? "Keep this folder" : "Start a project here",
+      button: words.button,
     });
   }
   return options;
+}
+
+/** The "this folder" row's words: beside a project, around software with no page, or an empty folder. */
+function folderWords(
+  beside: boolean,
+  software: boolean,
+): { headline: string; detail: string; facts: string[]; button: string } {
+  if (beside) {
+    return {
+      headline: "no project of its own",
+      detail: "the project inside it stays exactly where it is",
+      facts: ["No starter project is written beside the project you already have."],
+      button: "Keep this folder",
+    };
+  }
+  if (software) {
+    return {
+      headline: "software with no web page Senex can open yet",
+      detail: "Senex keeps its history and edits it; Live stays empty until the folder has an index.html",
+      facts: ["No starter page is written beside your files."],
+      button: "Open this folder",
+    };
+  }
+  return {
+    headline: "an empty folder",
+    detail: "Senex adds a starter project, then you describe the one you want",
+    facts: [],
+    button: "Start a project here",
+  };
 }
 
 /** Which row opens by default — the one `inspect` suggested, else the first. */

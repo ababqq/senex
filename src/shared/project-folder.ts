@@ -159,6 +159,12 @@ export interface FolderInspection {
    * — its own candidate answers that instead.
    */
   starter: string[];
+  /**
+   * No project was found but the folder is software with no page a browser can open: a
+   * `package.json` that declares packages or scripts (Next, Express, create-react-app). It is not
+   * an empty folder, and the starter page and its "starts empty" briefing do not belong in it.
+   */
+  packageWithoutPage: boolean;
 }
 
 export interface ProjectRecent {

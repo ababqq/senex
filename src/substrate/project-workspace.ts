@@ -47,6 +47,7 @@ import { ensureIgnoreRules, missingIgnoreRules, nestedRepos } from "./nested-rep
 import { isBelow, isInside, samePath, throughClaudeFolder } from "./paths.ts";
 import {
   declaresDependencies,
+  declaresSoftware,
   detectProjectShape,
   findProjectRoot,
   isBuiltShape,
@@ -862,13 +863,24 @@ export class ProjectWorkspaces {
     // parent never writes a starter project — a second index.html beside somebody's real one is
     // the mistake this whole sheet exists to stop.
     const nested = await nestedRepos(resolved);
+    // Software with no page of its own (a Next or Express app) is not an empty folder either: a
+    // starter page and a briefing that says "this project starts empty" would be false in it.
+    const packageWithoutPage = candidates.length === 0 && declaresSoftware(await readPackageManifest(resolved));
     const starter = candidates.some((candidate) => candidate.rel === ".")
       ? []
       : await this.plannedWrites(resolved, {
-          ...(candidates.length > 0 ? { template: false } : {}),
+          ...(candidates.length > 0 || packageWithoutPage ? { template: false } : {}),
           ...(nested.length > 0 ? { versionNested: true } : {}),
         });
-    return { dir: resolved, pathLabel: this.pathLabel(resolved), candidates, suggested, starter, nested };
+    return {
+      dir: resolved,
+      pathLabel: this.pathLabel(resolved),
+      candidates,
+      suggested,
+      starter,
+      nested,
+      packageWithoutPage,
+    };
   }
 
   async #preflight(candidate: ProjectCandidate): Promise<FolderPreflight> {

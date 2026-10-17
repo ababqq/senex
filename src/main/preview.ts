@@ -31,6 +31,7 @@ import {
   HttpStatus,
   MAX_REWRITE_BYTES,
   confinePreviewContents,
+  loopbackEntryUrl,
   projectRequestAllowed,
   previewNavigationAllowed,
   rewriteProjectHtml,
@@ -40,6 +41,7 @@ import {
   servedRelative,
   shouldRewrite,
   SHIM_PATH,
+  spaFallback,
   textResponse,
   THREE_HOOK_PATH,
   threeHookModule,
@@ -470,7 +472,7 @@ export class ProjectPreview {
     const route = routeHttp(url, loopbackPorts);
     // Never re-fetched from the main process: that sent a project's plain-http beacon off the machine.
     if (route.route === HttpRouteKind.Deny) return textResponse(HttpStatus.Forbidden);
-    return this.#serveFile(route.project, url.pathname, request);
+    return this.#serveFile(route.project, url.pathname, request, { routes: true });
   }
 
   /** One console line per blocked origin per load: the harness reads why a project's request failed. */
@@ -493,21 +495,40 @@ export class ProjectPreview {
     });
   }
 
-  async #serveFile(project: string, pathname: string, request?: Request): Promise<Response> {
-    const relative = servedRelative(pathname);
-    if (relative === null) return textResponse(HttpStatus.BadRequest);
+  /**
+   * `routes`: the project owns its paths (a built app on its loopback origin), so a navigation to
+   * one no file answers gets the app's page. The template's `project://` pages have no routes.
+   */
+  async #serveFile(
+    project: string,
+    pathname: string,
+    request?: Request,
+    options: { routes?: boolean } = {},
+  ): Promise<Response> {
+    const requested = servedRelative(pathname);
+    if (requested === null) return textResponse(HttpStatus.BadRequest);
     if (!servableProject(project)) return textResponse(HttpStatus.Forbidden);
     // The wrapper module for this page's `three`: generated, never read off the disk. Its query
     // string carries the real module's URL, which the page's own import map named.
-    if (relative === THREE_HOOK_PATH) return this.#serveThreeHook(request);
+    if (requested === THREE_HOOK_PATH) return this.#serveThreeHook(request);
     // Containment on real paths: a project (or a link planted in it) must not reach the harness
     // workspace or the user's disk (SECUI-2). A missing file is a 404.
-    const served = await servedLocation(relative, {
+    const roots = {
       vendor: this.options.vendorDir,
       projectRoot: () => this.#projectRoot(project),
       liveRoot: () => this.#liveRoot(project),
       pinnedProjectRoot: () => this.#pinnedFor(project),
-    });
+    };
+    const found = await servedLocation(requested, roots);
+    const route = options.routes
+      ? spaFallback(requested, found, this.#entryPath, {
+          dest: request?.headers.get("sec-fetch-dest") ?? null,
+          accept: request?.headers.get("accept") ?? null,
+        })
+      : null;
+    // The route is answered by the entry document itself, through the same check and rewrite.
+    const relative = route ?? requested;
+    const served = route === null ? found : await servedLocation(route, roots);
     if (!served.ok) return textResponse(served.status);
     const target = served.path;
     try {
@@ -517,7 +538,10 @@ export class ProjectPreview {
       // and served it through every checkpoint and every Reload click.
       const headers = new Headers(response.headers);
       headers.set("Cache-Control", "no-store");
-      const documentUrl = request?.url ?? `${SCHEME}://${project}/${relative}`;
+      const documentUrl =
+        route !== null && request
+          ? new URL(`/${relative}`, request.url).href
+          : (request?.url ?? `${SCHEME}://${project}/${relative}`);
       const rewritten = await this.#rewriteDocument(response, relative, target, documentUrl, request);
       if (rewritten !== null) {
         // The body changed length; a stale content-length truncates the page.
@@ -655,7 +679,7 @@ export class ProjectPreview {
     this.#blockedNoted.clear();
     this.#consoleAvailable = false;
     const url = options.loopback
-      ? `http://localhost:${loopbackPortFor(project)}/${entry}`
+      ? loopbackEntryUrl(loopbackPortFor(project), entry)
       : `${SCHEME}://${project}/${entry}`;
     try {
       await view.webContents.loadURL(url);

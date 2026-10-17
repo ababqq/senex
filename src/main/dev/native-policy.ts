@@ -50,7 +50,7 @@ const NATIVE_CHANNELS = [
   "studio:cancel-model-download",
   "studio:export",
   // The one channel that opens the network (decision 3): "Install packages" runs the folder's own
-  // package manager with registry.npmjs.org allowed. A fixture profile refuses downloads.
+  // package manager with that manager's registry hosts allowed. A fixture profile refuses downloads.
   "studio:packages.install",
   // Set up (Windows) creates a local user account and network filters behind an administrator
   // prompt; a fixture profile never provisions anything on the machine.

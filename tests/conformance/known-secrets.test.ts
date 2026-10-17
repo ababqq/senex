@@ -167,3 +167,37 @@ test("a public export refuses a project file that holds a credential the core ho
   await assert.rejects(lite.api()["project.export"]({ project: project.name }), /config\.js/);
   await assert.rejects(access(target), "nothing was published");
 });
+
+test("the harness's export builds a project that builds first, as the Export button does, and refuses a broken build", async () => {
+  const lite = await coreLite();
+  const { core } = lite;
+  const project = await core.projects.scaffold("built-app", { title: "Built app" });
+  // A Vite-style project: the page it publishes is the build's output, not the sources.
+  await writeFile(
+    path.join(project.dir, "package.json"),
+    JSON.stringify({ name: "built", scripts: { build: "vite build" } }),
+  );
+  await writeFile(path.join(project.dir, "index.html"), '<script type="module" src="/src/main.ts"></script>\n');
+  const output = path.join(await tmpDir("studio-built-"), "dist");
+  await mkdir(path.join(output, "assets"), { recursive: true });
+  await writeFile(path.join(output, "index.html"), '<script type="module" src="./assets/app.js"></script>\n');
+  await writeFile(path.join(output, "assets", "app.js"), "export const built = true;\n");
+  const built: string[] = [];
+  let outcome: "ok" | "broken" = "ok";
+  core.builds.ensure = async (source) => {
+    built.push(source.project);
+    return outcome === "ok"
+      ? { ok: true, output, lastGood: output, problem: null, ran: true }
+      : { ok: false, output: null, lastGood: null, problem: null, ran: true };
+  };
+  const target = path.join(core.layout.exports, "built-app");
+  const result = await lite.api()["project.export"]({ project: project.name });
+  assert.deepEqual(built, [project.name], "the build ran before the copy was staged");
+  assert.ok(result.included.includes("assets/app.js"), result.included.join(", "));
+  await access(path.join(target, "index.html"));
+
+  outcome = "broken";
+  await rm(target, { recursive: true, force: true });
+  await assert.rejects(lite.api()["project.export"]({ project: project.name }), /build failed/);
+  await assert.rejects(access(target), "nothing was exported from a broken build");
+});

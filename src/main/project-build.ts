@@ -25,7 +25,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { ensureDir, pathExists } from "../substrate/fsx.ts";
 import { HOST_GIT_CONFIG } from "../substrate/snapshots.ts";
-import { packageCommandsIn } from "../substrate/toolchain.ts";
+import { NPM_REGISTRY, packageCommandsIn } from "../substrate/toolchain.ts";
 import type { ProjectShape } from "../substrate/project-workspace.ts";
 import { type RunRequest, type RunResult, shellQuote } from "../substrate/spawn.ts";
 import type { BuildProblem, InstallResult } from "../shared/build-problem.ts";
@@ -50,16 +50,26 @@ function isServedOutput(rel: string, serve: string | null): boolean {
   return Boolean(serve) && (rel === serve || rel.startsWith(`${serve}/`));
 }
 
+/** The page a shape's entry names inside its output folder (`dist/index.html?x=1` is `index.html`). */
+function servedPage(entry: string): string {
+  const file = entry.split(/[?#]/)[0] ?? entry;
+  return path.posix.basename(file) || "index.html";
+}
+
 /**
  * The npm registry: opened only for an install the user pressed a button for, or a Genex package
- * install the user approved.
+ * install the user approved. A project's manager may need more hosts ({@link PackageCommands.registries}).
  */
-export const REGISTRY_DOMAIN = "registry.npmjs.org";
+export const REGISTRY_DOMAIN = NPM_REGISTRY;
 
 const MESSAGE = {
   UnknownPackage: (name: string) =>
     `${name || "nothing"} is not a package Studio adds: only ${Object.keys(GENEX_PROJECT_PACKAGES).join(" and ")}`,
   NoPackageJson: "this project has no package.json, so it has no package manager to add packages with",
+  /** Names the lever: the output folder is a guess, and `serve` in studio.json is the way to correct it. */
+  ServeHint: `if your page is built somewhere else, set "serve" in studio.json to that folder ("." for the project folder)`,
+  WroteNothing: (serve: string) => `the build finished but wrote nothing to ${serve}/`,
+  NoPage: (serve: string, page: string) => `the build wrote files to ${serve}/ but there is no ${page} in ${serve}/`,
 } as const;
 
 export interface BuildSource {
@@ -202,7 +212,7 @@ export class ProjectBuilds {
     // The fresh output is kept apart from the mirror: a later build that empties its outDir
     // before failing must not take the last good build down with it.
     if (!inPlace && serve !== null) {
-      const failure = await this.#keepOutput(path.join(work, serve), output, serve);
+      const failure = await this.#keepOutput(path.join(work, serve), output, serve, servedPage(source.shape.entry));
       if (failure) return this.#broken(dir, key, output, lastGood, await this.#problem(source, result, failure));
     }
     this.#built.set(dir, { key, ok: true, output, problem: null });
@@ -253,9 +263,12 @@ export class ProjectBuilds {
    * `preview.load`, past every sentence the stage knows how to say, and memoised nothing, so
    * the whole build ran again on the next look.
    */
-  async #keepOutput(produced: string, output: string, serve: string): Promise<string | null> {
-    if (!(await pathExists(produced))) return `the build finished but wrote nothing to ${serve}/`;
+  async #keepOutput(produced: string, output: string, serve: string, page: string): Promise<string | null> {
+    if (!(await pathExists(produced))) return `${MESSAGE.WroteNothing(serve)}; ${MESSAGE.ServeHint}`;
     try {
+      // A folder with scripts and no page is not a build to show: the stage would answer a bare
+      // "not found" under a green build, and every look would build again.
+      if (!(await pathExists(path.join(produced, page)))) return `${MESSAGE.NoPage(serve, page)}; ${MESSAGE.ServeHint}`;
       await rm(output, { recursive: true, force: true });
       await cp(produced, output, { recursive: true, force: true, mode: constants.COPYFILE_FICLONE });
       return null;
@@ -292,13 +305,13 @@ export class ProjectBuilds {
   async install(source: BuildSource): Promise<InstallResult> {
     if (!source.shape.install) return { ok: false, lines: ["this project declares no packages to install"] };
     const dir = path.resolve(source.dir);
-    const command = (await packageCommandsIn(dir)).install;
+    const commands = await packageCommandsIn(dir);
     const result = await this.#run({
-      command,
+      command: commands.install,
       cwd: dir,
       timeoutMs: INSTALL_TIMEOUT_MS,
       label: `install:${source.project}`,
-      policy: { allowedDomains: [REGISTRY_DOMAIN] },
+      policy: { allowedDomains: [...commands.registries] },
       env: this.#cacheEnv(),
     });
     this.forget(source.dir);
@@ -320,12 +333,13 @@ export class ProjectBuilds {
     const manifest = await stat(path.join(dir, "package.json")).catch(() => null);
     if (!manifest?.isFile()) return { ok: false, lines: [MESSAGE.NoPackageJson] };
     const pinned = packages.map((name) => shellQuote(`${name}@${GENEX_PROJECT_PACKAGES[name]}`));
+    const commands = await packageCommandsIn(dir);
     const result = await this.#run({
-      command: `${(await packageCommandsIn(dir)).add} ${pinned.join(" ")}`,
+      command: `${commands.add} ${pinned.join(" ")}`,
       cwd: dir,
       timeoutMs: INSTALL_TIMEOUT_MS,
       label: `add-packages:${source.project}`,
-      policy: { allowedDomains: [REGISTRY_DOMAIN] },
+      policy: { allowedDomains: [...commands.registries] },
       env: this.#cacheEnv(),
     });
     this.forget(source.dir);

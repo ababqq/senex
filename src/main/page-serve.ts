@@ -600,6 +600,49 @@ export async function servedLocation(
   return (await resolveLinkedModules(root, live, relative)) ?? served;
 }
 
+/** What a request says about itself that decides whether a missing path is a route of the app. */
+export interface NavigationRequest {
+  /** The `sec-fetch-dest` header: `document` for a page, `empty` for a script's fetch. */
+  dest: string | null;
+  /** The `accept` header: a browser asks for `text/html` when it navigates. */
+  accept: string | null;
+}
+
+/**
+ * The page to answer with when a navigation names a path no file answers. A client-side router
+ * (`BrowserRouter`, a Vue history mode) owns paths like `/about` or `/users/42`: a reload or a
+ * copied link asks the server for them, and the server's answer is the app's one page. Only a
+ * navigation to an extensionless path under a page the studio loaded gets it: a script's `fetch`
+ * of a missing API path, a missing `app.js` and anything refused (`..`, a planted link) keep their
+ * 404/403, so a broken request still fails where the app and the console can see it.
+ */
+export function spaFallback(
+  relative: string,
+  served: Served,
+  entryPath: string | null,
+  request: NavigationRequest,
+): string | null {
+  const missingRoute = !served.ok && served.status === HttpStatus.NotFound;
+  if (!missingRoute || entryPath === null || !/\.html?$/i.test(entryPath) || isVendorPath(relative)) return null;
+  const last = relative.split("/").findLast((part) => part !== "") ?? "";
+  if (path.posix.extname(last) !== "") return null;
+  const dest = request.dest?.trim().toLowerCase() ?? "";
+  const navigates = dest === "" ? /\btext\/html\b/i.test(request.accept ?? "") : DOCUMENT_DESTS.has(dest);
+  return navigates ? entryPath : null;
+}
+
+/**
+ * Where a loopback page is opened. The entry `index.html` is the app's root, so it is opened at
+ * `/`: a router that reads `location.pathname` then sees the path its routes are written for, not
+ * `/index.html`. Any other entry keeps its own path; its query rides along either way.
+ */
+export function loopbackEntryUrl(port: number, entry: string): string {
+  const cut = entry.search(/[?#]/);
+  const file = cut < 0 ? entry : entry.slice(0, cut);
+  const rest = cut < 0 ? "" : entry.slice(cut);
+  return `http://localhost:${port}/${file === "index.html" ? "" : file}${rest}`;
+}
+
 /**
  * A request under a worktree's `node_modules` (at its root, or beside a nested repository's
  * package.json), served from the live project's packages — only when that `node_modules` resolves to
