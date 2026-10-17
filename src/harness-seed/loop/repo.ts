@@ -15,7 +15,7 @@
 
 /** The one name every studio commit carries, wherever in the night it is made. */
 // The name is what a person reads in `git log`; the address is already in users' repositories, so it stays.
-export const STUDIO_COMMITTER = { name: "Genex", email: "studio@ai-game-studio.local" };
+export const STUDIO_COMMITTER = { name: "Senex", email: "studio@ai-game-studio.local" };
 
 /**
  * The `-c` flags that put that name on a commit, spliced into the git command lines the harness

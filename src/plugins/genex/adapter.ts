@@ -126,7 +126,7 @@ const MIN_POLL_INTERVAL_S = 5;
 /** The workspace folder name: letters, digits, `_` and `-` only, so it can never be a path. */
 const PROJECT_NAME = /^[a-zA-Z0-9_-]+$/;
 /** The name this device carries in the person's Genex account: free text a person reads in their device list, not an id. */
-const DEVICE_LABEL = "Genex";
+const DEVICE_LABEL = "Senex";
 
 /** Where Genex's device sign-in stands, as its poll answers. */
 const DeviceStatus = { Approved: "approved", Denied: "denied", Expired: "expired" } as const;
