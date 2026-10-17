@@ -1394,6 +1394,17 @@ describe("the Open Project sheet", () => {
     await mkdir(path.join(own, ".playwright-cli"), { recursive: true });
     await writeFile(path.join(own, ".playwright-cli", "log.txt"), "trace\n");
     await writeFile(path.join(own, ".env"), "SECRET_KEY=hunter2\n");
+    // What a full-stack project leaves beside it once its server has run: the environment files a
+    // framework reads (.env.local, .env.production…) and a database's write-ahead side files,
+    // which are half-written whenever the server is up.
+    await writeFile(path.join(own, ".env.local"), "SESSION_SECRET=hunter3\n");
+    await writeFile(path.join(own, ".env.example"), "SESSION_SECRET=\n");
+    await mkdir(path.join(own, "server"), { recursive: true });
+    await writeFile(path.join(own, "server", "notes.db-wal"), "wal\n");
+    await writeFile(path.join(own, "server", "notes.db-shm"), "shm\n");
+    // A database that ships with the app (a sample for sql.js) is the project's: it stays tracked.
+    await mkdir(path.join(own, "public"), { recursive: true });
+    await writeFile(path.join(own, "public", "sample.sqlite"), "sample\n");
 
     // The repository itself is on the list the Open Project sheet shows before the button is
     // pressed — the studio never quietly starts version history in somebody's folder.
@@ -1412,9 +1423,20 @@ describe("the Open Project sheet", () => {
       "output/web.zip",
       ".playwright-cli/log.txt",
       ".env",
+      ".env.local",
+      ".env.example",
+      "server/notes.db-wal",
+      "server/notes.db-shm",
     ]) {
       assert.ok(!tracked.includes(swept), `${swept} is in the first commit: ${tracked.join(", ")}`);
     }
+    assert.ok(
+      tracked.includes("public/sample.sqlite"),
+      `a database the project ships is tracked: ${tracked.join(", ")}`,
+    );
+    // …and none of them is left over as an untracked file, which would refuse every landing.
+    const leftover = (await exec("git", ["-C", own, "status", "--porcelain"])).stdout;
+    assert.doesNotMatch(leftover, /\.env|notes\.db/, leftover);
 
     // What the user already wrote is theirs: a rule they have is never written twice, and the
     // one line that must not carry a slash (a fork's node_modules is a symlink, and a

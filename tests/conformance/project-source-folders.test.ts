@@ -146,7 +146,7 @@ test("a .gitignore the user wrote, export/ included, is theirs", async () => {
   const project = await lite.core.projects.scaffold("their-tool", { title: "Their tool" });
   const gitignore = path.join(project.dir, ".gitignore");
   const theirs =
-    "dist/\nexport/\n.DS_Store\n.studio/\nnode_modules\n.git.studio-backup\noutput/\n.env\n.playwright-cli/\n";
+    "dist/\nexport/\n.DS_Store\n.studio/\nnode_modules\n.git.studio-backup\noutput/\n.env\n.playwright-cli/\n.env.*\n*.db-wal\n*.db-shm\n*.sqlite-wal\n*.sqlite-shm\n";
   await writeFile(gitignore, theirs);
   await lite.core.projects.adopt(project.dir);
   assert.equal(await readFile(gitignore, "utf8"), theirs);

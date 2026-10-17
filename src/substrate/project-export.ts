@@ -95,6 +95,8 @@ const MESSAGE = {
   ScopedImportMap: "Export validation does not yet support scoped import maps; build this project before export",
   UnresolvedModule: (ref: string) => `Export has an unresolved module: ${ref}`,
   MissingReference: (ref: string, from: string) => `Export is missing a referenced public file: ${ref} in ${from}`,
+  LeftOutReference: (ref: string, from: string) =>
+    `Export left out ${ref}, which ${from} refers to: a name that looks like a secret, a dotfile, a dependency folder, a source map or a working folder is never published. Rename it, or stop referring to it, and export again.`,
 } as const;
 
 /** The first staged file that contains a held credential, byte for byte (text or binary). */
@@ -222,6 +224,8 @@ interface ReferenceCheck {
   visited: Set<string>;
   /** Vendored files something in the export actually loads. */
   neededVendor: Set<string>;
+  /** What the export left out on purpose (`ExportResult.excluded`): a reference to one is not a typo. */
+  leftOut: readonly string[];
   /** A project module imports by a name only the running page knows (`import(cond ? "a" : "b")`). */
   opaqueImport: boolean;
 }
@@ -266,7 +270,13 @@ async function checkReference(
     : path.resolve(path.dirname(from), pathname);
   const st = await lstat(file).catch(() => null);
   const publicFile = isInside(staging, file) && st?.isFile() === true;
-  if (!publicFile) throw new Error(MESSAGE.MissingReference(ref, toPosixRelative(path.relative(staging, from))));
+  if (!publicFile) {
+    const named = toPosixRelative(path.relative(staging, file));
+    const cause = check.leftOut.some((rel) => named === rel || named.startsWith(`${rel}/`))
+      ? MESSAGE.LeftOutReference
+      : MESSAGE.MissingReference;
+    throw new Error(cause(ref, toPosixRelative(path.relative(staging, from))));
+  }
   if (isBelow(path.join(staging, VENDOR_DIR), file))
     check.neededVendor.add(toPosixRelative(path.relative(staging, file)));
   if (module && /\.m?js$/i.test(file)) check.queue.push(file);
@@ -426,6 +436,7 @@ async function checkReferences(
   staging: string,
   page: { entry: string; html: string },
   included: string[],
+  leftOut: readonly string[],
   vendor: string | undefined,
 ): Promise<Set<string>> {
   await init;
@@ -436,6 +447,7 @@ async function checkReferences(
     queue: [],
     visited: new Set(),
     neededVendor: new Set(),
+    leftOut,
     opaqueImport: false,
   };
   for (const rel of included) {
@@ -521,7 +533,7 @@ export async function exportPublicProject(
       : undefined;
     if (leaked) throw new Error(MESSAGE.SecretLeaked(leaked));
     const page = await rewriteEntry(staging);
-    const neededVendor = await checkReferences(staging, page, result.included, vendor);
+    const neededVendor = await checkReferences(staging, page, result.included, result.excluded, vendor);
     if (vendor) await pruneUnusedVendor(staging, result, neededVendor);
     result.files = result.included.length;
     await writeFile(

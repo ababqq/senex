@@ -18,7 +18,7 @@
  * away from the caller's memory and puts it in one testable rule.
  */
 import { constants } from "node:fs";
-import { cp, mkdir, readdir, realpath, rm, stat, symlink, writeFile } from "node:fs/promises";
+import { cp, lstat, mkdir, readdir, realpath, rm, stat, symlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { createHash } from "node:crypto";
 import { execFile } from "node:child_process";
@@ -149,6 +149,11 @@ export function buildFailureNote(problem: BuildProblem): string {
 
 /** Files that are never part of a build, however big the folder is. */
 const NEVER_MIRRORED = new Set([".git", "node_modules", ".studio"]);
+
+/** Whether a path holds a folder no build takes from the project, at any depth. */
+function neverMirrored(rel: string): boolean {
+  return rel.split("/").some((segment) => NEVER_MIRRORED.has(segment));
+}
 
 /** Where one build runs, where its output is served from, and the last output that worked. */
 interface BuildPlace {
@@ -484,7 +489,8 @@ export class ProjectBuilds {
    * Copy the project's sources into the shadow. Only the files git calls the project — tracked,
    * modified, untracked-but-not-ignored — plus `.env*`, which is gitignored by design and is
    * exactly what a build reads. `progress/` (11 522 screenshots, 1.6 GB) is ignored, so it never
-   * moves; on APFS the rest is cloned, not copied, so it costs no space at all.
+   * moves; on APFS the rest is cloned, not copied, so it costs no space at all. A repository
+   * nested in the project is copied without its `.git` and its `node_modules` is linked.
    */
   async #mirror(source: string, work: string, serve: string | null): Promise<void> {
     await rm(work, { recursive: true, force: true });
@@ -494,7 +500,15 @@ export class ProjectBuilds {
       const from = path.join(source, rel);
       const to = path.join(work, rel);
       await mkdir(path.dirname(to), { recursive: true });
-      await cp(from, to, { recursive: true, force: true, mode: constants.COPYFILE_FICLONE }).catch(() => {});
+      // A repository nested in the project comes as one folder: its working tree is the project's
+      // source, its history and installed packages are not (the packages are linked, below).
+      await cp(from, to, {
+        recursive: true,
+        force: true,
+        mode: constants.COPYFILE_FICLONE,
+        filter: (copied) => !NEVER_MIRRORED.has(path.basename(copied)),
+      }).catch(() => {});
+      await linkPackages(from, to);
     }
     // node_modules is linked, never copied: hundreds of megabytes the build only reads. Each
     // shadow keeps its own dist, cache and tsbuildinfo, which is what the six-worktrees-through-
@@ -503,6 +517,13 @@ export class ProjectBuilds {
     if (await pathExists(modules)) await symlink(modules, path.join(work, "node_modules"), "dir").catch(() => {});
     await writeFile(path.join(work, ".studio-shadow"), `${source}\n`).catch(() => {});
   }
+}
+
+/** A copied folder's installed packages, linked from where they are: hundreds of megabytes a build only reads. */
+async function linkPackages(from: string, to: string): Promise<void> {
+  if (!(await lstat(to).catch(() => null))?.isDirectory()) return;
+  const modules = path.join(from, "node_modules");
+  if (await pathExists(modules)) await symlink(modules, path.join(to, "node_modules"), "dir").catch(() => {});
 }
 
 /** The last lines a failed command printed — stderr first, because that is where the error is. */
@@ -550,7 +571,7 @@ export async function mirrorList(dir: string, serve: string | null): Promise<str
   const out = new Set<string>();
   for (const rel of listed.split("\0").filter(Boolean)) {
     if (isServedOutput(rel, serve)) continue;
-    if (NEVER_MIRRORED.has(rel.split("/")[0] ?? "")) continue;
+    if (neverMirrored(rel)) continue;
     out.add(rel);
   }
   // Gitignored on purpose and read by every Vite build: a worker's build used the defaults

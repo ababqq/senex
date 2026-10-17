@@ -115,6 +115,11 @@ export const PERSONS_LOAD: PreviewLoadOptions = { nativeRandom: true };
 /** The page-shim option that leaves `Math.random` to the browser. */
 const NATIVE_RANDOM_SHIM = { seed: null };
 
+/** Where the builds a person plays are made, one folder each, under the app's scratch. */
+const SHOW_FOLDER = "show";
+/** What `showBuild` adds to the project's name: the commit's first 12 hex digits and 8 of a fresh id. */
+const SHOW_NAME_TAIL = /-[0-9a-f]{12}-[0-9a-f]{8}$/;
+
 /** Errors the user reads when a build cannot be shown or landed, and why a reference is no still. */
 const MESSAGE = {
   noPreview: "no preview is attached (headless mode)",
@@ -278,6 +283,8 @@ export class PreviewService {
   #standInUses = 0;
   #standInIdle: NodeJS.Timeout | null = null;
   readonly #frames = new Map<string, PendingFrame>();
+  /** Folders of builds being made for a show: not served yet, and not for another show to retire. */
+  readonly #preparing = new Set<string>();
   #stageVisible = true;
   /** The person watches a project in Live, whatever briefly covers it (the renderer's `watchingLive`). */
   #liveWatched = true;
@@ -959,10 +966,23 @@ export class PreviewService {
     // Prepare an independent revision. A failed build must never delete the currently served one.
     const showDir = path.join(
       this.#core.layout.scratch,
-      "show",
+      SHOW_FOLDER,
       `${project}-${resolved.slice(0, 12)}-${randomUUID().slice(0, 8)}`,
     );
     await ensureDir(path.dirname(showDir));
+    this.#preparing.add(showDir);
+    try {
+      await this.#showPrepared(project, resolved, showDir, projectDir);
+    } finally {
+      this.#preparing.delete(showDir);
+    }
+    await this.#retireShows(project, showDir);
+    await this.#core.projects.touch(project).catch(() => {});
+    return { dir: showDir, commit: resolved };
+  }
+
+  /** Make the build's folder and bring it into Live; a failure leaves neither the folder nor Live changed. */
+  async #showPrepared(project: string, resolved: string, showDir: string, projectDir: string): Promise<void> {
     await this.#core.snapshots.worktreeAt(project, resolved, showDir, await this.nestedPolicy(projectDir));
     const previous = this.#x.servedRoots.get(LIVE_HANDLE);
     // A preview candidate may never borrow the user's Live window.
@@ -989,8 +1009,34 @@ export class PreviewService {
     } finally {
       if (candidateHandle) await this.pool().release(candidateHandle);
     }
-    await this.#core.projects.touch(project).catch(() => {});
-    return { dir: showDir, commit: resolved };
+  }
+
+  /**
+   * Remove this project's earlier shown builds: each is a full copy of the project, and nothing
+   * else would ever delete one. A folder stays while any window serves it, while another show is
+   * still preparing it, and when its name is not exactly one `showBuild` made for this project.
+   */
+  async #retireShows(project: string, keep: string): Promise<void> {
+    const root = path.join(this.#core.layout.scratch, SHOW_FOLDER);
+    const entries = await readdir(root, { withFileTypes: true }).catch(() => []);
+    const serving = await this.#servedFolders();
+    for (const entry of entries) {
+      const tail = SHOW_NAME_TAIL.exec(entry.name);
+      if (!entry.isDirectory() || !tail || entry.name.slice(0, tail.index) !== project) continue;
+      const dir = path.join(root, entry.name);
+      if (dir === keep || this.#preparing.has(dir) || serving.has(await realpath(dir).catch(() => dir))) continue;
+      await this.#core.snapshots.removeWorktree(project, dir).catch(() => {});
+      await rm(dir, { recursive: true, force: true }).catch(() => {});
+      this.#core.builds.forget(dir);
+    }
+  }
+
+  /** The real paths of the folders the windows serve now. */
+  async #servedFolders(): Promise<Set<string>> {
+    const folders = new Set<string>();
+    for (const { root } of this.#x.servedRoots.values())
+      if (root) folders.add(await realpath(root).catch(() => path.resolve(root)));
+    return folders;
   }
 
   /** Whether the studio may version this project's own nested repositories inside a fork of it. */

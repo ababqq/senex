@@ -9,7 +9,7 @@
  */
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { mkdir, readFile, readdir, rm, stat, symlink, writeFile } from "node:fs/promises";
+import { lstat, mkdir, readFile, readdir, realpath, rm, stat, symlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { describe, it } from "node:test";
 import { promisify } from "node:util";
@@ -32,6 +32,7 @@ import {
 import { readProjectShape, type ProjectShape } from "../../src/substrate/project-workspace.ts";
 import { GENEX_PROJECT_PACKAGES } from "../../src/shared/genex.ts";
 import type { RunRequest, RunResult } from "../../src/substrate/spawn.ts";
+import { pathExists } from "../../src/substrate/fsx.ts";
 import { tmpDir } from "../helpers/tmp.ts";
 
 const exec = promisify(execFile);
@@ -259,6 +260,36 @@ describe("building a project the user owns", () => {
     await writeFile(path.join(dir, "src", "main.ts"), "export const project = 3;\n");
     assert.equal((await builds.ensure({ project: "shadow", dir, shape: VITE_SHAPE })).ran, true);
     assert.equal(runner.calls.length, 2);
+  });
+
+  it("copies a repository nested in the project without its history or its packages, and links the packages instead", async () => {
+    const dir = await projectRepo("nested");
+    const helper = path.join(dir, "tools", "helper");
+    await mkdir(path.join(helper, "node_modules", "left-pad"), { recursive: true });
+    await writeFile(path.join(helper, "lib.js"), "export const lib = 1;\n");
+    await writeFile(path.join(helper, "node_modules", "left-pad", "index.js"), "module.exports = 1;\n");
+    await exec("git", ["init", "-q", "-b", "main"], { cwd: helper, env: GIT_ENV });
+    await exec("git", ["add", "-A"], { cwd: helper, env: GIT_ENV });
+    await exec("git", ["commit", "-qm", "helper"], { cwd: helper, env: GIT_ENV });
+    // …and a dependency folder a project committed deep inside itself is not part of any build.
+    await mkdir(path.join(dir, "apps", "web", "node_modules"), { recursive: true });
+    await writeFile(path.join(dir, "apps", "web", "node_modules", "dep.js"), "1");
+    await writeFile(path.join(dir, "apps", "web", "main.js"), "1");
+    await exec("git", ["add", "-f", "apps"], { cwd: dir, env: GIT_ENV });
+    const listed = await mirrorList(dir, "dist");
+    assert.ok(listed.includes("apps/web/main.js"));
+    assert.ok(!listed.includes("apps/web/node_modules/dep.js"), "a dependency folder at any depth stays out");
+
+    const root = path.join(await tmpDir("studio-shadow-"), "builds");
+    const runner = fakeRunner();
+    const builds = new ProjectBuilds({ root, run: runner.run });
+    assert.equal((await builds.ensure({ project: "nested", dir, shape: VITE_SHAPE })).ok, true);
+    const shadow = runner.calls[0]!.cwd;
+    assert.equal(await readFile(path.join(shadow, "tools", "helper", "lib.js"), "utf8"), "export const lib = 1;\n");
+    assert.equal(await pathExists(path.join(shadow, "tools", "helper", ".git")), false, "its history is not copied");
+    const linked = path.join(shadow, "tools", "helper", "node_modules");
+    assert.equal((await lstat(linked)).isSymbolicLink(), true, "its packages are linked, not copied");
+    assert.equal(await realpath(linked), await realpath(path.join(helper, "node_modules")));
   });
 
   it("keeps the last build that worked when the next one breaks, and says why", async () => {

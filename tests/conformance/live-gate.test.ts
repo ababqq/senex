@@ -8,7 +8,7 @@
  */
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { realpath, writeFile } from "node:fs/promises";
+import { access, mkdir, realpath, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { createIpcHandle, type IpcResult, type IpcSender } from "../../src/main/ipc-handle.ts";
 import { registerPreviewIpc } from "../../src/main/ipc/preview.ts";
@@ -108,6 +108,13 @@ function previewIpc(lite: CoreLite) {
   registerPreviewIpc(handle, { core: lite.core, preview: () => null, previewBoundsSeen: { last: null } });
   return (channel: string) => (payload: unknown) =>
     listeners.get(channel)!({ sender: "studio", senderFrame: "main-frame" } as IpcSender, payload);
+}
+
+async function exists(file: string): Promise<boolean> {
+  return access(file).then(
+    () => true,
+    () => false,
+  );
 }
 
 async function commitChange(dir: string, file: string, text: string): Promise<string> {
@@ -248,6 +255,31 @@ describe("what Live shows, whoever loaded it", () => {
     assert.equal(lite.core.liveState("pong").shows, head);
     await lite.core.loadPreview({ project: "pong" });
     assert.deepEqual(liveOf(behind.at(-1)), { reason: null, commit: null, shows: null });
+  });
+
+  it("retires the builds it showed earlier once a newer one is up, and leaves what is still served or not its own", async () => {
+    const { lite, api, dir } = await stage();
+    const scratch = await realpath(lite.core.layout.scratch);
+    const shows = path.join(scratch, "show");
+    const build = async (run: string, color: string) => {
+      const worktree = path.join(scratch, "autopilot", run, "integration");
+      await gitFile(["worktree", "add", "-q", "--detach", worktree, "HEAD"], { cwd: dir });
+      return commitChange(worktree, "plaza.js", `export const plaza = '${color}';\n`);
+    };
+    const first = await lite.core.showBuild("pong", await build("run_a", "red"));
+    const strangers = ["pong-notes", "tetris-0123456789ab-01234567", "pong-0123456789ab-0123456"];
+    for (const name of strangers) await mkdir(path.join(shows, name), { recursive: true });
+    const second = await lite.core.showBuild("pong", await build("run_b", "blue"));
+    assert.equal(await exists(first.dir), false, "the build Live showed before is gone");
+    assert.equal(await exists(second.dir), true, "the one it shows now stays");
+    for (const name of strangers) assert.equal(await exists(path.join(shows, name)), true, `${name} is not a show`);
+    const registered = (await gitFile(["worktree", "list", "--porcelain"], { cwd: dir })).stdout;
+    assert.doesNotMatch(registered, new RegExp(path.basename(first.dir)), "git no longer lists it");
+    // A window of the harness that still serves a build keeps its folder when Live moves on.
+    await api["preview.load"]!({ project: "pong", root: second.dir });
+    const third = await lite.core.showBuild("pong", await build("run_c", "green"));
+    assert.equal(await exists(second.dir), true, "the stand-in still serves it");
+    assert.equal(await exists(third.dir), true);
   });
 
   it("clears what waited only once Live has loaded: a load that fails leaves it waiting", async () => {

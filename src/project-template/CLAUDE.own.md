@@ -33,6 +33,10 @@ the project, not defects to correct. Change what the brief asks for and leave th
    images or icons come from the studio's own tools; `references/` is for you to LOOK at, unless the
    user asks to use their own image (logo, photo): that file is theirs, so copy it into `assets/`.
 __BUILD_RULE__
+What your server writes while it runs (a database, uploads, a log) goes into `.gitignore` as soon as the
+path exists: every snapshot saves whatever git does not ignore, and a checkpoint should hold the project,
+not its data.
+
 Two lessons every contractor re-learned: before re-styling, capture the project and look at what it
 already draws; and a check that cannot pass as written is not yours to force — write a `HARNESS:`
 line naming the check id and why in your notes (`docs/notes/NOTES.<facet-id>.md` in a facet run,
