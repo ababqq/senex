@@ -2578,11 +2578,22 @@ describe("a director's night through the real core and harness", () => {
     ]);
     assert.deepEqual(repeated, shown, "overlapping Play requests share one scratch creation");
     assert.equal(rig.preview.loads.length, loadsBefore + 1, "one navigation for identical concurrent requests");
-    await rig.core.showBuild(project.name, head);
     assert.ok(shown.commit.startsWith(head));
     assert.ok(shown.dir.includes(path.join("show", project.name)));
     assert.equal(await readFile(path.join(shown.dir, "src", "sign.js"), "utf8"), "export const sign = 'open';\n");
     assert.ok(rig.preview.loads.length > loadsBefore, "the user's window loaded the build");
+    // Playing it again makes a fresh copy and retires the one Live showed before.
+    const again = await rig.core.showBuild(project.name, head);
+    assert.notEqual(again.dir, shown.dir);
+    assert.equal(await stat(again.dir).then(() => true), true);
+    assert.equal(
+      await stat(shown.dir).then(
+        () => true,
+        () => false,
+      ),
+      false,
+      "the earlier copy is gone",
+    );
     const landed = await rig.core.landBuild(project.name, head);
     assert.equal(landed.how, "already", "the close had landed it");
     await assert.rejects(rig.core.showBuild(project.name, "deadbeef"), /not in/);

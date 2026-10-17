@@ -8,7 +8,7 @@
  */
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { realpath, writeFile } from "node:fs/promises";
+import { access, mkdir, realpath, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { createIpcHandle, type IpcResult, type IpcSender } from "../../src/main/ipc-handle.ts";
 import { registerPreviewIpc } from "../../src/main/ipc/preview.ts";
@@ -108,6 +108,13 @@ function previewIpc(lite: CoreLite) {
   registerPreviewIpc(handle, { core: lite.core, preview: () => null, previewBoundsSeen: { last: null } });
   return (channel: string) => (payload: unknown) =>
     listeners.get(channel)!({ sender: "studio", senderFrame: "main-frame" } as IpcSender, payload);
+}
+
+async function exists(file: string): Promise<boolean> {
+  return access(file).then(
+    () => true,
+    () => false,
+  );
 }
 
 async function commitChange(dir: string, file: string, text: string): Promise<string> {
@@ -222,10 +229,10 @@ describe("Live's gate", () => {
 });
 
 /** A run's build: a commit in an integration worktree of the project, as a night leaves it. */
-async function runBuild(lite: CoreLite, dir: string, runId = "run_x"): Promise<string> {
+async function runBuild(lite: CoreLite, dir: string, runId = "run_x", color = "red"): Promise<string> {
   const worktree = path.join(lite.core.layout.scratch, "autopilot", runId, "integration");
   await gitFile(["worktree", "add", "-q", "--detach", worktree, "HEAD"], { cwd: dir });
-  return commitChange(worktree, "plaza.js", "export const plaza = 'red';\n");
+  return commitChange(worktree, "plaza.js", `export const plaza = '${color}';\n`);
 }
 
 /** Main's word on Live's Reload, as the stage reads it on mount. */
@@ -248,6 +255,83 @@ describe("what Live shows, whoever loaded it", () => {
     assert.equal(lite.core.liveState("pong").shows, head);
     await lite.core.loadPreview({ project: "pong" });
     assert.deepEqual(liveOf(behind.at(-1)), { reason: null, commit: null, shows: null });
+  });
+
+  it("retires the builds it showed earlier once a newer one is up, and leaves what is still served or not its own", async () => {
+    const { lite, api, dir } = await stage();
+    const scratch = await realpath(lite.core.layout.scratch);
+    const shows = path.join(scratch, "show");
+    const build = (run: string, color: string) => runBuild(lite, dir, run, color);
+    const first = await lite.core.showBuild("pong", await build("run_a", "red"));
+    const strangers = ["pong-notes", "tetris-0123456789ab-01234567", "pong-0123456789ab-0123456"];
+    for (const name of strangers) await mkdir(path.join(shows, name), { recursive: true });
+    const second = await lite.core.showBuild("pong", await build("run_b", "blue"));
+    assert.equal(await exists(first.dir), false, "the build Live showed before is gone");
+    assert.equal(await exists(second.dir), true, "the one it shows now stays");
+    for (const name of strangers) assert.equal(await exists(path.join(shows, name)), true, `${name} is not a show`);
+    const registered = (await gitFile(["worktree", "list", "--porcelain"], { cwd: dir })).stdout;
+    assert.doesNotMatch(registered, new RegExp(path.basename(first.dir)), "git no longer lists it");
+    // A window of the harness that still serves a build keeps its folder when Live moves on.
+    await api["preview.load"]!({ project: "pong", root: second.dir });
+    const third = await lite.core.showBuild("pong", await build("run_c", "green"));
+    assert.equal(await exists(second.dir), true, "the stand-in still serves it");
+    assert.equal(await exists(third.dir), true);
+  });
+
+  it("does not retire the build a Reload is putting into Live while an older show works through the stale copies", async () => {
+    const { lite, live, dir } = await stage();
+    const shows = path.join(await realpath(lite.core.layout.scratch), "show");
+    const second = await runBuild(lite, dir, "run_b", "blue");
+    const third = await runBuild(lite, dir, "run_c", "green");
+    // Stale copies from earlier shows, which sort before any real one.
+    for (const name of ["pong-000000000000-00000000", "pong-000000000000-00000001"])
+      await mkdir(path.join(shows, name), { recursive: true });
+    const gate = () => {
+      let open!: () => void;
+      const opened = new Promise<void>((resolve) => (open = resolve));
+      return { open, opened };
+    };
+    const removing = gate();
+    const removalHeld = gate();
+    const prepared = gate();
+    const reloadHeld = gate();
+    const snapshots = lite.core.snapshots;
+    const removeWorktree = snapshots.removeWorktree.bind(snapshots);
+    let removals = 0;
+    snapshots.removeWorktree = async (...args) => {
+      if (removals++ === 0) {
+        removing.open();
+        await removalHeld.opened;
+      }
+      return removeWorktree(...args);
+    };
+    const worktreeAt = snapshots.worktreeAt.bind(snapshots);
+    let copies = 0;
+    snapshots.worktreeAt = async (...args) => {
+      const made = await worktreeAt(...args);
+      if (copies++ === 0) {
+        prepared.open();
+        await reloadHeld.opened;
+      }
+      return made;
+    };
+    // A Reload starts showing the third build and stops once its copy exists…
+    await lite.core.offerBuild("pong", third);
+    const reloading = lite.core.reloadLive();
+    await prepared.opened;
+    // …a show of the second build finishes and starts retiring stale copies, held on the first
+    // (the Reload retires too, once it is done, and is not held)…
+    const showing = lite.core.showBuild("pong", second);
+    await removing.opened;
+    // …the Reload finishes, so Live now shows the third build's copy…
+    reloadHeld.open();
+    await reloading;
+    const shown = live.loads.at(-1)?.root;
+    assert.match(String(shown), /show/, "Live shows a build's copy");
+    // …and only then does the retiring go on.
+    removalHeld.open();
+    await showing;
+    assert.equal(await exists(String(shown)), true, "the copy Live now shows is still there");
   });
 
   it("clears what waited only once Live has loaded: a load that fails leaves it waiting", async () => {

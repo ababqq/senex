@@ -45,8 +45,9 @@ export async function nestedRepos(dir: string): Promise<string[]> {
  * The rules the studio needs in a project's `.gitignore`, beyond its own scratch: packages are
  * never committed (a fork links them in from the project folder, and an unignored link would be
  * swept into a commit and landed pointing at the user's own machine), a repository the studio
- * versioned keeps its own history beside it, and the three kinds of file a first `git add -A`
- * should never sweep into somebody's history — build output, secrets, and a tool's scratch.
+ * versioned keeps its own history beside it, and the kinds of file a first `git add -A`
+ * should never sweep into somebody's history — build output, secrets, a tool's scratch and the
+ * side files of a running database.
  * `node_modules` carries no slash on purpose — a rule with one matches directories only, and
  * the link a fork leaves is a link, so a folder whose own file says `node_modules/` still gets
  * the slashless line. The rest are directories, and read as the user wrote them.
@@ -63,7 +64,19 @@ const IGNORE_RULES: Array<{ line: string; already: RegExp }> = [
   { line: "dist/", already: /^\/?dist\/?$/m },
   { line: "output/", already: /^\/?output\/?$/m },
   { line: ".env", already: /^\/?\.env$/m },
+  // The environment files a framework reads (.env.local, .env.production, a checked-in .env.example):
+  // the studio's own git never stages them (`PRIVATE_ENV_PATHS`), so an unignored one stays "untracked"
+  // for good and every landing refuses over it.
+  { line: ".env.*", already: /^\/?\.env(\.\*|\*)$/m },
   { line: ".playwright-cli/", already: /^\/?\.playwright-cli\/?$/m },
+  // A database's write-ahead files, half-written whenever a server is up. The database itself is the
+  // project's to name (one may ship with the app), so it has no rule here.
+  { line: "*.db-wal", already: /^\/?\*\.db-wal$/m },
+  { line: "*.db-shm", already: /^\/?\*\.db-shm$/m },
+  { line: "*.sqlite-wal", already: /^\/?\*\.sqlite-wal$/m },
+  { line: "*.sqlite-shm", already: /^\/?\*\.sqlite-shm$/m },
+  { line: "*.sqlite3-wal", already: /^\/?\*\.sqlite3-wal$/m },
+  { line: "*.sqlite3-shm", already: /^\/?\*\.sqlite3-shm$/m },
 ];
 
 /** Which of those rules a folder's `.gitignore` is still missing. */

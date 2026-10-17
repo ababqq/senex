@@ -17,7 +17,7 @@
  * vendored three.js — so restore is a pure checkout. {@link SnapshotEngine.restore} still calls
  * the `afterRestore` hook where an install step would go.
  */
-import { cp, symlink, writeFile } from "node:fs/promises";
+import { cp, lstat, mkdir, readFile, symlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { ensureDir, pathExists } from "./fsx.ts";
 import { shortId } from "./ids.ts";
@@ -45,6 +45,13 @@ export const SnapshotRefusal = {
   RescueFailed: "rescue-failed",
 } as const;
 export type SnapshotRefusal = (typeof SnapshotRefusal)[keyof typeof SnapshotRefusal];
+
+/** A project's environment files, which the host's git never stages (`git-policy.ts`), at any depth. */
+const ENV_FILE_PATHSPEC = [":(glob)**/.env", ":(glob)**/.env.*"];
+/** `git clean`'s own exclude patterns for the same files. */
+const ENV_CLEAN_EXCLUDES = ["-e", ".env", "-e", ".env.*"];
+/** An environment file this large is not one; a restore leaves it to git. */
+const ENV_FILE_MAX_BYTES = 1024 * 1024;
 
 /** git output a host call may buffer before it fails. */
 const GIT_MAX_BUFFER_BYTES = 32 * 1024 * 1024;
@@ -318,11 +325,37 @@ export class SnapshotEngine {
       }
     }
     for (const { name, dir, commit } of targets) {
+      // No snapshot holds an environment file, so no restore puts one back or takes one away.
+      const environment = await this.#readEnvFiles(dir);
       await git(dir, ["reset", "-q", "--hard", "--end-of-options", commit]);
-      await git(dir, ["clean", "-qfd"]);
+      await git(dir, ["clean", "-qfd", ...ENV_CLEAN_EXCLUDES]);
+      await this.#writeEnvFiles(dir, environment);
       await this.afterRestore?.({ name, dir });
     }
     return rescue;
+  }
+
+  /** What the tracked environment files hold now: a reset would put the committed text back over an edit. */
+  async #readEnvFiles(dir: string): Promise<Map<string, Buffer>> {
+    const files = new Map<string, Buffer>();
+    const listed = (await gitOrNull(dir, ["ls-files", "-z", "--", ...ENV_FILE_PATHSPEC])) ?? "";
+    for (const rel of listed.split("\0").filter(Boolean)) {
+      const file = path.join(dir, rel);
+      const stat = await lstat(file).catch(() => null);
+      if (stat?.isFile() && stat.size <= ENV_FILE_MAX_BYTES) files.set(rel, await readFile(file));
+    }
+    return files;
+  }
+
+  /** Put those files back as they were, wherever the reset changed or removed one. */
+  async #writeEnvFiles(dir: string, files: Map<string, Buffer>): Promise<void> {
+    for (const [rel, bytes] of files) {
+      const file = path.join(dir, rel);
+      const now = await readFile(file).catch(() => null);
+      if (now?.equals(bytes)) continue;
+      await mkdir(path.dirname(file), { recursive: true });
+      await writeFile(file, bytes);
+    }
   }
 
   /** `refs/heads/<branch>`, or null when HEAD is detached. */

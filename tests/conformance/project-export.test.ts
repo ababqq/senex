@@ -201,6 +201,93 @@ it("still stops on a resource the page needs and the export does not have", asyn
   }
 });
 
+it("says a referenced file was left out on purpose when its name looks like a secret, and keeps saying missing for a typo", async () => {
+  const leftOut: Array<[string, Record<string, string>, RegExp]> = [
+    [
+      "a module named env.js",
+      {
+        "index.html": '<script type="module" src="./main.js"></script>',
+        "main.js": 'import "./env.js";',
+        "env.js": "x",
+      },
+      /left out.*env\.js/s,
+    ],
+    [
+      "a module in a secrets folder",
+      {
+        "index.html": '<script type="module" src="./main.js"></script>',
+        "main.js": 'import "./src/secrets/keys.js";',
+        "src/secrets/keys.js": "x",
+      },
+      /left out.*src\/secrets\/keys\.js/s,
+    ],
+    [
+      "a source map the page asks for",
+      { "index.html": '<script src="./app.js.map"></script>', "app.js.map": "{}" },
+      /left out.*app\.js\.map/s,
+    ],
+  ];
+  for (const [what, files, expected] of leftOut) {
+    const { temp, source, target } = await site(files);
+    try {
+      await assert.rejects(
+        exportPublicProject(source, target, ["index.html", ...Object.keys(files).filter((f) => f !== "index.html")]),
+        (error: Error) => {
+          assert.match(error.message, expected, what);
+          assert.doesNotMatch(error.message, /missing a referenced/, what);
+          return true;
+        },
+      );
+    } finally {
+      await removeTree(temp);
+    }
+  }
+  // A folder is left out whole, however the root that named it was spelled…
+  for (const root of ["secrets", "secrets/", "./secrets", "secrets\\"]) {
+    const folder = await site({
+      "index.html": '<script type="module" src="./main.js"></script>',
+      "main.js": 'import "./secrets/keys.js";',
+      "secrets/keys.js": "x",
+    });
+    try {
+      await assert.rejects(
+        exportPublicProject(folder.source, folder.target, ["index.html", "main.js", root]),
+        /left out.*secrets\/keys\.js/s,
+        root,
+      );
+    } finally {
+      await removeTree(folder.temp);
+    }
+  }
+  // …and a name that only begins like one that was left out is still a missing file.
+  const near = await site({
+    "index.html": '<script type="module" src="./main.js"></script>',
+    "main.js": 'import "./secrets-extra/keys.js";',
+    "secrets/keys.js": "x",
+  });
+  try {
+    await assert.rejects(
+      exportPublicProject(near.source, near.target, ["index.html", "main.js", "secrets"]),
+      /missing a referenced public file/,
+    );
+  } finally {
+    await removeTree(near.temp);
+  }
+  const typo = await site({
+    "index.html": '<script type="module" src="./main.js"></script>',
+    "main.js": 'import "./enb.js";',
+    "env.js": "x",
+  });
+  try {
+    await assert.rejects(
+      exportPublicProject(typo.source, typo.target, ["index.html", "main.js", "env.js"]),
+      /missing a referenced public file: \.\/enb\.js/,
+    );
+  } finally {
+    await removeTree(typo.temp);
+  }
+});
+
 it("leaves the studio's 3D library out of a page that never loads it, and keeps it for one that loads it by a name only the page knows", async () => {
   const temp = await mkdtemp(path.join(os.tmpdir(), "studio-export-three-"));
   const vendor = path.join(temp, "vendor");

@@ -605,6 +605,33 @@ describe("restoring a project the user may still be working in", () => {
     assert.equal(await fixtureGit(repo.dir, ["show", `${rescue!.git.game}:assets/hero.txt`]), "the user's own art");
   });
 
+  it("leaves the project's env files where they are: a snapshot never holds them, so a restore must not touch them", async () => {
+    // The folder's own .gitignore names `.env` and nothing else; `.env.local` is untracked, and
+    // `.env.production` is tracked and edited since the commit.
+    const repo = await dirtyUserRepo({
+      committed: {
+        "index.html": "<p>hi</p>\n",
+        "src/main.js": "export const speed = 1;\n",
+        ".env.production": "API=prod\n",
+      },
+      modified: { "src/main.js": "export const speed = 2;\n", ".env.production": "API=prod-edited\n" },
+      staged: {},
+      untracked: { ".env.local": "SECRET=local\n", "web/.env.development": "API=dev\n" },
+      ignore: [".env"],
+    });
+    const engine = new SnapshotEngine([{ name: "project", dir: repo.dir }]);
+    await engine.init();
+    const before = await engine.snapshot({ scope: "game", reason: "before the round", projectWorkspace: "project" });
+    await writeFile(path.join(repo.dir, "src/main.js"), "broken\n");
+    await writeFile(path.join(repo.dir, "junk.js"), "junk\n");
+    await engine.restore(before, { projectWorkspace: "project" });
+    assert.equal(await readFile(path.join(repo.dir, "src/main.js"), "utf8"), "export const speed = 2;\n");
+    assert.equal(await exists(path.join(repo.dir, "junk.js")), false, "the restore still cleans what the round made");
+    assert.equal(await readFile(path.join(repo.dir, ".env.local"), "utf8"), "SECRET=local\n");
+    assert.equal(await readFile(path.join(repo.dir, "web/.env.development"), "utf8"), "API=dev\n");
+    assert.equal(await readFile(path.join(repo.dir, ".env.production"), "utf8"), "API=prod-edited\n");
+  });
+
   it("refuses the restore, touching nothing, when the rescue snapshot cannot be taken", {
     skip: process.platform === "win32" && "chmod cannot make a file unreadable on Windows",
   }, async () => {
