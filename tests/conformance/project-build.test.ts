@@ -229,6 +229,90 @@ describe("what a build is made of", () => {
   });
 });
 
+describe("what a failed build tells the reader", () => {
+  it("drops the package manager's own header and footer, and keeps the compiler's lines", () => {
+    const tsc = "src/a.ts(3,5): error TS2304: Cannot find name 'x'.\nsrc/b.ts(9,1): error TS2322: Type mismatch.";
+    const table: Array<[string, { stderr: string; stdout: string }, string[]]> = [
+      [
+        "npm: header on stdout, lifecycle boilerplate on stderr",
+        {
+          stdout: `\n> app@1.0.0 build\n> tsc -b\n\n${tsc}`,
+          stderr:
+            "npm error code 2\nnpm error path /p\nnpm error command failed\nnpm error command sh -c tsc -b\nnpm error A complete log of this run can be found in: /l.log",
+        },
+        tsc.split("\n"),
+      ],
+      [
+        "pnpm",
+        {
+          stdout: `\n> app@1.0.0 build /p\n> tsc -b\n\n${tsc}`,
+          stderr: " ELIFECYCLE  Command failed with exit code 2.",
+        },
+        tsc.split("\n"),
+      ],
+      [
+        "yarn 1",
+        {
+          stdout: `yarn run v1.22.19\n$ tsc -b\n${tsc}\ninfo Visit https://yarnpkg.com/en/docs/cli/run for documentation about this command.`,
+          stderr: "error Command failed with exit code 2.",
+        },
+        tsc.split("\n"),
+      ],
+      ["bun", { stdout: `$ tsc -b\n${tsc}`, stderr: 'error: script "build" exited with code 2' }, tsc.split("\n")],
+      [
+        "an npm error that names the problem is kept",
+        { stdout: "", stderr: 'npm error Missing script: "build"\nnpm error code ENOENT' },
+        ['npm error Missing script: "build"'],
+      ],
+      [
+        "output that is only boilerplate is shown as it was",
+        { stdout: "", stderr: "npm error code 2" },
+        ["npm error code 2"],
+      ],
+    ];
+    for (const [what, output, expected] of table) assert.deepEqual(outputLines(output, 12), expected, what);
+  });
+
+  it("keeps a compiler's own '> ' lines, and drops npm 9 and pnpm's older footers", () => {
+    const babel = "SyntaxError: x.js: Unexpected token (2:3)\n\n  1 | a\n> 2 | b c\n    |   ^\n  3 | d";
+    assert.deepEqual(
+      outputLines({ stdout: babel, stderr: "" }, 12),
+      babel.split("\n").filter((line) => line.trim()),
+    );
+    const gradle = "FAILURE: Build failed\n> Task :compileJava FAILED\n> Compilation failed";
+    assert.deepEqual(outputLines({ stdout: gradle, stderr: "" }, 12), gradle.split("\n"));
+    const old = [
+      "npm WARN deprecated x",
+      "npm ERR! code ELIFECYCLE",
+      "npm ERR! errno 1",
+      "npm ERR! app@1.0.0 build: `tsc`",
+      "npm ERR! Exit status 1",
+      "error TS1",
+    ].join("\n");
+    assert.deepEqual(outputLines({ stdout: "", stderr: old }, 12), ["error TS1"]);
+    const pnpm = " ELIFECYCLE  Command failed with exit code 1.\n Exit status 1\nWARN  deprecated\nerror TS1";
+    assert.deepEqual(outputLines({ stdout: "", stderr: pnpm }, 12), ["error TS1"]);
+    const missing = "npm ERR! missing script: build";
+    assert.deepEqual(outputLines({ stdout: "", stderr: missing }, 12), [missing]);
+  });
+
+  it("gives the stage three lines and the agent the dozen the compiler printed", async () => {
+    const dir = await projectRepo("many");
+    const root = path.join(await tmpDir("studio-shadow-"), "builds");
+    const errors = Array.from(
+      { length: 14 },
+      (_, i) => `src/m.ts(${i + 1},1): error TS2304: Cannot find name 'n${i}'.`,
+    );
+    const run = fakeRunner({ code: 2, stderr: ["> app@1.0.0 build", "> tsc -b", "", ...errors].join("\n") });
+    const outcome = await new ProjectBuilds({ root, run: run.run }).ensure({ project: "many", dir, shape: VITE_SHAPE });
+    const problem = outcome.problem!;
+    assert.deepEqual(problem.lines, errors.slice(0, 3), "the stage opens on an error, not on the header");
+    assert.deepEqual(problem.diagnostics, errors.slice(0, 12), "a dozen are kept for whoever must fix them");
+    const note = buildFailureNote(problem);
+    assert.ok(note.includes(errors[11]!) && !note.includes(errors[12]!), "the agent reads all twelve");
+  });
+});
+
 describe("building a project the user owns", () => {
   it("builds in a shadow, serves that, and never writes into the user's folder", async () => {
     const dir = await projectRepo("shadow");
@@ -692,6 +776,7 @@ describe("building a project the user owns", () => {
     const note = buildFailureNote(problem);
     assert.ok(!/exit/.test(note), note);
     assert.match(note, /not inside the project/);
+    assert.match(note, /build\.outDir/, "and names the setting that moves it");
   });
 
   it("fails an in-place build (a run's worktree) that wrote files but no page, as the live shadow does", async () => {

@@ -697,10 +697,9 @@ writes; SkillOpt keeps its own gate.
 
 **Project shapes.** `ProjectShape` ([`src/shared/project-folder.ts`](../../src/shared/project-folder.ts),
 decided in [`src/substrate/project-shape.ts`](../../src/substrate/project-shape.ts)) is decided by
-evidence — every `<script src>`, `package.json`, the bundler config, engine runtime files — never by
-the entry filename, and recorded in `studio.json` on first open: `main`, `build`, `serve`, `kind`
-(`three-vite`, `three-modules`, `canvas2d`, `phaser`, `engine-export`, `own-script`) and `own`. A
-folder is the studio's template only with both `contractVersion` in `studio.json` and the `studio-template` page meta.
+evidence — every `<script src>`, `package.json`, bundler config, engine runtime files — never by
+the entry filename, and recorded in `studio.json` on first open: `main` (re-read if gone), `build`, `serve`, `kind` (`three-vite`, `three-modules`, `canvas2d`, `phaser`, `engine-export`,
+`own-script`) and `own`. A folder is the studio's template only with `contractVersion` in `studio.json` and the `studio-template` page meta.
 `findProjectRoot` looks one folder down. An `engine-export` project can be opened and photographed but never starts a night.
 
 **Opening a folder.** New project's Open existing and home's Open a folder… are the UI's way in.

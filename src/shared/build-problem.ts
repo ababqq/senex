@@ -12,8 +12,10 @@ export interface BuildProblem {
   command: string;
   /** Its exit code; null when it was killed. */
   code: number | null;
-  /** The first three lines of what it printed — the part that names the error. */
+  /** The first three lines of what it printed, wrapper text left out — the part that names the error. */
   lines: string[];
+  /** A dozen of them, for the project console and the agent that has to fix the build. */
+  diagnostics: string[];
   /** Dependencies are declared and node_modules is not there: offer "Install packages". */
   needsInstall: boolean;
   /** What that button runs (`npm install`, `pnpm install`, …); null when there is nothing to install. */

@@ -444,6 +444,41 @@ export function packageCommands(files: string[]): PackageCommands {
 }
 
 /**
+ * Lines a package manager prints around the script it runs (the `> app@1.0.0 build` header, the
+ * lifecycle failure after it), never the script's own words. A failed build is read for its first
+ * lines, and these are what the first lines used to be.
+ */
+const SCRIPT_RUNNER_NOISE: readonly RegExp[] = [
+  /^\$\s/, // yarn 1 and bun echo the command
+  /^yarn run v\d|^info Visit https:\/\/yarnpkg\.com|^Done in |^error Command failed with exit code/,
+  /^npm (warn|notice)\b/i,
+  /^npm (error|ERR!) (code|path|workspace|location|command|signal|errno|syscall|Lifecycle script|A complete log|Exit status|\S+@\S+ \S+:|This is probably|Failed at|Make sure)/,
+  /^\s*(ELIFECYCLE|WARN)\s|^\s*ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL\b|^\s*Exit status \d+/,
+  /^error: script ".*" exited with code \d+/,
+];
+
+/** npm's and pnpm's `> name@version script` header: the one `> ` line that is never the script's. */
+const RUNNER_HEADER = /^> \S+@\S+ /;
+
+/**
+ * `lines` without a package manager's own wrapper text. The `> tsc -b` line under the header is
+ * the runner's too, but a `> ` line anywhere else (a code frame's pointer, a Gradle task) is the
+ * tool's, so it goes only when it follows the header.
+ */
+export function withoutRunnerNoise(lines: readonly string[]): string[] {
+  const kept: string[] = [];
+  let underHeader = false;
+  for (const line of lines) {
+    const header: boolean = RUNNER_HEADER.test(line);
+    const command: boolean = underHeader && line.startsWith("> ");
+    underHeader = header || command;
+    if (header || command || SCRIPT_RUNNER_NOISE.some((pattern) => pattern.test(line.trim()))) continue;
+    kept.push(line);
+  }
+  return kept;
+}
+
+/**
  * The only command lines the studio's one network exemption may ever wrap. `studio.json` lives
  * inside the user's project folder — a downloaded project ships one, and a contractor can write one
  * mid-night — so a recorded `install` is honoured only when it is a package manager's own

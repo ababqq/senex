@@ -27,7 +27,7 @@ import { ensureDir, pathExists } from "../substrate/fsx.ts";
 import { HOST_GIT_CONFIG } from "../substrate/snapshots.ts";
 import { isInside } from "../substrate/paths.ts";
 import { normalServe } from "../substrate/project-shape.ts";
-import { NPM_REGISTRY, packageCommandsIn } from "../substrate/toolchain.ts";
+import { NPM_REGISTRY, packageCommandsIn, withoutRunnerNoise } from "../substrate/toolchain.ts";
 import type { ProjectShape } from "../substrate/project-workspace.ts";
 import { type RunRequest, type RunResult, shellQuote } from "../substrate/spawn.ts";
 import type { BuildProblem, InstallResult } from "../shared/build-problem.ts";
@@ -98,6 +98,10 @@ async function stayedInside(base: string, folder: string): Promise<boolean> {
  */
 export const REGISTRY_DOMAIN = NPM_REGISTRY;
 
+/** How many lines of a failed build the stage shows, and how many the console and the agent read. */
+const STAGE_LINES = 3;
+const DIAGNOSTIC_LINES = 12;
+
 const MESSAGE = {
   UnknownPackage: (name: string) =>
     `${name || "nothing"} is not a package Studio adds: only ${Object.keys(GENEX_PROJECT_PACKAGES).join(" and ")}`,
@@ -107,7 +111,8 @@ const MESSAGE = {
   WroteNothing: (serve: string) => `the build finished but wrote nothing to ${serve}/`,
   NoPage: (serve: string, page: string) => `the build wrote files to ${serve}/ but there is no ${page} in ${serve}/`,
   /** A served folder is a folder of the project: one that leaves it is not built into, copied or shown. */
-  ServeOutside: "the folder this project is served from is not inside the project, so Senex did not use it",
+  ServeOutside:
+    "the folder this project is served from is not inside the project, so Senex did not use it; the build's output folder (build.outDir in the bundler's config) has to be a folder inside the project",
 } as const;
 
 export interface BuildSource {
@@ -144,7 +149,7 @@ export function servedAfterBuild(
 /** The sentence the project console and the agent loop get; the stage gets the payload instead. */
 export function buildFailureNote(problem: BuildProblem): string {
   const exit = problem.code === null ? "" : `, exit ${problem.code}`;
-  return `the project's build failed (${problem.command}${exit}):\n${problem.lines.join("\n")}`;
+  return `the project's build failed (${problem.command}${exit}):\n${problem.diagnostics.join("\n")}`;
 }
 
 /** Files that are never part of a build, however big the folder is. */
@@ -365,6 +370,7 @@ export class ProjectBuilds {
       command: source.shape.build ?? "",
       code: null,
       lines: [note],
+      diagnostics: [note],
       needsInstall: false,
       install: null,
       showingLastBuild: false,
@@ -476,11 +482,13 @@ export class ProjectBuilds {
     note?: string,
   ): Promise<BuildProblem> {
     const declared = source.shape.install !== null;
+    const printed = outputLines(result, DIAGNOSTIC_LINES);
     return {
       project: source.project,
       command: source.shape.build ?? "",
       code: result.code,
-      lines: [...(note ? [note] : []), ...outputLines(result, note ? 2 : 3)],
+      lines: [...(note ? [note] : []), ...printed].slice(0, STAGE_LINES),
+      diagnostics: [...(note ? [note] : []), ...printed].slice(0, DIAGNOSTIC_LINES),
       needsInstall: declared && !(await pathExists(path.join(source.dir, "node_modules"))),
       install: source.shape.install,
       showingLastBuild: false,
@@ -529,13 +537,18 @@ async function linkPackages(from: string, to: string): Promise<void> {
   if (await pathExists(modules)) await symlink(modules, path.join(to, "node_modules"), "dir").catch(() => {});
 }
 
-/** The last lines a failed command printed — stderr first, because that is where the error is. */
+/**
+ * The first lines a failed command printed — stderr first, because that is where the error is —
+ * without the package manager's wrapper text around the script. Output that is nothing but
+ * wrapper text is returned as printed: it is all there is to say.
+ */
 export function outputLines(result: Pick<RunResult, "stdout" | "stderr">, max: number): string[] {
-  const lines = `${result.stderr ?? ""}\n${result.stdout ?? ""}`
+  const printed = `${result.stderr ?? ""}\n${result.stdout ?? ""}`
     .split("\n")
     .map((line) => line.trimEnd())
     .filter((line) => line.trim().length > 0);
-  return lines.slice(0, max);
+  const own = withoutRunnerNoise(printed);
+  return (own.length > 0 ? own : printed).slice(0, max);
 }
 
 /**
