@@ -226,13 +226,15 @@ describe("the requested state — setup and its probe", () => {
 
 describe("computer tool — a playtester's clock (golden-boot-glory)", () => {
   /** The computer on a fake window that records what reached the project, for one screen role. */
-  async function playOn(role: "playtester" | "builder") {
+  async function playOn(role: "playtester" | "builder", extra: Array<Record<string, unknown>> = []) {
     const { computerTools } = await import("../../src/main/core/computer-tools.ts");
     const { tmpDir } = await import("../helpers/tmp.ts");
     const reached: string[] = [];
+    const timeline: string[] = [];
     const port = {
       studioCall: async (method: string) => {
         reached.push(method);
+        timeline.push(method);
         return true;
       },
       input: async () => {
@@ -245,7 +247,10 @@ describe("computer tool — a playtester's clock (golden-boot-glory)", () => {
       consoleEntries: () => [],
     };
     const previews = {
-      loadServed: async () => ({ problem: null, note: null }),
+      loadServed: async () => {
+        timeline.push("load");
+        return { problem: null, note: null };
+      },
       applySetup: async () => null,
       openScreen: () => {},
       frame: async () => {},
@@ -257,10 +262,13 @@ describe("computer tool — a playtester's clock (golden-boot-glory)", () => {
       "/nonexistent/build",
       await tmpDir("computer-clock-"),
       sessionPort as never,
+      { reloadFlushMs: 1 },
     );
     await tools.onLiveTool("computer", { action: "key", text: "d" });
     await tools.onLiveTool("computer", { action: "wait", duration: 0.01 });
-    return { reached, prompt: String(tools.liveTools[0]?.description) };
+    const before = timeline.length;
+    for (const action of extra) await tools.onLiveTool("computer", action);
+    return { reached, timeline: timeline.slice(before), prompt: String(tools.liveTools[0]?.description) };
   }
 
   it("one key press ran four match minutes while the playtester looked: its project stands still between moves and runs only during them", async () => {
@@ -269,9 +277,68 @@ describe("computer tool — a playtester's clock (golden-boot-glory)", () => {
     assert.match(played.prompt, /stands still between your actions/);
   });
 
+  it("lets a debounced autosave run before a reload throws the page away, for the paced roles only", async () => {
+    const played = await playOn("playtester", [{ action: "reload" }]);
+    assert.deepEqual(
+      played.timeline,
+      ["start", "pause", "load", "pause"],
+      "the clock runs, then stands still again, and only then is the page replaced",
+    );
+    const built = await playOn("builder", [{ action: "reload" }]);
+    assert.deepEqual(built.timeline, ["load"], "a builder's page was running anyway");
+    const first = await playOn("playtester", []);
+    assert.deepEqual(first.reached, ["pause", "start", "input", "pause", "start", "pause"]);
+  });
+
   it("a builder's project keeps running between actions, as before", async () => {
     const built = await playOn("builder");
     assert.deepEqual(built.reached, ["input"]);
     assert.match(built.prompt, /keeps running between actions/);
+  });
+});
+
+describe("computer tool — what the console says was blocked", () => {
+  it("names the origins the preview refused beside the page's own errors, and the errors alone otherwise", async () => {
+    const { computerTools } = await import("../../src/main/core/computer-tools.ts");
+    const { tmpDir } = await import("../helpers/tmp.ts");
+    const answer = async (entries: Array<Record<string, unknown>>) => {
+      const port = {
+        studioCall: async () => true,
+        studioState: async () => ({}),
+        pointer: () => ({ x: 1, y: 1 }),
+        viewSize: () => ({ width: 960, height: 600 }),
+        consoleEntries: () => entries,
+      };
+      const previews = {
+        loadServed: async () => ({ problem: null, note: null }),
+        applySetup: async () => null,
+        openScreen: () => {},
+        frame: async () => {},
+      };
+      const tools = computerTools(
+        previews as never,
+        { project: "weather", role: "builder" } as never,
+        "/nonexistent/build",
+        await tmpDir("computer-blocked-"),
+        { get: async () => port, handle: () => null, loaded: null } as never,
+      );
+      const result = await tools.onLiveTool("computer", { action: "console" });
+      return typeof result === "string" ? result : result.text;
+    };
+    const blocked = (origin: string) => ({
+      at: 1,
+      level: "warning",
+      message: `the studio blocked a network request to ${origin}`,
+      blocked: origin,
+    });
+    const failed = { at: 2, level: "error", message: "TypeError: Failed to fetch" };
+    const both = await answer([blocked("https://api.open-meteo.com"), failed, blocked("https://api.open-meteo.com")]);
+    assert.match(both, /Failed to fetch/);
+    assert.match(both, /blocked by the preview's offline policy: https:\/\/api\.open-meteo\.com\b/);
+    assert.equal(both.match(/open-meteo/g)?.length, 1, "each origin once");
+    const only = await answer([blocked("https://cdn.example.org")]);
+    assert.match(only, /blocked by the preview's offline policy: https:\/\/cdn\.example\.org/);
+    assert.match(only, /console errors since load: none/, "a block is a warning, not an error");
+    assert.equal(await answer([failed]).then((text) => /blocked by/.test(text)), false);
   });
 });

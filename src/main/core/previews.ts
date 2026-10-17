@@ -3,6 +3,7 @@
  * captures and computer sessions agents look through, the agent screens on the stage, and a run's
  * builds played or landed. Composed by `StudioCore`; its state stays in the core.
  */
+import { blockedLine } from "../page-serve.ts";
 import { genexJobDir, isGenexInspectionFile, readContainedImage, readGenexJobs } from "../project-assets.ts";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
@@ -201,6 +202,12 @@ function consoleErrorsLine(errors: ReadonlyArray<{ message: string }>): string {
     .map((entry) => entry.message)
     .join(" | ");
   return `console errors since load (${errors.length}): ${quoted}`;
+}
+
+/** What a capture answer says of the console: the errors, then which origins the preview refused. */
+function consoleLines(entries: ReadonlyArray<{ level: string; message: string; blocked?: string }>): string[] {
+  const blocked = blockedLine(entries);
+  return [consoleErrorsLine(entries.filter((entry) => entry.level === "error")), ...(blocked ? [blocked] : [])];
 }
 
 /** What a setup's `verify` expected, as its note names it. */
@@ -636,11 +643,10 @@ export class PreviewService {
       const lines: string[] = [];
       for (const camera of camerasToCapture(cameras, known))
         lines.push(await this.#captureCamera(port, screen, { outDir, call, camera, known }));
-      const errors = port.consoleEntries(0).filter((entry) => entry.level === "error");
       return [
         `Captured your CURRENT build (workspace ${path.basename(root)}):`,
         ...lines,
-        consoleErrorsLine(errors),
+        ...consoleLines(port.consoleEntries(0)),
         ...(setupNote ? [`note: ${setupNote}`] : []),
         "Read the image files above to actually look at them. The window keeps running this build — the computer tool continues from here.",
       ].join("\n");

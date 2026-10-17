@@ -1462,15 +1462,32 @@ function startPump(page: ReadyInputs, watch: CanvasWatch, r: Readiness) {
   }, READINESS_POLL_MS);
 }
 
-/** Calls the project's own verb of that name, if it has one, reporting (never throwing) its errors. */
+/** Calls the project's own verb of that name, if it has one, reporting (never throwing) its errors; answers what it returned. */
 function callProject(win: Foreign, verb: string, ...args: Foreign[]) {
   const project = win.__studio?.__project;
-  if (!project || typeof project[verb] !== "function") return;
+  if (!project || typeof project[verb] !== "function") return undefined;
   try {
-    project[verb](...args);
+    return project[verb](...args);
   } catch (err) {
     console.error(err);
+    return undefined;
   }
+}
+
+/**
+ * What `seed()` answers: the seed itself, or a promise of it when the project's reset returned a
+ * promise (an IndexedDB or sql.js store loads its fixtures asynchronously) so the caller reads the
+ * page after the reset, not during it. A rejected reset is reported, as a thrown one is.
+ */
+export function settledSeed(seeded: number, pending: Foreign): number | Promise<number> {
+  if (typeof pending?.then !== "function") return seeded;
+  return Promise.resolve(pending).then(
+    () => seeded,
+    (err: unknown) => {
+      console.error(err);
+      return seeded;
+    },
+  );
 }
 
 function readProjectState(win: Foreign) {
@@ -1608,8 +1625,7 @@ function studioFacade({ win, watch, clock, lock, activity, ready }: FacadeParts)
     },
     seed(value: Foreign) {
       const seeded = clock.seed(value);
-      callProject(win, "seed", value);
-      return seeded;
+      return settledSeed(seeded, callProject(win, "seed", value));
     },
     ...hookedAnswers(),
     // Recorded, never dispatched: preview.ts sends the DOM events itself, and a second copy

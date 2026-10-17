@@ -388,9 +388,16 @@ export function installStudio(config) {
       look.y = 0;
       wheel.x = 0;
       wheel.y = 0;
-      config.reset?.(seed, { boot: false });
+      const pending = config.reset?.(seed, { boot: false });
       renderAll();
-      return seed;
+      // A reset that loads its fixtures asynchronously (IndexedDB, sql.js) is waited for, so the
+      // judge reads the page after it; a synchronous one still answers the seed at once.
+      if (typeof pending?.then !== "function") return seed;
+      const seeded = seed;
+      return pending.then(() => {
+        renderAll();
+        return seeded;
+      });
     },
 
     /** Resume live play after seed() or pause(). The project is already running on load. */

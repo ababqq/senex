@@ -99,6 +99,8 @@ export interface PreviewConsoleEntry {
   message: string;
   source?: string;
   line?: number;
+  /** The origin the studio blocked, on the studio's own line about it; absent on the page's. */
+  blocked?: string;
 }
 
 export interface PreviewStatus {
@@ -522,10 +524,10 @@ export class ProjectPreview {
 
   /** One console line per blocked origin per load: the harness reads why a project's request failed. */
   #noteBlocked(kind: "request" | "navigation" | "window" | "tab", raw: string): void {
-    const { key, text } = blockedNote(kind, raw);
+    const { key, text, origin } = blockedNote(kind, raw);
     if (this.#blockedNoted.has(key)) return;
     this.#blockedNoted.add(key);
-    this.#push({ at: Date.now(), level: "warning", message: text });
+    this.#push({ at: Date.now(), level: "warning", message: text, blocked: origin });
   }
 
   /**
@@ -727,12 +729,20 @@ export class ProjectPreview {
     const url = options.loopback
       ? loopbackEntryUrl(loopbackPortFor(project), entry, this.#siteBase)
       : `${SCHEME}://${project}/${entry}`;
+    // A built page's service worker and Cache Storage would answer with the previous build; its
+    // saved data (localStorage, IndexedDB) is left alone.
+    if (options.loopback) await this.#clearWorkers(new URL(url).origin);
     try {
       await view.webContents.loadURL(url);
     } finally {
       this.#navigating = false;
     }
     return url;
+  }
+
+  /** Forget the service workers and caches a built page registered at `origin`, keeping its data. */
+  async #clearWorkers(origin: string): Promise<void> {
+    await this.#session?.clearStorageData({ storages: ["serviceworkers", "cachestorage"], origin }).catch(() => {});
   }
 
   /** Read the sub-path the built entry page names its files under, for a loopback load; none otherwise. */

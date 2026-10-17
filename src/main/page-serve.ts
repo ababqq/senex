@@ -169,7 +169,10 @@ const BLOCKED_WHY = {
  * `tel:` link has no origin, so its scheme stands for it. A `tab` is a page of the project itself:
  * it is named by its path, since every such link is a different page.
  */
-export function blockedNote(kind: keyof typeof BLOCKED_WHAT, raw: string): { key: string; text: string } {
+export function blockedNote(
+  kind: keyof typeof BLOCKED_WHAT,
+  raw: string,
+): { key: string; text: string; origin: string } {
   let origin = raw;
   try {
     const url = new URL(raw);
@@ -178,7 +181,22 @@ export function blockedNote(kind: keyof typeof BLOCKED_WHAT, raw: string): { key
   } catch {
     /* not a URL: noted as given */
   }
-  return { key: `${kind} ${origin}`, text: `the studio blocked ${BLOCKED_WHAT[kind]} ${origin}: ${BLOCKED_WHY[kind]}` };
+  return {
+    key: `${kind} ${origin}`,
+    text: `the studio blocked ${BLOCKED_WHAT[kind]} ${origin}: ${BLOCKED_WHY[kind]}`,
+    origin,
+  };
+}
+
+/**
+ * The line that says which origins the preview refused, for whoever reads the page's console
+ * errors: a failed `fetch` is a page error with no URL, and without this the block looks like a
+ * bug in the project. Null when nothing was blocked.
+ */
+export function blockedLine(entries: ReadonlyArray<{ blocked?: string }>): string | null {
+  const origins = [...new Set(entries.map((entry) => entry.blocked).filter((origin) => typeof origin === "string"))];
+  if (!origins.length) return null;
+  return `blocked by the preview's offline policy: ${origins.join(", ")} — an error from these is the preview, not the project`;
 }
 
 /** The console line for a document too large to buffer. Its shape is asserted. */

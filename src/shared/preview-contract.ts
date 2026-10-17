@@ -57,6 +57,8 @@ export interface PreviewConsoleEntry {
   message: string;
   source?: string;
   line?: number;
+  /** The origin the studio blocked, on the studio's own line about it; absent on the page's. */
+  blocked?: string;
 }
 
 /** A crop rectangle as fractions of the frame: [x0, y0, x1, y1], origin top-left. */

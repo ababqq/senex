@@ -231,7 +231,7 @@ export interface StudioConfig {
    * on boot keep what a person saved and add no sample entries unless the brief asks for it. The judge reseeds
    * with 1, the seed the page loads on: draw the first screen only from `seed`, never from Date or Math.random.
    */
-  reset?: (seed: number, info?: { boot: boolean }) => void;
+  reset?: (seed: number, info?: { boot: boolean }) => void | Promise<void>;
   /** The canvas of a project that draws one. */
   canvas?: HTMLCanvasElement;
   /** A 3D or canvas world's scene graph, renderer and camera — whatever library they come from. */
@@ -249,7 +249,7 @@ export interface StudioConfig {
 export interface StudioApi {
   version: number;
   /** Reseed, reset — and pause, so judging starts from a known frame. */
-  seed?(value: number): number;
+  seed?(value: number): number | Promise<number>;
   /** Resume live play. The project runs from the moment `installStudio` returns. */
   start?(): boolean;
   pause?(): boolean;

@@ -27,6 +27,7 @@ import {
   mulberry32,
   normalizeShimOptions,
   readinessVerdict,
+  settledSeed,
   installGlGlobal,
   watchCanvases,
 } from "../../src/page/shim.ts";
@@ -871,6 +872,63 @@ describe("what a project's reset is told about why it runs", () => {
     } finally {
       page.restore();
     }
+  });
+});
+
+describe("a reset that is not finished when it returns", () => {
+  /**
+   * An IndexedDB or sql.js project empties its store and loads fixtures asynchronously; the judge
+   * used to read the page the moment `seed(n)` returned, before the fixtures were there.
+   */
+  it("makes seed() wait for a reset that returns a promise, and only then", async () => {
+    const order: string[] = [];
+    let release = () => {};
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const calls: Array<[number, unknown]> = [];
+    const globals = globalThis as unknown as Record<string, unknown>;
+    const before = { window: globals.window, document: globals.document };
+    const canvas = { getBoundingClientRect: () => ({ left: 0, top: 0, width: 100, height: 100 }) };
+    globals.window = { addEventListener: () => {} };
+    globals.document = { addEventListener: () => {}, querySelector: () => canvas, pointerLockElement: canvas };
+    try {
+      const api = installStudio({
+        canvas,
+        hud: false,
+        reset: (seed: number, info?: { boot: boolean }) => {
+          calls.push([seed, info]);
+          if (info?.boot === false && seed === 7) return gate.then(() => void order.push("reset done"));
+        },
+      } as never) as { seed(value: number): number | Promise<number> };
+      const sync = api.seed(3);
+      assert.equal(sync, 3, "a reset that returns nothing keeps seed() synchronous");
+      const pending = api.seed(7);
+      assert.ok(pending instanceof Promise, "an async reset makes seed() a promise");
+      void pending.then((seed) => order.push(`seeded ${seed}`));
+      await Promise.resolve();
+      assert.deepEqual(order, [], "nothing is reported while the reset is still running");
+      release();
+      await pending;
+      assert.deepEqual(order, ["reset done", "seeded 7"]);
+    } finally {
+      Object.assign(globals, before);
+    }
+  });
+
+  it("settles to the seed whether the project's reset resolves, rejects or returns nothing", async () => {
+    assert.equal(settledSeed(5, undefined), 5);
+    assert.equal(settledSeed(5, 12), 5, "a value that is not a promise is not waited for");
+    assert.equal(await settledSeed(5, Promise.resolve()), 5);
+    const failures: unknown[] = [];
+    const quiet = console.error;
+    console.error = (...args: unknown[]) => void failures.push(args[0]);
+    try {
+      assert.equal(await settledSeed(5, Promise.reject(new Error("reset failed"))), 5);
+    } finally {
+      console.error = quiet;
+    }
+    assert.equal(failures.length, 1, "the failure is reported, as a synchronous one is");
   });
 });
 
