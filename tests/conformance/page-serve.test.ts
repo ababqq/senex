@@ -932,6 +932,13 @@ describe("what the project's console says about something the preview refused", 
       assert.ok(note.text.startsWith(`the studio blocked ${what}: `), note.text);
     }
     assert.match(blockedNote("window", "https://github.com/me").text, /the preview shows only the project/);
+    // A link to a page of the project itself that asks for a new tab: nothing leaves the project, and
+    // every such link is its own page, so each is noted once.
+    const inside = blockedNote("tab", "project://site/about.html?token=abc#x");
+    assert.equal(inside.key, "tab /about.html");
+    assert.match(inside.text, /opening a new tab to \/about\.html: the preview shows one window/);
+    assert.doesNotMatch(inside.text, /token|project:/);
+    assert.notEqual(blockedNote("tab", "project://site/contact.html").key, inside.key);
     assert.match(blockedNote("request", "https://api.example.com").text, /projects run offline in the preview/);
   });
 });

@@ -870,6 +870,9 @@ export function renderMilestones(
 
 // ── harness-owned checks ───────────────────────────────────────────────────────────────────
 
+/** The click check's counters alone: what a kept `kinds.ts` older than the view clause answers with. */
+const CLICK_COUNTERS = "abs(delta('ui.navigations')) > 0 || abs(delta('ui.reactions')) > 0";
+
 /**
  * Checks the loop itself puts on every plan. They prove the things a person notices first and no
  * planner check ever covered: the page runs without throwing, every control can be named by
@@ -909,7 +912,7 @@ export const HARNESS_CHECKS: Record<string, AnyRecord & { expr?: string; note: s
     origin: CheckOrigin.Harness,
     // The one expression for the click axis lives in loop/kinds.ts; a page that begins at zero on
     // every document (separate HTML files) is told apart there by the view it reports.
-    expr: inputProbesFor(undefined).navigate.expr,
+    expr: inputProbesFor(undefined)?.navigate?.expr ?? CLICK_COUNTERS,
     needs: ["ui.navigations", "ui.reactions"],
     note: "harness-owned: after the scripted clicks the address, the page or the document changed — the pointer reaches something that responds",
   },

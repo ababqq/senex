@@ -334,7 +334,8 @@ export class ProjectPreview {
       void this.#profiler.invalidate("navigation changed");
     });
     wc.setWindowOpenHandler(({ url }) => {
-      this.#noteBlocked("window", url);
+      const ofTheProject = previewNavigationAllowed(url, loopbackPorts, { mainFrame: true });
+      this.#noteBlocked(ofTheProject ? "tab" : "window", url);
       return { action: "deny" };
     });
     // The page stays on project:// or its loopback origin: a remote page inside the studio's chrome,
@@ -520,7 +521,7 @@ export class ProjectPreview {
   }
 
   /** One console line per blocked origin per load: the harness reads why a project's request failed. */
-  #noteBlocked(kind: "request" | "navigation" | "window", raw: string): void {
+  #noteBlocked(kind: "request" | "navigation" | "window" | "tab", raw: string): void {
     const { key, text } = blockedNote(kind, raw);
     if (this.#blockedNoted.has(key)) return;
     this.#blockedNoted.add(key);
