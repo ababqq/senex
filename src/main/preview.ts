@@ -30,18 +30,18 @@ import {
   HttpRouteKind,
   HttpStatus,
   MAX_REWRITE_BYTES,
+  answerRequest,
   confinePreviewContents,
   loopbackEntryUrl,
   projectRequestAllowed,
   previewNavigationAllowed,
   rewriteProjectHtml,
+  routedDocumentUrl,
   routeHttp,
   servableProject,
-  servedLocation,
   servedRelative,
   shouldRewrite,
   SHIM_PATH,
-  spaFallback,
   textResponse,
   THREE_HOOK_PATH,
   threeHookModule,
@@ -519,16 +519,18 @@ export class ProjectPreview {
       liveRoot: () => this.#liveRoot(project),
       pinnedProjectRoot: () => this.#pinnedFor(project),
     };
-    const found = await servedLocation(requested, roots);
-    const route = options.routes
-      ? spaFallback(requested, found, this.#entryPath, {
-          dest: request?.headers.get("sec-fetch-dest") ?? null,
-          accept: request?.headers.get("accept") ?? null,
-        })
-      : null;
-    // The route is answered by the entry document itself, through the same check and rewrite.
-    const relative = route ?? requested;
-    const served = route === null ? found : await servedLocation(route, roots);
+    // A routed answer is the app's own page, read through the same check and rewritten like the entry.
+    const { relative, served, routed } = await answerRequest(
+      requested,
+      roots,
+      this.#entryPath,
+      {
+        method: request?.method ?? "GET",
+        dest: request?.headers.get("sec-fetch-dest") ?? null,
+        accept: request?.headers.get("accept") ?? null,
+      },
+      options.routes === true,
+    );
     if (!served.ok) return textResponse(served.status);
     const target = served.path;
     try {
@@ -539,8 +541,8 @@ export class ProjectPreview {
       const headers = new Headers(response.headers);
       headers.set("Cache-Control", "no-store");
       const documentUrl =
-        route !== null && request
-          ? new URL(`/${relative}`, request.url).href
+        routed && request
+          ? routedDocumentUrl(request.url, relative)
           : (request?.url ?? `${SCHEME}://${project}/${relative}`);
       const rewritten = await this.#rewriteDocument(response, relative, target, documentUrl, request);
       if (rewritten !== null) {

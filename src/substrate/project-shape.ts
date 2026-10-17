@@ -72,11 +72,13 @@ export function declaresDependencies(pkg: PackageManifest | null): boolean {
 }
 
 /**
- * Whether a package is software someone is making: it declares packages or scripts. A bare
- * `package.json` with a name in it (a folder of notes, a leftover) is not.
+ * Whether a package is software someone is making: it declares packages, or a script other than
+ * `test`. A bare `package.json` (a name, or what `npm init` writes: a placeholder `test` script)
+ * is a folder waiting for a project, not one.
  */
 export function declaresSoftware(pkg: PackageManifest | null): boolean {
-  return declaresDependencies(pkg) || Object.keys(pkg?.scripts ?? {}).length > 0;
+  const scripts = Object.keys(pkg?.scripts ?? {}).filter((name) => name !== "test");
+  return declaresDependencies(pkg) || scripts.length > 0;
 }
 
 /** A folder's package.json, or null when it is missing or does not parse. */
@@ -127,12 +129,24 @@ function kindOf(evidence: KindEvidence): ProjectKind {
   return "own-script";
 }
 
+/**
+ * A folder of the project, spelled plainly (`.` or a relative path with no `..`), or null. The
+ * folder a page is served from is read from files the project holds — a bundler config,
+ * studio.json — and anything that leaves the project is not a folder the studio builds into or
+ * serves.
+ */
+function projectFolder(value: string): string | null {
+  const folder = value.trim().replace(/^\.\//, "").replace(/\/+$/, "") || ".";
+  return folder === "." || plainRelativePath(folder) ? folder : null;
+}
+
 /** Where the bundler writes its output. Vite (and most others) use dist/ unless told otherwise. */
 async function outputDir(dir: string): Promise<string> {
   for (const name of VITE_CONFIGS) {
     const text = await readFile(path.join(dir, name), "utf8").catch(() => null);
     const found = text ? /\boutDir\s*:\s*["']([^"']+)["']/.exec(text)?.[1] : null;
-    if (found) return found.replace(/^\.\//, "").replace(/\/+$/, "") || ".";
+    const folder = found ? projectFolder(found) : null;
+    if (folder) return folder;
   }
   return DEFAULT_OUTPUT_DIR;
 }
@@ -217,6 +231,11 @@ function serveDirOf(entry: string): string {
   return dir === "" ? "." : dir;
 }
 
+/** The folder studio.json serves from: its `serve` if that is a folder of the project, else the one the entry is in, else the project's own. */
+function servedFolder(named: string | null, entry: string): string {
+  return (named ? projectFolder(named) : null) ?? projectFolder(serveDirOf(entry)) ?? ".";
+}
+
 /** studio.json as `readProjectShape` reads it: every field unchecked until it is used. */
 interface ShapeMeta {
   entry?: unknown;
@@ -273,7 +292,7 @@ async function recordedShape(dir: string, meta: ShapeMeta): Promise<ProjectShape
     install: recordedInstall(meta, detected),
     own,
     kind: kind ?? (own ? "own-script" : TEMPLATE_SHAPE.kind),
-    serve: trimmedText(meta.serve) ?? serveDirOf(entry),
+    serve: servedFolder(trimmedText(meta.serve), entry),
   };
 }
 

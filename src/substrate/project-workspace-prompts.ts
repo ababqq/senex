@@ -19,13 +19,15 @@ export const REFERENCES_README = [
 ].join("\n");
 
 /** The rule a project with a build gets: run it before finishing, and keep the contract's types. */
-function buildRule(build: string): string {
+function buildRule(build: string, serve: string): string {
+  const from = serve === "." ? "the project folder" : `\`${serve}/\``;
   return [
     `6. **Run \`${build}\` before you finish**, and fix what it reports. The studio runs the`,
     `   same build before every preview and before every judge looks: a build that fails is a`,
     `   black screen for the user and a lost round for you. If the compiler rejects`,
     `   \`./studio.js\`, the types are in \`src/studio.d.ts\` beside it — point the config at them`,
-    `   rather than deleting the import.`,
+    `   rather than deleting the import. The page is served from ${from}; if the build writes it`,
+    `   somewhere else, set \`serve\` in studio.json to that folder.`,
     "",
   ].join("\n");
 }
@@ -43,7 +45,7 @@ export function ownRules(template: string, shape: ProjectShape): string {
       "__BUILD_LINE__",
       shape.build ? `it is built with \`${shape.build}\`` : "it runs as written, with no build step",
     )
-    .replaceAll("__BUILD_RULE__", shape.build ? buildRule(shape.build) : "");
+    .replaceAll("__BUILD_RULE__", shape.build ? buildRule(shape.build, shape.serve) : "");
 }
 
 /** The pitch seeded from the folder's own readme, or the placeholder the first build replaces. */

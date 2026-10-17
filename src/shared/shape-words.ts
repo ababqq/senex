@@ -147,8 +147,9 @@ export function openOptions(inspection: FolderInspection): OpenOption[] {
       button: candidate.rel === "." ? "Open this project" : `Open ${candidate.rel}/`,
     };
   });
-  // `starter` is empty when the folder is a project of its own — its own row above says it.
-  if (inspection.starter.length > 0) {
+  // `starter` is empty when the folder is a project of its own — its own row above says it — or when
+  // software with no page has nothing left to write: it still needs its row, or there is no way to open it.
+  if (inspection.starter.length > 0 || inspection.packageWithoutPage) {
     const beside = inspection.candidates.length > 0;
     const software = inspection.packageWithoutPage;
     const words = folderWords(beside, software);

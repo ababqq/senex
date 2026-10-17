@@ -9,7 +9,7 @@
  */
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, rm, stat, symlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { describe, it } from "node:test";
 import { promisify } from "node:util";
@@ -77,7 +77,15 @@ async function projectRepo(name: string): Promise<string> {
 
 /** A sandbox stand-in: it records what was asked and writes the output a bundler would. */
 function fakeRunner(
-  options: { code?: number; stderr?: string; writes?: boolean; delayMs?: number; output?: Record<string, string> } = {},
+  options: {
+    code?: number;
+    stderr?: string;
+    writes?: boolean;
+    delayMs?: number;
+    output?: Record<string, string>;
+    /** A build that leaves its output folder as a link to this place, as a planted `dist` would. */
+    outputLink?: string;
+  } = {},
 ): {
   calls: RunRequest[];
   run: (request: RunRequest) => Promise<RunResult>;
@@ -89,7 +97,10 @@ function fakeRunner(
       calls.push(request);
       const code = options.code ?? 0;
       if (options.delayMs) await new Promise((resolve) => setTimeout(resolve, options.delayMs));
-      if (code === 0 && options.output && request.label?.startsWith("build:")) {
+      if (code === 0 && options.outputLink && request.label?.startsWith("build:")) {
+        await rm(path.join(request.cwd, "dist"), { recursive: true, force: true });
+        await symlink(options.outputLink, path.join(request.cwd, "dist"));
+      } else if (code === 0 && options.output && request.label?.startsWith("build:")) {
         for (const [file, text] of Object.entries(options.output)) {
           await mkdir(path.dirname(path.join(request.cwd, file)), { recursive: true });
           await writeFile(path.join(request.cwd, file), text);
@@ -493,6 +504,71 @@ describe("building a project the user owns", () => {
     const silent = new ProjectBuilds({ root, run: fakeRunner({ writes: false }).run });
     const nothing = await silent.ensure({ project: "no-page-2", dir, shape: VITE_SHAPE });
     assert.match(nothing.problem!.lines.join("\n"), /wrote nothing to dist\/.*"serve" in studio\.json/);
+  });
+
+  it("refuses an output folder that leaves the project: nothing outside it is built into, copied or served", async () => {
+    const dir = await projectRepo("escape");
+    const root = path.join(await tmpDir("studio-shadow-"), "builds");
+    const outside = await tmpDir("studio-outside-");
+    await writeFile(path.join(outside, "index.html"), "<h1>not the project's</h1>");
+    await writeFile(path.join(outside, "secret.txt"), "private");
+    // A shape studio.json or a bundler config could have named, however it was read.
+    for (const serve of ["../..", "../../outside", outside, "dist/../.."]) {
+      const runner = fakeRunner();
+      const builds = new ProjectBuilds({ root, run: runner.run });
+      const outcome = await builds.ensure({ project: "escape", dir, shape: { ...VITE_SHAPE, serve } });
+      assert.equal(outcome.ok, false, serve);
+      assert.equal(outcome.output, null, serve);
+      assert.equal(runner.calls.length, 0, `${serve}: no build ran for a folder that is not the project's`);
+    }
+    // A built page that is not the project's own has no business being served either.
+    const served = new ProjectBuilds({ root, run: fakeRunner().run });
+    const unbuilt = await served.ensure({
+      project: "escape",
+      dir,
+      shape: { ...VITE_SHAPE, build: null, serve: "../.." },
+    });
+    assert.equal(unbuilt.ok, false);
+    assert.equal(unbuilt.output, null);
+
+    // A build that leaves its output folder as a link to somewhere else keeps nothing from there.
+    const linking = new ProjectBuilds({ root, run: fakeRunner({ outputLink: outside }).run });
+    const linked = await linking.ensure({ project: "escape", dir, shape: VITE_SHAPE });
+    assert.equal(linked.ok, false, "a link out of the project is not a build");
+    assert.equal(linked.output, null);
+    for (const shadow of await readdir(root)) {
+      const last = await readdir(path.join(root, shadow, "last")).catch(() => [] as string[]);
+      assert.ok(!last.includes("secret.txt"), "nothing from outside the project was copied in");
+    }
+  });
+
+  it("fails an in-place build (a run's worktree) that wrote files but no page, as the live shadow does", async () => {
+    const dir = await projectRepo("worktree");
+    const root = path.join(await tmpDir("studio-shadow-"), "builds");
+    const runner = fakeRunner({ output: { "dist/app.js": "console.log(1)" } });
+    const builds = new ProjectBuilds({ root, run: runner.run, ours: () => true });
+    await rm(path.join(dir, "dist"), { recursive: true, force: true });
+    const outcome = await builds.ensure({ project: "worktree", dir, shape: VITE_SHAPE });
+    assert.equal(outcome.ok, false);
+    assert.match(outcome.problem!.lines.join("\n"), /no index\.html in dist\//);
+  });
+
+  it("memoises a build whose page is not called index.html, and keeps its last good output", async () => {
+    const dir = await projectRepo("play");
+    const root = path.join(await tmpDir("studio-shadow-"), "builds");
+    const runner = fakeRunner({ output: { "dist/play.html": "<h1>play</h1>" } });
+    const builds = new ProjectBuilds({ root, run: runner.run });
+    const shape: ProjectShape = { ...VITE_SHAPE, entry: "dist/play.html" };
+    const first = await builds.ensure({ project: "play", dir, shape });
+    assert.equal(first.ok, true);
+    const again = await builds.ensure({ project: "play", dir, shape });
+    assert.equal(again.ran, false, "an unchanged tree is not built twice");
+    assert.equal(runner.calls.length, 1);
+    await writeFile(path.join(dir, "src", "main.ts"), "export const project = 2;\n");
+    const broken = new ProjectBuilds({ root, run: fakeRunner({ code: 1, stderr: "boom" }).run });
+    const failed = await broken.ensure({ project: "play", dir, shape });
+    assert.equal(failed.ok, false);
+    assert.equal(failed.lastGood !== null, true, "the page the last build wrote is still on offer");
   });
 
   it("offers no fallback when the shadow's output is the mirror the next build empties", async () => {

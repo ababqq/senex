@@ -1,6 +1,6 @@
 # Architecture
 
-Developer reference: read the [product overview](context.md) and the
+Developer reference: read the [overview](context.md) and the
 affected product page first, then only the section you need. Each section states the current
 contract and names the code that owns it; history lives in Git and PRs. When code and this page
 disagree, fix the wrong one in the same change.
@@ -130,7 +130,7 @@ scope: Codex's cover pre-existing files, never directories; the Claude hook matc
   own secrets are safeStorage ciphertext; the exposed material is other projects, `~/.genex`, the
   borrowed Codex sign-in and the ordinary home folder. Running the CLI under `ProcessSandbox` with
   deny-read is planned, not done.
-- **An install briefly opens the npm registry to every sandboxed process.** sandbox-runtime's
+- **An install briefly opens its manager's registry hosts to every sandboxed process.** sandbox-runtime's
   proxy filters against one process-wide allow-list, so `ProcessSandbox.run` widens it for the
   length of a package install and restores it afterwards (counted, in `finally`). Two installs
   open it: the user's Install packages button and `genex__package`, a consented add of one of the

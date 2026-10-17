@@ -18,13 +18,15 @@
  * away from the caller's memory and puts it in one testable rule.
  */
 import { constants } from "node:fs";
-import { cp, mkdir, readdir, rm, stat, symlink, writeFile } from "node:fs/promises";
+import { cp, mkdir, readdir, realpath, rm, stat, symlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { createHash } from "node:crypto";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { ensureDir, pathExists } from "../substrate/fsx.ts";
 import { HOST_GIT_CONFIG } from "../substrate/snapshots.ts";
+import { isInside } from "../substrate/paths.ts";
+import { plainRelativePath } from "../substrate/project-shape.ts";
 import { NPM_REGISTRY, packageCommandsIn } from "../substrate/toolchain.ts";
 import type { ProjectShape } from "../substrate/project-workspace.ts";
 import { type RunRequest, type RunResult, shellQuote } from "../substrate/spawn.ts";
@@ -56,6 +58,15 @@ function servedPage(entry: string): string {
   return path.posix.basename(file) || "index.html";
 }
 
+/** Whether `folder`, once links are followed, is still inside `base`: a link out is not the project's own. */
+async function stayedInside(base: string, folder: string): Promise<boolean> {
+  try {
+    return isInside(await realpath(base), await realpath(folder));
+  } catch {
+    return false;
+  }
+}
+
 /**
  * The npm registry: opened only for an install the user pressed a button for, or a Genex package
  * install the user approved. A project's manager may need more hosts ({@link PackageCommands.registries}).
@@ -70,6 +81,8 @@ const MESSAGE = {
   ServeHint: `if your page is built somewhere else, set "serve" in studio.json to that folder ("." for the project folder)`,
   WroteNothing: (serve: string) => `the build finished but wrote nothing to ${serve}/`,
   NoPage: (serve: string, page: string) => `the build wrote files to ${serve}/ but there is no ${page} in ${serve}/`,
+  /** A served folder is a folder of the project: one that leaves it is not built into, copied or shown. */
+  ServeOutside: "the folder this project is served from is not inside the project, so Senex did not use it",
 } as const;
 
 export interface BuildSource {
@@ -185,22 +198,35 @@ export class ProjectBuilds {
 
   async #ensure(source: BuildSource, dir: string): Promise<BuildOutcome> {
     const serve = source.shape.serve && source.shape.serve !== "." ? source.shape.serve : null;
-    // No build: the folder is served as written, from its own output folder when the shape names
-    // one. This is the `build: null` + `entry: "dist/index.html"` case — served from the project
-    // root, every `/assets/…` in the built page 404s and the frame is black.
-    if (!source.shape.build) {
-      return { ok: true, output: serve ? path.join(dir, serve) : dir, lastGood: null, problem: null, ran: false };
-    }
+    // The shape is read from files the project holds; a folder that leaves the project (a `..` in
+    // studio.json, a bundler config, a link) is never built into, copied from or served.
+    if (serve !== null && !plainRelativePath(serve)) return this.#refused(source, MESSAGE.ServeOutside);
+    const command = source.shape.build;
+    return command ? this.#build(source, dir, serve, command) : this.#asWritten(source, dir, serve);
+  }
 
-    const place = await this.#placeBuild(source.project, dir, serve);
+  /**
+   * No build: the folder is served as written, from its own output folder when the shape names
+   * one. This is the `build: null` + `entry: "dist/index.html"` case — served from the project
+   * root, every `/assets/…` in the built page 404s and the frame is black.
+   */
+  async #asWritten(source: BuildSource, dir: string, serve: string | null): Promise<BuildOutcome> {
+    const served = serve ? path.join(dir, serve) : dir;
+    if (serve && !(await stayedInside(dir, served))) return this.#refused(source, MESSAGE.ServeOutside);
+    return { ok: true, output: served, lastGood: null, problem: null, ran: false };
+  }
+
+  async #build(source: BuildSource, dir: string, serve: string | null, command: string): Promise<BuildOutcome> {
+    const page = servedPage(source.shape.entry);
+    const place = await this.#placeBuild(source.project, dir, serve, page);
     const { inPlace, work, output, lastGood } = place;
     const key = await treeKey(dir, serve);
-    const memoised = await this.#memoised(dir, key, lastGood);
+    const memoised = await this.#memoised(dir, key, lastGood, page);
     if (memoised) return memoised;
 
     if (!inPlace) await this.#mirror(dir, work, serve);
     const result = await this.#run({
-      command: source.shape.build,
+      command,
       cwd: work,
       timeoutMs: BUILD_TIMEOUT_MS,
       label: `build:${source.project}`,
@@ -211,8 +237,10 @@ export class ProjectBuilds {
     }
     // The fresh output is kept apart from the mirror: a later build that empties its outDir
     // before failing must not take the last good build down with it.
-    if (!inPlace && serve !== null) {
-      const failure = await this.#keepOutput(path.join(work, serve), output, serve, servedPage(source.shape.entry));
+    if (serve !== null) {
+      const failure = inPlace
+        ? await this.#checkOutput(path.join(work, serve), work, serve, page)
+        : await this.#keepOutput(path.join(work, serve), work, output, serve, page);
       if (failure) return this.#broken(dir, key, output, lastGood, await this.#problem(source, result, failure));
     }
     this.#built.set(dir, { key, ok: true, output, problem: null });
@@ -220,7 +248,7 @@ export class ProjectBuilds {
   }
 
   /** Where a build runs and where its output is served from, and the last output that worked. */
-  async #placeBuild(project: string, dir: string, serve: string | null): Promise<BuildPlace> {
+  async #placeBuild(project: string, dir: string, serve: string | null, page: string): Promise<BuildPlace> {
     const inPlace = this.#ours(dir);
     const shadow = this.#shadow(project, dir);
     const work = inPlace ? dir : path.join(shadow, "work");
@@ -230,7 +258,7 @@ export class ProjectBuilds {
     // not "your last build". Offering it would put un-bundled sources on the stage under a
     // sentence promising the opposite.
     const keepsLast = inPlace || output !== work;
-    const lastGood = keepsLast && (await pathExists(path.join(output, "index.html"))) ? output : null;
+    const lastGood = keepsLast && (await pathExists(path.join(output, page))) ? output : null;
     return { inPlace, work, output, lastGood };
   }
 
@@ -238,10 +266,10 @@ export class ProjectBuilds {
    * Nothing changed since the last look, so neither did the answer — including a failure.
    * A broken build was re-run (and re-waited-for) on every reload and every health check.
    */
-  async #memoised(dir: string, key: string, lastGood: string | null): Promise<BuildOutcome | null> {
+  async #memoised(dir: string, key: string, lastGood: string | null, page: string): Promise<BuildOutcome | null> {
     const memo = this.#built.get(dir);
     if (memo?.key !== key) return null;
-    if (memo.ok && (await pathExists(path.join(memo.output, "index.html")))) {
+    if (memo.ok && (await pathExists(path.join(memo.output, page)))) {
       return { ok: true, output: memo.output, lastGood, problem: null, ran: false };
     }
     if (memo.ok || !memo.problem) return null;
@@ -263,12 +291,16 @@ export class ProjectBuilds {
    * `preview.load`, past every sentence the stage knows how to say, and memoised nothing, so
    * the whole build ran again on the next look.
    */
-  async #keepOutput(produced: string, output: string, serve: string, page: string): Promise<string | null> {
-    if (!(await pathExists(produced))) return `${MESSAGE.WroteNothing(serve)}; ${MESSAGE.ServeHint}`;
+  async #keepOutput(
+    produced: string,
+    work: string,
+    output: string,
+    serve: string,
+    page: string,
+  ): Promise<string | null> {
+    const failure = await this.#checkOutput(produced, work, serve, page);
+    if (failure) return failure;
     try {
-      // A folder with scripts and no page is not a build to show: the stage would answer a bare
-      // "not found" under a green build, and every look would build again.
-      if (!(await pathExists(path.join(produced, page)))) return `${MESSAGE.NoPage(serve, page)}; ${MESSAGE.ServeHint}`;
       await rm(output, { recursive: true, force: true });
       await cp(produced, output, { recursive: true, force: true, mode: constants.COPYFILE_FICLONE });
       return null;
@@ -277,6 +309,25 @@ export class ProjectBuilds {
       // and a raw ENOENT with one in it was exactly what the stage used to show.
       return "the build finished but its output could not be kept";
     }
+  }
+
+  /**
+   * Whether a finished build left a page to show: the failure's sentence, or null. The folder must
+   * exist, stay inside `base` once links are followed (a `dist` that is a link to somewhere else
+   * is not the project's output), and hold the entry's page — a folder with scripts and no page
+   * would otherwise answer a bare "not found" under a green build, and every look would build again.
+   */
+  async #checkOutput(produced: string, base: string, serve: string, page: string): Promise<string | null> {
+    if (!(await pathExists(produced))) return `${MESSAGE.WroteNothing(serve)}; ${MESSAGE.ServeHint}`;
+    if (!(await stayedInside(base, produced))) return MESSAGE.ServeOutside;
+    if (!(await pathExists(path.join(produced, page)))) return `${MESSAGE.NoPage(serve, page)}; ${MESSAGE.ServeHint}`;
+    return null;
+  }
+
+  /** A folder the studio will not build in or serve: the failure the stage shows, with nothing run. */
+  async #refused(source: BuildSource, note: string): Promise<BuildOutcome> {
+    const problem = await this.#problem(source, { code: null, stdout: "", stderr: "" }, note);
+    return { ok: false, output: null, lastGood: null, problem, ran: false };
   }
 
   /** Memoise a failure and answer with it — a build that wrote nothing counts as one. */
@@ -362,7 +413,11 @@ export class ProjectBuilds {
     return path.join(this.root, `${project}-${key}`);
   }
 
-  async #problem(source: BuildSource, result: RunResult, note?: string): Promise<BuildProblem> {
+  async #problem(
+    source: BuildSource,
+    result: Pick<RunResult, "code" | "stdout" | "stderr">,
+    note?: string,
+  ): Promise<BuildProblem> {
     const declared = source.shape.install !== null;
     return {
       project: source.project,

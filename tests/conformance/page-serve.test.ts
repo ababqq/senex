@@ -12,11 +12,13 @@ import {
   MAX_REWRITE_BYTES,
   SHIM_TAG,
   HttpStatus,
+  answerRequest,
   confinePreviewContents,
   cspNote,
   findMetaCsp,
   loopbackEntryUrl,
   projectRequestAllowed,
+  routedDocumentUrl,
   previewNavigationAllowed,
   rewriteProjectHtml,
   shimTag,
@@ -381,31 +383,41 @@ describe("which file a request names", () => {
 
 describe("a route no file answers (client-side routers)", () => {
   const NOT_FOUND = { ok: false, status: HttpStatus.NotFound } as const;
-  const document = { dest: "document", accept: "text/html,application/xhtml+xml,*/*;q=0.8" };
+  const document = { method: "GET", dest: "document", accept: "text/html,application/xhtml+xml,*/*;q=0.8" };
 
   it("answers a navigation to a path no file names with the page the project loaded", () => {
     for (const route of ["about", "users/42/edit", "settings/", "dashboard/reports"]) {
       assert.equal(spaFallback(route, NOT_FOUND, "index.html", document), "index.html", route);
     }
     // A navigation that names no destination still announces a page in its Accept header.
-    assert.equal(spaFallback("about", NOT_FOUND, "index.html", { dest: null, accept: "text/html" }), "index.html");
+    assert.equal(
+      spaFallback("about", NOT_FOUND, "index.html", { method: "GET", dest: null, accept: "text/html" }),
+      "index.html",
+    );
+    // HEAD asks the same question GET does.
+    assert.equal(spaFallback("about", NOT_FOUND, "index.html", { ...document, method: "HEAD" }), "index.html");
     // Embedded documents are navigations too.
-    assert.equal(spaFallback("about", NOT_FOUND, "index.html", { dest: "iframe", accept: null }), "index.html");
+    assert.equal(
+      spaFallback("about", NOT_FOUND, "index.html", { method: "GET", dest: "iframe", accept: null }),
+      "index.html",
+    );
   });
 
   it("keeps the 404 for everything that is not a navigation to a route", () => {
     const refused: Array<
       [string, Parameters<typeof spaFallback>[1], string | null, Parameters<typeof spaFallback>[3]]
     > = [
-      ["a fetch of an API path", NOT_FOUND, "index.html", { dest: "empty", accept: "*/*" }],
-      ["a fetch that asks for html", NOT_FOUND, "index.html", { dest: "empty", accept: "text/html" }],
-      ["a script", NOT_FOUND, "index.html", { dest: "script", accept: "*/*" }],
-      ["no destination and no html accepted", NOT_FOUND, "index.html", { dest: null, accept: "*/*" }],
-      ["no headers at all", NOT_FOUND, "index.html", { dest: null, accept: null }],
+      ["a fetch of an API path", NOT_FOUND, "index.html", { method: "GET", dest: "empty", accept: "*/*" }],
+      ["a fetch that asks for html", NOT_FOUND, "index.html", { method: "GET", dest: "empty", accept: "text/html" }],
+      ["a script", NOT_FOUND, "index.html", { method: "GET", dest: "script", accept: "*/*" }],
+      ["no destination and no html accepted", NOT_FOUND, "index.html", { method: "GET", dest: null, accept: "*/*" }],
+      ["no headers at all", NOT_FOUND, "index.html", { method: "GET", dest: null, accept: null }],
       ["a file that exists", { ok: true, path: "/x/index.html" }, "index.html", document],
       ["a refused path", { ok: false, status: HttpStatus.Forbidden }, "index.html", document],
       ["a page that was never loaded", NOT_FOUND, null, document],
       ["an entry that is not a page", NOT_FOUND, "level.glb", document],
+      ["a form post to a missing path", NOT_FOUND, "index.html", { ...document, method: "POST" }],
+      ["a delete", NOT_FOUND, "index.html", { ...document, method: "DELETE" }],
     ];
     for (const [why, served, entry, request] of refused) {
       assert.equal(spaFallback("about", served, entry, request), null, why);
@@ -419,10 +431,12 @@ describe("a route no file answers (client-side routers)", () => {
   });
 
   it("never turns a refused or hostile path into the page: nothing is read, nothing is served", async () => {
-    const base = await tmpDir("studio-spa-");
+    const parent = await tmpDir("studio-spa-");
+    const base = path.join(parent, "site");
+    fs.mkdirSync(base);
     fs.writeFileSync(path.join(base, "index.html"), "<h1>app</h1>");
-    fs.writeFileSync(path.join(path.dirname(base), "secret.txt"), "secret");
-    fs.symlinkSync(path.join(path.dirname(base), "secret.txt"), path.join(base, "leak"));
+    fs.writeFileSync(path.join(parent, "secret.txt"), "secret");
+    fs.symlinkSync(path.join(parent, "secret.txt"), path.join(base, "leak"));
     const roots = { vendor: base, projectRoot: () => base };
     const hostile = ["/../secret.txt", "/%2e%2e/secret.txt", "/leak", "/a/..%2F..%2Fsecret.txt"];
     for (const url of hostile) {
@@ -438,6 +452,50 @@ describe("a route no file answers (client-side routers)", () => {
       ok: true,
       path: path.join(fs.realpathSync(base), "index.html"),
     });
+  });
+
+  it("answers a route that shares a directory's name with the app, and a directory with its own page with that page", async () => {
+    const base = await tmpDir("studio-spa-dirs-");
+    fs.writeFileSync(path.join(base, "index.html"), "<h1>app</h1>");
+    fs.mkdirSync(path.join(base, "docs"));
+    fs.writeFileSync(path.join(base, "docs", "notes.txt"), "x");
+    fs.mkdirSync(path.join(base, "about"));
+    fs.writeFileSync(path.join(base, "about", "index.html"), "<h1>about</h1>");
+    const roots = { vendor: base, projectRoot: () => base };
+    const real = fs.realpathSync(base);
+    // The app owns /docs: a folder of that name is not a page to list.
+    assert.deepEqual(await answerRequest("docs", roots, "index.html", document, true), {
+      relative: "index.html",
+      served: { ok: true, path: path.join(real, "index.html") },
+      routed: true,
+    });
+    // …but a folder that holds its own page is that page, as every static host serves it.
+    assert.deepEqual(await answerRequest("about/", roots, "index.html", document, true), {
+      relative: "about/index.html",
+      served: { ok: true, path: path.join(real, "about", "index.html") },
+      routed: true,
+    });
+    // Neither applies off the loopback origin, nor to a request that is not a navigation.
+    const plain = await answerRequest("docs", roots, "index.html", document, false);
+    assert.deepEqual(plain, { relative: "docs", served: { ok: true, path: path.join(real, "docs") }, routed: false });
+    const fetched = await answerRequest("docs", roots, "index.html", { ...document, dest: "empty" }, true);
+    assert.equal(fetched.routed, false);
+    // A file that exists is the file; a missing path with an extension stays missing.
+    assert.equal((await answerRequest("index.html", roots, "index.html", document, true)).routed, false);
+    const missing = await answerRequest("app.js", roots, "index.html", document, true);
+    assert.deepEqual(missing.served, { ok: false, status: HttpStatus.NotFound });
+  });
+
+  it("builds the routed page's address from the request's own origin, whatever the entry's name holds", () => {
+    assert.equal(
+      routedDocumentUrl("http://localhost:41234/users/42", "index.html"),
+      "http://localhost:41234/index.html",
+    );
+    // A backslash in an entry's file name reads as a slash in a URL: it must stay a path on this origin.
+    for (const entry of ["\\evil.com\\x.html", "//evil.com/x.html", "@evil.com/x.html"]) {
+      const url = new URL(routedDocumentUrl("http://localhost:41234/users/42", entry));
+      assert.equal(url.origin, "http://localhost:41234", entry);
+    }
   });
 
   it("opens a loopback page at the root, so a router sees the path the app lives at", () => {

@@ -119,10 +119,7 @@ export function shouldRewrite(
   if (tooLarge) return false;
   if (!isHtmlLike(contentType, relPath)) return false;
   if (isEntryPath) return true;
-  const dest = String(secFetchDest ?? "")
-    .trim()
-    .toLowerCase();
-  return DOCUMENT_DESTS.has(dest);
+  return DOCUMENT_DESTS.has(fetchDest(secFetchDest));
 }
 
 /** The console line for a document too large to buffer. Its shape is asserted. */
@@ -572,6 +569,14 @@ export async function resolveServed(base: string, rel: string, pinnedRoot?: stri
   return { ok: true, path: realTarget };
 }
 
+/** Where `servedLocation` reads from: the studio's vendor folder, the project, and a worktree's live folder. */
+export interface ServedRoots {
+  vendor: string;
+  projectRoot: () => string;
+  liveRoot?: () => string;
+  pinnedProjectRoot?: () => string | null;
+}
+
 /**
  * {@link resolveServed} against the right root: `vendor/…` is the studio's own vendor directory,
  * everything else the project's folder. `projectRoot` is asked only for a project path, because resolving
@@ -581,15 +586,7 @@ export async function resolveServed(base: string, rel: string, pinnedRoot?: stri
  * `node_modules` is SnapshotEngine's link to the live project's, so a project that imports straight
  * from `./node_modules/three/…` would otherwise be a broken build in every worker's preview.
  */
-export async function servedLocation(
-  relative: string,
-  roots: {
-    vendor: string;
-    projectRoot: () => string;
-    liveRoot?: () => string;
-    pinnedProjectRoot?: () => string | null;
-  },
-): Promise<Served> {
+export async function servedLocation(relative: string, roots: ServedRoots): Promise<Served> {
   if (isVendorPath(relative)) return resolveServed(roots.vendor, relative.slice("vendor/".length) || ".");
   const root = roots.projectRoot();
   const served = await resolveServed(root, relative, roots.pinnedProjectRoot?.() ?? null);
@@ -602,19 +599,39 @@ export async function servedLocation(
 
 /** What a request says about itself that decides whether a missing path is a route of the app. */
 export interface NavigationRequest {
+  /** The HTTP method: only a GET or HEAD asks for a page. */
+  method: string;
   /** The `sec-fetch-dest` header: `document` for a page, `empty` for a script's fetch. */
   dest: string | null;
   /** The `accept` header: a browser asks for `text/html` when it navigates. */
   accept: string | null;
 }
 
+/** The methods that ask for a page rather than send something to it. */
+const PAGE_METHODS: ReadonlySet<string> = new Set(["GET", "HEAD"]);
+
+/** A `sec-fetch-dest` value as compared: trimmed, lower-cased, empty when absent. */
+function fetchDest(value: string | null | undefined): string {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase();
+}
+
+/** Whether a request is a browser navigating to a page: a document, or a page asked for by name when no destination is sent. */
+function isNavigation(request: NavigationRequest): boolean {
+  if (!PAGE_METHODS.has(request.method.toUpperCase())) return false;
+  const dest = fetchDest(request.dest);
+  return dest === "" ? /\btext\/html\b/i.test(request.accept ?? "") : DOCUMENT_DESTS.has(dest);
+}
+
 /**
  * The page to answer with when a navigation names a path no file answers. A client-side router
  * (`BrowserRouter`, a Vue history mode) owns paths like `/about` or `/users/42`: a reload or a
  * copied link asks the server for them, and the server's answer is the app's one page. Only a
- * navigation to an extensionless path under a page the studio loaded gets it: a script's `fetch`
- * of a missing API path, a missing `app.js` and anything refused (`..`, a planted link) keep their
- * 404/403, so a broken request still fails where the app and the console can see it.
+ * GET/HEAD navigation to an extensionless path under a page the studio loaded gets it: a script's
+ * `fetch` of a missing API path, a form post, a missing `app.js` and anything refused (`..`, a
+ * planted link) keep their 404/403, so a broken request still fails where the app and the console
+ * can see it.
  */
 export function spaFallback(
   relative: string,
@@ -623,12 +640,56 @@ export function spaFallback(
   request: NavigationRequest,
 ): string | null {
   const missingRoute = !served.ok && served.status === HttpStatus.NotFound;
-  if (!missingRoute || entryPath === null || !/\.html?$/i.test(entryPath) || isVendorPath(relative)) return null;
+  const entryIsPage = entryPath !== null && /\.html?$/i.test(entryPath);
+  if (!missingRoute || !entryIsPage || isVendorPath(relative)) return null;
   const last = relative.split("/").findLast((part) => part !== "") ?? "";
   if (path.posix.extname(last) !== "") return null;
-  const dest = request.dest?.trim().toLowerCase() ?? "";
-  const navigates = dest === "" ? /\btext\/html\b/i.test(request.accept ?? "") : DOCUMENT_DESTS.has(dest);
-  return navigates ? entryPath : null;
+  return isNavigation(request) ? entryPath : null;
+}
+
+/** What {@link answerRequest} decided: the path to read, where it resolved, and whether the app's routes answered. */
+export interface Answer {
+  relative: string;
+  served: Served;
+  routed: boolean;
+}
+
+/**
+ * The file a request is answered from. A bundled project owns its paths (`routes`): a navigation
+ * to a folder that holds its own `index.html` gets that page, as every static host serves it; to a
+ * folder without one, or to a path nothing answers, the app's entry (`spaFallback`) — a folder of
+ * the same name as a route is not a page to list. Everything else, and every request on a
+ * project with no routes, is read as named.
+ */
+export async function answerRequest(
+  requested: string,
+  roots: ServedRoots,
+  entryPath: string | null,
+  request: NavigationRequest,
+  routes: boolean,
+): Promise<Answer> {
+  const found = await servedLocation(requested, roots);
+  const asNamed: Answer = { relative: requested, served: found, routed: false };
+  if (!routes || !isNavigation(request) || isVendorPath(requested)) return asNamed;
+  const folder = found.ok && (await stat(found.path).catch(() => null))?.isDirectory() === true;
+  if (folder) {
+    const page = path.posix.join(requested.replace(/\/+$/, ""), "index.html");
+    const own = await servedLocation(page, roots);
+    if (own.ok) return { relative: page, served: own, routed: true };
+  }
+  const missing: Served = folder ? { ok: false, status: HttpStatus.NotFound } : found;
+  const route = spaFallback(requested, missing, entryPath, request);
+  if (route === null) return asNamed;
+  const served = await servedLocation(route, roots);
+  return served.ok ? { relative: route, served, routed: true } : asNamed;
+}
+
+/**
+ * The address the studio treats a routed response as being served from: this request's own
+ * origin and the entry's path, so a file name that reads as an authority (`\\host\\x`) stays a path.
+ */
+export function routedDocumentUrl(requestUrl: string, relative: string): string {
+  return `${new URL(requestUrl).origin}/${encodeURI(relative)}`;
 }
 
 /**

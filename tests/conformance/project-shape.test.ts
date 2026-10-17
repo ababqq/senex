@@ -1647,7 +1647,16 @@ describe("the Open Project sheet", () => {
       assert.deepEqual((await readdir(dir)).sort(), before, `${name}: looking writes nothing`);
 
       // Adopting it as the row says keeps the starter pages out, and the plan was the promise.
+      const present = async (): Promise<string[]> =>
+        (await readdir(dir, { recursive: true, withFileTypes: true }))
+          .filter((entry) => entry.isFile())
+          .map((entry) => path.relative(dir, path.join(entry.parentPath, entry.name)).split(path.sep).join("/"))
+          .filter((file) => !file.startsWith(".git/") && file !== ".git");
+      const existing = new Set(await present());
       await projects.adopt(dir, row!.choice);
+      const landed = (await present()).filter((file) => !existing.has(file));
+      const promised = row!.writes.filter((file) => file !== ".git");
+      assert.deepEqual(landed.sort(), promised.sort(), `${name}: the sheet's list is what landed`);
       for (const file of STARTER_PAGES) {
         const written = await stat(path.join(dir, file)).then(
           () => true,
@@ -1675,6 +1684,122 @@ describe("the Open Project sheet", () => {
     const vite = path.join(base, "vite-page");
     await viteFolder(vite);
     assert.equal((await projects.inspect(vite)).packageWithoutPage, false);
+  });
+
+  it("does not call the folder `npm init` makes software: its only script is npm's placeholder test", async () => {
+    const { projects, base } = await workspaces();
+    const fresh = path.join(base, "fresh");
+    await mkdir(fresh, { recursive: true });
+    await writeFile(
+      path.join(fresh, "package.json"),
+      JSON.stringify({
+        name: "fresh",
+        version: "1.0.0",
+        main: "index.js",
+        scripts: { test: 'echo "Error: no test specified" && exit 1' },
+        license: "ISC",
+      }),
+    );
+    const inspection = await projects.inspect(fresh);
+    assert.equal(inspection.packageWithoutPage, false);
+    assert.equal(openOptions(inspection)[0]!.headline, "an empty folder", "the starter is still offered here");
+  });
+
+  it("keeps offering the folder after it was opened as software, and never writes a starter page on any way in", async () => {
+    const { projects, base } = await workspaces();
+    const dir = path.join(base, "next-app");
+    await mkdir(path.join(dir, "app"), { recursive: true });
+    await writeFile(
+      path.join(dir, "package.json"),
+      JSON.stringify({ name: "n", dependencies: { next: "15.0.0" }, scripts: { dev: "next dev" } }),
+    );
+    await writeFile(path.join(dir, "app", "page.tsx"), "export default function Page() { return null }\n");
+    const STARTER_PAGES = ["index.html", "src/main.js", "CLAUDE.md", "NOTES.md", "docs/CONTRACT.md"];
+    // The chat adopts a folder it was pointed at with no options and no sheet: the rule is the
+    // adoption's own, not the sheet's button.
+    assert.ok(!(await projects.plannedWrites(dir)).some((file) => STARTER_PAGES.includes(file)));
+    await projects.adopt(dir);
+    for (const file of STARTER_PAGES) {
+      const written = await stat(path.join(dir, file)).then(
+        () => true,
+        () => false,
+      );
+      assert.equal(written, false, `adopting with no options wrote ${file}`);
+    }
+
+    // Looking again after everything planned has landed still gives the person a row to open it by.
+    const again = await projects.inspect(dir);
+    assert.equal(again.packageWithoutPage, true);
+    assert.deepEqual(again.starter, [], "nothing is left to write");
+    const rows = openOptions(again);
+    assert.equal(rows.length, 1, "a sheet with no row has no way to open the folder");
+    assert.equal(rows[0]!.button, "Open this folder");
+    assert.deepEqual(rows[0]!.writes, []);
+  });
+
+  it("never scaffolds a starter over a library folder that holds software and has no page", async () => {
+    const { projects, base } = await workspaces();
+    const dir = path.join(base, "library", "webapp");
+    await mkdir(path.join(dir, "src"), { recursive: true });
+    await writeFile(path.join(dir, "package.json"), JSON.stringify({ name: "w", dependencies: { express: "4.19.0" } }));
+    await writeFile(path.join(dir, "src", "styles.css"), "/* the user's own */\n");
+    await writeFile(path.join(dir, "studio.json"), JSON.stringify({ name: "webapp", note: "mine" }));
+    await projects.scaffold("webapp");
+    assert.equal(await readFile(path.join(dir, "src", "styles.css"), "utf8"), "/* the user's own */\n");
+    assert.match(await readFile(path.join(dir, "studio.json"), "utf8"), /"note":\s*"mine"/);
+    assert.equal(
+      await stat(path.join(dir, "index.html")).then(
+        () => true,
+        () => false,
+      ),
+      false,
+    );
+  });
+
+  it("reads a served folder only from inside the project: studio.json and the bundler config cannot point it out", async () => {
+    const root = await tmpDir("studio-serve-");
+    const dir = path.join(root, "site");
+    await viteFolder(dir);
+    const hostile = ["../..", "../../escape", "/etc", "a;b", "dist/../..", "~"];
+    for (const serve of hostile) {
+      await writeFile(
+        path.join(dir, "studio.json"),
+        JSON.stringify({ entry: "dist/index.html", build: "npm run build", serve, own: true }),
+      );
+      const shape = await readProjectShape(dir);
+      assert.ok(shape.serve === "." || shape.serve === "dist", `${serve} -> ${shape.serve}`);
+    }
+    await writeFile(
+      path.join(dir, "studio.json"),
+      JSON.stringify({ entry: "../../elsewhere/index.html", build: "npm run build", own: true }),
+    );
+    assert.equal((await readProjectShape(dir)).serve, ".", "an entry outside the folder names no folder to serve");
+    await rm(path.join(dir, "studio.json"));
+    for (const outDir of ["../../..", "/tmp/out", "a;b"]) {
+      await writeFile(path.join(dir, "vite.config.ts"), `export default { build: { outDir: "${outDir}" } };\n`);
+      assert.equal((await detectProjectShape(dir))!.serve, "dist", `outDir ${outDir} is not a folder of the project`);
+    }
+  });
+
+  it("exports a build that is the project folder itself only through the files the project declared", async () => {
+    const { projects, base } = await workspaces();
+    const dir = path.join(base, "library", "calc");
+    await mkdir(path.join(dir, "dist"), { recursive: true });
+    await mkdir(path.join(dir, "src"), { recursive: true });
+    await writeFile(path.join(dir, "index.html"), '<script src="./dist/app.js"></script>');
+    await writeFile(path.join(dir, "dist", "app.js"), "console.log(1);\n");
+    await writeFile(path.join(dir, "src", "app.ts"), "export {};\n");
+    await writeFile(path.join(dir, "package.json"), JSON.stringify({ name: "calc", scripts: { build: "tsc" } }));
+    await writeFile(path.join(dir, "backup.sql"), "insert into users values (1);\n");
+    const target = path.join(base, "exports", "calc");
+    // The built output is the project's own mirror (serve "."): everything in it is not public.
+    await assert.rejects(projects.export("calc", target, dir), /exportFiles/);
+    await writeFile(
+      path.join(dir, "studio.json"),
+      JSON.stringify({ name: "calc", exportFiles: ["index.html", "dist"], contractVersion: 1 }),
+    );
+    const result = await projects.export("calc", target, dir);
+    assert.deepEqual([...result.included].sort(), ["dist/app.js", "index.html"]);
   });
 
   it("never starts a night on a compiled export, whoever asked for it", async () => {
