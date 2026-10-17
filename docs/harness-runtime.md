@@ -8,7 +8,10 @@ carries the studio's own shim before the project's first line, so `window.__stud
 that never heard of the contract, the studio owns the clock, `seed(n)` is reproducible (the template calls a
 project's `reset(seed, { boot })` with `boot: true` on every page load and `false` on a reseed, so only a
 reseed may empty the store), draw calls
-are counted at the graphics API, and readiness is a fact the page reports rather than a wait. That
+are counted at the graphics API, and readiness is a fact the page reports rather than a wait: a page
+that never asked for WebGL or WebGPU is ready once it has loaded and gone quiet. The shim seeds
+`Math.random` for every load the harness makes; the person's own Live loads (open, Reload, Play, a build
+they asked to see) leave it to the browser. That
 holds for any web page of any shape — inline, ES modules with an import map, a Vite bundle (which adds
 the two-line `installStudio({ probes })` and nothing else), a canvas, WebGL or WebGPU. What people did
 to the page (clicks, typing, navigation, errors, unnamed controls, sideways overflow) is counted by the

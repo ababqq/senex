@@ -149,6 +149,16 @@ describe("Live's gate", () => {
     assert.equal(live.shims.length, 2, "Live was loaded twice, both times by the person");
   });
 
+  it("a Reload after a load that failed loads the page the way the person's own load did", async () => {
+    const { lite, live } = await stage();
+    const ipc = previewIpc(lite);
+    live.failNext = true;
+    const failed = (await ipc("studio:preview.load")({ project: "pong" })) as { ok?: boolean };
+    assert.equal(failed.ok, false, "the load failed");
+    await ipc("studio:preview.reload")({});
+    assert.deepEqual(live.shims.at(-1), { seed: null }, "a plain reload must not put the studio's seed back");
+  });
+
   it("a harness look with no load of its own sees in the stand-in what Live shows", async () => {
     const { live, hidden, api } = await stage();
     await api["preview.status"]!({});
@@ -331,6 +341,12 @@ describe("the harness's other doors into Live", () => {
     assert.match(asked, /now shows the run's build/, asked);
     assert.equal(live.loads.length, 2, "the person's own ask loads a Live they are not watching");
     assert.deepEqual(liveOf(behind.at(-1)), { reason: null, commit: null, shows: head });
+    assert.deepEqual(live.shims.at(-1), { seed: null }, "a build the person asked to see is theirs to use");
+    const folder = String(
+      await tool("show_build", await personSays("m-folder", "show me the project"), { build: "live" }),
+    );
+    assert.match(folder, /now shows the project folder as it is/, folder);
+    assert.deepEqual(live.shims.at(-1), { seed: null }, "so is the folder");
   });
 
   it("a show or landing that answers the person while they watch Live only lights Reload", async () => {
@@ -348,6 +364,11 @@ describe("the harness's other doors into Live", () => {
     assert.deepEqual(liveOf(behind.at(-1)), { reason: "build", commit: head, shows: null });
     await lite.core.reloadLive();
     assert.equal(live.loads.length, 2, "Reload plays it");
+    assert.deepEqual(
+      live.shims.at(-1),
+      { seed: null },
+      "the person's Reload plays it with the browser's own Math.random",
+    );
   });
 
   it("a landing that answers the person while they watch Live lands it and only offers it to Reload", async () => {

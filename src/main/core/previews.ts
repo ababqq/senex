@@ -103,7 +103,6 @@ const REFERENCE_NOTE = /\.(md|txt|json)$/i;
 /** How long the stand-in stays open once the harness stops using it: a project in it keeps running. */
 const STAND_IN_IDLE_MS = 2 * MINUTE_MS;
 
-/** Errors the user reads when a build cannot be shown or landed, and why a reference is no still. */
 /** How a preview load differs from a harness's own. */
 export interface PreviewLoadOptions {
   /** Leave `Math.random` to the browser: the page is the person's to use, not a run to compare. */
@@ -111,8 +110,12 @@ export interface PreviewLoadOptions {
 }
 
 /** What the person's own loads of Live pass: the harness's RPC has no way to ask for it. */
-const PERSONS_LOAD: PreviewLoadOptions = { nativeRandom: true };
+export const PERSONS_LOAD: PreviewLoadOptions = { nativeRandom: true };
 
+/** The page-shim option that leaves `Math.random` to the browser. */
+const NATIVE_RANDOM_SHIM = { seed: null };
+
+/** Errors the user reads when a build cannot be shown or landed, and why a reference is no still. */
 const MESSAGE = {
   noPreview: "no preview is attached (headless mode)",
   profilingNeedsStage: "profiling requires a stage preview",
@@ -475,7 +478,13 @@ export class PreviewService {
     port: PreviewPort,
     options: PreviewLoadOptions,
   ): Promise<string> {
-    const remembered = { project: p.project, root: checkedRoot, entry: p.entry, loaded: null as string | null };
+    const remembered: ServedRoot = {
+      project: p.project,
+      root: checkedRoot,
+      entry: p.entry,
+      loaded: null,
+      nativeRandom: options.nativeRandom === true,
+    };
     this.#x.servedRoots.set(handle, remembered);
     const isLive = handle === LIVE_HANDLE;
     const revisionBefore = isLive ? await this.previewRevision(p.project, checkedRoot) : null;
@@ -487,7 +496,7 @@ export class PreviewService {
       if (!served) return unservedUrl(p);
       const url = await port.load(p.project, served.entry, served.root, {
         loopback: served.loopback,
-        ...(options.nativeRandom ? { shim: { seed: null } } : {}),
+        ...(options.nativeRandom ? { shim: NATIVE_RANDOM_SHIM } : {}),
       });
       // Only now is Live current: a load that failed leaves what waited for Reload waiting.
       if (isLive) await this.#live.loaded(p.project, { print, root: checkedRoot });
@@ -1140,7 +1149,7 @@ export class PreviewService {
       playDir,
       await this.nestedPolicy(this.#core.projects.dirFor(project)),
     );
-    await this.preview().load(project, "index.html", playDir);
+    await this.preview().load(project, "index.html", playDir, { shim: NATIVE_RANDOM_SHIM });
     await this.#live.loaded(project, { print: undefined, root: playDir });
     return { dir: playDir, snapshotId };
   }
@@ -1413,7 +1422,10 @@ export class PreviewService {
     // a failed load that is the previous project's page, or nothing at all.
     const key = servedKey(served);
     if (!served.stale && last.loaded === key) return false;
-    await port.load(last.project, served.entry, served.root, { loopback: served.loopback });
+    await port.load(last.project, served.entry, served.root, {
+      loopback: served.loopback,
+      ...(last.nativeRandom ? { shim: NATIVE_RANDOM_SHIM } : {}),
+    });
     last.loaded = key;
     if (served.stale) port.note?.("error", served.stale, { loadError: true });
     return true;

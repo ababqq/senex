@@ -553,7 +553,8 @@ function weighSteps(out: StepProof, samples: AnyRecord[]): StepProof {
   // a real project and not a failure, so it is a note — but the frame counts below are the studio's
   // and not the project's, and the honest answer says so instead of charging them to its loop.
   // A page of DOM draws on input as a rule: it owes no loop, so it is not noted for lacking one.
-  if (out.canvas && out.askedFrames > 0 && out.idle >= out.askedFrames) {
+  const everyFrameIdle = out.askedFrames > 0 && out.idle >= out.askedFrames;
+  if (out.canvas && everyFrameIdle) {
     out.idleLoop = true;
     out.note =
       "the studio stepped the clock and the project ran no animation frame of its own — it draws from somewhere else, so the frame counts are the studio's rather than the project's loop";
@@ -836,7 +837,8 @@ async function loadPage(look: Look): Promise<LookEnd> {
  * Whether the page came up and can be driven: loaded, not failed to load, not crashed.
  */
 function pageCameUp(look: Look): boolean {
-  return Boolean(look.bootedFor) && !look.status.loadError && !look.status.crashed;
+  if (!look.bootedFor) return false;
+  return !look.status.loadError && !look.status.crashed;
 }
 
 /**
@@ -1060,7 +1062,8 @@ async function readDrivenState(look: Look): Promise<void> {
  */
 async function reachRequestedStateAfterSeed(look: Look): Promise<void> {
   const { ctx, h, requestedSetup, run } = look;
-  if (!requestedSetup || !setupFollowsSeed(run) || !pageCameUp(look)) return;
+  if (!requestedSetup || !setupFollowsSeed(run)) return;
+  if (!pageCameUp(look)) return;
   // The knock was made before the seed: the page has had its trusted gesture.
   const { gesture: _knocked, ...replay } = requestedSetup;
   look.requestedState = await applySetup(ctx, replay, { ...h });

@@ -218,7 +218,8 @@ export interface Liveness {
 
 /** Whether a round's liveness card scored anything: a critic that failed leaves a total and a maximum of nothing. */
 export function hasScoredLiveness(card: Liveness | null): card is Liveness {
-  return card !== null && card.total !== null && Boolean(card.max);
+  if (card === null || card.total === null) return false;
+  return Boolean(card.max);
 }
 
 export interface FlagInfo {

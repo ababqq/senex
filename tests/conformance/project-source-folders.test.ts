@@ -66,23 +66,69 @@ test("a project the studio started with its old .gitignore loses the export/ lin
   );
 });
 
-test("a project that is only opened, not built in, gets the same repair, whatever the file's line endings", async () => {
+/** What a repository's porcelain status says, one line per change. */
+async function dirt(dir: string): Promise<string> {
+  return (await exec("git", ["status", "--porcelain"], { cwd: dir })).stdout;
+}
+
+test("a project that is only opened, not built in, gets the same repair, committed, whatever the file's line endings", async () => {
   const lite = await coreLite();
   const rules = [".studio/", "node_modules", ".git.studio-backup", "*.sqlite", "output/", ".env", ".playwright-cli/"];
   const rows: Array<[string, string, string]> = [
     ["every studio rule", `export/\n.DS_Store\n${rules.join("\n")}\n`, `.DS_Store\n${rules.join("\n")}\n`],
-    ["Windows line endings", "export/\r\n.DS_Store\r\nbuild/\r\n", ".DS_Store\r\nbuild/\r\n"],
-    ["no final newline", "export/\n.DS_Store", ".DS_Store"],
-    ["a user's own export/ after other rules", "dist/\nexport/\n.DS_Store\n", "dist/\nexport/\n.DS_Store\n"],
-    ["an export/ not followed by the header's second line", "export/\n*.log\n", "export/\n*.log\n"],
+    ["Windows line endings", "export/\r\n.DS_Store\r\n.studio/\r\nbuild/\r\n", ".DS_Store\r\n.studio/\r\nbuild/\r\n"],
+    ["no final newline", "export/\n.DS_Store\n.studio/", ".DS_Store\n.studio/"],
+    [
+      "a user's own export/ after other rules",
+      "dist/\nexport/\n.DS_Store\n.studio/\n",
+      "dist/\nexport/\n.DS_Store\n.studio/\n",
+    ],
+    ["an export/ not followed by the header's second line", "export/\n*.log\n.studio/\n", "export/\n*.log\n.studio/\n"],
+    [
+      "a header a person wrote for themselves: none of the studio's own rules follow it",
+      "export/\n.DS_Store\n*.log\n",
+      "export/\n.DS_Store\n*.log\n",
+    ],
   ];
   for (const [index, [what, before, after]] of rows.entries()) {
     const project = await lite.core.projects.scaffold(`opened-${index}`, { title: `Opened ${index}` });
     const gitignore = path.join(project.dir, ".gitignore");
+    // What the project looked like under the old studio: that file, committed.
     await writeFile(gitignore, before);
+    await exec("git", ["add", ".gitignore"], { cwd: project.dir });
+    await exec("git", ["commit", "-q", "-m", "an older studio's commit"], { cwd: project.dir });
+    const head = (await exec("git", ["rev-parse", "HEAD"], { cwd: project.dir })).stdout;
     await lite.core.projects.touch(project.name);
     assert.equal(await readFile(gitignore, "utf8"), after, what);
+    assert.equal(await dirt(project.dir), "", `${what}: opening leaves the folder as clean as it found it`);
+    const moved = (await exec("git", ["rev-parse", "HEAD"], { cwd: project.dir })).stdout !== head;
+    assert.equal(moved, before !== after, `${what}: a repair is one commit, no repair is none`);
   }
+});
+
+test("opening a project never touches a .gitignore its owner is in the middle of editing, or what they staged", async () => {
+  const lite = await coreLite();
+  const project = await lite.core.projects.scaffold("busy-tool", { title: "Busy tool" });
+  const gitignore = path.join(project.dir, ".gitignore");
+  await writeFile(gitignore, "export/\n.DS_Store\n.studio/\n");
+  await exec("git", ["add", ".gitignore"], { cwd: project.dir });
+  await exec("git", ["commit", "-q", "-m", "an older studio's commit"], { cwd: project.dir });
+  // Their own edit, not yet committed.
+  const edited = "export/\n.DS_Store\n.studio/\n# my notes\n";
+  await writeFile(gitignore, edited);
+  await lite.core.projects.touch(project.name);
+  assert.equal(await readFile(gitignore, "utf8"), edited, "an edit in progress is theirs");
+
+  // And a file they staged for their own next commit stays staged when a repair is committed.
+  const other = await lite.core.projects.scaffold("staging-tool", { title: "Staging tool" });
+  await writeFile(path.join(other.dir, ".gitignore"), "export/\n.DS_Store\n.studio/\n");
+  await exec("git", ["add", ".gitignore"], { cwd: other.dir });
+  await exec("git", ["commit", "-q", "-m", "an older studio's commit"], { cwd: other.dir });
+  await writeFile(path.join(other.dir, "notes.txt"), "mine\n");
+  await exec("git", ["add", "notes.txt"], { cwd: other.dir });
+  await lite.core.projects.touch(other.name);
+  assert.equal(await dirt(other.dir), "A  notes.txt\n", "only their staged file is left, still staged");
+  assert.equal(await readFile(path.join(other.dir, ".gitignore"), "utf8"), ".DS_Store\n.studio/\n");
 });
 
 test("a .gitignore the user wrote, export/ included, is theirs", async () => {

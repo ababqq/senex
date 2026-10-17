@@ -619,8 +619,8 @@ export function readinessVerdict(
     return { settle: "quiet", ready: true, timedOut: false };
   // A page that never asked for the GPU has nothing to draw to wait for, and a hidden window may
   // never give it a frame to count: loaded and quiet is all there is to see.
-  if (quiet && input.complete === true && input.gpu === false)
-    return { settle: "quiet-no-gpu", ready: true, timedOut: false };
+  const loadedWithoutGpu = input.complete === true && input.gpu === false;
+  if (quiet && loadedWithoutGpu) return { settle: "quiet-no-gpu", ready: true, timedOut: false };
   if (quiet && input.complete === true && elapsed > readyMs / 2)
     return { settle: "quiet-no-draw", ready: true, timedOut: false };
   return { settle: null, ready: false, timedOut: elapsed > readyMs };

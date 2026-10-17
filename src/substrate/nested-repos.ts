@@ -6,7 +6,7 @@
  */
 import { readdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { pathExists } from "./fsx.ts";
+import { atomicWriteText, pathExists } from "./fsx.ts";
 import { isScannedChild } from "./project-shape.ts";
 import { git, gitOrNull } from "./snapshots.ts";
 
@@ -21,6 +21,8 @@ const MESSAGE = {
     `the project folder has changes staged for its own next commit (${count} file(s)) — commit or unstage them before making this build live`,
   ConversionCommit: (converted: string[]) =>
     `studio: ${converted.map((rel) => `${rel}/`).join(", ")} is part of this project's history now (its own is kept as ${NESTED_BACKUP})`,
+  LegacyIgnoreCommit:
+    "studio: stop ignoring folders called export/ (the first line of this project's .gitignore, from when exports were written into the project)",
   NoConsent: (landing: string[]) =>
     `The project in ${landing.map((rel) => `${rel}/`).join(", ")} keeps its own version history, and the studio was not allowed to make it part of this project — the build's work inside it cannot be made live. Open this folder again and keep it: the studio then adds those files to the project's history, and the folder's own history is kept beside it.`,
 } as const;
@@ -71,10 +73,11 @@ export function missingIgnoreRules(current: string | null): string[] {
 
 /**
  * The `export/` line the studio's own first `.gitignore` began with, from when exports were written
- * into the project folder — and only while the `.DS_Store` line it was written with follows it
- * (either line ending; the last line may lack one).
+ * into the project folder — and only while the two lines the studio wrote after it follow it: the
+ * `.DS_Store` of its header and the first rule it ever topped a file up with (`.studio/`), either
+ * line ending, the last line without one. A header somebody wrote for themselves is not that file.
  */
-const LEGACY_EXPORT_LINE = /^export\/\r?\n(?=\.DS_Store(?:\r?\n|$))/;
+const LEGACY_EXPORT_LINE = /^export\/\r?\n(?=\.DS_Store\r?\n\.studio\/?(?:\r?\n|$))/;
 
 /**
  * Whether a `.gitignore` still begins with the studio's old two-line header. Its `export/` rule
@@ -88,12 +91,30 @@ export function hasLegacyIgnoreHeader(current: string | null): boolean {
 /**
  * Drop only that one line from a project's `.gitignore`, when it is there. The studio calls this
  * as a project is opened, so a project nobody has built in since still lists its `src/export/`.
+ *
+ * A tracked file is committed on its own (`--only`: whatever the owner staged stays staged), so
+ * opening leaves the folder as clean as it found it and a later landing does not refuse over it;
+ * a tracked file with edits of its own is the owner's mid-edit and is left alone; a repository
+ * that will not take the commit gets the file back as it was.
  */
 export async function migrateLegacyIgnore(dir: string): Promise<void> {
   const file = path.join(dir, ".gitignore");
   const current = await readFile(file, "utf8").catch(() => null);
   if (current === null || !hasLegacyIgnoreHeader(current)) return;
-  await writeFile(file, current.replace(LEGACY_EXPORT_LINE, ""));
+  const tracked = (await gitOrNull(dir, ["ls-files", "--error-unmatch", "--", ".gitignore"])) !== null;
+  if (tracked && (await gitOrNull(dir, ["status", "--porcelain", "--", ".gitignore"])) !== "") return;
+  await atomicWriteText(file, current.replace(LEGACY_EXPORT_LINE, ""));
+  if (!tracked) return;
+  const committed = await gitOrNull(dir, [
+    "commit",
+    "-q",
+    "--only",
+    "-m",
+    MESSAGE.LegacyIgnoreCommit,
+    "--",
+    ".gitignore",
+  ]);
+  if (committed === null) await atomicWriteText(file, current);
 }
 
 /**

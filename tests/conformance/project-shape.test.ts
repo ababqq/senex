@@ -489,34 +489,35 @@ describe("a project's own shape", () => {
     assert.deepEqual(rows[0]!.problems, [], rows[0]!.problems.join("; "));
   });
 
-  it("warns about Math.random only in a project that runs on the studio's contract", async () => {
-    // The contract's `reset(seed)` is what makes two runs comparable, so a project on it is held to
-    // its rng. A todo app that never installed it calls Math.random for ids and has no run to compare.
+  it("warns about Math.random only in a project built on the studio's template", async () => {
+    // The template's `reset(seed)` and its rng are what make two runs comparable, so a project on it
+    // is held to them. A project of the user's own (a todo app that makes ids with Math.random, even
+    // after the studio attached its contract) runs on a page whose Math.random the shim seeds.
     const { projects } = await workspaces();
     const base = await tmpDir("studio-shape-");
+    const warned = async (dir: string) =>
+      (await projects.validateAt(dir)).warnings.filter((warning) => /Math\.random/.test(warning));
     const page = `<!doctype html><title>t</title>\n<script type="module" src="src/main.js"></script>`;
-    const todo = path.join(base, "todo");
-    await mkdir(path.join(todo, "src"), { recursive: true });
-    await writeFile(path.join(todo, "index.html"), page);
-    await writeFile(path.join(todo, "src", "main.js"), `const id = Math.random().toString(36).slice(2);\n`);
-    const plain = await projects.validateAt(todo);
-    assert.deepEqual(
-      plain.warnings.filter((warning) => /Math\.random/.test(warning)),
-      [],
-      plain.warnings.join("; "),
+    const own = async (name: string, main: string) => {
+      const dir = path.join(base, name);
+      await mkdir(path.join(dir, "src"), { recursive: true });
+      await writeFile(path.join(dir, "index.html"), page);
+      await writeFile(path.join(dir, "src", "main.js"), main);
+      return dir;
+    };
+    const todo = await own("todo", `const id = Math.random().toString(36).slice(2);\n`);
+    assert.deepEqual(await warned(todo), [], "a project that never installed the contract");
+    const attached = await own(
+      "attached",
+      `installStudio({ probes: () => ({}) });\nconst id = Math.random().toString(36).slice(2);\n`,
     );
-    const contracted = path.join(base, "contracted");
-    await mkdir(path.join(contracted, "src"), { recursive: true });
-    await writeFile(path.join(contracted, "index.html"), page);
-    await writeFile(
-      path.join(contracted, "src", "main.js"),
-      `installStudio({ probes: () => ({}) });\nconst x = Math.random();\n`,
-    );
-    const checked = await projects.validateAt(contracted);
-    assert.ok(
-      checked.warnings.some((warning) => /src\/main\.js uses Math\.random\(\)/.test(warning)),
-      checked.warnings.join("; "),
-    );
+    assert.deepEqual(await warned(attached), [], "a project of the user's own, contract installed");
+    const template = await projects.scaffold("random-template", { title: "Random template" });
+    const main = path.join(template.dir, "src", "main.js");
+    await writeFile(main, `${await readFile(main, "utf8")}\nconst x = Math.random();\n`);
+    const templateWarned = await warned(template.dir);
+    assert.equal(templateWarned.length, 1, templateWarned.join("; "));
+    assert.match(templateWarned[0]!, /src\/main\.js uses Math\.random\(\)/);
   });
 
   it("says plainly which hosts a project loads from that the preview cannot reach (R6: public library CDNs are reachable)", async () => {

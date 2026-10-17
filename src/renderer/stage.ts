@@ -112,7 +112,8 @@ export interface StageWatch {
  * could not read the page (`pageEmpty` absent) keeps the report as it stood.
  */
 export function isEmptyScene(state: Record<string, unknown> | null | undefined): boolean {
-  return state?.phase === "empty" && state?.drawCalls === 0 && state?.pageEmpty !== false;
+  const reportsEmpty = state?.phase === "empty" && state?.drawCalls === 0;
+  return reportsEmpty && state?.pageEmpty !== false;
 }
 
 /** Whether the person is watching a project in Live: then only they change it. */
