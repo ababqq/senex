@@ -632,8 +632,9 @@ export class ProjectPreview {
       return null;
     }
     const html = await response.text();
-    // A page reached only by its Accept header is a whole document; a fragment fetched that way is not.
-    if (!isEntry && !isDocumentDest(dest) && !looksLikeDocument(html)) return null;
+    // A page reached only by its Accept header is a whole document; a fragment fetched that way is not,
+    // and its body is already read, so it is answered from the text.
+    if (!isEntry && !isDocumentDest(dest) && !looksLikeDocument(html)) return html;
     const result = rewriteProjectHtml(html, { shim: this.#shimOptions(), documentUrl });
     for (const note of result.notes) this.#push({ at: Date.now(), level: "warning", message: note });
     if (isEntry) this.#reach = { reach: result.reach, hooked: result.hooked };

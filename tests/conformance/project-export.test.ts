@@ -400,6 +400,28 @@ it("takes a sub-path of two segments, and never lets a reference under the base 
   }
 });
 
+it("takes a file that exists as written over the one under the base", async () => {
+  const built = await site({
+    ...SUB_PATH_BUILD,
+    "index.html": `${SUB_PATH_BUILD["index.html"]}<script src="/my-site/only-here.js"></script>`,
+    "my-site/only-here.js": "a real folder named like the base",
+  });
+  try {
+    const result = await exportPublicProject(
+      built.source,
+      built.target,
+      Object.keys(SUB_PATH_BUILD).concat("my-site"),
+      undefined,
+      {
+        buildFolder: true,
+      },
+    );
+    assert.ok(result.included.includes("my-site/only-here.js"));
+  } finally {
+    await removeTree(built.temp);
+  }
+});
+
 it("reads the base off a built entry page, and nothing else off disk", async () => {
   const built = await site({ ...SUB_PATH_BUILD, "sub/index.html": '<script src="/my-site/assets/x.js"></script>' });
   try {

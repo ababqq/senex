@@ -663,6 +663,27 @@ describe('a site built for a sub-path (Vite `base: "/my-site/"`)', () => {
     }
   });
 
+  it("does not retry under the base what the name as asked refused, and keeps a real file with no extension", async () => {
+    const parent = await tmpDir("studio-site-base-refusal-");
+    const base = path.join(parent, "dist");
+    const outside = path.join(parent, "outside");
+    fs.mkdirSync(path.join(base, "assets"), { recursive: true });
+    fs.mkdirSync(outside);
+    fs.writeFileSync(path.join(base, "index.html"), "<h1>app</h1>");
+    fs.writeFileSync(path.join(base, "assets", "x.js"), "1");
+    fs.writeFileSync(path.join(base, "LICENSE"), "text");
+    fs.mkdirSync(path.join(outside, "assets"));
+    fs.writeFileSync(path.join(outside, "assets", "x.js"), "outside");
+    // `my-site` is a link out of the root: as asked it is refused, and under the base it would be a hit.
+    fs.symlinkSync(outside, path.join(base, "my-site"));
+    const roots = { vendor: base, projectRoot: () => base, siteBase: () => "my-site" };
+    const refused = await answerRequest("my-site/assets/x.js", roots, "index.html", script, true);
+    assert.deepEqual(refused.served, { ok: false, status: HttpStatus.Forbidden });
+    const license = await answerRequest("LICENSE", roots, "index.html", document, true);
+    assert.equal(license.relative, "LICENSE");
+    assert.equal(license.routed, false);
+  });
+
   it("never turns a hostile path under the base into a file outside the root", async () => {
     const parent = await tmpDir("studio-site-base-hostile-");
     const base = path.join(parent, "dist");

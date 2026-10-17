@@ -50,6 +50,7 @@ describe("inferring the site base from a built page", () => {
       ["a query and a fragment", ["/my-site/assets/x.js?v=3#frag"], ["assets/x.js"], "my-site"],
       ["an encoded space", ["/my%20site/assets/x.js"], ["assets/x.js"], "my site"],
       ["one segment names no prefix", ["/gone.js"], ["gone.js"], null],
+      ["a path that is a file as written is no evidence", ["/a/x.js"], ["a/x.js", "x.js"], null],
       ["the studio's own vendor route is never a base", ["/vendor/assets/x.js"], ["assets/x.js"], null],
     ];
     for (const [what, references, present, expected] of table) {
