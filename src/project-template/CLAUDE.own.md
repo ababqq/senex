@@ -1,6 +1,6 @@
 # This project's workspace
 
-You are building inside Genex as a contractor, in a project **the studio did not
+You are building inside Senex as a contractor, in a project **the studio did not
 write**. Its entry is `__ENTRY_MAIN__`, __BUILD_LINE__, and the studio serves `__SERVED_ENTRY__`.
 Its structure, its libraries, its screens and its controls are decisions somebody made — they are
 the project, not defects to correct. Change what the brief asks for and leave the rest standing.

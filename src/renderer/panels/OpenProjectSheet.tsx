@@ -29,11 +29,11 @@ import { plural } from "../../shared/skill-words.ts";
 /** The sheet's words. */
 const MESSAGE = {
   title: "Open a project folder",
-  which: "Which project should Genex open?",
+  which: "Which project should Senex open?",
   details: "Details",
   problems: "Before a build can be reviewed",
   addsNothing: "Nothing is added to this folder.",
-  adds: (files: number) => `Genex adds ${plural(files, "file")}. Everything else stays as it is.`,
+  adds: (files: number) => `Senex adds ${plural(files, "file")}. Everything else stays as it is.`,
   trustLabel: "Trust this folder's Claude settings and hooks",
   trustDetail: "Hooks can run commands with your access.",
   cancel: "Cancel",
@@ -45,8 +45,8 @@ const MESSAGE = {
 const WHAT_FOR: Record<string, string> = {
   ".git": "version history, so any change can be undone",
   ".gitignore":
-    "a few lines, keeping Genex's scratch, installed packages, build output and secrets out of your commits",
-  "studio.json": "how Genex runs this project",
+    "a few lines, keeping Senex's scratch, installed packages, build output and secrets out of your commits",
+  "studio.json": "how Senex runs this project",
   "src/studio.js": "the contract reviewers read",
 };
 

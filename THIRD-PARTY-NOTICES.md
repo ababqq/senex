@@ -1,6 +1,6 @@
 # Third-party notices
 
-Genex's own source is licensed under [MIT](LICENSE). These notices preserve the separate
+Senex's own source is licensed under [MIT](LICENSE). These notices preserve the separate
 licenses and terms of included third-party software.
 
 ## Where notices ship
@@ -62,7 +62,7 @@ Basis Universal decoders to `dist/renderer/decoders`.
 
 `src/shared/cover-orbs.ts` holds twelve fragment shaders and orbkit's shared GLSL helpers, copied
 from orbkit (https://github.com/zzzzshawn/orbkit, commit 5dbd641) with `main` renamed and their
-parameter and colour defaults kept; Genex wraps them to fill the circle and light the ball. Only
+parameter and colour defaults kept; Senex wraps them to fill the circle and light the ball. Only
 orbkit's MIT-licensed runtime and orbs are included (SHDR-11, 12, 13, 14, 16, 17, 21, 23, 24, 30,
 32 and 33); its orbs ported from XorDev's shaders are under non-commercial terms and are not.
 The renderer chunk carries the notice below as a legal comment.
@@ -463,7 +463,7 @@ SOFTWARE.
 
 ## three.js add-on libraries
 
-three.js 0.185.1 (r185) ships these third-party libraries in `examples/jsm/libs`. Genex vendors that folder for projects, and copies the Basis and Draco decoders for the Assets viewer, with this page beside both copies. three.js's own license ships as `three-LICENSE`.
+three.js 0.185.1 (r185) ships these third-party libraries in `examples/jsm/libs`. Senex vendors that folder for projects, and copies the Basis and Draco decoders for the Assets viewer, with this page beside both copies. three.js's own license ships as `three-LICENSE`.
 
 | File | Project | License |
 | --- | --- | --- |

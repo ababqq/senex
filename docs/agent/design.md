@@ -1,6 +1,6 @@
 # Application design workflow
 
-External development of Genex’s interface; generated projects and the editable in-app harness have
+External development of Senex’s interface; generated projects and the editable in-app harness have
 their own guidance. Read only the surface specifications relevant to the task.
 
 ## Design foundations

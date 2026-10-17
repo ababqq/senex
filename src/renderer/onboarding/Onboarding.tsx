@@ -1068,7 +1068,7 @@ function Connect({
       <h1 ref={heading} tabIndex={-1} className="onboarding-title">
         Bring your AI subscription
       </h1>
-      <p className="onboarding-lede">Genex builds with the Claude or ChatGPT plan you already pay for.</p>
+      <p className="onboarding-lede">Senex builds with the Claude or ChatGPT plan you already pay for.</p>
       <div ref={area} className="onboarding-marks">
         <ArtCanvas
           width={MARKS.width}
@@ -1358,7 +1358,7 @@ export function Onboarding({
       ref={root}
       role="dialog"
       aria-modal="true"
-      aria-label="Welcome to Genex"
+      aria-label="Welcome to Senex"
       tabIndex={-1}
       className="onboarding"
       data-closing={closing || undefined}

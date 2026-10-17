@@ -1,6 +1,6 @@
 # Security policy
 
-Genex runs AI agents, native plugin code and an agent-editable harness on your Mac, so
+Senex runs AI agents, native plugin code and an agent-editable harness on your Mac, so
 we treat sandbox and trust bugs as serious even in pre-release.
 
 ## Reporting a vulnerability

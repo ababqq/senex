@@ -150,7 +150,7 @@ const COVER_LOOKS_BY_FAMILY = Object.entries(COVER_PALETTES);
 function unknownLook(family: unknown, look: unknown): string {
   const named = COVER_LOOKS_BY_FAMILY.map(([name, palettes]) => `${name}: ${palettes.join(", ")}`).join("; ");
   const asked = look === undefined ? String(family) : `${String(family)}/${String(look)}`;
-  return `Unknown cover look ${asked}. The current cover was kept. Looks: ${named}; and ${ORB_FAMILIES.join(", ")}, in a colour Genex picks.`;
+  return `Unknown cover look ${asked}. The current cover was kept. Looks: ${named}; and ${ORB_FAMILIES.join(", ")}, in a colour Senex picks.`;
 }
 const pick = <T>(items: readonly T[], random: () => number): T | undefined =>
   items[Math.floor(random() * items.length) % items.length];

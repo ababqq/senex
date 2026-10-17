@@ -645,13 +645,13 @@ function projectsRootLabel(root: string): string {
 
 /** The developer window's title, which names the profile and the build it runs. */
 function devWindowTitle(launch: NonNullable<typeof dev>): string {
-  return `Genex Dev ${launch.profileId} · ${launch.manifest.buildId}`;
+  return `Senex Dev ${launch.profileId} · ${launch.manifest.buildId}`;
 }
 
 /** This launch's window title: a developer profile's, the smoke's, or Electron's default. */
 function windowTitle(): { title?: string } {
   if (dev) return { title: devWindowTitle(dev) };
-  if (isSmoke) return { title: "Genex Smoke" };
+  if (isSmoke) return { title: "Senex Smoke" };
   return {};
 }
 

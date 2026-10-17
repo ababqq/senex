@@ -26,7 +26,7 @@
 | Linux (x64) | `.deb`, `.rpm` or `.zip` from the [latest release](https://github.com/genex-games/genex-desktop/releases/latest) |
 | Windows | Soon |
 
-Genex is early: expect rough edges, and tell us about them in
+Senex is early: expect rough edges, and tell us about them in
 [issues](https://github.com/genex-games/genex-desktop/issues).
 
 ### What it does
@@ -61,13 +61,13 @@ The fixture runs the app with scripted models and sample projects, so it needs n
 
 ### Build a plugin
 
-Plugins give Genex's agents new tools: an asset generator, an engine bridge, a service your
-project talks to. The Blender and Genex tools that ship with the app are plugins too. From a Genex
+Plugins give Senex's agents new tools: an asset generator, an engine bridge, a service your
+project talks to. The Blender and Genex tools that ship with the app are plugins too. From a Senex
 checkout:
 
 ```bash
 npm run plugin:new -- my-plugin --out ~/studio-plugins   # scaffold it from the example
-npm run plugin:doctor -- ~/studio-plugins/my-plugin      # check it the way Genex will
+npm run plugin:doctor -- ~/studio-plugins/my-plugin      # check it the way Senex will
 ```
 
 1. **Try it**: in the app, **Plugins → Add → Load local plugin…** and pick the folder.

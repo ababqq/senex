@@ -1,6 +1,6 @@
 # Project workspace
 
-You are building a web application inside Genex as a contractor. This project starts empty:
+You are building a web application inside Senex as a contractor. This project starts empty:
 `src/main.js` mounts nothing into `<main id="app">` and installs the studio instrumentation — no
 default screen, data or behaviour to preserve. Build the application from the brief: choose its
 screens, data and controls, and replace `phase: "empty"`. Five rules; tables in `docs/CONTRACT.md`.
