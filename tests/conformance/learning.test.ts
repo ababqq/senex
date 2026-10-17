@@ -499,6 +499,14 @@ describe("what the morning card says the studio learned", () => {
       null,
     );
   });
+
+  it("calls the judge a reviewer on the card, like every other surface", () => {
+    const learned = (text: string) =>
+      morningWords({ rounds: 4, kept: 1, undone: 3, landed: false, paused: false, hasBuild: true, learned: text })
+        .learned;
+    assert.match(learned("Most undone rounds: the judge preferred the round before.")!, /the reviewer preferred/);
+    assert.match(learned("2 rounds: the judge could not be reached.")!, /the reviewer could not be reached/);
+  });
 });
 
 describe("skillopt sees what a director's night actually did", () => {

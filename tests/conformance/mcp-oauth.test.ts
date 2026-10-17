@@ -226,3 +226,17 @@ test("removing an OAuth connector revokes its tokens even when it was never conn
     await rm(root, { recursive: true, force: true });
   }
 });
+
+test("registers itself with an authorization server as Senex, the name the consent page shows", () => {
+  const account = new McpOAuthAccount(
+    "docs",
+    "https://docs.example/mcp",
+    memorySecretPort(new Map<string, string>()),
+    () => {},
+    async () => {},
+    async () => {
+      throw new Error("offline");
+    },
+  );
+  assert.equal(account.provider().clientMetadata.client_name, "Senex");
+});

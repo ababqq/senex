@@ -1170,8 +1170,9 @@ export function planReviewWords(plan: {
   const kind = String(plan.app?.kind ?? "")
     .trim()
     .replace(/[^a-z-]/g, "");
+  const kindName = kind.replace(/-/g, " ");
   const declared = kind
-    ? ` It treats this as a ${kind.replace(/-/g, " ")} project — that decides the controls it drives before every look, and who reviews it.`
+    ? ` It treats this as ${/^[aeiou]/.test(kindName) ? "an" : "a"} ${kindName} project — that decides the controls it drives before every look, and who reviews it.`
     : "";
   const head = `${summary ? `${sentence(summary)}${parts.length ? ` The parts: ${parts.join(" · ")}.` : ""}` : `the plan is ready${named}.`}${declared}`;
   const waiting = Math.trunc(plan.waitMinutes ?? 0);

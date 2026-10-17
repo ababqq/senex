@@ -1989,7 +1989,7 @@ function claudeModelCatalog(): EngineModel[] {
       supportsVision: true,
       supportsThinking: true,
       efforts: [],
-      note: "Uses the CLI default under Genex settings.",
+      note: "Uses the Claude Code CLI’s own default model.",
     },
   ];
 }

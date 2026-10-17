@@ -138,7 +138,8 @@ export function accessibleName(el: Foreign, doc: Foreign): string {
     labelledBy(el, doc) ||
     own ||
     labelsOf(el) ||
-    text(el.textContent) ||
+    // A choice list's text is its options, which are what it offers, not what it is called.
+    (String(el.tagName ?? "").toUpperCase() === "SELECT" ? "" : text(el.textContent)) ||
     innerName(el) ||
     text(el.getAttribute?.("title")) ||
     text(el.getAttribute?.("placeholder"))
