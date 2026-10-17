@@ -156,6 +156,7 @@
       "sources": [
         "src/main/preview.ts",
         "src/main/page-serve.ts",
+        "src/substrate/site-base.ts",
         "src/main/page-dispatch.ts",
         "src/page/**",
         "src/preview-profiler/**",
@@ -164,6 +165,7 @@
         "src/substrate/build-preview.ts",
         "src/shared/preview-contract.ts",
         "tests/conformance/page-serve.test.ts",
+        "tests/conformance/site-base.test.ts",
         "tests/conformance/page-shim.test.ts",
         "src/substrate/pixel-stats.ts"
       ],

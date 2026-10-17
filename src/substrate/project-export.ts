@@ -1,9 +1,22 @@
 import { init, parse } from "es-module-lexer";
 import path from "node:path";
-import { mkdir, mkdtemp, readdir, readFile, writeFile, lstat, realpath, copyFile, rename, rm } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  readdir,
+  readFile,
+  writeFile,
+  lstat,
+  stat,
+  realpath,
+  copyFile,
+  rename,
+  rm,
+} from "node:fs/promises";
 import type { Stats } from "node:fs";
 import type { ExportResult } from "../shared/project-folder.ts";
-import { isBelow, isInside, toPosixRelative } from "./paths.ts";
+import { containedReal, isBelow, isInside, toPosixRelative } from "./paths.ts";
+import { fileUnder, inferSiteBase, withoutSiteBase } from "./site-base.ts";
 import { MIN_SECRET_LENGTH } from "../shared/redact.ts";
 
 /** The one dot-folder a site publishes on purpose (`security.txt`, `assetlinks.json`). */
@@ -226,6 +239,8 @@ interface ReferenceCheck {
   neededVendor: Set<string>;
   /** What the export left out on purpose (`ExportResult.excluded`): a reference to one is not a typo. */
   leftOut: readonly string[];
+  /** The sub-path the built page names its files under (`/my-site/…`), when the files sit without it. */
+  siteBase: string | null;
   /** A project module imports by a name only the running page knows (`import(cond ? "a" : "b")`). */
   opaqueImport: boolean;
 }
@@ -238,6 +253,24 @@ function mapBareSpecifier(imports: Record<string, string>, ref: string): string 
   if (!match) throw new Error(MESSAGE.UnresolvedModule(ref));
   const [key, target] = match;
   return target + ref.slice(key.length);
+}
+
+/** Whether `file` is a regular file inside the export. */
+async function isStagedFile(staging: string, file: string): Promise<boolean> {
+  return isInside(staging, file) && (await lstat(file).catch(() => null))?.isFile() === true;
+}
+
+/**
+ * The staged file a reference means. A path is read from the page it is in, or from the export's
+ * root when it begins with a slash; a root-absolute one that names no file is read again without
+ * the site base the page was built for, which is where its file is.
+ */
+async function stagedFile(check: ReferenceCheck, pathname: string, from: string): Promise<string> {
+  if (!pathname.startsWith("/")) return path.resolve(path.dirname(from), pathname);
+  const asWritten = path.resolve(check.staging, `.${pathname}`);
+  const stripped = withoutSiteBase(pathname.slice(1), check.siteBase);
+  if (!stripped || (await isStagedFile(check.staging, asWritten))) return asWritten;
+  return path.resolve(check.staging, stripped);
 }
 
 /**
@@ -265,12 +298,8 @@ async function checkReference(
   const pathname = decodeURIComponent(ref.split(/[?#]/)[0] ?? "");
   if (!pathname) return;
   const { staging } = check;
-  const file = pathname.startsWith("/")
-    ? path.resolve(staging, `.${pathname}`)
-    : path.resolve(path.dirname(from), pathname);
-  const st = await lstat(file).catch(() => null);
-  const publicFile = isInside(staging, file) && st?.isFile() === true;
-  if (!publicFile) {
+  const file = await stagedFile(check, pathname, from);
+  if (!(await isStagedFile(staging, file))) {
     const named = toPosixRelative(path.relative(staging, file));
     const cause = check.leftOut.some((rel) => named === rel || named.startsWith(`${rel}/`))
       ? MESSAGE.LeftOutReference
@@ -385,6 +414,27 @@ function pageParts(html: string): PageParts {
   return parts;
 }
 
+/** The sub-path a page's root-absolute file URLs agree on, judged by the files under `root`. */
+function pageSiteBase(html: string, root: string): Promise<string | null> {
+  return inferSiteBase(pageParts(html).files, fileUnder(root));
+}
+
+/**
+ * The site base a built entry page names its files under, found on the files of `root` (null when
+ * the page names none, the entry is missing or unreadable, or it is not a file inside `root`).
+ * The entry is read only through a contained real path.
+ */
+export async function siteBaseOfEntry(root: string, entry: string): Promise<string | null> {
+  try {
+    const file = await containedReal(root, entry.split(/[?#]/)[0] ?? "");
+    const info = await stat(file);
+    if (!info.isFile() || info.size > MAX_SCANNED_BYTES) return null;
+    return await pageSiteBase(await readFile(file, "utf8"), root);
+  } catch {
+    return null;
+  }
+}
+
 /** The files one tag loads: a media tag's `src` (and a video's poster), a `<link>`'s `href` when its `rel` says so. */
 function filesOfTag(name: string, attributes: Map<string, string>): string[] {
   const named = (...keys: string[]): string[] =>
@@ -453,6 +503,7 @@ async function checkReferences(
     visited: new Set(),
     neededVendor: new Set(),
     leftOut: leftOut.map(stagedName),
+    siteBase: await pageSiteBase(page.html, staging),
     opaqueImport: false,
   };
   for (const rel of included) {

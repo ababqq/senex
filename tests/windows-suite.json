@@ -224,6 +224,7 @@
   "tests/conformance/shapes-fixtures.test.ts",
   "tests/conformance/shared-vocabularies.test.ts",
   "tests/conformance/sidebar.test.ts",
+  "tests/conformance/site-base.test.ts",
   "tests/conformance/skill-inventory.test.ts",
   "tests/conformance/skills-sync.test.ts",
   "tests/conformance/smoke-wait.test.ts",
