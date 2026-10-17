@@ -269,7 +269,8 @@ describe("computer tool — a playtester's clock (golden-boot-glory)", () => {
       "/nonexistent/build",
       await tmpDir("computer-clock-"),
       sessionPort as never,
-      { reloadFlushMs: 1, flushGraceMs: 1 },
+      // The grace is only the upper bound for a page that never answers; a page that does is not raced.
+      { reloadFlushMs: 1, flushGraceMs: options.hangStart ? 1 : 10_000 },
     );
     await tools.onLiveTool("computer", { action: "key", text: "d" });
     await tools.onLiveTool("computer", { action: "wait", duration: 0.01 });
