@@ -565,6 +565,101 @@ describe("the public files of a site no build made", () => {
     }
   });
 
+  it("also gather what a page loads outside its tags' src and href, and a linked file, but not a linked page that is left out", async () => {
+    const tree = await site({
+      "index.html": [
+        "<style>@font-face{src:url(f.woff2)} body{background:url(bg.png)}</style>",
+        '<div style="background:url(inline.png)"></div>',
+        '<picture><source srcset="hero.webp 1x, hero2.webp 2x"><img src="hero.png" srcset="hero-s.png 480w, hero-l.png 960w"></picture>',
+        '<a href="resume.pdf">cv</a><a href="photos/1.jpg">p</a><a href="docs/guide.html">guide</a><a href="contact">c</a>',
+        '<meta property="og:image" content="share.png"><object data="movie.swf"></object>',
+      ].join(""),
+      "f.woff2": "x",
+      "bg.png": "x",
+      "inline.png": "x",
+      "hero.webp": "x",
+      "hero2.webp": "x",
+      "hero.png": "x",
+      "hero-s.png": "x",
+      "hero-l.png": "x",
+      "resume.pdf": "x",
+      "photos/1.jpg": "x",
+      "share.png": "x",
+      "movie.swf": "x",
+      "docs/guide.html": "<h1>guide</h1>",
+      "unlinked.pdf": "x",
+    });
+    try {
+      const roots = await siteRoots(tree.source);
+      assert.deepEqual(roots, [
+        "bg.png",
+        "f.woff2",
+        "hero-l.png",
+        "hero-s.png",
+        "hero.png",
+        "hero.webp",
+        "hero2.webp",
+        "index.html",
+        "inline.png",
+        "movie.swf",
+        "photos/1.jpg",
+        "resume.pdf",
+        "share.png",
+      ]);
+      const result = await exportPublicProject(tree.source, tree.target, roots);
+      assert.deepEqual(result.excluded, []);
+    } finally {
+      await removeTree(tree.temp);
+    }
+  });
+
+  it("skip a page they cannot understand, leave the folders a tool fills alone, and keep names that only begin like a folder", async () => {
+    const tree = await site({
+      "index.html": '<img src="assets2/x.png"><script src="src-extra.js"></script>',
+      "assets2/x.png": "x",
+      "src-extra.js": "1",
+      "templates/base.html": "<script src=\"{% static 'a.js' %}\"></script>",
+      "lab.html": '<script type="module">import "lodash";</script>',
+      "pct.html": '<img src="100%.png">',
+      "dist/index.html": "<p>stale</p>",
+      "output/report.html": "<p>r</p>",
+      "venv/lib/y.html": "<p>y</p>",
+      "htmlcov/index.html": "<p>c</p>",
+      "playwright-report/index.html": "<p>p</p>",
+      "vendor/lib/z.html": "<p>z</p>",
+    });
+    try {
+      assert.deepEqual(await siteRoots(tree.source), ["assets2/x.png", "index.html", "src-extra.js"]);
+    } finally {
+      await removeTree(tree.temp);
+    }
+  });
+
+  it("propose a file reached through a link, read nothing a left-out file imports, and refuse a Windows alias of a private name", async (t) => {
+    const tree = await site({
+      "index.html":
+        '<img src="link.png"><script type="module" src="env.js"></script><img src="id_rsa::$DATA"><img src="key.pem.">',
+      "env.js": 'import "./other.js";',
+      "other.js": "1",
+      "target.png": "x",
+      id_rsa: "private",
+      "key.pem": "private",
+    });
+    try {
+      if (process.platform !== "win32")
+        await symlink(path.join(tree.source, "target.png"), path.join(tree.source, "link.png"));
+      const roots = await siteRoots(tree.source);
+      assert.ok(roots.includes("env.js"), "a left-out module is proposed so staging says why");
+      assert.ok(!roots.includes("other.js"), "…and is not read");
+      for (const alias of ["id_rsa::$DATA", "key.pem."]) assert.ok(!roots.includes(alias), alias);
+      if (process.platform !== "win32")
+        assert.ok(roots.includes("link.png"), "a linked file is proposed so staging refuses it by name");
+      else t.diagnostic("no link on Windows");
+    } finally {
+      await removeTree(tree.temp);
+    }
+  });
+
   it("stay strict where they were: a dangling string @import is not checked by an export of chosen files", async () => {
     const tree = await site({
       "index.html": '<link rel="stylesheet" href="a.css">',

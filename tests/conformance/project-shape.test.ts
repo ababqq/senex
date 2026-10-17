@@ -1848,6 +1848,21 @@ describe("the Open Project sheet", () => {
     );
   });
 
+  it("keeps a template project's export going past a stray page it cannot read, without publishing it", async () => {
+    const { projects, base } = await workspaces();
+    await mkdir(path.join(base, "vendor"), { recursive: true });
+    await writeFile(path.join(base, "vendor", "three.module.js"), "export const THREE = 1;\n");
+    const created = await projects.scaffold("stray");
+    await writeFile(path.join(created.dir, "lab.html"), '<script type="module">import "lodash";</script>');
+    await writeFile(path.join(created.dir, "pct.html"), '<img src="100%.png">');
+    await mkdir(path.join(created.dir, "dist"), { recursive: true });
+    await writeFile(path.join(created.dir, "dist", "index.html"), "<p>a stale build</p>");
+    const result = await projects.export("stray", path.join(base, "exports", "stray"));
+    const included = [...result.included];
+    assert.ok(included.includes("index.html"), included.join(", "));
+    for (const file of ["lab.html", "pct.html", "dist/index.html"]) assert.ok(!included.includes(file), file);
+  });
+
   it("tells a builder whose project builds into its own folder that Export needs its public files listed", async () => {
     const template = await readFile(path.join(repo, "src", "project-template", "CLAUDE.own.md"), "utf8");
     const rules = (serve: string, build: string | null) =>
@@ -1922,13 +1937,27 @@ describe("the Open Project sheet", () => {
     await mkdir(path.join(base, "vendor"), { recursive: true });
     await writeFile(path.join(base, "vendor", "three.module.js"), "export const THREE = 1;\n");
     const created = await projects.scaffold("site");
-    await writeFile(path.join(created.dir, "about.html"), '<link rel="stylesheet" href="style.css"><h1>About</h1>');
+    await writeFile(
+      path.join(created.dir, "about.html"),
+      '<link rel="stylesheet" href="style.css"><link rel="stylesheet" href="src-extra.css"><img src="assets2/x.png"><h1>About</h1>',
+    );
+    await writeFile(path.join(created.dir, "src-extra.css"), "p{}");
+    await mkdir(path.join(created.dir, "assets2"), { recursive: true });
+    await writeFile(path.join(created.dir, "assets2", "x.png"), "x");
     await writeFile(path.join(created.dir, "style.css"), "body{}");
     await mkdir(path.join(created.dir, "assets", "data"), { recursive: true });
     await writeFile(path.join(created.dir, "assets", "data", "level.json"), "{}");
     const result = await projects.export("site", path.join(base, "exports", "site"));
     const included = [...result.included];
-    for (const file of ["about.html", "style.css", "index.html", "src/main.js", "assets/data/level.json"])
+    for (const file of [
+      "about.html",
+      "style.css",
+      "src-extra.css",
+      "assets2/x.png",
+      "index.html",
+      "src/main.js",
+      "assets/data/level.json",
+    ])
       assert.ok(included.includes(file), `${file} is exported: ${included.join(", ")}`);
     assert.equal(new Set(included).size, included.length, "no file twice");
   });

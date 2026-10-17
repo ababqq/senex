@@ -262,6 +262,15 @@ function mapBareSpecifier(imports: Record<string, string>, ref: string): string 
   return target + ref.slice(key.length);
 }
 
+/** A reference's path, decoded and without its query and fragment; null when it is not valid percent-encoding. */
+function decodedPath(ref: string): string | null {
+  try {
+    return decodeURIComponent(ref.split(/[?#]/)[0] ?? "");
+  } catch {
+    return null;
+  }
+}
+
 /** Whether `file` is a regular file inside the export. */
 async function isStagedFile(staging: string, file: string): Promise<boolean> {
   return isInside(staging, file) && (await lstat(file).catch(() => null))?.isFile() === true;
@@ -280,6 +289,9 @@ async function stagedFile(check: ReferenceCheck, pathname: string, from: string)
   return path.resolve(check.staging, stripped);
 }
 
+/** A name part Windows resolves to another file: a trailing dot or space, or an alternate data stream. */
+const WINDOWS_ALIAS = /[. ]$|:/;
+
 /**
  * Gather one reference instead of checking it: a file (or a link, which staging refuses by name)
  * inside the folder is a public file; a folder, a path outside it and a path nothing answers are
@@ -295,7 +307,8 @@ async function collectReference(
   const info = inside ? await lstat(file).catch(() => null) : null;
   if (!info || !(info.isFile() || info.isSymbolicLink())) return;
   const rel = toPosixRelative(path.relative(check.staging, file));
-  if (collect.has(rel)) return;
+  // Windows reads `key.pem.` and `id_rsa::$DATA` as the private file the name filter protects.
+  if (collect.has(rel) || rel.split("/").some((part) => WINDOWS_ALIAS.test(part))) return;
   collect.add(rel);
   const readable = info.isFile() && !leftOutPath(rel, false);
   const asModule = module && /\.m?js$/i.test(file);
@@ -324,7 +337,11 @@ async function checkReference(
     from = check.entry;
     if (/^(?:[a-z]+:|\/\/)/i.test(ref)) return;
   }
-  const pathname = decodeURIComponent(ref.split(/[?#]/)[0] ?? "");
+  const pathname = decodedPath(ref);
+  if (pathname === null) {
+    // `100%.png` or `{% static %}`: not a path. The check calls it missing; gathering skips the page.
+    throw new Error(MESSAGE.MissingReference(ref, toPosixRelative(path.relative(check.staging, from))));
+  }
   if (!pathname) return;
   const { staging } = check;
   const file = await stagedFile(check, pathname, from);
@@ -487,8 +504,55 @@ function scriptKind(type: string | undefined): "module" | "classic" | null {
   return kind === "" || /^(?:text|application)\/(?:x-)?(?:java|ecma)script$/.test(kind) ? "classic" : null;
 }
 
+/** Pull the quoted value of attribute `name` out of a tag's attribute text. */
+function attributeValue(attributes: string, name: string): string | null {
+  const found = new RegExp(`\\b${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)')`, "i").exec(attributes);
+  return found ? (found[1] ?? found[2] ?? "") : null;
+}
+
+/** What a page loads outside its tags' `src` and `href`, or links to as a file: for gathering only, never checked. */
+function looseReferences(html: string): string[] {
+  const refs: string[] = [];
+  const urls = (css: string) => [...css.matchAll(/url\(\s*["']?([^"')]+)["']?\s*\)/g)].map((m) => (m[1] ?? "").trim());
+  for (const [, body = ""] of html.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/gi)) refs.push(...urls(body));
+  for (const [, tag = "", attributes = ""] of html.matchAll(/<([a-z][\w:-]*)\b([^>]*)>/gi)) {
+    const name = tag.toLowerCase();
+    refs.push(...urls(attributeValue(attributes, "style") ?? ""));
+    for (const key of ["srcset", "imagesrcset"])
+      for (const candidate of (attributeValue(attributes, key) ?? "").split(","))
+        refs.push(candidate.trim().split(/\s+/)[0] ?? "");
+    if (name === "a" || name === "area") refs.push(attributeValue(attributes, "href") ?? "");
+    if (name === "object") refs.push(attributeValue(attributes, "data") ?? "");
+    const social = /\b(?:property|name)\s*=\s*["'](?:og:image|twitter:image)["']/i.test(attributes);
+    if (name === "meta" && social) refs.push(attributeValue(attributes, "content") ?? "");
+  }
+  return refs.filter(Boolean);
+}
+
+/**
+ * Gather a file a page names loosely (a download link, a responsive image, a social card): only a
+ * regular file that is not left out and not a link, so a link to the studio's `docs/` page or a
+ * private name is not a reason to stop the export.
+ */
+async function collectLoose(
+  check: ReferenceCheck,
+  collect: Set<string>,
+  reference: string,
+  from: string,
+): Promise<void> {
+  if (/^(?:[a-z][a-z0-9+.-]*:|\/\/|#)/i.test(reference)) return;
+  const pathname = decodedPath(reference);
+  if (!pathname) return;
+  const file = await stagedFile(check, pathname, from);
+  const info = isInside(check.staging, file) && file !== check.staging ? await lstat(file).catch(() => null) : null;
+  const rel = toPosixRelative(path.relative(check.staging, file));
+  const publicName = !leftOutPath(rel, false) && !rel.split("/").some((part) => WINDOWS_ALIAS.test(part));
+  if (info?.isFile() && publicName) collect.add(rel);
+}
+
 async function scanHtml(check: ReferenceCheck, text: string, file: string): Promise<void> {
   const { files, scripts } = pageParts(text);
+  if (check.collect) for (const ref of looseReferences(text)) await collectLoose(check, check.collect, ref, file);
   // A tag's `src="main.js"` is a URL relative to the page; only a module's own imports are names.
   for (const ref of files) await checkReference(check, ref, file, /\.m?js(?:[?#]|$)/i.test(ref), false);
   for (const { attributes, body } of scripts) {
@@ -600,13 +664,16 @@ async function swapIntoPlace(staging: string, target: string, existing: Stats | 
   if (existing) await rm(backup, { recursive: true, force: true });
 }
 
-/** The pages under `rel`: `.html` files in folders that are not left out, links neither followed nor counted. */
+/** Folders a tool fills (builds, reports, environments, dependencies), whose pages are not the site's. */
+const GENERATED_FOLDER = /^(?:dist|output|build|vendor|venv|htmlcov|playwright-report|test-results|coverage)$/i;
+
+/** The pages under `rel`: `.html` files in folders that are not left out or generated, links neither followed nor counted. */
 async function findPages(source: string, rel: string): Promise<string[]> {
   const found: string[] = [];
   for (const entry of await readdir(path.join(source, rel), { withFileTypes: true })) {
     const child = rel ? `${rel}/${entry.name}` : entry.name;
-    if (leftOut(entry.name, false, rel === "")) continue;
-    if (entry.isDirectory()) found.push(...(await findPages(source, child)));
+    if (leftOut(entry.name, false, rel === "") || (entry.isDirectory() && GENERATED_FOLDER.test(entry.name))) continue;
+    if (entry.isDirectory()) for (const page of await findPages(source, child)) found.push(page);
     else if (entry.isFile() && /\.html$/i.test(entry.name)) found.push(child);
   }
   return found;
@@ -617,17 +684,27 @@ async function findPages(source: string, rel: string): Promise<string[]> {
  * their style sheets and their modules load (the walk the export check makes, run over the
  * source). Nothing a page does not name is public by default — a backup, a manifest, the studio's
  * own files — and a folder is never proposed whole. A file a page names but export leaves out is
- * proposed too, so staging says why. Read-only; the errors of the walk (a scoped import map, an
- * unresolved module) surface as the export would raise them.
+ * proposed too, so staging says why. Read-only; the entry page's errors (a scoped import map, an
+ * unresolved module) surface as the export would raise them, another page's skip it.
  */
 export async function siteRoots(sourceDir: string): Promise<string[]> {
   const source = await realpath(sourceDir);
-  const pages = await findPages(source, "");
   const entry = path.join(source, "index.html");
   const html = await readFile(entry, "utf8").catch(() => "");
-  const collect = new Set(pages);
-  await checkReferences(source, { entry, html }, pages, [], undefined, collect);
-  return [...collect].sort();
+  const roots = new Set<string>();
+  for (const page of await findPages(source, "")) {
+    const own = new Set([page]);
+    try {
+      await checkReferences(source, { entry, html }, [page], [], undefined, own);
+    } catch (error) {
+      // A page that cannot be read as a page (a template language, an unresolved package) is not
+      // shipped by default; the entry page, whose errors the export would raise, is not excused.
+      if (page === "index.html") throw error;
+      continue;
+    }
+    for (const file of own) roots.add(file);
+  }
+  return [...roots].sort();
 }
 
 /** Assemble only approved public roots, never a recursive copy of a development project. */
