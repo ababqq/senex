@@ -746,7 +746,9 @@ describe("what the night says as it goes", () => {
       app: { kind: "form-flow" },
       waitMinutes: 12,
     });
-    assert.match(named, /form flow project/);
+    assert.match(named, /a form flow project/);
+    const editor = planReviewWords({ summary: "Tonight.", app: { kind: "editor" } });
+    assert.match(editor, /an editor project/, "the article follows the word it introduces");
     assert.match(named, /Say "go" to start it/, "the kind sentence goes before the ask, not after it");
     // A plan that declared no kind says nothing rather than guessing one.
     const unnamed = planReviewWords({

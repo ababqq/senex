@@ -318,7 +318,7 @@ export class McpOAuthAccount {
     return {
       redirectUrl: this.#saved.redirect,
       clientMetadata: {
-        client_name: "Genex",
+        client_name: "Senex",
         redirect_uris: this.#saved.redirect ? [this.#saved.redirect] : [],
         grant_types: ["authorization_code", "refresh_token"],
         response_types: ["code"],

@@ -221,6 +221,14 @@ describe("reading the page the way a screen reader does", () => {
     assert.equal(accessibleName(element({ tagName: "BUTTON" }), doc), "", "an icon button with nothing has no name");
   });
 
+  it("does not name a choice list by the options inside it", () => {
+    const options = { tagName: "SELECT", textContent: "ReactVueSvelte" };
+    assert.equal(accessibleName(element(options), doc), "", "its options are its values, not its name");
+    assert.equal(accessibleName(element({ ...options, labels: [{ textContent: "Framework" }] }), doc), "Framework");
+    assert.equal(accessibleName(element({ ...options, attrs: { title: "Framework" } }), doc), "Framework");
+    assert.equal(accessibleName(element({ tagName: "BUTTON", textContent: "ReactVueSvelte" }), doc), "ReactVueSvelte");
+  });
+
   it("lists the visible controls nobody can name, and skips hidden and inert ones", () => {
     const page = stubPage({
       controls: [

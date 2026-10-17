@@ -528,7 +528,7 @@ separate from wall-time union; neither is a measured model-speed improvement.
 
 ## Provider model defaults
 
-Unset model roles defer to the selected coding CLI under Genex settings. An explicit main-model
+Unset model roles defer to the selected coding CLI’s own default. An explicit main-model
 pick fills unset roles with that same request ID; there is no version-specific planner/worker
 split. Persisted role selections and user-edited harness files remain authoritative. Catalog
 discovery belongs to the host; the seed never maintains a list of available provider models.

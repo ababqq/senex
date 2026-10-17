@@ -8,7 +8,7 @@
  * says is "Finished" must not be one whose Resume is the only thing that saves it, and a sentence
  * that promises a playable build must not appear over a card with no Play on it.
  */
-import { nightWords, withoutIds } from "./words.ts";
+import { nightWords, reviewerWords, withoutIds } from "./words.ts";
 
 export interface MorningNight {
   /** rounds a judge saw */
@@ -84,8 +84,8 @@ export function morningWords(night: MorningNight): MorningWords {
     noReport: summary ? null : noReportWords(night.paused),
     // The studio's own sentence about the night, which the harness composes from its ledger of
     // outcomes. It arrives plain, but it arrives from the harness, so it goes through the same
-    // scrub every other harness sentence does before it reaches a person.
-    learned: learned ? withoutIds(learned) : null,
+    // scrub every other harness sentence does before it reaches a person, and the app's role names.
+    learned: learned ? reviewerWords(withoutIds(learned)) : null,
     actions: actionsFor(night),
   };
 }
