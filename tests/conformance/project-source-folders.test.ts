@@ -66,6 +66,17 @@ test("a project the studio started with its old .gitignore loses the export/ lin
   );
 });
 
+/** Commit what is staged as the studio of an earlier version did (the machine running the test may have no git identity). */
+async function committedAsAnOlderStudio(dir: string): Promise<void> {
+  await exec(
+    "git",
+    ["-c", "user.name=Senex", "-c", "user.email=studio@example.test", "commit", "-q", "-m", "an older studio's commit"],
+    {
+      cwd: dir,
+    },
+  );
+}
+
 /** What a repository's porcelain status says, one line per change. */
 async function dirt(dir: string): Promise<string> {
   return (await exec("git", ["status", "--porcelain"], { cwd: dir })).stdout;
@@ -96,7 +107,7 @@ test("a project that is only opened, not built in, gets the same repair, committ
     // What the project looked like under the old studio: that file, committed.
     await writeFile(gitignore, before);
     await exec("git", ["add", ".gitignore"], { cwd: project.dir });
-    await exec("git", ["commit", "-q", "-m", "an older studio's commit"], { cwd: project.dir });
+    await committedAsAnOlderStudio(project.dir);
     const head = (await exec("git", ["rev-parse", "HEAD"], { cwd: project.dir })).stdout;
     await lite.core.projects.touch(project.name);
     assert.equal(await readFile(gitignore, "utf8"), after, what);
@@ -112,7 +123,7 @@ test("opening a project never touches a .gitignore its owner is in the middle of
   const gitignore = path.join(project.dir, ".gitignore");
   await writeFile(gitignore, "export/\n.DS_Store\n.studio/\n");
   await exec("git", ["add", ".gitignore"], { cwd: project.dir });
-  await exec("git", ["commit", "-q", "-m", "an older studio's commit"], { cwd: project.dir });
+  await committedAsAnOlderStudio(project.dir);
   // Their own edit, not yet committed.
   const edited = "export/\n.DS_Store\n.studio/\n# my notes\n";
   await writeFile(gitignore, edited);
@@ -123,7 +134,7 @@ test("opening a project never touches a .gitignore its owner is in the middle of
   const other = await lite.core.projects.scaffold("staging-tool", { title: "Staging tool" });
   await writeFile(path.join(other.dir, ".gitignore"), "export/\n.DS_Store\n.studio/\n");
   await exec("git", ["add", ".gitignore"], { cwd: other.dir });
-  await exec("git", ["commit", "-q", "-m", "an older studio's commit"], { cwd: other.dir });
+  await committedAsAnOlderStudio(other.dir);
   await writeFile(path.join(other.dir, "notes.txt"), "mine\n");
   await exec("git", ["add", "notes.txt"], { cwd: other.dir });
   await lite.core.projects.touch(other.name);
