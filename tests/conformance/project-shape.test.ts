@@ -1703,6 +1703,31 @@ describe("the Open Project sheet", () => {
     const inspection = await projects.inspect(fresh);
     assert.equal(inspection.packageWithoutPage, false);
     assert.equal(openOptions(inspection)[0]!.headline, "an empty folder", "the starter is still offered here");
+
+    // A test script someone wrote is a script: a library with a real test command is software.
+    const library = path.join(base, "library-with-tests");
+    await mkdir(library, { recursive: true });
+    await writeFile(
+      path.join(library, "package.json"),
+      JSON.stringify({ name: "lib", scripts: { test: "node --test" } }),
+    );
+    assert.equal((await projects.inspect(library)).packageWithoutPage, true);
+  });
+
+  it("writes the starter into software with no page only when the caller asks for it", async () => {
+    const { projects, base } = await workspaces();
+    const dir = path.join(base, "wants-a-starter");
+    await mkdir(dir, { recursive: true });
+    await writeFile(path.join(dir, "package.json"), JSON.stringify({ name: "w", dependencies: { express: "4.19.0" } }));
+    assert.ok((await projects.plannedWrites(dir, { template: true })).includes("index.html"));
+    await projects.adopt(dir, { template: true });
+    assert.equal(
+      await stat(path.join(dir, "index.html")).then(
+        () => true,
+        () => false,
+      ),
+      true,
+    );
   });
 
   it("keeps offering the folder after it was opened as software, and never writes a starter page on any way in", async () => {
@@ -1744,6 +1769,13 @@ describe("the Open Project sheet", () => {
     await writeFile(path.join(dir, "package.json"), JSON.stringify({ name: "w", dependencies: { express: "4.19.0" } }));
     await writeFile(path.join(dir, "src", "styles.css"), "/* the user's own */\n");
     await writeFile(path.join(dir, "studio.json"), JSON.stringify({ name: "webapp", note: "mine" }));
+    // …and any folder that already holds files keeps them: a starter is merged, never written over them.
+    const notes = path.join(base, "library", "notes-folder");
+    await mkdir(notes, { recursive: true });
+    await writeFile(path.join(notes, "CLAUDE.md"), "my own rules\n");
+    await projects.scaffold("notes-folder");
+    assert.equal(await readFile(path.join(notes, "CLAUDE.md"), "utf8"), "my own rules\n");
+    assert.ok(await stat(path.join(notes, "index.html")), "the missing starter files are still written");
     await projects.scaffold("webapp");
     assert.equal(await readFile(path.join(dir, "src", "styles.css"), "utf8"), "/* the user's own */\n");
     assert.match(await readFile(path.join(dir, "studio.json"), "utf8"), /"note":\s*"mine"/);
@@ -1775,6 +1807,15 @@ describe("the Open Project sheet", () => {
     );
     const result = await projects.export("calc", target, dir);
     assert.deepEqual([...result.included].sort(), ["dist/app.js", "index.html"]);
+
+    // However "the project folder" is spelled, it is the same folder and the same gate.
+    for (const serve of ["./.", "./", ""]) {
+      await writeFile(
+        path.join(dir, "studio.json"),
+        JSON.stringify({ name: "calc", contractVersion: 1, build: "tsc", serve, entry: "index.html" }),
+      );
+      await assert.rejects(projects.export("calc", path.join(base, "exports", "spelled"), dir), /exportFiles/, serve);
+    }
   });
 
   it("never starts a night on a compiled export, whoever asked for it", async () => {

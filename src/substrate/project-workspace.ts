@@ -52,6 +52,7 @@ import {
   findProjectRoot,
   isBuiltShape,
   readPackageManifest,
+  normalServe,
   readProjectShape,
   recordsShape,
 } from "./project-shape.ts";
@@ -149,8 +150,10 @@ export interface AdoptOptions {
   subdir?: string;
   /**
    * May the studio write its starter project (`index.html`, `src/main.js`) into this folder?
-   * Default: only into a folder that holds no project of its own. `false` is "I am bringing my own
-   * files" — the contract module and the notes are still added.
+   * Default: only into a folder that holds no project of its own — software with no page yet (a
+   * `package.json` that declares packages or scripts) counts as one. `false` is "I am bringing my
+   * own files" — the contract module and the notes are still added; `true` asks for the starter
+   * anyway.
    */
   template?: boolean;
   /**
@@ -499,7 +502,10 @@ export class ProjectWorkspaces {
       await this.touch(name);
       return this.#describe(name, dir);
     }
-    await this.#writeTemplate(dir, { title, name, overwrite: true });
+    // A new project's folder is empty. One that already holds files keeps every one of them: the
+    // starter is merged beside them, never written over them.
+    const fresh = (await readdir(dir).catch(() => [] as string[])).length === 0;
+    await this.#writeTemplate(dir, { title, name, overwrite: fresh, keep: [...TEMPLATE_SOURCES] });
     await this.touch(name);
     return this.#describe(name, dir);
   }
@@ -931,9 +937,9 @@ export class ProjectWorkspaces {
   }
 
   /**
-   * The options a folder is adopted with. The starter project is only ever written into a folder
-   * that holds no project of its own, whoever asks — the sheet's button, the chat pointing at a
-   * path, a test — so software with no page yet is `template: false` unless the caller said otherwise.
+   * The options a folder is adopted with. The starter project is written into a folder that holds
+   * no project of its own, whoever asks — the sheet's button, the chat pointing at a path, a test —
+   * so software with no page yet is `template: false` unless the caller asked for the starter.
    */
   async #adoptionOf(dir: string, options: AdoptOptions): Promise<AdoptOptions> {
     if (options.template !== undefined || !(await this.#softwareWithoutPage(dir))) return options;
@@ -1103,7 +1109,7 @@ export class ProjectWorkspaces {
   /** Whether the project builds into its own folder (`serve: "."`), so a build's output is the sources too. */
   async #outputIsProject(dir: string): Promise<boolean> {
     const shape = await readProjectShape(dir);
-    return Boolean(shape.build) && shape.serve === ".";
+    return Boolean(shape.build) && normalServe(shape.serve) === null;
   }
 
   /** Self-contained web bundle: the project plus the vendored library, hostable anywhere. */

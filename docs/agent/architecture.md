@@ -1,9 +1,9 @@
 # Architecture
 
-Developer reference: read the [overview](context.md) and the
+Reference: read the [overview](context.md) and the
 affected product page first, then only the section you need. Each section states the current
 contract and names the code that owns it; history lives in Git and PRs. When code and this page
-disagree, fix the wrong one in the same change.
+disagree, fix the wrong one.
 
 The active app builds browser projects only; Unity is archived in [`archive/unity/`](../../archive/unity/),
 no flag enables it and there is no migration path.
@@ -746,8 +746,8 @@ one. The rewrite touches only the served document (`shouldRewrite`: the entry or
 fetch, never under `vendor/`, over 8 MB or non-HTML), never a file on disk: charset, the classic shim
 script, the page's import map with only `three` and `three/webgpu` pointed at the studio hook (or the
 studio's own map), the module hook, then the page; it is idempotent, and a blocking meta CSP gets one
-console line, not an edit. Bundled projects serve as `http://localhost:<port>/` and open at `/`; a navigation to an extensionless path no file answers gets the entry
-(`spaFallback`), so client routers survive Reload, while a missing asset or `fetch` keeps its 404.
+console line, not an edit. Bundled projects serve as `http://localhost:<port>/` and open at `/`; a GET navigation to an extensionless path no file answers gets the entry
+(`spaFallback`; `dir/` gives its own page), so client routers survive Reload; a missing asset or `fetch` keeps its 404.
 
 **Network policy.** The project partition is closed: `onBeforeRequest` allows only `project:`, `data:`,
 `blob:`, `devtools:`, registered loopback ports and https GET/HEAD to the exact public library and

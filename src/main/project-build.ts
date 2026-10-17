@@ -26,7 +26,7 @@ import { promisify } from "node:util";
 import { ensureDir, pathExists } from "../substrate/fsx.ts";
 import { HOST_GIT_CONFIG } from "../substrate/snapshots.ts";
 import { isInside } from "../substrate/paths.ts";
-import { plainRelativePath } from "../substrate/project-shape.ts";
+import { normalServe } from "../substrate/project-shape.ts";
 import { NPM_REGISTRY, packageCommandsIn } from "../substrate/toolchain.ts";
 import type { ProjectShape } from "../substrate/project-workspace.ts";
 import { type RunRequest, type RunResult, shellQuote } from "../substrate/spawn.ts";
@@ -58,12 +58,37 @@ function servedPage(entry: string): string {
   return path.posix.basename(file) || "index.html";
 }
 
-/** Whether `folder`, once links are followed, is still inside `base`: a link out is not the project's own. */
+/**
+ * Whether a served folder, spelled as written, stays in the project: relative, no step up. The
+ * folder is only ever joined and read — it never reaches a command line — so any other name is
+ * the project's to choose; {@link stayedInside} checks where it really is.
+ */
+function spelledInside(serve: string): boolean {
+  if (serve.includes("\0") || path.posix.isAbsolute(serve) || path.win32.isAbsolute(serve)) return false;
+  return !serve.split(/[\\/]/).includes("..");
+}
+
+/** Whether a read failed because the path is not there. */
+function isMissing(err: unknown): boolean {
+  const code = (err as NodeJS.ErrnoException | null)?.code;
+  return code === "ENOENT" || code === "ENOTDIR";
+}
+
+/**
+ * Whether `folder`, once links are followed, is still inside `base`: a link out is not the
+ * project's own. A folder that is not there yet holds nothing outside the project, so it stays.
+ */
 async function stayedInside(base: string, folder: string): Promise<boolean> {
+  let realBase: string;
   try {
-    return isInside(await realpath(base), await realpath(folder));
+    realBase = await realpath(base);
   } catch {
     return false;
+  }
+  try {
+    return isInside(realBase, await realpath(folder));
+  } catch (err) {
+    return isMissing(err);
   }
 }
 
@@ -118,7 +143,8 @@ export function servedAfterBuild(
 
 /** The sentence the project console and the agent loop get; the stage gets the payload instead. */
 export function buildFailureNote(problem: BuildProblem): string {
-  return `the project's build failed (${problem.command}, exit ${problem.code}):\n${problem.lines.join("\n")}`;
+  const exit = problem.code === null ? "" : `, exit ${problem.code}`;
+  return `the project's build failed (${problem.command}${exit}):\n${problem.lines.join("\n")}`;
 }
 
 /** Files that are never part of a build, however big the folder is. */
@@ -187,7 +213,7 @@ export class ProjectBuilds {
     const dir = path.resolve(source.dir);
     const running = this.#inFlight.get(dir);
     if (running) return await running;
-    const started = this.#ensure(source, dir);
+    const started = this.#ensure(source, dir).then((outcome) => this.#confined(source, dir, outcome));
     this.#inFlight.set(dir, started);
     try {
       return await started;
@@ -197,10 +223,10 @@ export class ProjectBuilds {
   }
 
   async #ensure(source: BuildSource, dir: string): Promise<BuildOutcome> {
-    const serve = source.shape.serve && source.shape.serve !== "." ? source.shape.serve : null;
+    const serve = normalServe(source.shape.serve);
     // The shape is read from files the project holds; a folder that leaves the project (a `..` in
     // studio.json, a bundler config, a link) is never built into, copied from or served.
-    if (serve !== null && !plainRelativePath(serve)) return this.#refused(source, MESSAGE.ServeOutside);
+    if (serve !== null && !spelledInside(serve)) return this.#refused(source, MESSAGE.ServeOutside);
     const command = source.shape.build;
     return command ? this.#build(source, dir, serve, command) : this.#asWritten(source, dir, serve);
   }
@@ -325,9 +351,32 @@ export class ProjectBuilds {
   }
 
   /** A folder the studio will not build in or serve: the failure the stage shows, with nothing run. */
-  async #refused(source: BuildSource, note: string): Promise<BuildOutcome> {
-    const problem = await this.#problem(source, { code: null, stdout: "", stderr: "" }, note);
+  #refused(source: BuildSource, note: string): BuildOutcome {
+    const problem: BuildProblem = {
+      project: source.project,
+      command: source.shape.build ?? "",
+      code: null,
+      lines: [note],
+      needsInstall: false,
+      install: null,
+      showingLastBuild: false,
+      at: new Date().toISOString(),
+    };
     return { ok: false, output: null, lastGood: null, problem, ran: false };
+  }
+
+  /**
+   * Whatever a build or a memo answers with is checked once more where the project is read: a
+   * served folder inside the project that a link now leads out of (planted after the build, or
+   * before it) is neither the output nor "the last build that worked". The shadow's own copy
+   * (`last/`) is the app's scratch and is not the project's to check.
+   */
+  async #confined(source: BuildSource, dir: string, outcome: BuildOutcome): Promise<BuildOutcome> {
+    for (const folder of [outcome.output, outcome.lastGood]) {
+      if (folder === null || !isInside(dir, path.resolve(folder))) continue;
+      if (!(await stayedInside(dir, folder))) return this.#refused(source, MESSAGE.ServeOutside);
+    }
+    return outcome;
   }
 
   /** Memoise a failure and answer with it — a build that wrote nothing counts as one. */

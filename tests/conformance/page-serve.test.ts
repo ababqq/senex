@@ -469,12 +469,17 @@ describe("a route no file answers (client-side routers)", () => {
       served: { ok: true, path: path.join(real, "index.html") },
       routed: true,
     });
-    // …but a folder that holds its own page is that page, as every static host serves it.
+    // …but a folder that holds its own page is that page when it is asked for as a folder (the
+    // trailing slash is what makes the page's relative URLs resolve inside it).
     assert.deepEqual(await answerRequest("about/", roots, "index.html", document, true), {
       relative: "about/index.html",
       served: { ok: true, path: path.join(real, "about", "index.html") },
       routed: true,
     });
+    // Without the slash a static host would redirect; this server does not, so the folder is left as named.
+    const slashless = await answerRequest("about", roots, "index.html", document, true);
+    assert.equal(slashless.routed, false);
+    assert.deepEqual(slashless.served, { ok: true, path: path.join(real, "about") });
     // Neither applies off the loopback origin, nor to a request that is not a navigation.
     const plain = await answerRequest("docs", roots, "index.html", document, false);
     assert.deepEqual(plain, { relative: "docs", served: { ok: true, path: path.join(real, "docs") }, routed: false });
@@ -486,7 +491,46 @@ describe("a route no file answers (client-side routers)", () => {
     assert.deepEqual(missing.served, { ok: false, status: HttpStatus.NotFound });
   });
 
+  it("never answers a navigation with a file outside the root, whatever the folder or its page is made of", async () => {
+    const parent = await tmpDir("studio-spa-hostile-");
+    const base = path.join(parent, "site");
+    const outside = path.join(parent, "outside");
+    fs.mkdirSync(base);
+    fs.mkdirSync(outside);
+    fs.writeFileSync(path.join(base, "index.html"), "<h1>app</h1>");
+    fs.writeFileSync(path.join(outside, "index.html"), "<h1>secret</h1>");
+    fs.writeFileSync(path.join(outside, "secret.txt"), "secret");
+    fs.symlinkSync(outside, path.join(base, "linked-folder"));
+    fs.mkdirSync(path.join(base, "own-page"));
+    fs.symlinkSync(path.join(outside, "index.html"), path.join(base, "own-page", "index.html"));
+    const roots = { vendor: base, projectRoot: () => base };
+    const inside = (served: { ok: boolean; path?: string }) =>
+      !served.ok || (served.path ?? "").startsWith(fs.realpathSync(base));
+    for (const url of [
+      "/linked-folder/",
+      "/linked-folder/index.html",
+      "/own-page/",
+      "/../outside/",
+      "/%2e%2e/outside/index.html",
+      "/..%2Foutside%2F",
+      "/own-page/..%5C..%5Coutside/",
+    ]) {
+      const answer = await answerRequest(servedRelative(url)!, roots, "index.html", document, true);
+      assert.ok(inside(answer.served), `${url} -> ${JSON.stringify(answer)}`);
+    }
+  });
+
   it("builds the routed page's address from the request's own origin, whatever the entry's name holds", () => {
+    // A folder named with a character a URL gives meaning to is still one path.
+    for (const [name, pathname] of [
+      ["a#b/index.html", "/a%23b/index.html"],
+      ["a?b/index.html", "/a%3Fb/index.html"],
+      ["a b/index.html", "/a%20b/index.html"],
+    ] as const) {
+      const url = new URL(routedDocumentUrl("http://localhost:41234/x", name));
+      assert.equal(url.pathname, pathname, name);
+      assert.equal(url.hash + url.search, "", name);
+    }
     assert.equal(
       routedDocumentUrl("http://localhost:41234/users/42", "index.html"),
       "http://localhost:41234/index.html",

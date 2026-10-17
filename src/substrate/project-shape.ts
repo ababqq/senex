@@ -71,14 +71,33 @@ export function declaresDependencies(pkg: PackageManifest | null): boolean {
   return Object.keys(packageDependencies(pkg)).length > 0;
 }
 
+/** The `test` script `npm init` (and yarn, pnpm) write into every new package: not a script anyone wrote. */
+const PLACEHOLDER_TEST_SCRIPT = /no test specified/i;
+
 /**
- * Whether a package is software someone is making: it declares packages, or a script other than
- * `test`. A bare `package.json` (a name, or what `npm init` writes: a placeholder `test` script)
- * is a folder waiting for a project, not one.
+ * Whether a package is software someone is making: it declares packages, or a script they wrote.
+ * A bare `package.json` (a name, or what `npm init` writes: a placeholder `test` script) is a
+ * folder waiting for a project, not one.
  */
 export function declaresSoftware(pkg: PackageManifest | null): boolean {
-  const scripts = Object.keys(pkg?.scripts ?? {}).filter((name) => name !== "test");
-  return declaresDependencies(pkg) || scripts.length > 0;
+  const written = Object.entries(pkg?.scripts ?? {}).filter(
+    ([name, command]) => !(name === "test" && PLACEHOLDER_TEST_SCRIPT.test(command)),
+  );
+  return declaresDependencies(pkg) || written.length > 0;
+}
+
+/**
+ * The folder a shape serves, spelled once: no leading `./`, no trailing `/`, and null for the
+ * project folder itself (`.`, `./`, empty). Everything that compares or joins `serve` goes through
+ * this, so `dist/` and `dist` — or `./.` and `.` — are the same folder to the build, the mirror
+ * and the export gate.
+ */
+export function normalServe(serve: string | null | undefined): string | null {
+  const folder = (serve ?? "")
+    .trim()
+    .replace(/^(?:\.\/)+/, "")
+    .replace(/\/+$/, "");
+  return folder === "" || folder === "." ? null : folder;
 }
 
 /** A folder's package.json, or null when it is missing or does not parse. */

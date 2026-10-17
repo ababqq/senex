@@ -15,6 +15,7 @@ import { describe, it } from "node:test";
 import { promisify } from "node:util";
 import {
   ProjectBuilds,
+  buildFailureNote,
   mirrorList,
   outputLines,
   servedAfterBuild,
@@ -570,6 +571,85 @@ describe("building a project the user owns", () => {
       assert.equal(outcome.ok, false, `outDir ${outDir}`);
       assert.equal(runner.calls.length, 0, `${outDir}: nothing was built`);
     }
+  });
+
+  it("takes a served folder however it is spelled, as long as it is the project's: slashes, dots, odd names", async () => {
+    const root = path.join(await tmpDir("studio-shadow-"), "builds");
+    const spellings: Array<[string, string]> = [
+      ["dist/", "dist"],
+      ["./dist", "dist"],
+      ["dist//", "dist"],
+      ["build (copy)", "build (copy)"],
+      ["out~1", "out~1"],
+    ];
+    for (const [serve, folder] of spellings) {
+      const dir = await projectRepo("spelled");
+      const runner = fakeRunner({ output: { [`${folder}/index.html`]: "<h1>built</h1>" } });
+      const builds = new ProjectBuilds({ root, run: runner.run });
+      const outcome = await builds.ensure({
+        project: "spelled",
+        dir,
+        shape: { ...VITE_SHAPE, serve, entry: `${folder}/index.html` },
+      });
+      assert.equal(outcome.ok, true, `serve ${JSON.stringify(serve)}: ${outcome.problem?.lines.join(" ")}`);
+      assert.equal(runner.calls.length, 1, serve);
+    }
+  });
+
+  it("serves a no-build folder that is not there yet as it always did, and refuses one that is a link out", async () => {
+    const dir = await projectRepo("unbuilt");
+    const root = path.join(await tmpDir("studio-shadow-"), "builds");
+    const builds = new ProjectBuilds({ root, run: fakeRunner().run });
+    const shape: ProjectShape = { ...VITE_SHAPE, build: null, serve: "site", entry: "site/index.html" };
+    const missing = await builds.ensure({ project: "unbuilt", dir, shape });
+    assert.equal(missing.ok, true, "a folder that is not written yet holds nothing outside the project");
+    assert.equal(missing.output, path.join(dir, "site"));
+
+    const outside = await tmpDir("studio-outside-");
+    await writeFile(path.join(outside, "index.html"), "<h1>not the project's</h1>");
+    await symlink(outside, path.join(dir, "site"));
+    const linked = await builds.ensure({ project: "unbuilt", dir, shape });
+    assert.equal(linked.ok, false, "a served folder that is a link out of the project is not served");
+    assert.equal(linked.output, null);
+  });
+
+  it("re-checks an in-place output every time it hands it out: a link swapped in later is not remembered or offered", async () => {
+    const dir = await projectRepo("swapped");
+    const root = path.join(await tmpDir("studio-shadow-"), "builds");
+    const outside = await tmpDir("studio-outside-");
+    await writeFile(path.join(outside, "index.html"), "<h1>not the project's</h1>");
+    const runner = fakeRunner();
+    const builds = new ProjectBuilds({ root, run: runner.run, ours: () => true });
+    const first = await builds.ensure({ project: "swapped", dir, shape: VITE_SHAPE });
+    assert.equal(first.ok, true);
+    // The tree key ignores the served folder, so this is a remembered build when it comes back.
+    await rm(path.join(dir, "dist"), { recursive: true, force: true });
+    await symlink(outside, path.join(dir, "dist"));
+    const again = await builds.ensure({ project: "swapped", dir, shape: VITE_SHAPE });
+    assert.equal(again.ok, false);
+    assert.equal(again.output, null);
+    assert.equal(again.lastGood, null, "and it is not offered as the last build that worked either");
+
+    // A build that fails over a link already in place offers no last good build from it.
+    const failing = new ProjectBuilds({ root, run: fakeRunner({ code: 1, stderr: "boom" }).run, ours: () => true });
+    const broken = await failing.ensure({ project: "swapped", dir, shape: VITE_SHAPE });
+    assert.equal(broken.ok, false);
+    assert.equal(broken.lastGood, null);
+  });
+
+  it("says a refused folder in its own words: no exit code, no install button", async () => {
+    const dir = await projectRepo("refused-words");
+    await writeFile(path.join(dir, "package.json"), JSON.stringify({ name: "r", dependencies: { left: "1.0.0" } }));
+    const builds = new ProjectBuilds({
+      root: path.join(await tmpDir("studio-shadow-"), "builds"),
+      run: fakeRunner().run,
+    });
+    const outcome = await builds.ensure({ project: "refused-words", dir, shape: { ...VITE_SHAPE, serve: "../.." } });
+    const problem = outcome.problem!;
+    assert.equal(problem.needsInstall, false, "nothing here is about packages");
+    const note = buildFailureNote(problem);
+    assert.ok(!/exit/.test(note), note);
+    assert.match(note, /not inside the project/);
   });
 
   it("fails an in-place build (a run's worktree) that wrote files but no page, as the live shadow does", async () => {

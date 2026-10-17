@@ -641,7 +641,8 @@ export function spaFallback(
 ): string | null {
   const missingRoute = !served.ok && served.status === HttpStatus.NotFound;
   const entryIsPage = entryPath !== null && /\.html?$/i.test(entryPath);
-  if (!missingRoute || !entryIsPage || isVendorPath(relative)) return null;
+  const ownsPath = missingRoute && entryIsPage && !isVendorPath(relative);
+  if (!ownsPath) return null;
   const last = relative.split("/").findLast((part) => part !== "") ?? "";
   if (path.posix.extname(last) !== "") return null;
   return isNavigation(request) ? entryPath : null;
@@ -670,12 +671,16 @@ export async function answerRequest(
 ): Promise<Answer> {
   const found = await servedLocation(requested, roots);
   const asNamed: Answer = { relative: requested, served: found, routed: false };
-  if (!routes || !isNavigation(request) || isVendorPath(requested)) return asNamed;
+  const ownsPaths = routes && isNavigation(request) && !isVendorPath(requested);
+  if (!ownsPaths) return asNamed;
   const folder = found.ok && (await stat(found.path).catch(() => null))?.isDirectory() === true;
   if (folder) {
+    // Asked for as a folder (a trailing slash), its page's relative URLs resolve inside it. Without
+    // the slash a static host redirects; this server does not, so such a folder is left as named
+    // when it has a page of its own.
     const page = path.posix.join(requested.replace(/\/+$/, ""), "index.html");
     const own = await servedLocation(page, roots);
-    if (own.ok) return { relative: page, served: own, routed: true };
+    if (own.ok) return requested.endsWith("/") ? { relative: page, served: own, routed: true } : asNamed;
   }
   const missing: Served = folder ? { ok: false, status: HttpStatus.NotFound } : found;
   const route = spaFallback(requested, missing, entryPath, request);
@@ -689,7 +694,8 @@ export async function answerRequest(
  * origin and the entry's path, so a file name that reads as an authority (`\\host\\x`) stays a path.
  */
 export function routedDocumentUrl(requestUrl: string, relative: string): string {
-  return `${new URL(requestUrl).origin}/${encodeURI(relative)}`;
+  const encoded = relative.split("/").map(encodeURIComponent).join("/");
+  return `${new URL(requestUrl).origin}/${encoded}`;
 }
 
 /**
