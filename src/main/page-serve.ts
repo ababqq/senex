@@ -20,6 +20,7 @@ import path from "node:path";
 import type { ShimOptions } from "../substrate/preview-port.ts";
 import { isPreviewCdnRead } from "../substrate/preview-network.ts";
 import { isInside } from "../substrate/paths.ts";
+import { withoutSiteBase } from "../substrate/site-base.ts";
 import type { ContractReach } from "../substrate/project-page.ts";
 
 /** Where the bundles live under the vendor directory (`vendor/` is already a served route). */
@@ -575,6 +576,8 @@ export interface ServedRoots {
   projectRoot: () => string;
   liveRoot?: () => string;
   pinnedProjectRoot?: () => string | null;
+  /** The sub-path the served page was built for (`my-site`): a missing path is read again without it. */
+  siteBase?: () => string | null;
 }
 
 /**
@@ -656,20 +659,44 @@ export interface Answer {
 }
 
 /**
+ * `relative` without the site base, as the file the served page means by it: the entry for the base
+ * itself, null when it is not under the base or would reach the studio's own vendor route.
+ */
+export function underSiteBase(relative: string, siteBase: string | null): string | null {
+  const stripped = withoutSiteBase(relative, siteBase);
+  if (stripped === null) return null;
+  const file = stripped === "" ? "index.html" : stripped;
+  return isVendorPath(file) ? null : file;
+}
+
+/**
+ * Where `asked` is found: as named first, and only when nothing is there, without the site base.
+ * A refusal is never retried; a path that resolved before still resolves to the same file.
+ */
+async function locate(asked: string, roots: ServedRoots): Promise<{ requested: string; found: Served }> {
+  const found = await servedLocation(asked, roots);
+  const stripped =
+    !found.ok && found.status === HttpStatus.NotFound ? underSiteBase(asked, roots.siteBase?.() ?? null) : null;
+  if (stripped === null) return { requested: asked, found };
+  return { requested: stripped, found: await servedLocation(stripped, roots) };
+}
+
+/**
  * The file a request is answered from. A bundled project owns its paths (`routes`): a navigation
  * to a folder that holds its own `index.html` gets that page, as every static host serves it; to a
  * folder without one, or to a path nothing answers, the app's entry (`spaFallback`) — a folder of
  * the same name as a route is not a page to list. Everything else, and every request on a
- * project with no routes, is read as named.
+ * project with no routes, is read as named. A site built for a sub-path is read the same way
+ * on the path without its base.
  */
 export async function answerRequest(
-  requested: string,
+  asked: string,
   roots: ServedRoots,
   entryPath: string | null,
   request: NavigationRequest,
   routes: boolean,
 ): Promise<Answer> {
-  const found = await servedLocation(requested, roots);
+  const { requested, found } = await locate(asked, roots);
   const asNamed: Answer = { relative: requested, served: found, routed: false };
   const ownsPaths = routes && isNavigation(request) && !isVendorPath(requested);
   if (!ownsPaths) return asNamed;
@@ -700,14 +727,16 @@ export function routedDocumentUrl(requestUrl: string, relative: string): string 
 
 /**
  * Where a loopback page is opened. The entry `index.html` is the app's root, so it is opened at
- * `/`: a router that reads `location.pathname` then sees the path its routes are written for, not
- * `/index.html`. Any other entry keeps its own path; its query rides along either way.
+ * `/` — or at its site base, `/my-site/`, for a page built for a sub-path: a router that reads
+ * `location.pathname` then sees the path its routes are written for, not `/index.html`. Any other
+ * entry keeps its own path; its query rides along either way.
  */
-export function loopbackEntryUrl(port: number, entry: string): string {
+export function loopbackEntryUrl(port: number, entry: string, siteBase: string | null = null): string {
   const cut = entry.search(/[?#]/);
   const file = cut < 0 ? entry : entry.slice(0, cut);
   const rest = cut < 0 ? "" : entry.slice(cut);
-  return `http://localhost:${port}/${file === "index.html" ? "" : file}${rest}`;
+  const under = siteBase ? `${siteBase.split("/").map(encodeURIComponent).join("/")}/` : "";
+  return `http://localhost:${port}/${under}${file === "index.html" ? "" : file}${rest}`;
 }
 
 /**

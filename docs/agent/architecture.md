@@ -735,12 +735,11 @@ decisions (`servedRelative`, `resolveServed`, `servedLocation`, `routeHttp`,
 `projectRequestAllowed`, `previewNavigationAllowed`) and the only page rewrite; the input dispatch
 string is in [`src/main/page-dispatch.ts`](../../src/main/page-dispatch.ts). `resolveServed` checks
 lexically and then realpaths every request against the real root pinned at load: 404 for a missing
-or non-regular file, 403 for an escape (including a root swapped after load), 400 for a malformed
-one. The rewrite touches only the served document (`shouldRewrite`: the entry or a document/frame
+or non-regular file, 403 for an escape (or a root swapped after load), 400 for a malformed one. The rewrite touches only the served document (`shouldRewrite`: the entry or a document/frame
 fetch, never under `vendor/`, over 8 MB or non-HTML), never a file on disk: charset, the classic shim
-script, the page's import map with only `three` and `three/webgpu` pointed at the studio hook (or the
-studio's own map), the module hook, then the page; it is idempotent, and a blocking meta CSP gets one
-console line, not an edit. Bundled projects serve as `http://localhost:<port>/` and open at `/`; a GET navigation to an extensionless path no file answers gets the entry
+script, the import map (the page's, with `three` and `three/webgpu` pointed at the studio hook, else the
+studio's), the module hook, then the page; it is idempotent, and a blocking meta CSP gets one
+console line, not an edit. Bundled projects serve as `http://localhost:<port>/` and open at `/` — or at the sub-path the built page names its files under, `/my-site/` (`site-base.ts`; a missing path is read again without the base); a GET navigation to an extensionless path no file answers gets the entry
 (`spaFallback`; `dir/` gives its own page), so client routers survive Reload; a missing asset or `fetch` keeps its 404.
 
 **Network policy.** The project partition is closed: `onBeforeRequest` allows only `project:`, `data:`,
@@ -986,7 +985,7 @@ with a managed local runtime; core has no special Blender tool.
   private-key names, dependencies and symlinks are excluded or refused. A build's folder keeps all but the agents' own files (`CLAUDE.md`, `AGENTS.md`,
   `NOTES*.md`, a root `references/`); sources also drop `docs/`, `tests/`, `notes.*`, and an in-place
   build exports only declared files. Only tags that load a file are checked.
-  Parsed imports prune the vendor folder (a computed `import()` keeps the mapped libraries). Computed URLs defeat static analysis; browser export checks remain required.
+  Parsed imports prune the vendor folder (a computed `import()` keeps the mapped libraries). Computed URLs defeat static analysis; check the export in a browser.
 
 ## Persistence and the event log
 
@@ -1055,7 +1054,7 @@ with a managed local runtime; core has no special Blender tool.
   Keychain-backed through safeStorage and fails closed without OS encryption, raising
   `SecretStorageUnavailableError` with a `SecretStorageIssue` code. On Linux, safeStorage's
   `basic_text` backend (no keyring or wallet) counts as locked: its key is public. A value the
-  current key cannot decrypt (the app's safeStorage key is named after the app, so values saved
+  current key cannot decrypt (the key is named after the app: values saved
   as "AI Game Studio" are unreadable as Genex) reads as missing, so the Genex account and MCP
   connectors ask to be connected again; a store locked right now still throws. Plaintext
   backends exist only for tests. Settings writes, the coding-CLI override and connector files use atomic
@@ -1071,14 +1070,13 @@ with a managed local runtime; core has no special Blender tool.
   moves `<appData>/AI Game Studio` to `<appData>/Genex` when the new folder is missing or empty
   ([`src/main/user-data-migration.ts`](../../src/main/user-data-migration.ts)): never into a
   folder with data, never for developer, fixture or test profiles or a `--user-data-dir`; a
-  failed rename copies through a staging folder and keeps the legacy one. It logs to `studio.log`.
+  failed rename copies through a staging folder and keeps the legacy one.
   Developer tooling sets userData and sessionData before ready, keeps core state and project roots
   separate, and has one writer per profile. Fixture profiles block native IPC before handlers run
   (`native-policy.ts`), park automatic improvements and architecture checks, use mock cookie
   encryption, disable SecretStore and strip inherited tokens and live opt-ins. See
   [verification](verification.md) and the [dev fixture recipe](recipes.md#dev-fixture).
-- Smoke and selftest set both Electron paths early and inject a real `OllamaEngine` pointed at a
-  scripted host; the plain-Node rig does the same.
+- Smoke, selftest and the plain-Node rig set both Electron paths early and inject a real `OllamaEngine` at a scripted host.
 - **Log and crash dumps.** Main keeps `<userData>/logs/studio.log`
   ([`src/main/logs.ts`](../../src/main/logs.ts)): rotated at 5 files of 5 MB, mode 0600, never
   throws, and every line passes `scrubForLog` (`redactSecrets`, email addresses as `[email]`, the
@@ -1114,8 +1112,7 @@ with a managed local runtime; core has no special Blender tool.
   without PDBs; Windows packages node-pty's N-API prebuild instead of rebuilding it; `trimSandboxVendor` keeps only
   the target's sandbox-runtime helper (Linux `seccomp/<arch>`, Windows `srt-win/<arch>`, none on
   macOS). A `prePackage` hook refuses a symlinked `node_modules`, which the packager would prune in
-  place. `package-prune.test.ts`, `package-linked-modules.test.ts` and checks in
-  `run-packaged-smoke` hold it.
+  place.
 - Release signing ([`scripts/package-signing.cjs`](../../scripts/package-signing.cjs)) is decided by
   the environment: no `MACOS_SIGN_IDENTITY` re-signs the bundle ad-hoc (`localSigningHook`); an
   identity signs with the hardened runtime and `build/entitlements.mac.plist` (`allow-jit` only, no
@@ -1128,7 +1125,7 @@ with a managed local runtime; core has no special Blender tool.
   `app.asar`. [`src/main/auto-update.ts`](../../src/main/auto-update.ts) wires `update-electron-app`
   for packaged macOS/Windows (Linux: `release-check.ts`); its header covers the sidebar's Relaunch to update and the run-safe restart.
 - Sandbox preparation on macOS names `/bin/bash` explicitly and retries only sandbox-runtime's
-  shell-lookup error, at most three times (`sandbox-prepare.ts`); no child is replayed.
+  shell-lookup error, at most three times (`sandbox-prepare.ts`).
 - The snapshot Git helper's bounded `spawn git EAGAIN` retry is specified in
   [verification](verification.md#full-regression-and-failure-evidence).
 - A provider stream closed after cancellation keeps its stopped or deadline provenance; stopped chat

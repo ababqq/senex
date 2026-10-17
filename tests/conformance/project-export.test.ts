@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtemp, mkdir, writeFile, readFile, readdir, symlink, rm } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
-import { exportPublicProject } from "../../src/substrate/project-export.ts";
+import { exportPublicProject, siteBaseOfEntry } from "../../src/substrate/project-export.ts";
 import { removeTree } from "../helpers/tmp.ts";
 
 it("exports public runtime files without nested credentials or private directories; fails safely on symlinks", async () => {
@@ -285,6 +285,138 @@ it("says a referenced file was left out on purpose when its name looks like a se
     );
   } finally {
     await removeTree(typo.temp);
+  }
+});
+
+/** The files of a Vite build made with `base: "/my-site/"`: named under the base, kept at the root. */
+const SUB_PATH_BUILD = {
+  "index.html":
+    '<link rel="icon" href="/my-site/favicon.svg"><link rel="stylesheet" href="/my-site/assets/x.css">' +
+    '<script type="module" src="/my-site/assets/x.js"></script>',
+  "assets/x.js": 'import "/my-site/assets/chunk.js";',
+  "assets/chunk.js": "export const chunk = 1;",
+  "assets/x.css": "@font-face { src: url(/my-site/assets/font.woff2) }",
+  "assets/font.woff2": "font",
+  "favicon.svg": "<svg/>",
+};
+
+it("exports a build made for a sub-path as it was built, because its files are the ones its page names under that path", async () => {
+  const built = await site(SUB_PATH_BUILD);
+  try {
+    const result = await exportPublicProject(built.source, built.target, Object.keys(SUB_PATH_BUILD), undefined, {
+      buildFolder: true,
+    });
+    assert.deepEqual(result.included.sort(), Object.keys(SUB_PATH_BUILD).sort());
+    assert.equal(await readFile(path.join(built.target, "index.html"), "utf8"), SUB_PATH_BUILD["index.html"]);
+  } finally {
+    await removeTree(built.temp);
+  }
+  // …a missing file is still missing, a typo beside real ones too, and a name left out is still said so.
+  const cases: Array<[string, Record<string, string | null>, RegExp]> = [
+    ["a stylesheet removed", { "assets/x.css": null }, /missing a referenced public file: \/my-site\/assets\/x\.css/],
+    [
+      "a typo beside real assets",
+      { "index.html": `${SUB_PATH_BUILD["index.html"]}<script src="/my-site/assets/gone.js"></script>` },
+      /missing a referenced public file: \/my-site\/assets\/gone\.js/,
+    ],
+    [
+      "a source map the page asks for",
+      {
+        "assets/app.js.map": "{}",
+        "index.html": `${SUB_PATH_BUILD["index.html"]}<script src="/my-site/assets/app.js.map"></script>`,
+      },
+      /left out.*assets\/app\.js\.map/s,
+    ],
+  ];
+  for (const [what, changes, expected] of cases) {
+    const files: Record<string, string> = { ...SUB_PATH_BUILD };
+    for (const [file, text] of Object.entries(changes)) {
+      if (text === null) delete files[file];
+      else files[file] = text;
+    }
+    const broken = await site(files);
+    try {
+      await assert.rejects(
+        exportPublicProject(broken.source, broken.target, Object.keys(files), undefined, { buildFolder: true }),
+        expected,
+        what,
+      );
+    } finally {
+      await removeTree(broken.temp);
+    }
+  }
+});
+
+it("takes a sub-path of two segments, and never lets a reference under the base leave the export", async () => {
+  const deep = await site({
+    "index.html": '<script src="/org/repo/assets/x.js"></script>',
+    "assets/x.js": "console.log(1)",
+  });
+  try {
+    const result = await exportPublicProject(deep.source, deep.target, ["index.html", "assets"], undefined, {
+      buildFolder: true,
+    });
+    assert.deepEqual(result.included.sort(), ["assets/x.js", "index.html"]);
+  } finally {
+    await removeTree(deep.temp);
+  }
+  const climbing = await site({
+    "index.html": '<script src="/my-site/assets/x.js"></script><script src="/my-site/../../outside.js"></script>',
+    "assets/x.js": "1",
+  });
+  try {
+    // Where a staged reference would land if the base let it climb: beside the staging folder.
+    await writeFile(path.join(climbing.temp, "outside.js"), "secret");
+    await assert.rejects(
+      exportPublicProject(climbing.source, climbing.target, ["index.html", "assets"], undefined, {
+        buildFolder: true,
+      }),
+      /missing a referenced public file/,
+    );
+  } finally {
+    await removeTree(climbing.temp);
+  }
+  // No base to find: a root build, and links that disagree, are checked exactly as before.
+  for (const [what, files] of [
+    [
+      "a root build with a missing file",
+      { "index.html": '<script src="/gone.js"></script><script src="/app.js"></script>', "app.js": "1" },
+    ],
+    [
+      "two prefixes",
+      { "index.html": '<script src="/a/x.js"></script><script src="/b/y.js"></script>', "x.js": "1", "y.js": "1" },
+    ],
+  ] as const) {
+    const plain = await site({ ...files });
+    try {
+      await assert.rejects(
+        exportPublicProject(plain.source, plain.target, Object.keys(files), undefined, { buildFolder: true }),
+        /missing a referenced public file/,
+        what,
+      );
+    } finally {
+      await removeTree(plain.temp);
+    }
+  }
+});
+
+it("reads the base off a built entry page, and nothing else off disk", async () => {
+  const built = await site({ ...SUB_PATH_BUILD, "sub/index.html": '<script src="/my-site/assets/x.js"></script>' });
+  try {
+    assert.equal(await siteBaseOfEntry(built.source, "index.html"), "my-site");
+    assert.equal(await siteBaseOfEntry(built.source, "sub/index.html"), "my-site");
+    assert.equal(await siteBaseOfEntry(built.source, "missing.html"), null);
+    assert.equal(await siteBaseOfEntry(built.source, "assets/x.css"), null, "a stylesheet names no files a page loads");
+    for (const entry of ["../outside.html", "/etc/passwd", "a\\..\\x.html"])
+      assert.equal(await siteBaseOfEntry(built.source, entry), null, entry);
+  } finally {
+    await removeTree(built.temp);
+  }
+  const root = await site({ "index.html": '<script src="/app.js"></script>', "app.js": "1" });
+  try {
+    assert.equal(await siteBaseOfEntry(root.source, "index.html"), null, "a root build has none");
+  } finally {
+    await removeTree(root.temp);
   }
 });
 

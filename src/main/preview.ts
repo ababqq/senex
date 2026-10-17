@@ -52,6 +52,7 @@ import { emulatePageFocus } from "./preview-focus.ts";
 import { anchoredBounds } from "./preview-anchor.ts";
 import { downloadDecision, downloadLine, isBrowserNotice, projectViewPreferences } from "./project-view.ts";
 import { capActions, type PreviewInputAction } from "../substrate/preview-input.ts";
+import { siteBaseOfEntry } from "../substrate/project-export.ts";
 import { applyInputAction, type PageDispatch } from "./preview-input-driver.ts";
 import { cropImageFile, diffImageFiles, encodedImageStats, pairJpeg, resizeToJpeg } from "./preview-images.ts";
 import { DEFAULT_SHOT_QUALITY } from "./core/capture.ts";
@@ -231,6 +232,10 @@ export class ProjectPreview {
   #pinnedRoot: { project: string; dir: string; real: string | null } | null = null;
   /** The entry this port loaded — the primary rule for which response receives the studio shim. */
   #entryPath: string | null = null;
+  /** Whether this load is a built page on its own loopback origin. */
+  #loopback = false;
+  /** The sub-path that built page was made for (`my-site`), read off its entry; a missing path is served without it. */
+  #siteBase: string | null = null;
   /** This load's shim overrides (the boot budget is the one that changes per project). */
   #shimLoad: Partial<ShimOptions> | null = null;
   /** Whether this build's vendor directory carries the shim bundle at all. */
@@ -550,6 +555,7 @@ export class ProjectPreview {
       projectRoot: () => this.#projectRoot(project),
       liveRoot: () => this.#liveRoot(project),
       pinnedProjectRoot: () => this.#pinnedFor(project),
+      siteBase: () => this.#siteBase,
     };
     // A routed answer is the app's own page, read through the same check and rewritten like the entry.
     const { relative, served, routed } = await answerRequest(
@@ -707,6 +713,8 @@ export class ProjectPreview {
     this.#rootOverride = root ? { project, dir: path.resolve(root) } : null;
     const servedDir = path.resolve(this.#projectRoot(project));
     this.#pinnedRoot = { project, dir: servedDir, real: await realpath(servedDir).catch(() => null) };
+    this.#loopback = options.loopback === true;
+    await this.#readSiteBase();
     this.#loadError = null;
     this.#crashed = false;
     this.#console = [];
@@ -714,7 +722,7 @@ export class ProjectPreview {
     this.#downloadNotes.clear();
     this.#consoleAvailable = false;
     const url = options.loopback
-      ? loopbackEntryUrl(loopbackPortFor(project), entry)
+      ? loopbackEntryUrl(loopbackPortFor(project), entry, this.#siteBase)
       : `${SCHEME}://${project}/${entry}`;
     try {
       await view.webContents.loadURL(url);
@@ -722,6 +730,15 @@ export class ProjectPreview {
       this.#navigating = false;
     }
     return url;
+  }
+
+  /** Read the sub-path the built entry page names its files under, for a loopback load; none otherwise. */
+  async #readSiteBase(): Promise<void> {
+    const pinned = this.#pinnedRoot;
+    this.#siteBase =
+      this.#loopback && pinned && this.#entryPath
+        ? await siteBaseOfEntry(pinned.real ?? pinned.dir, this.#entryPath)
+        : null;
   }
 
   /**
@@ -769,6 +786,7 @@ export class ProjectPreview {
     this.#pageSurfaceNoted = false;
     await this.#profiler.invalidate("preview reloaded");
     if (!this.#view) return;
+    await this.#readSiteBase();
     this.#console = [];
     this.#blockedNoted.clear();
     this.#downloadNotes.clear();

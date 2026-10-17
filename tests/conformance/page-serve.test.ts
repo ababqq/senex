@@ -30,6 +30,7 @@ import {
   shouldRewrite,
   spaFallback,
   tooLargeNote,
+  underSiteBase,
 } from "../../src/main/page-serve.ts";
 import { tmpDir } from "../helpers/tmp.ts";
 
@@ -551,6 +552,142 @@ describe("a route no file answers (client-side routers)", () => {
     // Any other entry keeps its own path: "/" would serve the wrong file.
     assert.equal(loopbackEntryUrl(41234, "game.html"), "http://localhost:41234/game.html");
     assert.equal(loopbackEntryUrl(41234, "sub/index.html"), "http://localhost:41234/sub/index.html");
+  });
+});
+
+describe('a site built for a sub-path (Vite `base: "/my-site/"`)', () => {
+  const document = { method: "GET", dest: "document", accept: "text/html,application/xhtml+xml,*/*;q=0.8" };
+  const script = { method: "GET", dest: "script", accept: "*/*" };
+  const fetched = { method: "GET", dest: "empty", accept: "*/*" };
+
+  /** A build output: the files sit at the root of the folder while its page names them under /my-site/. */
+  async function dist() {
+    const base = await tmpDir("studio-site-base-serve-");
+    fs.mkdirSync(path.join(base, "assets"));
+    fs.mkdirSync(path.join(base, "docs"));
+    fs.writeFileSync(path.join(base, "index.html"), '<script src="/my-site/assets/x.js"></script>');
+    fs.writeFileSync(path.join(base, "assets", "x.js"), "1");
+    fs.writeFileSync(path.join(base, "docs", "index.html"), "<h1>docs</h1>");
+    fs.writeFileSync(path.join(base, "docs", "guide.html"), "<h1>guide</h1>");
+    const roots = { vendor: base, projectRoot: () => base, siteBase: () => "my-site" };
+    return { base, real: fs.realpathSync(base), roots };
+  }
+
+  it("opens a loopback page under the base, so a router that reads it sees its own path", () => {
+    const table: Array<[string, string | null, string]> = [
+      ["index.html", "my-site", "http://localhost:41234/my-site/"],
+      ["index.html?genex_local_test=1", "my-site", "http://localhost:41234/my-site/?genex_local_test=1"],
+      ["game.html", "my-site", "http://localhost:41234/my-site/game.html"],
+      ["sub/index.html", "org/repo", "http://localhost:41234/org/repo/sub/index.html"],
+      ["index.html", "my site", "http://localhost:41234/my%20site/"],
+      ["index.html", null, "http://localhost:41234/"],
+    ];
+    for (const [entry, base, expected] of table) {
+      assert.equal(loopbackEntryUrl(41234, entry, base), expected, `${entry} under ${base}`);
+    }
+  });
+
+  it("takes the base off a path, and never reaches the studio's own route with it", () => {
+    const table: Array<[string, string | null, string | null]> = [
+      ["my-site/assets/x.js", "my-site", "assets/x.js"],
+      ["my-site", "my-site", "index.html"],
+      ["my-site/", "my-site", "index.html"],
+      ["my-site/docs/", "my-site", "docs/"],
+      ["my-site/vendor/x.js", "my-site", null],
+      ["assets/x.js", "my-site", null],
+      ["my-site/x", null, null],
+    ];
+    for (const [relative, base, expected] of table) {
+      assert.equal(underSiteBase(relative, base), expected, `${relative} under ${base}`);
+    }
+  });
+
+  it("serves the file under the base when the name as asked is missing, and the named file when it is not", async () => {
+    const { real, roots } = await dist();
+    const asset = await answerRequest("my-site/assets/x.js", roots, "index.html", script, true);
+    assert.deepEqual(asset, {
+      relative: "assets/x.js",
+      served: { ok: true, path: path.join(real, "assets", "x.js") },
+      routed: false,
+    });
+    assert.equal((await answerRequest("assets/x.js", roots, "index.html", script, true)).relative, "assets/x.js");
+    for (const home of ["my-site/", "my-site"]) {
+      const page = await answerRequest(home, roots, "index.html", document, true);
+      assert.deepEqual(page.served, { ok: true, path: path.join(real, "index.html") }, home);
+      assert.equal(page.routed, false, home);
+    }
+    // The router's routes and the folders' pages are answered on the path without the base.
+    assert.equal((await answerRequest("my-site/about", roots, "index.html", document, true)).routed, true);
+    const folder = await answerRequest("my-site/docs/", roots, "index.html", document, true);
+    assert.equal(folder.relative, "docs/index.html");
+    const page = await answerRequest("my-site/docs/guide.html", roots, "index.html", document, true);
+    assert.equal(page.relative, "docs/guide.html");
+    assert.equal(page.routed, false);
+    // A real file at the name as asked wins over the one under the base.
+    const nested = path.join(real, "my-site", "assets");
+    fs.mkdirSync(nested, { recursive: true });
+    fs.writeFileSync(path.join(nested, "real.js"), "2");
+    const named = await answerRequest("my-site/assets/real.js", roots, "index.html", script, true);
+    assert.equal(named.relative, "my-site/assets/real.js");
+  });
+
+  it("keeps a broken request broken and takes nothing from the studio's vendor route", async () => {
+    const { roots } = await dist();
+    for (const [url, request] of [
+      ["my-site/assets/gone.js", script],
+      ["my-site/api/items", fetched],
+      ["my-site/vendor/studio/shim.js", script],
+    ] as const) {
+      const answer = await answerRequest(url, roots, "index.html", request, true);
+      assert.deepEqual(answer.served, { ok: false, status: HttpStatus.NotFound }, url);
+    }
+  });
+
+  it("is what it was with no base to strip", async () => {
+    const { base, real } = await dist();
+    for (const siteBase of [undefined, () => null]) {
+      const roots = { vendor: base, projectRoot: () => base, ...(siteBase ? { siteBase } : {}) };
+      const asset = await answerRequest("my-site/assets/x.js", roots, "index.html", script, true);
+      assert.deepEqual(asset.served, { ok: false, status: HttpStatus.NotFound });
+      const home = await answerRequest("my-site/", roots, "index.html", document, true);
+      assert.deepEqual(home, {
+        relative: "index.html",
+        served: { ok: true, path: path.join(real, "index.html") },
+        routed: true,
+      });
+    }
+  });
+
+  it("never turns a hostile path under the base into a file outside the root", async () => {
+    const parent = await tmpDir("studio-site-base-hostile-");
+    const base = path.join(parent, "dist");
+    const outside = path.join(parent, "outside");
+    fs.mkdirSync(base);
+    fs.mkdirSync(outside);
+    fs.writeFileSync(path.join(base, "index.html"), "<h1>app</h1>");
+    fs.writeFileSync(path.join(outside, "secret.txt"), "secret");
+    fs.symlinkSync(path.join(outside, "secret.txt"), path.join(base, "leak"));
+    fs.symlinkSync(outside, path.join(base, "linked-folder"));
+    const roots = { vendor: base, projectRoot: () => base, siteBase: () => "my-site" };
+    const real = fs.realpathSync(base);
+    for (const url of [
+      "/my-site/../secret.txt",
+      "/my-site/%2e%2e%2f..%2fsecret.txt",
+      "/my-site/leak",
+      "/my-site/linked-folder/secret.txt",
+      "/my-site/linked-folder/",
+    ]) {
+      const rel = servedRelative(url);
+      if (rel === null) continue;
+      const answer = await answerRequest(rel, roots, "index.html", document, true);
+      const inside = !answer.served.ok || answer.served.path.startsWith(real);
+      assert.ok(inside, `${url} -> ${JSON.stringify(answer)}`);
+      if (!answer.served.ok && rel.includes("leak")) assert.equal(answer.served.status, HttpStatus.Forbidden, url);
+    }
+    // A root swapped for a link after the page loaded is refused as it was, not retried under the base.
+    const swapped = { ...roots, pinnedProjectRoot: () => path.join(parent, "pinned-elsewhere") };
+    const refused = await answerRequest("my-site/index.html", swapped, "index.html", script, true);
+    assert.equal(refused.served.ok, false);
   });
 });
 
