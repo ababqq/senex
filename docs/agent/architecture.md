@@ -982,8 +982,8 @@ with a managed local runtime; core has no special Blender tool.
 - **Export.** [`src/substrate/project-export.ts`](../../src/substrate/project-export.ts) stages fresh public
   files and replaces only an app-managed destination; hidden files (`.well-known` aside), env files,
   private-key names, dependencies and symlinks are excluded or refused. A build's folder keeps all but the agents' own files (`CLAUDE.md`, `AGENTS.md`,
-  `NOTES*.md`, a root `references/`); sources also drop `docs/`, `tests/`, `notes.*`, and an in-place
-  build exports only declared files. Only tags that load a file are checked.
+  `NOTES*.md`, a root `references/`); sources also drop `docs/`, `tests/`, `notes.*`, and a build into
+  its own folder exports only declared files; with none declared, any other project exports its pages and what they load (`siteRoots`). Only tags that load a file are checked.
   Parsed imports prune the vendor folder (a computed `import()` keeps the mapped libraries). Computed URLs defeat static analysis; check the export in a browser.
 
 ## Persistence and the event log
@@ -1125,8 +1125,6 @@ with a managed local runtime; core has no special Blender tool.
   for packaged macOS/Windows (Linux: `release-check.ts`); its header covers the sidebar's Relaunch to update and the run-safe restart.
 - Sandbox preparation on macOS names `/bin/bash` explicitly and retries only sandbox-runtime's
   shell-lookup error, at most three times (`sandbox-prepare.ts`).
-- The snapshot Git helper's bounded `spawn git EAGAIN` retry is specified in
-  [verification](verification.md#full-regression-and-failure-evidence).
 - A provider stream closed after cancellation keeps its stopped or deadline provenance; stopped chat
   delegations keep edits and skip recorded launches.
 

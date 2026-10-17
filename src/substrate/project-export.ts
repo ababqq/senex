@@ -62,6 +62,11 @@ function leftOut(name: string, buildFolder: boolean, atRoot: boolean): boolean {
   return devScaffolding(name);
 }
 
+/** Whether any part of a `/`- or `\`-separated path is left out, the first counting as the root. */
+function leftOutPath(rel: string, buildFolder: boolean): boolean {
+  return rel.split(/[\\/]/).some((part, depth) => leftOut(part, buildFolder, depth === 0));
+}
+
 /** `project.export` answers this to the harness, so it lives in `shared/project-folder.ts`. */
 export type { ExportResult };
 
@@ -179,7 +184,7 @@ async function stagePath(
 ): Promise<void> {
   const parts = rel.split(/[\\/]/);
   if (path.isAbsolute(rel) || parts.includes("..")) throw new Error(MESSAGE.InvalidPublicPath(rel));
-  if (parts.some((part, depth) => leftOut(part, options.buildFolder, depth === 0))) {
+  if (leftOutPath(rel, options.buildFolder)) {
     result.excluded.push(destRel);
     return;
   }
@@ -241,6 +246,8 @@ interface ReferenceCheck {
   leftOut: readonly string[];
   /** The sub-path the built page names its files under (`/my-site/…`), when the files sit without it. */
   siteBase: string | null;
+  /** When set, references are gathered into it (as paths in the folder) instead of checked: see {@link siteRoots}. */
+  collect?: Set<string>;
   /** A project module imports by a name only the running page knows (`import(cond ? "a" : "b")`). */
   opaqueImport: boolean;
 }
@@ -274,6 +281,28 @@ async function stagedFile(check: ReferenceCheck, pathname: string, from: string)
 }
 
 /**
+ * Gather one reference instead of checking it: a file (or a link, which staging refuses by name)
+ * inside the folder is a public file; a folder, a path outside it and a path nothing answers are
+ * not. A style sheet or a module that is not left out is read in turn.
+ */
+async function collectReference(
+  check: ReferenceCheck,
+  collect: Set<string>,
+  file: string,
+  module: boolean,
+): Promise<void> {
+  const inside = isInside(check.staging, file) && file !== check.staging;
+  const info = inside ? await lstat(file).catch(() => null) : null;
+  if (!info || !(info.isFile() || info.isSymbolicLink())) return;
+  const rel = toPosixRelative(path.relative(check.staging, file));
+  if (collect.has(rel)) return;
+  collect.add(rel);
+  const readable = info.isFile() && !leftOutPath(rel, false);
+  const asModule = module && /\.m?js$/i.test(file);
+  if (readable && (asModule || /\.css$/i.test(file))) check.queue.push(file);
+}
+
+/**
  * One reference from a staged file: it must name a regular file inside the export. A module
  * reference is followed (queued); a vendored file it reaches is kept. Remote URLs, fragments and
  * a bare specifier the map sends off-machine are not the export's to check.
@@ -299,6 +328,7 @@ async function checkReference(
   if (!pathname) return;
   const { staging } = check;
   const file = await stagedFile(check, pathname, from);
+  if (check.collect) return collectReference(check, check.collect, file, module);
   if (!(await isStagedFile(staging, file))) {
     const named = toPosixRelative(path.relative(staging, file));
     const cause = check.leftOut.some((rel) => named === rel || named.startsWith(`${rel}/`))
@@ -477,9 +507,16 @@ async function scanStagedFile(check: ReferenceCheck, rel: string): Promise<void>
   const text = await readFile(file, "utf8");
   if (/\.html$/i.test(rel)) await scanHtml(check, text, file);
   if (/\.m?js$/i.test(rel)) check.queue.push(file);
-  if (/\.css$/i.test(rel))
-    for (const [, url = ""] of text.matchAll(/url\(\s*["']?([^"')]+)["']?\s*\)/g))
-      await checkReference(check, url.trim(), file);
+  if (/\.css$/i.test(rel)) await scanStyles(check, text, file);
+}
+
+/** The files a style sheet loads: its `url()`s, and (when gathering) its string `@import`s. */
+async function scanStyles(check: ReferenceCheck, text: string, file: string): Promise<void> {
+  for (const [, url = ""] of text.matchAll(/url\(\s*["']?([^"')]+)["']?\s*\)/g))
+    await checkReference(check, url.trim(), file);
+  // `@import "tailwindcss"` names a package, not a file: it is only followed to gather what exists.
+  if (!check.collect) return;
+  for (const [, url = ""] of text.matchAll(/@import\s+["']([^"']+)["']/g)) await checkReference(check, url, file);
 }
 
 /**
@@ -493,6 +530,7 @@ async function checkReferences(
   included: string[],
   leftOut: readonly string[],
   vendor: string | undefined,
+  collect?: Set<string>,
 ): Promise<Set<string>> {
   await init;
   const check: ReferenceCheck = {
@@ -504,6 +542,7 @@ async function checkReferences(
     neededVendor: new Set(),
     leftOut: leftOut.map(stagedName),
     siteBase: await pageSiteBase(page.html, staging),
+    ...(collect ? { collect } : {}),
     opaqueImport: false,
   };
   for (const rel of included) {
@@ -529,7 +568,9 @@ async function drainModules(check: ReferenceCheck): Promise<void> {
   for (let file = check.queue.pop(); file !== undefined; file = check.queue.pop()) {
     if (check.visited.has(file)) continue;
     check.visited.add(file);
-    await scanModule(check, await readFile(file, "utf8"), file);
+    const text = await readFile(file, "utf8");
+    if (/\.css$/i.test(file)) await scanStyles(check, text, file);
+    else await scanModule(check, text, file);
   }
 }
 
@@ -557,6 +598,36 @@ async function swapIntoPlace(staging: string, target: string, existing: Stats | 
     throw e;
   }
   if (existing) await rm(backup, { recursive: true, force: true });
+}
+
+/** The pages under `rel`: `.html` files in folders that are not left out, links neither followed nor counted. */
+async function findPages(source: string, rel: string): Promise<string[]> {
+  const found: string[] = [];
+  for (const entry of await readdir(path.join(source, rel), { withFileTypes: true })) {
+    const child = rel ? `${rel}/${entry.name}` : entry.name;
+    if (leftOut(entry.name, false, rel === "")) continue;
+    if (entry.isDirectory()) found.push(...(await findPages(source, child)));
+    else if (entry.isFile() && /\.html$/i.test(entry.name)) found.push(child);
+  }
+  return found;
+}
+
+/**
+ * The public files of a site no build made: every page in the folder and each file those pages,
+ * their style sheets and their modules load (the walk the export check makes, run over the
+ * source). Nothing a page does not name is public by default — a backup, a manifest, the studio's
+ * own files — and a folder is never proposed whole. A file a page names but export leaves out is
+ * proposed too, so staging says why. Read-only; the errors of the walk (a scoped import map, an
+ * unresolved module) surface as the export would raise them.
+ */
+export async function siteRoots(sourceDir: string): Promise<string[]> {
+  const source = await realpath(sourceDir);
+  const pages = await findPages(source, "");
+  const entry = path.join(source, "index.html");
+  const html = await readFile(entry, "utf8").catch(() => "");
+  const collect = new Set(pages);
+  await checkReferences(source, { entry, html }, pages, [], undefined, collect);
+  return [...collect].sort();
 }
 
 /** Assemble only approved public roots, never a recursive copy of a development project. */

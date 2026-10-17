@@ -34,6 +34,7 @@ import {
 } from "../../src/shared/shape-words.ts";
 import { nightRefusal } from "../../src/harness-seed/loop/main.ts";
 import { servedAfterBuild } from "../../src/main/project-build.ts";
+import { ownRules } from "../../src/substrate/project-workspace-prompts.ts";
 import { allowedFile as hookAllowedFile } from "../../src/substrate/ownership.ts";
 import { allowedFile as reviewAllowedFile } from "../../src/harness-seed/loop/review.ts";
 import { withHarnessChecks } from "../../src/harness-seed/loop/spec.ts";
@@ -1845,6 +1846,91 @@ describe("the Open Project sheet", () => {
       ),
       false,
     );
+  });
+
+  it("tells a builder whose project builds into its own folder that Export needs its public files listed", async () => {
+    const template = await readFile(path.join(repo, "src", "project-template", "CLAUDE.own.md"), "utf8");
+    const rules = (serve: string, build: string | null) =>
+      ownRules(template, {
+        entry: "index.html",
+        main: "src/main.ts",
+        build,
+        install: null,
+        own: true,
+        kind: "own-script",
+        serve,
+      });
+    for (const serve of [".", "./", ""]) {
+      const text = rules(serve, "tsc");
+      assert.match(text, /exportFiles/, `serve ${JSON.stringify(serve)}`);
+      assert.deepEqual(
+        (text.match(/^(\d+)\. /gm) ?? []).map((line) => Number.parseInt(line, 10)),
+        [1, 2, 3, 4, 5, 6],
+      );
+    }
+    assert.doesNotMatch(rules("dist", "tsc"), /exportFiles/);
+    assert.doesNotMatch(rules(".", null), /exportFiles/);
+  });
+
+  it("exports a project that builds nothing through its pages and what they load, unless it declared its files", async () => {
+    const { projects, base } = await workspaces();
+    const dir = path.join(base, "library", "plain");
+    const write = async (rel: string, text: string) => {
+      await mkdir(path.dirname(path.join(dir, rel)), { recursive: true });
+      await writeFile(path.join(dir, rel), text);
+    };
+    await write(
+      "index.html",
+      '<link rel="stylesheet" href="css/site.css"><script type="module" src="js/app.js"></script><a href="about.html">About</a>',
+    );
+    await write("about.html", '<link rel="stylesheet" href="css/site.css">');
+    await write("css/site.css", "body{}");
+    await write("js/app.js", "export {};\n");
+    await write("backup.sql", "insert into users values (1);\n");
+    await write("package.json", JSON.stringify({ name: "plain" }));
+    await write("studio.json", JSON.stringify({ name: "plain", contractVersion: 1, own: true, entry: "index.html" }));
+    const result = await projects.export("plain", path.join(base, "exports", "plain"));
+    assert.deepEqual([...result.included].sort(), ["about.html", "css/site.css", "index.html", "js/app.js"]);
+    assert.deepEqual(result.excluded, []);
+    // What the project declared decides alone.
+    await write(
+      "studio.json",
+      JSON.stringify({
+        name: "plain",
+        contractVersion: 1,
+        own: true,
+        entry: "index.html",
+        exportFiles: ["index.html", "about.html", "css", "js"],
+      }),
+    );
+    const declared = await projects.export("plain", path.join(base, "exports", "declared"));
+    assert.deepEqual([...declared.included].sort(), ["about.html", "css/site.css", "index.html", "js/app.js"]);
+    // A project that builds is built first.
+    await write("package.json", JSON.stringify({ name: "plain", scripts: { build: "vite build" } }));
+    await write(
+      "studio.json",
+      JSON.stringify({ name: "plain", contractVersion: 1, build: "vite build", serve: "dist" }),
+    );
+    await assert.rejects(
+      projects.export("plain", path.join(base, "exports", "built")),
+      /Build the current project successfully/,
+    );
+  });
+
+  it("exports the pages a template project grew beside its own folders", async () => {
+    const { projects, base } = await workspaces();
+    await mkdir(path.join(base, "vendor"), { recursive: true });
+    await writeFile(path.join(base, "vendor", "three.module.js"), "export const THREE = 1;\n");
+    const created = await projects.scaffold("site");
+    await writeFile(path.join(created.dir, "about.html"), '<link rel="stylesheet" href="style.css"><h1>About</h1>');
+    await writeFile(path.join(created.dir, "style.css"), "body{}");
+    await mkdir(path.join(created.dir, "assets", "data"), { recursive: true });
+    await writeFile(path.join(created.dir, "assets", "data", "level.json"), "{}");
+    const result = await projects.export("site", path.join(base, "exports", "site"));
+    const included = [...result.included];
+    for (const file of ["about.html", "style.css", "index.html", "src/main.js", "assets/data/level.json"])
+      assert.ok(included.includes(file), `${file} is exported: ${included.join(", ")}`);
+    assert.equal(new Set(included).size, included.length, "no file twice");
   });
 
   it("exports a build that is the project folder itself only through the files the project declared", async () => {
