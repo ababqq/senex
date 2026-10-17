@@ -116,7 +116,7 @@ import {
 import { layoutFor, type StudioLayout } from "./core/layout.ts";
 import { createPlanReviews } from "./core/plan-drafts.ts";
 import { CONSENT_TIMEOUT_MS, PluginToolService } from "./core/plugin-tools.ts";
-import { PreviewService } from "./core/previews.ts";
+import { PreviewService, type PreviewLoadOptions } from "./core/previews.ts";
 import { RecoveryService } from "./core/recovery.ts";
 import { ChatRewindService } from "./core/rewind.ts";
 import { SelfEditGateService } from "./core/self-edit-gate.ts";
@@ -1812,8 +1812,8 @@ export class StudioCore {
   }
 
   /** Serve a project (or a checked worktree of it) into a preview — what `preview.load` does, for host callers. */
-  loadPreview(p: HarnessParams<typeof HostMethod.PreviewLoad>): Promise<string> {
-    return this.#previews.loadPreview(p);
+  loadPreview(p: HarnessParams<typeof HostMethod.PreviewLoad>, options?: PreviewLoadOptions): Promise<string> {
+    return this.#previews.loadPreview(p, options);
   }
 
   /** Reload a preview from what is on disk now — what `preview.reload` does, for host callers. */

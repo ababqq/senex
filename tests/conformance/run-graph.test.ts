@@ -14,6 +14,7 @@ import {
   passedFraction,
   plannedFlips,
   roundStep,
+  hasScoredLiveness,
   type IterationNode,
   type Rect,
 } from "../../src/renderer/run-graph.ts";
@@ -370,6 +371,40 @@ describe("buildRunGraph", () => {
     const flagEdge = graph?.edges.find((edge) => edge.kind === "flag");
     assert.equal(flagEdge?.from, "iter:buildings:2");
     assert.equal(flagEdge?.to, "facet:ground", "ground's next iteration (3) does not exist → its header");
+  });
+});
+
+describe("the critic that judged a round, and a card nothing scored", () => {
+  /** One judged round, as the log writes it: the critic rides beside the liveness card, not inside it. */
+  const round = (extra: Record<string, unknown>) =>
+    buildRunGraph([
+      event("run_started", { project: "todo", goal: "A todo list" }),
+      event("autopilot_started", { facets: [facets[0]] }),
+      verdict("buildings", 1, "challenger", extra),
+    ])!;
+  const liveness = (graph: ReturnType<typeof buildRunGraph>) => iterations(graph)[0]!.liveness;
+
+  it("reads the critic from the round's record when the card does not carry it", () => {
+    const software = liveness(round({ critic: "screen", liveness: { total: 7, max: 12, scores: { read: 3 } } }));
+    assert.equal(software?.critic, "screen");
+    assert.equal(liveness(round({ critic: "place", liveness: { total: 9, max: 24, scores: {} } }))?.critic, "place");
+    assert.equal(
+      liveness(round({ critic: "screen", liveness: { critic: "place", total: 9, max: 24, scores: {} } }))?.critic,
+      "place",
+      "a card that names its critic is believed over the round",
+    );
+  });
+
+  it("has no scored card for a critic that failed: nothing to show, so no question and no '0 of 0'", () => {
+    const failed = liveness(round({ critic: "screen", liveness: { total: 0, max: 0, scores: {} } }));
+    assert.equal(hasScoredLiveness(failed), false);
+    assert.equal(hasScoredLiveness(null), false);
+    assert.equal(hasScoredLiveness({ ...failed!, total: null, max: 12 }), false, "no total, whatever the maximum");
+    assert.equal(
+      hasScoredLiveness(liveness(round({ liveness: { total: 0, max: 12, scores: {} } }))),
+      true,
+      "a real zero",
+    );
   });
 });
 

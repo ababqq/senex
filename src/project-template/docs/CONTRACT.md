@@ -26,9 +26,9 @@ they are. A build that fails is a blank screen for every critic — run it befor
 
 The studio ATTACHES as well as installs. It serves the page itself, so its own code is on the
 page before any project code runs: it owns `performance.now`, `Date.now` and `requestAnimationFrame`,
-it seeds `Math.random`, and it watches what is done to the page. A project that calls none of this
-is still stepped, seeded, photographed and observed (`state().ui`). Two consequences for any
-project:
+it seeds `Math.random` in judged runs (the person's own Live window keeps the browser's), and it watches
+what is done to the page. A project that calls none of this is still stepped, seeded, photographed and
+observed (`state().ui`). Two consequences for any project:
 
 - **The studio may pause your own loop and step it.** Keep state in variables the loop updates
   from its delta, never in the wall clock: with the clock frozen, `Date.now()` does not move
@@ -48,7 +48,7 @@ world) — and a project that supplies none of them still answers `cameras()` wi
 | `__studio.start()` / `pause()` | The project runs from the moment it loads — never wait for `start()`. `pause()` freezes it for deterministic judging; `start()` resumes live use. |
 | `__studio.step(dtMs)` | Advance by hand, independent of wall clock — used for scripted runs. |
 | `__studio.state()` | JSON snapshot: runtime timing, the page's own activity (`ui`, below) and the numbers and short strings your `probes()` return. Nothing is required for a feature the project does not have. |
-| `__studio.debugCamera(name)` | Show a named screen (`views`) and let the page settle, so screenshots are comparable. Async. `default` is the page as it loads; declare it too if your views move away from it. (The name is the wire name: the contract kept it when it grew past 3D.) |
+| `__studio.debugCamera(name)` | Show a named screen (`views`) and let the page settle, so screenshots are comparable. Async. `default` is the page as it loads; declare it too if your views move away from it. A screenshot shows only a page's first window and a named view starts from the top, so register a view that scrolls to anything below it (a footer, a pricing table, a submit button). (The name is the wire name: the contract kept it when it grew past 3D.) |
 | `__studio.cameras()` | The views you declared, or `["default"]`. |
 | `__studio.demos()` / `demo(name)` | Scripted workflows (`demos`): each runs deterministically to its end state, which the critic photographs. Async; may return JSON the checks read. |
 | `__studio.capture()` | Return the screen as a data URL — the critic's screenshot path. Never remove this method. |
@@ -58,10 +58,10 @@ world) — and a project that supplies none of them still answers `cameras()` wi
 
 ### `probes()` — what the project holds
 
-Return numbers, booleans and short strings, one per thing a person could check: `items`,
-`selectedId`, `route`, `form.valid`, `cart.total`. Nested objects are read with dotted paths
-(`form.valid`). Report only what exists: a counter for a feature the project does not have is a
-lie a check will believe. Keep them cheap and side-effect free; `state()` calls them often.
+Return numbers, booleans and short strings, one per thing a person could check: `items`, `selectedId`,
+`route`, `form.valid`, `cart.total`; nested objects are read with dotted paths. Report only what exists:
+a counter for a missing feature is a lie a check will believe. `error` is the studio's (an uncaught page
+error): name a form's message `formError`. Keep probes cheap and side-effect free; `state()` runs them often.
 
 ### `views` and `demos`
 

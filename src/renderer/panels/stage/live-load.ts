@@ -96,7 +96,11 @@ function noteProject(live: LivePage, set: Pick<ReturnType<typeof useLiveLoad>, "
   if (!live.page) return;
   const next = live.page.state;
   set.setState((previous) =>
-    previous?.phase === next?.phase && previous?.drawCalls === next?.drawCalls ? previous : next,
+    previous?.phase === next?.phase &&
+    previous?.drawCalls === next?.drawCalls &&
+    previous?.pageEmpty === next?.pageEmpty
+      ? previous
+      : next,
   );
 }
 

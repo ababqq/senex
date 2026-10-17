@@ -704,7 +704,7 @@ export class RecoveryService {
   }
 
   /**
-   * What the nights learned about each project (`library/projects`, the ledger and its lessons) is
+   * What the nights learned about each project (`library/games`, the ledger and its lessons) is
    * history, not a self-change: rewinding the harness's code must not take it back. It is set
    * aside before a restore and put back after, newer files winning.
    */

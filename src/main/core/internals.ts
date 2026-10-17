@@ -136,6 +136,8 @@ export interface ServedRoot {
   root: string | null;
   entry: string | undefined;
   loaded: string | null;
+  /** The person's own load left `Math.random` to the browser; a rebuild of this handle's page does too. */
+  nativeRandom?: boolean;
 }
 
 /** What the previews serve, borrow and show. */

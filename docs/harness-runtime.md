@@ -8,7 +8,10 @@ carries the studio's own shim before the project's first line, so `window.__stud
 that never heard of the contract, the studio owns the clock, `seed(n)` is reproducible (the template calls a
 project's `reset(seed, { boot })` with `boot: true` on every page load and `false` on a reseed, so only a
 reseed may empty the store), draw calls
-are counted at the graphics API, and readiness is a fact the page reports rather than a wait. That
+are counted at the graphics API, and readiness is a fact the page reports rather than a wait: a page
+that never asked for WebGL or WebGPU is ready once it has loaded and gone quiet. The shim seeds
+`Math.random` for every load the harness makes; the person's own Live loads (open, Reload, Play, a build
+they asked to see) leave it to the browser. That
 holds for any web page of any shape — inline, ES modules with an import map, a Vite bundle (which adds
 the two-line `installStudio({ probes })` and nothing else), a canvas, WebGL or WebGPU. What people did
 to the page (clicks, typing, navigation, errors, unnamed controls, sideways overflow) is counted by the
@@ -22,7 +25,8 @@ edit, look and move probes read, whether it wants eye cameras, its critic and it
 OFF until the planner, the director or `studio.json`'s nested `app` block declares it, so a project
 nobody described carries no harness input check at all; a declared kind supplies its traits and an
 explicit boolean beside it wins. The harness drives that kind's play script before every
-judgement, and `appLine(run.app)` is the first line of every judge call. Two critics, not one:
+judgement, and `appLine(run.app)` is the first line of every judge call (for a run that declared no kind it
+says so, names those default controls and retracts `[dead-input]`). Two critics, not one:
 `screen` for software a person reads and operates (the default) and `place` for a world a person moves
 through (`graphics`). A run that declared no kind is read as software everywhere: it is offered no scene's
 check, recipe or artefact class, gets the main-flow playtest, and skips the renderer-only optimization stage.

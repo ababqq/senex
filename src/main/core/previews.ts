@@ -103,6 +103,18 @@ const REFERENCE_NOTE = /\.(md|txt|json)$/i;
 /** How long the stand-in stays open once the harness stops using it: a project in it keeps running. */
 const STAND_IN_IDLE_MS = 2 * MINUTE_MS;
 
+/** How a preview load differs from a harness's own. */
+export interface PreviewLoadOptions {
+  /** Leave `Math.random` to the browser: the page is the person's to use, not a run to compare. */
+  nativeRandom?: boolean;
+}
+
+/** What the person's own loads of Live pass: the harness's RPC has no way to ask for it. */
+export const PERSONS_LOAD: PreviewLoadOptions = { nativeRandom: true };
+
+/** The page-shim option that leaves `Math.random` to the browser. */
+const NATIVE_RANDOM_SHIM = { seed: null };
+
 /** Errors the user reads when a build cannot be shown or landed, and why a reference is no still. */
 const MESSAGE = {
   noPreview: "no preview is attached (headless mode)",
@@ -424,8 +436,11 @@ export class PreviewService {
     };
   }
 
-  /** `preview.load`: serve a project (or a checked worktree of it) into a preview, one load per handle at a time. */
-  loadPreview(p: HarnessParams<"preview.load">): Promise<string> {
+  /**
+   * `preview.load`: serve a project (or a checked worktree of it) into a preview, one load per handle
+   * at a time. The person's own loads of Live say so in `options`; the harness's never can.
+   */
+  loadPreview(p: HarnessParams<"preview.load">, options: PreviewLoadOptions = {}): Promise<string> {
     const handle = p.handle ?? LIVE_HANDLE;
     return serial(this.#x.previewOperations, handle, async () => {
       const profiling = Boolean(p.candidateId && p.revision);
@@ -434,7 +449,7 @@ export class PreviewService {
       const port = this.preview(p.handle);
       if (p.candidateId && p.revision)
         return this.#loadCandidate(p, { candidateId: p.candidateId, revision: p.revision }, port);
-      return this.#loadServedPreview(p, handle, checkedRoot, port);
+      return this.#loadServedPreview(p, handle, checkedRoot, port, options);
     });
   }
 
@@ -461,8 +476,15 @@ export class PreviewService {
     handle: string,
     checkedRoot: string | null,
     port: PreviewPort,
+    options: PreviewLoadOptions,
   ): Promise<string> {
-    const remembered = { project: p.project, root: checkedRoot, entry: p.entry, loaded: null as string | null };
+    const remembered: ServedRoot = {
+      project: p.project,
+      root: checkedRoot,
+      entry: p.entry,
+      loaded: null,
+      nativeRandom: options.nativeRandom === true,
+    };
     this.#x.servedRoots.set(handle, remembered);
     const isLive = handle === LIVE_HANDLE;
     const revisionBefore = isLive ? await this.previewRevision(p.project, checkedRoot) : null;
@@ -472,7 +494,10 @@ export class PreviewService {
     try {
       const served = await this.servedEntry(p.project, checkedRoot, p.entry, port, { fallback: isLive });
       if (!served) return unservedUrl(p);
-      const url = await port.load(p.project, served.entry, served.root, { loopback: served.loopback });
+      const url = await port.load(p.project, served.entry, served.root, {
+        loopback: served.loopback,
+        ...(options.nativeRandom ? { shim: NATIVE_RANDOM_SHIM } : {}),
+      });
       // Only now is Live current: a load that failed leaves what waited for Reload waiting.
       if (isLive) await this.#live.loaded(p.project, { print, root: checkedRoot });
       remembered.loaded = servedKey(served);
@@ -951,12 +976,13 @@ export class PreviewService {
       if (candidate.problem) throw new Error(candidate.problem);
       if (this.#x.servedRoots.get(LIVE_HANDLE) !== previous) throw new Error(MESSAGE.previewChanged);
       liveAttempted = true;
-      await this.loadPreview({ project, root: showDir });
+      await this.loadPreview({ project, root: showDir }, PERSONS_LOAD);
     } catch (error) {
       if (liveAttempted && previous)
-        await this.loadPreview({ project: previous.project, root: previous.root, entry: previous.entry }).catch(
-          () => {},
-        );
+        await this.loadPreview(
+          { project: previous.project, root: previous.root, entry: previous.entry },
+          PERSONS_LOAD,
+        ).catch(() => {});
       await this.#core.snapshots.removeWorktree(project, showDir).catch(() => {});
       await rm(showDir, { recursive: true, force: true }).catch(() => {});
       throw error;
@@ -1123,7 +1149,7 @@ export class PreviewService {
       playDir,
       await this.nestedPolicy(this.#core.projects.dirFor(project)),
     );
-    await this.preview().load(project, "index.html", playDir);
+    await this.preview().load(project, "index.html", playDir, { shim: NATIVE_RANDOM_SHIM });
     await this.#live.loaded(project, { print: undefined, root: playDir });
     return { dir: playDir, snapshotId };
   }
@@ -1196,7 +1222,7 @@ export class PreviewService {
       }
     }
     if (offerLive) await this.offerLive({ project, root: null });
-    else await this.loadPreview({ project });
+    else await this.loadPreview({ project }, PERSONS_LOAD);
     await this.#core.projects.touch(project).catch(() => {});
     return { commit: resolved, how: already ? "already" : "merged" };
   }
@@ -1298,7 +1324,11 @@ export class PreviewService {
     }
     try {
       if (waiting.commit) await this.showBuild(waiting.project, waiting.commit);
-      else await this.loadPreview({ project: waiting.project, ...(waiting.root ? { root: waiting.root } : {}) });
+      else
+        await this.loadPreview(
+          { project: waiting.project, ...(waiting.root ? { root: waiting.root } : {}) },
+          PERSONS_LOAD,
+        );
     } catch (error) {
       this.#live.clear();
       throw error;
@@ -1392,7 +1422,10 @@ export class PreviewService {
     // a failed load that is the previous project's page, or nothing at all.
     const key = servedKey(served);
     if (!served.stale && last.loaded === key) return false;
-    await port.load(last.project, served.entry, served.root, { loopback: served.loopback });
+    await port.load(last.project, served.entry, served.root, {
+      loopback: served.loopback,
+      ...(last.nativeRandom ? { shim: NATIVE_RANDOM_SHIM } : {}),
+    });
     last.loaded = key;
     if (served.stale) port.note?.("error", served.stale, { loadError: true });
     return true;

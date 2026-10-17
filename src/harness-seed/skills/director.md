@@ -39,8 +39,9 @@ itself and keeps the memory file its brief names current.)
    list-manager, content-site, editor, data-viz, utility, graphics. The harness drives that kind's
    own exercise (clicks, typing, Tab, scrolling) before every judgement, puts only the checks that
    kind can pass on every board, and tells every judge in one line what it is looking at. Declare
-   nothing and it assumes nothing: no page rule, no navigation check, no typing check — and a form
-   judged as a 3D walk comes back as "the player never moved". `play_script=` overrides the kind's
+   nothing and it assumes nothing: only the generic exercise (a click, Tab, Return, scrolling) runs,
+   and no page rule, no console-error check, no navigation check and no typing check ride on the
+   board. `play_script=` overrides the kind's
    exercise with your own actions (click, focus, type, press, drag, scroll, wait) when this project is
    driven some other way; a part that is a different kind takes `kind=` on its own `worker_start`.
 

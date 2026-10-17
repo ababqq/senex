@@ -103,6 +103,7 @@ export interface StepProof {
   frames: number;
   drawCalls: number;
   ms: number;
+  /** The page has a canvas it draws to with the GPU, so it owes draws the counters count. */
   canvas: boolean;
   simulatedMs: number | null;
   idle: number;
@@ -442,11 +443,17 @@ export const STEP_WITNESS = `(() => {
       var state = window.__studio && typeof window.__studio.state === "function" ? window.__studio.state() : null;
       if (state && typeof state.simulatedMs === "number") simulatedMs = state.simulatedMs;
     } catch (err) { simulatedMs = null; }
+    // Only a page that asked for a GPU context owes the draws the counters count: a chart on a 2d
+    // canvas draws nothing they see. The shim's answer is page-wide (a 2d chart beside a capability
+    // check that touches WebGL still reads as owing draws), and a shim that cannot say keeps every
+    // canvas held to its draws.
+    var gl = window.__studioGl;
+    var gpu = gl && typeof gl.gpu === "function" ? !!gl.gpu() : true;
     return {
       steppedFrames: Number(stats.steppedFrames) || 0,
       drawCalls: Number(stats.drawCalls) || 0,
       now: Number(stats.now) || 0,
-      canvas: !!(typeof document !== "undefined" && document.querySelector("canvas")),
+      canvas: !!(typeof document !== "undefined" && document.querySelector("canvas")) && gpu,
       simulatedMs: simulatedMs
     };
   } catch (err) {
@@ -514,7 +521,10 @@ async function readWitness(ctx: HarnessCtx, h: { handle?: string }): Promise<Any
   }
 }
 
-/** What the witness samples prove: frames of the page's own, something drawn, and a clock that moved. */
+/**
+ * What the witness samples prove: frames of the page's own, a clock that moved and, on a page with
+ * a canvas, something drawn. A page of DOM has no draws to count, so the clock is all it can show.
+ */
 function weighSteps(out: StepProof, samples: AnyRecord[]): StepProof {
   const first = samples[0];
   const last = samples[samples.length - 1];
@@ -528,7 +538,7 @@ function weighSteps(out: StepProof, samples: AnyRecord[]): StepProof {
       "the studio stepped the clock and the page ran no frame of its own — the project does not ride the studio's clock";
     return out;
   }
-  if (!(out.drawCalls > 0)) {
+  if (out.canvas && !(out.drawCalls > 0)) {
     out.code = "no-draw";
     out.reason = "frames ran but nothing was drawn";
     return out;
@@ -544,7 +554,9 @@ function weighSteps(out: StepProof, samples: AnyRecord[]): StepProof {
   // the project draws from somewhere else (a timer, an input handler, a render on demand). That is
   // a real project and not a failure, so it is a note — but the frame counts below are the studio's
   // and not the project's, and the honest answer says so instead of charging them to its loop.
-  if (out.askedFrames > 0 && out.idle >= out.askedFrames) {
+  // A page of DOM draws on input as a rule: it owes no loop, so it is not noted for lacking one.
+  const everyFrameIdle = out.askedFrames > 0 && out.idle >= out.askedFrames;
+  if (out.canvas && everyFrameIdle) {
     out.idleLoop = true;
     out.note =
       "the studio stepped the clock and the project ran no animation frame of its own — it draws from somewhere else, so the frame counts are the studio's rather than the project's loop";
@@ -823,21 +835,51 @@ async function loadPage(look: Look): Promise<LookEnd> {
   if (status.crashed) problems.push("the renderer crashed");
 }
 
+/**
+ * Whether the page came up and can be driven: loaded, not failed to load, not crashed.
+ */
+function pageCameUp(look: Look): boolean {
+  if (!look.bootedFor) return false;
+  return !look.status.loadError && !look.status.crashed;
+}
+
+/**
+ * Whether the requested state is reached after the deterministic seed rather than before it. The
+ * seed resets a template page to its first screen — `reset` goes back to the default view and may
+ * empty the store — so a signed-in account or a settings route reached before it is lost to it.
+ * A scene's reset keeps what the setup chose (a map, a mode), and its title screen needs live
+ * frames to be walked past, so a scene keeps the older order.
+ */
+function setupFollowsSeed(run: Pick<Run, "app">): boolean {
+  return !drawsScene(run.app);
+}
+
+/** What replaying the setup says when the state was not reached or the script failed. */
+function noteRequestedState(look: Look): void {
+  const { requestedState, warnings } = look;
+  if (!requestedState) return;
+  if (requestedState.reached === false) warnings.push(`requested state not reached: ${requestedState.reason}`);
+  if (requestedState.error) warnings.push(`setup script failed: ${requestedState.error}`);
+}
+
 /** (4) setup, the player-eye cameras the project has, and the readings the page phases fill. */
 async function reachRequestedState(look: Look): Promise<LookEnd> {
-  const { ctx, eyes, h, prefix, requestedSetup, run, status, warnings } = look;
+  const { ctx, eyes, h, prefix, requestedSetup, run } = look;
   // ── (4) setup: the requested state (computer use, 2026-09-07) — the scout's setup script,
   // replayed before anyone looks: the gesture, then start, then the map picker opened, the map
   // chosen, and a probe that says it landed. A build judged on the boot screen while the brief
   // was about another map cost a whole run. Replayed AFTER the readiness poll, because the scout
   // recorded it on a booted page: at 0 ms the same click lands on empty space.
+  // A page of software is replayed after the seed instead (`reachRequestedStateAfterSeed`); only
+  // the knock, which a page needs before anything else, is made here.
   look.requestedState = null;
-  const pageCameUp = look.bootedFor && !status.loadError && !status.crashed;
-  if (requestedSetup && pageCameUp) {
-    look.requestedState = await applySetup(ctx, requestedSetup, { ...h });
-    if (look.requestedState.reached === false)
-      warnings.push(`requested state not reached: ${look.requestedState.reason}`);
-    if (look.requestedState.error) warnings.push(`setup script failed: ${look.requestedState.error}`);
+  if (requestedSetup && pageCameUp(look)) {
+    if (setupFollowsSeed(run)) {
+      if (requestedSetup.gesture) await knock(ctx, requestedSetup.gesture, h);
+    } else {
+      look.requestedState = await applySetup(ctx, requestedSetup, { ...h });
+      noteRequestedState(look);
+    }
   }
 
   // Harness-owned player-eye cameras (v2 contract): present when the project passed `camera` and
@@ -893,10 +935,9 @@ async function reachRequestedState(look: Look): Promise<LookEnd> {
 }
 
 /**
- * Where a failed clock proof goes. A page with no canvas at all is the DOM-first-screen shape the
- * readiness ladder exists for: frames without draws there is a warning, never a verdict. The shim
- * not loading is not a fact about the project: nothing measured below can be believed on any stage,
- * so it is a problem on a challenger exactly as on the base.
+ * Where a failed clock proof goes. The shim not loading is not a fact about the project: nothing
+ * measured below can be believed on any stage, so it is a problem on a challenger exactly as on
+ * the base.
  *
  * An empty shared base draws nothing because there is nothing in it. That is the one stage where
  * blankness is allowed, and the exemption is settled by inspection a few steps below
@@ -904,11 +945,10 @@ async function reachRequestedState(look: Look): Promise<LookEnd> {
  */
 function weighClockFailure(look: Look, proof: StepProof): void {
   const { baseStage, problems, warnings } = look;
-  const soft = proof.code === "no-draw" && proof.canvas === false;
-  const drawsLater = baseStage && proof.code === "no-draw" && !soft;
+  const drawsLater = baseStage && proof.code === "no-draw";
   if (proof.code === "no-clock") problems.push(proof.reason);
   else if (drawsLater) look.noDrawPending = proof.reason;
-  else if (baseStage && !soft) problems.push(proof.reason);
+  else if (baseStage) problems.push(proof.reason);
   else warnings.push(proof.reason);
 }
 
@@ -937,7 +977,9 @@ async function proveClock(look: Look): Promise<void> {
  * early sample is taken BEFORE the scripted controls, so `delta('player.yaw')` and
  * `delta('player.x')` measure what the controls did — the first v2 run took it after them and
  * every probe delta measured drift. The two proving steps sit before it, so the early sample is
- * the same distance into the simulation for every build.
+ * the same distance into the simulation for every build — but for a page of software whose setup
+ * is replayed after the seed, which settles in wall time with the clock running: what it holds is
+ * the requested state, which is the point of replaying it, and not a fixed point of the simulation.
  */
 async function driveProject(look: Look): Promise<void> {
   const { ctx, h, motion, motionFrames, run, takeMotionFrame } = look;
@@ -1015,11 +1057,28 @@ async function readDrivenState(look: Look): Promise<void> {
   }
 }
 
+/**
+ * (5b) the requested state of a page of software, reached after the seed has gone back to its first
+ * screen: the setup's demo, input and verify run once, with the clock running as they expect, and the
+ * clock is paused again before the early sample so everything sampled after it is the studio's.
+ */
+async function reachRequestedStateAfterSeed(look: Look): Promise<void> {
+  const { ctx, h, requestedSetup, run } = look;
+  if (!requestedSetup || !setupFollowsSeed(run)) return;
+  if (!pageCameUp(look)) return;
+  // The knock was made before the seed: the page has had its trusted gesture.
+  const { gesture: _knocked, ...replay } = requestedSetup;
+  look.requestedState = await applySetup(ctx, replay, { ...h });
+  noteRequestedState(look);
+  await ctx.call(HostMethod.PreviewCall, { method: PageMethod.Pause, ...h }).catch(() => null);
+}
+
 /** (5) prove the studio owns the clock, then (6) drive the project's own controls. */
 async function proveAndDrive(look: Look): Promise<LookEnd> {
   if (!look.bootedFor) return;
   try {
     await proveClock(look);
+    await reachRequestedStateAfterSeed(look);
     await driveProject(look);
     await readDrivenState(look);
   } catch (err: any) {
@@ -1273,7 +1332,7 @@ function cameraWarnings(look: Look): void {
   const namesCameras = Array.isArray(cameras) && cameras.length > 0;
   if (scaffold && namesCameras) problems.push(`shared base is missing required cameras: ${missingCameras.join(", ")}`);
   warnings.push(
-    `cameras named by the facet but not registered in config.cameras: ${missingCameras.join(", ")} — register them in main.js`,
+    `views named by the facet but not registered in the installStudio call: ${missingCameras.join(", ")} — add them to views`,
   );
 }
 
@@ -1323,9 +1382,18 @@ function userViewWarning(uiEntries: string[], diffFraction: number | null): stri
   return null;
 }
 
+/**
+ * Whether the default camera's frame came off the compositor: a page with no canvas has nothing
+ * else to photograph, so its camera frames already show every element and `user:view` would
+ * only repeat them.
+ */
+function cameraFramesArePage(shots: Shot[]): boolean {
+  return shots.find((shot: Shot) => shot.camera === DEFAULT_CAMERA)?.surface === "page";
+}
+
 /** The compositor's picture of the page on the default camera, kept when it shows something the canvas does not. */
 async function photographPage(look: Look, pageLabel: string): Promise<void> {
-  const { ctx, h, run, uiEntries, warnings } = look;
+  const { ctx, h, run, shots, uiEntries, warnings } = look;
   await ctx.call(HostMethod.PreviewCall, { method: PageMethod.DebugCamera, arg: DEFAULT_CAMERA, ...h });
   const shot = await ctx.call(HostMethod.PreviewScreenshot, {
     runId: run.runId,
@@ -1344,11 +1412,13 @@ async function photographPage(look: Look, pageLabel: string): Promise<void> {
     surface: photographed(shot, "page"),
   };
   const diffFraction = await userViewDiff(look, shot);
-  // Kept when the probe found UI, when the pictures differ, or when nobody could tell;
-  // dropped only when the probe found nothing AND a computed diff is under the threshold.
+  const ofPage = cameraFramesArePage(shots);
+  // Kept when the probe found UI the canvas frames cannot show, when the pictures differ, or when
+  // nobody could tell; dropped only when the probe found nothing AND a computed diff is under the
+  // threshold. Where the camera frames are the page, the probe's UI is already in them.
   const differs = diffFraction === null || diffFraction > USER_VIEW_MISMATCH;
-  if (uiEntries.length > 0 || differs) look.userViewShot = candidate;
-  const warning = userViewWarning(uiEntries, diffFraction);
+  if ((!ofPage && uiEntries.length > 0) || differs) look.userViewShot = candidate;
+  const warning = ofPage ? null : userViewWarning(uiEntries, diffFraction);
   if (warning) warnings.push(warning);
 }
 

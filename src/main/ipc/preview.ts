@@ -35,7 +35,7 @@ export function registerPreviewIpc(
   handle("studio:preview.load", async (payload) => {
     await core.projects.touch(payload.project).catch(() => {});
     // Through the core, not the port: a project with its own build is built and served from its output.
-    return core.loadPreview({ project: payload.project });
+    return core.loadPreview({ project: payload.project }, { nativeRandom: true });
   });
   handle("studio:build.preview", async (payload) => core.buildPreview(payload));
   handle("studio:preview.screens", async () => core.agentScreens());

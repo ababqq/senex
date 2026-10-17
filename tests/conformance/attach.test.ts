@@ -42,6 +42,39 @@ const TEMPLATE = fs.readFileSync(path.resolve("src/project-template/index.html")
 const FIXTURES = path.resolve("tests/fixtures/pages");
 const page = (name: string) => fs.readFileSync(path.join(FIXTURES, name), "utf8");
 
+describe("the template page's own error handler", () => {
+  /** Runs the template's inline error script against a stub window, then fires one `error` event at it. */
+  function fatalAfter(event: Record<string, unknown>): { shown: boolean; recorded: unknown } {
+    const modules = [...TEMPLATE.matchAll(/<script type="module">([\s\S]*?)<\/script>/g)].map((m) => m[1]!);
+    const script = modules.find((body) => body.includes("__studio_error"));
+    assert.ok(script, "the template reports a page that throws");
+    const listeners = new Map<string, (event: Record<string, unknown>) => void>();
+    const box = { style: { display: "none" }, textContent: "" };
+    const window: Record<string, unknown> = {
+      addEventListener: (type: string, fn: (event: Record<string, unknown>) => void) => void listeners.set(type, fn),
+    };
+    const document = { getElementById: () => box };
+    new Function("window", "document", script)(window, document);
+    listeners.get("error")!(event);
+    return { shown: box.style.display === "block", recorded: window.__studio_error };
+  }
+
+  it("shows a page that threw, and not the browser's ResizeObserver notice", () => {
+    const threw = fatalAfter({ message: "boom", error: new Error("boom") });
+    assert.equal(threw.shown, true);
+    assert.ok(threw.recorded);
+    for (const message of [
+      "ResizeObserver loop completed with undelivered notifications.",
+      "ResizeObserver loop limit exceeded",
+    ]) {
+      const notice = fatalAfter({ message });
+      assert.equal(notice.shown, false, message);
+      assert.equal(notice.recorded, undefined, message);
+    }
+    assert.equal(fatalAfter({ message: "ResizeObserver loop", error: new Error("x") }).shown, true);
+  });
+});
+
 describe("the page the studio composes", () => {
   it("points three and three/webgpu at the studio's wrapper and leaves every other key alone", () => {
     const { html, reach, hooked } = rewriteProjectHtml(TEMPLATE, { documentUrl: DOC });

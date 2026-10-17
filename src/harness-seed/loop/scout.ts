@@ -276,7 +276,7 @@ export function renderScoutForPlanner(report: ScoutReport | null | undefined): s
   const kind = report.kind ? APP_KINDS[report.kind] : undefined;
   if (report.kind && kind)
     lines.push(
-      `- Kind: ${report.kind} — ${kind.says}. Declare it in the plan's project block; the board and the critic follow from it.`,
+      `- Kind: ${report.kind} — ${kind.says}. Declare it in the plan's app block; the board and the critic follow from it.`,
     );
   if (report.play?.length)
     lines.push(`- The controls the harness should drive before every judgement: ${describePlayScript(report.play)}.`);

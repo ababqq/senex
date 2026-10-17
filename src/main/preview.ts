@@ -50,7 +50,7 @@ import {
 import { PAGE_DISPATCH } from "./page-dispatch.ts";
 import { emulatePageFocus } from "./preview-focus.ts";
 import { anchoredBounds } from "./preview-anchor.ts";
-import { downloadDecision, downloadLine, projectViewPreferences } from "./project-view.ts";
+import { downloadDecision, downloadLine, isBrowserNotice, projectViewPreferences } from "./project-view.ts";
 import { capActions, type PreviewInputAction } from "../substrate/preview-input.ts";
 import { applyInputAction, type PageDispatch } from "./preview-input-driver.ts";
 import { cropImageFile, diffImageFiles, encodedImageStats, pairJpeg, resizeToJpeg } from "./preview-images.ts";
@@ -58,6 +58,7 @@ import { DEFAULT_SHOT_QUALITY } from "./core/capture.ts";
 import {
   ATTACH_PROBE,
   GL_PROBE,
+  LIVE_PROBE,
   PAGE_CAPTURE,
   PAGE_CAPTURE_TIMEOUT_MS,
   type PageCaptureInfo,
@@ -343,6 +344,7 @@ export class ProjectPreview {
       }
       this.#consoleAvailable = true;
       if (details.message === "__studio_console_channel_probe__") return;
+      if (isBrowserNotice(details.message)) return;
       this.#push({
         at: Date.now(),
         level: String(details.level),
@@ -1151,7 +1153,7 @@ export class ProjectPreview {
     };
     if (!wc || wc.isDestroyed()) return { ...base, navigating: false, page: null };
     if (this.#navigating || wc.isLoading()) return { ...base, navigating: true, page: null };
-    const probe = `(() => { let state = null; try { const full = window.__studio ? window.__studio.state() : null; state = full ? { phase: full.phase, drawCalls: full.drawCalls } : null; } catch {} return { complete: document.readyState === "complete", resources: performance.getEntriesByType("resource").length, state }; })()`;
+    const probe = LIVE_PROBE;
     const page = (await Promise.race([
       this.evaluate(probe).catch(() => null),
       delay(LIVE_PROBE_MS, null),

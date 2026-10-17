@@ -738,7 +738,7 @@ function planGenres(raw: AnyRecord | null): string[] {
 
 /**
  * The project the plan itself declares, when it declares anything. The four declaration sources,
- * in order: what the planner said, then the scout's kind, then studio.json's nested project block,
+ * in order: what the planner said, then the scout's kind, then studio.json's nested app block,
  * then nothing. Only the first is written back.
  */
 function declaredApp(raw: AnyRecord | null): AnyRecord | null {

@@ -51,7 +51,9 @@ Rules that never change:
   `has('filters.active')`); leave `check` null when only a judge can see it.
 - Every check names a camera (a named view the build registers) or a tag; the default camera is
   the page as it opens. A view the check needs but the build does not register is declared on the
-  facet's `cameras`, and the builder is told to register it.
+  facet's `cameras`, and the builder is told to register it. The default picture shows only the first
+  window of a tall page: a check about content below it (a footer, a pricing table, a submit button)
+  names a camera whose view scrolls there, or is a probe check instead.
 - Reuse ids and thresholds from the check catalogue below when they fit — never invent a second
   id for the same measurement. The catalogue is small on purpose: a few technical checks the
   harness keeps on every board, plus whatever the runs themselves learned, grouped under the

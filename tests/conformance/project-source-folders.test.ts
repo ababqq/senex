@@ -6,11 +6,13 @@
  */
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { lstat, mkdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { test } from "node:test";
 import { promisify } from "node:util";
+import { migrateLegacyIgnore } from "../../src/substrate/nested-repos.ts";
 import { coreLite } from "../helpers/core-lite.ts";
+import { tmpDir } from "../helpers/tmp.ts";
 
 const exec = promisify(execFile);
 
@@ -66,23 +68,77 @@ test("a project the studio started with its old .gitignore loses the export/ lin
   );
 });
 
-test("a project that is only opened, not built in, gets the same repair, whatever the file's line endings", async () => {
+/**
+ * Stage `files` and commit them as the studio of an earlier version did. The machine running the
+ * test may have no git identity, and a Windows one may convert line endings on the way in
+ * (`core.autocrlf`, which the studio's own git never does): the file is committed as written.
+ */
+async function committedAsAnOlderStudio(dir: string, ...files: string[]): Promise<void> {
+  const config = ["-c", "core.autocrlf=false", "-c", "user.name=Senex", "-c", "user.email=studio@example.test"];
+  await exec("git", [...config, "add", "--", ...files], { cwd: dir });
+  await exec("git", [...config, "commit", "-q", "-m", "an older studio's commit"], { cwd: dir });
+}
+
+/** What a repository's porcelain status says, one line per change. */
+async function dirt(dir: string): Promise<string> {
+  return (await exec("git", ["status", "--porcelain"], { cwd: dir })).stdout;
+}
+
+test("a project that is only opened, not built in, gets the same repair, committed, whatever the file's line endings", async () => {
   const lite = await coreLite();
   const rules = [".studio/", "node_modules", ".git.studio-backup", "*.sqlite", "output/", ".env", ".playwright-cli/"];
   const rows: Array<[string, string, string]> = [
     ["every studio rule", `export/\n.DS_Store\n${rules.join("\n")}\n`, `.DS_Store\n${rules.join("\n")}\n`],
-    ["Windows line endings", "export/\r\n.DS_Store\r\nbuild/\r\n", ".DS_Store\r\nbuild/\r\n"],
-    ["no final newline", "export/\n.DS_Store", ".DS_Store"],
-    ["a user's own export/ after other rules", "dist/\nexport/\n.DS_Store\n", "dist/\nexport/\n.DS_Store\n"],
-    ["an export/ not followed by the header's second line", "export/\n*.log\n", "export/\n*.log\n"],
+    ["Windows line endings", "export/\r\n.DS_Store\r\n.studio/\r\nbuild/\r\n", ".DS_Store\r\n.studio/\r\nbuild/\r\n"],
+    ["no final newline", "export/\n.DS_Store\n.studio/", ".DS_Store\n.studio/"],
+    [
+      "a user's own export/ after other rules",
+      "dist/\nexport/\n.DS_Store\n.studio/\n",
+      "dist/\nexport/\n.DS_Store\n.studio/\n",
+    ],
+    ["an export/ not followed by the header's second line", "export/\n*.log\n.studio/\n", "export/\n*.log\n.studio/\n"],
+    [
+      "a header a person wrote for themselves: none of the studio's own rules follow it",
+      "export/\n.DS_Store\n*.log\n",
+      "export/\n.DS_Store\n*.log\n",
+    ],
   ];
   for (const [index, [what, before, after]] of rows.entries()) {
     const project = await lite.core.projects.scaffold(`opened-${index}`, { title: `Opened ${index}` });
     const gitignore = path.join(project.dir, ".gitignore");
+    // What the project looked like under the old studio: that file, committed.
     await writeFile(gitignore, before);
+    await committedAsAnOlderStudio(project.dir, ".gitignore");
+    const head = (await exec("git", ["rev-parse", "HEAD"], { cwd: project.dir })).stdout;
     await lite.core.projects.touch(project.name);
     assert.equal(await readFile(gitignore, "utf8"), after, what);
+    assert.equal(await dirt(project.dir), "", `${what}: opening leaves the folder as clean as it found it`);
+    const moved = (await exec("git", ["rev-parse", "HEAD"], { cwd: project.dir })).stdout !== head;
+    assert.equal(moved, before !== after, `${what}: a repair is one commit, no repair is none`);
   }
+});
+
+test("opening a project never touches a .gitignore its owner is in the middle of editing, or what they staged", async () => {
+  const lite = await coreLite();
+  const project = await lite.core.projects.scaffold("busy-tool", { title: "Busy tool" });
+  const gitignore = path.join(project.dir, ".gitignore");
+  await writeFile(gitignore, "export/\n.DS_Store\n.studio/\n");
+  await committedAsAnOlderStudio(project.dir, ".gitignore");
+  // Their own edit, not yet committed.
+  const edited = "export/\n.DS_Store\n.studio/\n# my notes\n";
+  await writeFile(gitignore, edited);
+  await lite.core.projects.touch(project.name);
+  assert.equal(await readFile(gitignore, "utf8"), edited, "an edit in progress is theirs");
+
+  // And a file they staged for their own next commit stays staged when a repair is committed.
+  const other = await lite.core.projects.scaffold("staging-tool", { title: "Staging tool" });
+  await writeFile(path.join(other.dir, ".gitignore"), "export/\n.DS_Store\n.studio/\n");
+  await committedAsAnOlderStudio(other.dir, ".gitignore");
+  await writeFile(path.join(other.dir, "notes.txt"), "mine\n");
+  await exec("git", ["add", "notes.txt"], { cwd: other.dir });
+  await lite.core.projects.touch(other.name);
+  assert.equal(await dirt(other.dir), "A  notes.txt\n", "only their staged file is left, still staged");
+  assert.equal(await readFile(path.join(other.dir, ".gitignore"), "utf8"), ".DS_Store\n.studio/\n");
 });
 
 test("a .gitignore the user wrote, export/ included, is theirs", async () => {
@@ -94,4 +150,72 @@ test("a .gitignore the user wrote, export/ included, is theirs", async () => {
   await writeFile(gitignore, theirs);
   await lite.core.projects.adopt(project.dir);
   assert.equal(await readFile(gitignore, "utf8"), theirs);
+});
+
+/** A fresh repository whose only commit is a `.gitignore` as an older studio wrote it. */
+async function legacyRepo(): Promise<{ dir: string; head: () => Promise<string> }> {
+  const dir = await tmpDir("studio-legacy-ignore-");
+  await exec("git", ["init", "-q", "-b", "main"], { cwd: dir });
+  await writeFile(path.join(dir, ".gitignore"), "export/\n.DS_Store\n.studio/\nnode_modules\n");
+  await committedAsAnOlderStudio(dir, ".gitignore");
+  return { dir, head: async () => (await exec("git", ["rev-parse", "HEAD"], { cwd: dir })).stdout.trim() };
+}
+
+const REPAIRED = ".DS_Store\n.studio/\nnode_modules\n";
+const LEGACY = `export/\n${REPAIRED}`;
+
+test("two opens at once repair a project's .gitignore once, and leave the folder clean", async () => {
+  const { dir, head } = await legacyRepo();
+  const before = await head();
+  await Promise.all([migrateLegacyIgnore(dir), migrateLegacyIgnore(dir), migrateLegacyIgnore(dir)]);
+  assert.equal(await readFile(path.join(dir, ".gitignore"), "utf8"), REPAIRED);
+  assert.equal(await dirt(dir), "");
+  const count = (await exec("git", ["rev-list", "--count", `${before}..HEAD`], { cwd: dir })).stdout.trim();
+  assert.equal(count, "1", "one repair commit");
+});
+
+test("a repository that will not take the commit gets its .gitignore back as it was", async () => {
+  const { dir, head } = await legacyRepo();
+  const before = await head();
+  // A held index lock stands for any reason git refuses: the repair must not leave a dirty file behind.
+  const lock = path.join(dir, ".git", "index.lock");
+  await writeFile(lock, "");
+  await migrateLegacyIgnore(dir);
+  await rm(lock);
+  assert.equal(await readFile(path.join(dir, ".gitignore"), "utf8"), LEGACY);
+  assert.equal(await head(), before);
+  assert.equal(await dirt(dir), "");
+});
+
+test("a repository in the middle of something of its owner's, or not the folder's own, is not committed into", async () => {
+  const rebasing = await legacyRepo();
+  await mkdir(path.join(rebasing.dir, ".git", "rebase-merge"));
+  const detached = await legacyRepo();
+  await exec("git", ["checkout", "-q", "--detach"], { cwd: detached.dir });
+  const inner = await legacyRepo();
+  const folder = path.join(inner.dir, "projects", "todo");
+  await mkdir(folder, { recursive: true });
+  await writeFile(path.join(folder, ".gitignore"), LEGACY);
+  await committedAsAnOlderStudio(inner.dir, "projects/todo/.gitignore");
+  const innerHead = await inner.head();
+  for (const [what, dir] of [
+    ["a rebase in progress", rebasing.dir],
+    ["a detached HEAD", detached.dir],
+    ["a folder inside a repository that is not its own", folder],
+  ] as const) {
+    await migrateLegacyIgnore(dir);
+    assert.equal(await readFile(path.join(dir, ".gitignore"), "utf8"), LEGACY, what);
+  }
+  assert.equal(await inner.head(), innerHead, "nothing was committed into the parent repository");
+});
+
+test("a .gitignore that is a link is not replaced with a file", async () => {
+  const { dir } = await legacyRepo();
+  await exec("git", ["rm", "-q", "--cached", ".gitignore"], { cwd: dir });
+  await rm(path.join(dir, ".gitignore"));
+  await writeFile(path.join(dir, "shared-ignore"), LEGACY);
+  await symlink("shared-ignore", path.join(dir, ".gitignore"));
+  await migrateLegacyIgnore(dir);
+  assert.equal(await readFile(path.join(dir, "shared-ignore"), "utf8"), LEGACY, "the link's target is the owner's");
+  assert.equal((await lstat(path.join(dir, ".gitignore"))).isSymbolicLink(), true, "and the link is still a link");
 });

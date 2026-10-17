@@ -20,7 +20,7 @@ closed, with Show in Finder for files in the project folder.
 **Live** runs the browser project in a native view (WebGL and WebGPU); hidden unobserved previews
 pause. The strip holds Live/Builds/Assets, Run/Stop, Reload, the sound switch (⌥⌘M; only a shown
 Live in front is heard), Full screen (hold Esc to leave) and plugin actions such as Publish (accent
-until listed). Stop halts the project until Run or Reload. Slow loads show “Loading project”. An empty scaffold shows “Ready for your first idea”, or
+until listed). Stop halts the project until Run or Reload. Slow loads show “Loading project”. An empty scaffold (blank page) shows “Ready for your first idea”, or
 “Building your project” with Watch progress while a run works, Open latest once a build is
 ready; the first healthy build then shows itself. Otherwise only the user changes Live (opening a
 project, Reload, Open, Make live, a chat request while Live is hidden). A newer healthy build, a

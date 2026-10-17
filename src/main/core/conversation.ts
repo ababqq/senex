@@ -39,6 +39,7 @@ import { settleWithin } from "../app-lifecycle.ts";
 import { threadOr } from "./main-thread.ts";
 import { CapabilityAudience } from "../planning-capabilities.ts";
 import { isQueueMessageId } from "./rewind.ts";
+import { PERSONS_LOAD } from "./previews.ts";
 
 /** Which build `show_build` and `land_build` mean when the coordinator names none: the run's own. */
 const INTEGRATION_BUILD = "integration";
@@ -714,7 +715,7 @@ export class ConversationService {
         await this.#core.offerLive({ project, root: null });
         return "Live was left as the person has it; if the project folder changed since it loaded, the Reload button on the stage now offers it.";
       }
-      await this.#x.previews.loadPreview({ project });
+      await this.#x.previews.loadPreview({ project }, PERSONS_LOAD);
       this.#core.emit(UiEvent.StageShow, { project, view: "live" });
       return "Live, on the right of the chat, now shows the project folder as it is.";
     }

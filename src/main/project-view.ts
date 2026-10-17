@@ -56,6 +56,22 @@ export interface DownloadDecision {
   note: string | null;
 }
 
+/**
+ * The notices Chrome writes to a page's console by itself, in the two wordings it has used, when an
+ * observer's callback resizes what it observes (an auto-sizing textarea, a chart in a flexible box).
+ * They are no error of the page's, so they are not kept as one. A fixed browser string with no typed
+ * code, matched whole: a page's own line that only mentions the name is still its own.
+ */
+const BROWSER_NOTICES: ReadonlySet<string> = new Set([
+  "ResizeObserver loop completed with undelivered notifications.",
+  "ResizeObserver loop limit exceeded",
+]);
+
+/** Whether a console line is one of those notices. */
+export function isBrowserNotice(message: string): boolean {
+  return BROWSER_NOTICES.has(message);
+}
+
 /** Page-chosen text for one line of the console: no control characters, and short. */
 function consoleText(text: string): string {
   // biome-ignore lint/suspicious/noControlCharactersInRegex: control characters in page-chosen text are replaced, not shown.

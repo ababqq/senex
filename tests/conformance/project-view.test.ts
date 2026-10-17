@@ -6,7 +6,7 @@
  */
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { downloadDecision, downloadLine, MAX_DOWNLOAD_NOTES } from "../../src/main/project-view.ts";
+import { downloadDecision, downloadLine, isBrowserNotice, MAX_DOWNLOAD_NOTES } from "../../src/main/project-view.ts";
 
 describe("a download the project starts", () => {
   const file = { name: "report.csv", mimeType: "text/csv" };
@@ -62,5 +62,15 @@ describe("the console lines a page's refused downloads earn", () => {
   it("does not repeat a file it already named once the limit is past", () => {
     const lines = shown([...distinct(MAX_DOWNLOAD_NOTES + 1), "file 0", "file 99"]);
     assert.deepEqual(lines.slice(-2), [null, null]);
+  });
+});
+
+describe("the console lines the browser writes by itself", () => {
+  it("drops Chrome's ResizeObserver notice, in either wording, and nothing a page wrote", () => {
+    assert.equal(isBrowserNotice("ResizeObserver loop completed with undelivered notifications."), true);
+    assert.equal(isBrowserNotice("ResizeObserver loop limit exceeded"), true);
+    assert.equal(isBrowserNotice("ResizeObserver loop is a name in my code"), false);
+    assert.equal(isBrowserNotice("Uncaught TypeError: x is not a function"), false);
+    assert.equal(isBrowserNotice(""), false);
   });
 });

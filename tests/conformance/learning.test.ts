@@ -524,7 +524,7 @@ describe("skillopt sees what a director's night actually did", () => {
           payload: {
             pass: "gate",
             decision: { kept: true },
-            because: "It starts and draws its first frame.",
+            because: "It starts and shows its first screen.",
             build: { worker: "dirt" },
           },
         },

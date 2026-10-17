@@ -5,6 +5,7 @@ import { applyPlayScript } from "../../src/harness-seed/loop/play-script.ts";
 import { playScriptFor } from "../../src/harness-seed/loop/kinds.ts";
 import { promisify } from "node:util";
 import { gitFile } from "../helpers/git.ts";
+import { cameraList, gather, stubCtx } from "../helpers/evidence-stub.ts";
 /**
  * Incident tests for the loop. One `it` per incident from the
  * morrowind-2 and shooter postmortems, named after it, on the real rig (a real StudioCore,
@@ -8640,7 +8641,7 @@ describe("the words the harness types are its own test input (live validation, f
     for (const kind of ["dashboard", "content-site", "data-viz", "graphics"]) {
       assert.doesNotMatch(appLine({ kind }), /test input/, kind);
     }
-    assert.equal(appLine(undefined), "", "an undeclared project is told nothing");
+    assert.match(appLine(undefined), /^PROJECT: nothing declared what kind of project this is\./);
   });
 
   it("HT-2. the judge that looks at a list is given the note with the controls", async () => {
@@ -9077,5 +9078,332 @@ describe("the calls a chat stood behind, and the clock it speaks in (completion 
     assert.doesNotMatch(system, /reference title|Compare materials, light, silhouette, palette/);
     assert.match(system, /named reference product/);
     assert.match(system, /layout, hierarchy, type, spacing/);
+  });
+});
+
+describe("a page with no canvas is a page, not a scene that failed to draw (second software sweep)", () => {
+  /** A preview whose clock witness answers `witness(tick)` and whose step answers `step`. */
+  function previewOf(witness: (tick: number) => unknown, step: Record<string, unknown> = { ok: true }) {
+    let tick = 0;
+    return {
+      cancelled: false,
+      call: async (method: string, params: Record<string, unknown> = {}) => {
+        if (method === "preview.evaluate") return witness(++tick);
+        if (method === "preview.call" && params.method === "step") return step;
+        return { ok: true };
+      },
+    };
+  }
+
+  it("DS-1. a form that draws nothing and runs no animation loop proves the studio's clock without a defect", async () => {
+    const { proveStep } = await import("../../src/harness-seed/loop/evidence.ts");
+    const form = previewOf((tick) => ({ steppedFrames: tick * 8, drawCalls: 0, now: tick * 320, canvas: false }), {
+      ok: true,
+      frames: 8,
+      idle: 8,
+    });
+    const proof = await proveStep(form as never);
+    assert.equal(proof.ok, true, proof.reason);
+    assert.equal(proof.reason, "");
+    assert.equal(proof.idleLoop, false);
+    assert.equal(proof.note, "");
+    // `canvas` is a canvas drawn to with the GPU (a chart on a 2d canvas reports false, as the form does).
+    const scene = previewOf((tick) => ({ steppedFrames: tick * 8, drawCalls: 0, now: tick * 320, canvas: true }));
+    assert.equal((await proveStep(scene as never)).code, "no-draw", "a page that draws with the GPU still owes a draw");
+  });
+
+  it("DS-2. a todo page's camera frames are the page: no 'UI outside the canvas' defect and no second copy of the same picture", async () => {
+    const card = { entries: ['h1 "Todos"', "div.card"], coverage: 0.9, canvas: null, viewport: null, uiPrimary: true };
+    const { ctx } = stubCtx({
+      frames: ["a", "b", "c", "d"],
+      cameras: ["default"],
+      pageUi: card,
+      diff: 0.001,
+      shotSurface: () => "page",
+    });
+    const evidence = await gather(ctx);
+    assert.doesNotMatch(evidence.warnings.join(" | "), /outside the canvas/);
+    assert.ok(!cameraList(evidence).includes("user:view"));
+  });
+
+  it("DS-3. a run that declared no kind tells every judge what was driven, and retracts [dead-input] it cannot have", async () => {
+    const { appLine } = await import("../../src/harness-seed/loop/kinds.ts");
+    for (const app of [undefined, null, {}, { playScript: [{ type: "tap", keys: ["x"] }] }]) {
+      const line = appLine(app);
+      assert.match(line, /^PROJECT: nothing declared what kind of project this is\./, JSON.stringify(app));
+      assert.match(line, /Before every judgement the harness drives the same controls: /, JSON.stringify(app));
+      assert.match(line, /\[dead-input\] does not apply — do not report it/, JSON.stringify(app));
+    }
+    assert.equal(
+      (appLine({ kind: "graphics" }).match(/does not apply — do not report it/g) ?? []).length,
+      1,
+      "and a declared kind still says it once",
+    );
+    // The same for a kind with no input probes of its own that was given input traits by hand
+    // (the documented opt-in for a walkable scene): its board carries those checks.
+    for (const app of [
+      { kind: "graphics", keyboardMove: true },
+      { kind: "graphics", mouseLook: true, keyboardMove: true },
+    ]) {
+      assert.doesNotMatch(appLine(app), /does not apply/, JSON.stringify(app));
+    }
+    // A run that declared input traits without a kind has input checks on its board: nothing is retracted.
+    for (const app of [{ typing: true }, { navigation: true, ui: true }, { mouseLook: true }, { keyboardMove: true }]) {
+      const line = appLine(app);
+      assert.match(line, /^PROJECT: nothing declared what kind of project this is\./, JSON.stringify(app));
+      assert.doesNotMatch(line, /does not apply/, JSON.stringify(app));
+    }
+  });
+
+  it("DS-4. a comparison's evidence text names only the pictures that went out with it, and says what was captured but left off", async () => {
+    const { blindCompare } = await import("../../src/harness-seed/loop/judge.ts");
+    const recorder = ctxRecorder({
+      unknown: { value: null },
+      handlers: { "engine.complete": () => ({ message: { content: '{"pick":"tie","biggest_gap":"","reason":"x"}' } }) },
+    });
+    const evidence = {
+      ok: true,
+      shots: [
+        { camera: "default", base64: "ZGVm" },
+        { camera: "user:view", base64: "dXNlcg==" },
+      ],
+      motion: [{ base64: "bTE=" }, { base64: "bTI=" }, { base64: "bTM=" }],
+    };
+    await blindCompare(recorder.ctx as never, {
+      run: { runId: "r", reference: { name: "none" } } as never,
+      challenger: evidence as never,
+      incumbentEvidence: evidence as never,
+    });
+    const request = recorder.paramsOf("engine.complete")[0] as { messages?: Array<{ content?: unknown }> } | undefined;
+    const asked = String(request?.messages?.[0]?.content ?? "");
+    const attached = /IMAGES ATTACHED \(\d+\): ([^\n]*?)\. Look at them/.exec(asked)?.[1] ?? "";
+    assert.match(attached, /BUILD A \/ default/);
+    assert.doesNotMatch(attached, /user:view|MOTION/, "the comparison sends neither");
+    assert.doesNotMatch(asked, /screenshots attached for cameras: [^\n]*user:view/);
+    assert.doesNotMatch(asked, /motion strip from the scripted exercise is attached/);
+    assert.match(asked, /screenshots attached for cameras: default/);
+    assert.match(asked, /captured but not attached to this comparison: user:view/);
+    assert.match(asked, /3-frame motion strip was captured but is not attached to this comparison/);
+    assert.doesNotMatch(
+      asked,
+      /user:view is the page as the user sees it/,
+      "no rule about a frame the judge cannot see",
+    );
+  });
+
+  /**
+   * A page whose `seed()` goes back to the first screen, as the template's `reset` does: the route
+   * the setup's input chose is lost to it unless the setup is replayed after the seed.
+   */
+  function resettingPage() {
+    const page = { route: "#/" };
+    const calls: Array<{ method: string; payload: Record<string, unknown> }> = [];
+    const ctx = {
+      cancelled: false,
+      call: async (method: string, payload: Record<string, unknown> = {}) => {
+        calls.push({ method, payload });
+        switch (method) {
+          case "preview.status":
+            return { loadError: null, crashed: false };
+          case "preview.state":
+            return { version: 1, route: page.route };
+          case "preview.input":
+            page.route = "#/settings";
+            return { ok: true, applied: 1, width: 960, height: 600 };
+          case "preview.screenshot":
+            return { base64: "AAAA", bytes: 4, path: "/runs/x.jpg", stats: null };
+          case "preview.console":
+          case "preview.gpuErrors":
+            return [];
+          case "preview.call":
+            if (payload.method === "seed") page.route = "#/";
+            if (payload.method === "cameras") return ["default"];
+            if (payload.method === "demos") return [];
+            return { ok: true };
+          default:
+            return {};
+        }
+      },
+    };
+    return { ctx, calls };
+  }
+  const SETTINGS_SETUP = {
+    actions: [{ type: "click", x: 0.9, y: 0.05 }],
+    verify: { path: "route", equals: "#/settings" },
+  };
+
+  it("DS-5. a software run's requested state survives the seed that goes back to the first screen, and the clock is paused again before anything is sampled", async () => {
+    const { gatherEvidence } = await import("../../src/harness-seed/loop/evidence.ts");
+    for (const app of [undefined, { kind: "dashboard" }]) {
+      const { ctx, calls } = resettingPage();
+      const evidence = await gatherEvidence(
+        ctx as never,
+        {
+          run: { runId: "r", project: "p", setup: SETTINGS_SETUP, ...(app ? { app } : {}) },
+          iterationId: "001",
+          seed: 1,
+          eyes: false,
+          audio: false,
+        } as never,
+      );
+      const label = JSON.stringify(app);
+      assert.equal(evidence.state?.route, "#/settings", `${label}: the late state is the requested one`);
+      assert.equal(evidence.requestedState?.reached, true, label);
+      assert.ok(!evidence.warnings.some((w: string) => /requested state/.test(w)), evidence.warnings.join(" | "));
+      const names = calls.map((c) => (c.method === "preview.call" ? `call:${c.payload.method}` : c.method));
+      const inputs = names.filter((name) => name === "preview.input");
+      assert.ok(inputs.length >= 1 && names.indexOf("preview.input") > names.indexOf("call:seed"), label);
+      const replayed = names.indexOf("preview.input");
+      assert.equal(
+        names.slice(replayed).find((name) => name === "call:pause" || name === "call:step"),
+        "call:pause",
+        `${label}: paused again before the clock is stepped`,
+      );
+    }
+  });
+
+  it("DS-5b. a scene keeps its setup before the seed, where its reset keeps what the setup chose", async () => {
+    const { gatherEvidence } = await import("../../src/harness-seed/loop/evidence.ts");
+    const { ctx, calls } = resettingPage();
+    await gatherEvidence(
+      ctx as never,
+      {
+        run: { runId: "r", project: "p", setup: SETTINGS_SETUP, app: { kind: "graphics" } },
+        iterationId: "001",
+        seed: 1,
+        eyes: false,
+        audio: false,
+      } as never,
+    );
+    const names = calls.map((c) => (c.method === "preview.call" ? `call:${c.payload.method}` : c.method));
+    assert.ok(names.indexOf("preview.input") < names.indexOf("call:seed"));
+  });
+
+  it("DS-6. the brief names the page checks that are on the board and none that are not", async () => {
+    const { renderBrief } = await import("../../src/harness-seed/loop/library.ts");
+    const { withHarnessChecks } = await import("../../src/harness-seed/loop/spec.ts");
+    const briefFor = (app: Record<string, unknown> | null): string => {
+      const spec = withHarnessChecks(
+        { id: "todo", title: "Todo", intent: "a list", checks: [] },
+        { ownsMain: true, app },
+      );
+      return String(
+        renderBrief({
+          run: { runId: "r", goal: "g", ...(app ? { app } : {}) },
+          spec,
+          iteration: 1,
+          board: {},
+          comparison: null,
+        } as never),
+      );
+    };
+    assert.match(
+      briefFor({ kind: "list-manager" }),
+      /The harness-owned checks controls-named and no-horizontal-overflow measure this off the page itself\./,
+    );
+    const undeclared = briefFor(null);
+    assert.match(undeclared, /THE PAGE IS THE PRODUCT/);
+    assert.doesNotMatch(
+      undeclared,
+      /controls-named|no-horizontal-overflow/,
+      "a run that declared nothing has neither on its board",
+    );
+  });
+
+  it("DS-7. the panel, the preservation gate and a partial motion strip say only what was sent", async () => {
+    const { judgeAgainstReference, optimizationPreservation, describeEvidence } = await import(
+      "../../src/harness-seed/loop/judge.ts"
+    );
+    const evidence = {
+      ok: true,
+      shots: [
+        { camera: "default", base64: "ZGVm" },
+        { camera: "user:view", base64: "dXNlcg==" },
+      ],
+      motion: [{ base64: "bTE=" }, { base64: "bTI=" }, { base64: "bTM=" }],
+    };
+    // A strip of six of which three frames are sent says so: MOTION 1…6 would name pictures that are not there.
+    const partial = describeEvidence(
+      { ...evidence, motion: Array.from({ length: 6 }, () => ({ base64: "bQ==" })) } as never,
+      { cameras: new Set(["default"]), motion: 3 },
+    );
+    assert.match(partial, /6-frame motion strip[^\n]*\(3 of its frames, MOTION 1…3, are attached\)/);
+    assert.doesNotMatch(partial, /MOTION 1…6/);
+
+    const still = { label: "ref", mimeType: "image/jpeg", data: "aGk=" };
+    const panelRecorder = ctxRecorder({
+      unknown: { value: null },
+      handlers: {
+        "engine.complete": () => ({
+          message: { content: '{"looks":"build","plays":"build","better":"x","biggest_gap":"","reason":"r"}' },
+        }),
+      },
+    });
+    await judgeAgainstReference(panelRecorder.ctx as never, {
+      run: { runId: "r", reference: { name: "Linear", frames: [still, still] } } as never,
+      evidence: evidence as never,
+      votes: 1,
+    });
+    const panelText = String(
+      (panelRecorder.paramsOf("engine.complete")[0] as { messages?: Array<{ content?: unknown }> })?.messages?.[0]
+        ?.content,
+    );
+    assert.doesNotMatch(panelText, /motion strip from the scripted exercise is attached/);
+    assert.match(panelText, /motion strip was captured but is not attached/);
+
+    const gate = ctxRecorder({
+      unknown: { value: null },
+      handlers: {
+        "engine.complete": () => ({ message: { content: '{"status":"preserved","reasons":[],"summary":"ok"}' } }),
+      },
+    });
+    await optimizationPreservation(gate.ctx as never, {
+      run: { runId: "r" } as never,
+      baseline: evidence as never,
+      candidate: evidence as never,
+      diff: "- a\n+ b",
+      checks: [],
+    });
+    const gateText = String(
+      (gate.paramsOf("engine.complete")[0] as { messages?: Array<{ content?: unknown }> })?.messages?.[0]?.content,
+    );
+    assert.doesNotMatch(gateText, /motion strip from the scripted exercise is attached/);
+    assert.match(gateText, /motion strip was captured but is not attached/);
+  });
+
+  it("DS-8. a reference panel names the cameras whose PAIR composite came back, and says where the demos' frames are", async () => {
+    const { judgeAgainstReference } = await import("../../src/harness-seed/loop/judge.ts");
+    const still = { label: "ref", mimeType: "image/jpeg", data: "aGk=" };
+    const shot = (camera: string) => ({ camera, base64: "aGk=", path: `/runs/${camera}.jpg` });
+    const recorder = ctxRecorder({
+      unknown: { value: null },
+      handlers: {
+        // The preview cannot make the composite for one camera.
+        "preview.pair": (params) => {
+          const path = String((params.right as { path?: string } | undefined)?.path ?? "");
+          if (path.includes("close")) throw new Error("no pair for close");
+          return { base64: "cGFpcg==", path: `/runs/pair-${path.split("/").pop()}` };
+        },
+        "engine.complete": () => ({
+          message: { content: '{"looks":"build","plays":"build","better":"x","biggest_gap":"","reason":"r"}' },
+        }),
+      },
+    });
+    await judgeAgainstReference(recorder.ctx as never, {
+      run: { runId: "r", reference: { name: "Linear", frames: [still, still] } } as never,
+      evidence: {
+        ok: true,
+        shots: [shot("default"), shot("close"), shot("wide")],
+        demos: { checkout: { ok: true } },
+      } as never,
+      votes: 1,
+    });
+    const text = String(
+      (recorder.paramsOf("engine.complete")[0] as { messages?: Array<{ content?: unknown }> })?.messages?.[0]?.content,
+    );
+    assert.match(text, /screenshots attached for cameras: default, wide/);
+    assert.match(text, /captured but not attached to this comparison: close/);
+    assert.match(text, /no demo end frame is attached to this comparison/);
+    assert.doesNotMatch(text, /each demo's end frame is attached as an image/);
   });
 });

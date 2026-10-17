@@ -437,9 +437,10 @@ export function installStudio(config) {
         held: [...heldKeys],
         pointerLock: locked(),
         camera: currentView,
-        error: window.__studio_error ?? null,
         player: playerNow(),
         ...(config.probes ? config.probes() : {}),
+        // After the probes: `error` is the page's uncaught throw, and a form's "Title is required" is not one.
+        error: window.__studio_error ?? null,
       };
     },
 

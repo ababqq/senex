@@ -683,9 +683,9 @@ describe("the words a card wears", () => {
       label: "Reviewers",
       words: "The reviewer preferred it.",
     });
-    assert.deepEqual(buildReview(looked("health", "starts", "It starts and draws its first frame.")), {
+    assert.deepEqual(buildReview(looked("health", "starts", "It starts and shows its first screen.")), {
       label: "Health check",
-      words: "It starts and draws its first frame.",
+      words: "It starts and shows its first screen.",
     });
   });
 

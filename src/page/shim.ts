@@ -595,7 +595,8 @@ export function createClock(host: Foreign, rawOptions = {}) {
  * that reported a boot failure of its own and every consumer treats it as a refusal to load — so
  * a 40 MB level or an 18 s shader compile used to blind the scout for the whole night instead of
  * costing it one note. A timed-out page keeps booting: a late quiet, or the project's own
- * `__studio.ready()`, still settles it ready.
+ * `__studio.ready()`, still settles it ready. A page that has asked for a GL or GPU context waits
+ * for its first draw (or half the budget); one that never did is ready as soon as it is quiet.
  */
 export function readinessVerdict(
   input: {
@@ -605,6 +606,8 @@ export function readinessVerdict(
     frames?: unknown;
     drawCalls?: unknown;
     complete?: boolean;
+    /** Whether the page has asked for a WebGL or WebGPU context; absent when the shim cannot tell. */
+    gpu?: boolean;
   } = {},
 ) {
   const readyMs = Number.isFinite(Number(input.readyMs)) ? Number(input.readyMs) : DEFAULT_SHIM_OPTIONS.readyMs;
@@ -614,6 +617,10 @@ export function readinessVerdict(
   const drawCalls = input.drawCalls === null || input.drawCalls === undefined ? null : Number(input.drawCalls);
   if (quiet && frames >= 2 && (drawCalls === null || drawCalls > 0))
     return { settle: "quiet", ready: true, timedOut: false };
+  // A page that never asked for the GPU has nothing to draw to wait for, and a hidden window may
+  // never give it a frame to count: loaded and quiet is all there is to see.
+  const loadedWithoutGpu = input.complete === true && input.gpu === false;
+  if (quiet && loadedWithoutGpu) return { settle: "quiet-no-gpu", ready: true, timedOut: false };
   if (quiet && input.complete === true && elapsed > readyMs / 2)
     return { settle: "quiet-no-draw", ready: true, timedOut: false };
   return { settle: null, ready: false, timedOut: elapsed > readyMs };
@@ -896,6 +903,8 @@ interface CanvasWatch {
   tracked: Set<Foreign>;
   glContexts: WeakMap<Foreign, Foreign>;
   glErrors: unknown[];
+  /** The page asked for a WebGL or WebGPU context, or a WebGPU adapter, whether or not it got one. */
+  gpu: boolean;
 }
 
 function noteGl(watch: CanvasWatch, message: unknown) {
@@ -948,15 +957,34 @@ function recordContext(watch: CanvasWatch, canvas: Foreign, context: Foreign, ty
   }
 }
 
+/** Whether a context kind draws on the GPU. */
+const isGpuKind = (kind: string) => kind === "webgl" || kind === "webgl2" || kind === "webgpu";
+
 // ── canvases and GL errors: ONE getContext patch, installed at document start ──
-function watchCanvases(win: Foreign): CanvasWatch {
-  const watch: CanvasWatch = { canvasInfo: new WeakMap(), tracked: new Set(), glContexts: new WeakMap(), glErrors: [] };
+export function watchCanvases(win: Foreign): CanvasWatch {
+  const watch: CanvasWatch = {
+    canvasInfo: new WeakMap(),
+    tracked: new Set(),
+    glContexts: new WeakMap(),
+    glErrors: [],
+    gpu: false,
+  };
   if (typeof win.HTMLCanvasElement === "function") {
     const originalGetContext = win.HTMLCanvasElement.prototype.getContext;
     win.HTMLCanvasElement.prototype.getContext = function getContext(this: Foreign, type: Foreign, attrs: Foreign) {
+      if (isGpuKind(contextKind(type))) watch.gpu = true;
       const context = originalGetContext.apply(this, arguments);
       if (context) recordContext(watch, this, context, type, attrs);
       return context;
+    };
+  }
+  // WebGPU asks for its adapter before it has a canvas to ask a context of.
+  const gpuProto = typeof win.GPU === "function" ? win.GPU.prototype : null;
+  if (typeof gpuProto?.requestAdapter === "function") {
+    const originalRequestAdapter = gpuProto.requestAdapter;
+    gpuProto.requestAdapter = function requestAdapter(this: Foreign) {
+      watch.gpu = true;
+      return originalRequestAdapter.apply(this, arguments);
     };
   }
   for (const name of ["WebGLRenderingContext", "WebGL2RenderingContext"]) {
@@ -1023,7 +1051,7 @@ function canvasesOf(watch: CanvasWatch) {
 }
 
 /** Publishes `__studioGl`: the GL errors, and the switch the optimization observer turns the counters off with. */
-function installGlGlobal(win: Foreign, watch: CanvasWatch, counters: boolean) {
+export function installGlGlobal(win: Foreign, watch: CanvasWatch, counters: boolean) {
   // A page that took the studio's older probe first (it is installed again on did-navigate)
   // keeps whatever it already saw: the shim owns the surface from here, not the history.
   try {
@@ -1041,6 +1069,8 @@ function installGlGlobal(win: Foreign, watch: CanvasWatch, counters: boolean) {
         return watch.glErrors.slice();
       },
       note: (message: unknown) => noteGl(watch, String(message)),
+      /** Whether the page has asked for a WebGL or WebGPU context: only such a page owes the draws the counters count. */
+      gpu: () => watch.gpu,
       /** The optimization observer turns the draw counters off around a sample. */
       count: (on: Foreign) => {
         counting = on !== false;
@@ -1325,17 +1355,20 @@ interface ReadyInputs {
   clock: ShimClock;
   loaders: Loaders;
   options: ShimOptions;
+  /** Whether the page has asked for a WebGL or WebGPU context yet. */
+  gpuAsked: () => boolean;
 }
 
 function evaluateReady(r: Readiness, page: ReadyInputs) {
   if (r.state.at !== null) return;
-  const { natives, clock, loaders, options } = page;
+  const { natives, clock, loaders, options, gpuAsked } = page;
   const verdict = readinessVerdict({
     elapsed: natives.performanceNow() - r.bootAt,
     quiet: loaders.inflight === 0 && natives.performanceNow() - loaders.lastResourceAt > options.quietMs,
     complete: documentComplete(),
     frames: clock.frames(),
     drawCalls: drawCallsNow(),
+    gpu: gpuAsked(),
     readyMs: options.readyMs,
   });
   if (verdict.settle) return void settleReady(r, natives, clock, verdict.settle, true);
@@ -1759,7 +1792,7 @@ export function installStudioShim(rawOptions: Foreign) {
   const ready = (why: Foreign) =>
     settleReady(readiness, natives, clock, typeof why === "string" && why ? why : "declared", true);
   watchTrustedInput(win, readiness);
-  startPump({ natives, clock, loaders, options }, watch, readiness);
+  startPump({ natives, clock, loaders, options, gpuAsked: () => watch.gpu }, watch, readiness);
   const activity = installUiActivity({ scope: win });
   installFacade(win, studioFacade({ win, watch, clock, lock, activity, ready }));
   installCaptureGlobal(win, watch, clock, natives);

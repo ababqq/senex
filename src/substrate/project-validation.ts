@@ -215,7 +215,9 @@ export async function validateProjectDir(dir: string): Promise<ProjectValidation
   if (unresolvedProblem) problems.push(unresolvedProblem);
 
   const use = await scanContractUse(dir, sources);
-  warnings.push(...use.randomUsers.map((rel) => MESSAGE.MathRandom(rel)));
+  // The template's rng is what keeps its runs comparable. A project of the user's own runs on a
+  // page whose Math.random the shim seeds, whatever it installs, so it owes no such rule.
+  if (use.installsContract && !shape.own) warnings.push(...use.randomUsers.map((rel) => MESSAGE.MathRandom(rel)));
   const nonExecutable = reach === "none" ? null : nonExecutableSource(sources);
   if (nonExecutable) problems.push(MESSAGE.TypescriptUnbuilt(toPosixRelative(path.relative(dir, nonExecutable))));
   // The one problem the night can do something about on its own: a page that never loads the

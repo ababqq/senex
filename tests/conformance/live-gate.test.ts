@@ -21,17 +21,20 @@ import { tmpDir } from "../helpers/tmp.ts";
 function fakePort() {
   const port = {
     loads: [] as Array<{ project: string; root: string | null }>,
+    /** The page-shim options each load asked for, in order: `{ seed: null }` leaves Math.random alone. */
+    shims: [] as Array<{ seed?: number | null } | undefined>,
     reloads: 0,
     inputs: 0,
     disposed: false,
     /** The next load fails, as a page that never arrived does. */
     failNext: false,
-    async load(project: string, entry: string, root?: string) {
+    async load(project: string, entry: string, root?: string, options?: { shim?: { seed?: number | null } }) {
       if (port.failNext) {
         port.failNext = false;
         throw new Error("the page did not load");
       }
       port.loads.push({ project, root: root ?? null });
+      port.shims.push(options?.shim);
       return `project://${project}/${entry}`;
     },
     async reload() {
@@ -130,6 +133,30 @@ describe("Live's gate", () => {
     assert.equal(hidden[0]!.inputs, 1);
     // Nothing changed in the project folder, so nothing waits for Reload.
     assert.deepEqual(behind, []);
+  });
+
+  it("the person's own Live load leaves Math.random to the browser; a harness load keeps the studio's seed", async () => {
+    // A todo app that makes its ids with Math.random() would otherwise give the first item added
+    // after each reload the id the first item had before it. A judged look still needs the seed.
+    const { lite, live, hidden, api } = await stage();
+    const loadAsPerson = previewIpc(lite)("studio:preview.load");
+    await loadAsPerson({ project: "pong" });
+    assert.deepEqual(live.shims.at(-1), { seed: null });
+    await api["preview.load"]!({ project: "pong" });
+    assert.equal(hidden[0]!.shims.at(-1)?.seed, undefined, "the stand-in keeps the default seed");
+    await api["preview.load"]!({ project: "pong", handle: "live" });
+    assert.equal(hidden[0]!.shims.at(-1)?.seed, undefined, "and so does a harness load that names Live");
+    assert.equal(live.shims.length, 2, "Live was loaded twice, both times by the person");
+  });
+
+  it("a Reload after a load that failed loads the page the way the person's own load did", async () => {
+    const { lite, live } = await stage();
+    const ipc = previewIpc(lite);
+    live.failNext = true;
+    const failed = (await ipc("studio:preview.load")({ project: "pong" })) as { ok?: boolean };
+    assert.equal(failed.ok, false, "the load failed");
+    await ipc("studio:preview.reload")({});
+    assert.deepEqual(live.shims.at(-1), { seed: null }, "a plain reload must not put the studio's seed back");
   });
 
   it("a harness look with no load of its own sees in the stand-in what Live shows", async () => {
@@ -314,6 +341,12 @@ describe("the harness's other doors into Live", () => {
     assert.match(asked, /now shows the run's build/, asked);
     assert.equal(live.loads.length, 2, "the person's own ask loads a Live they are not watching");
     assert.deepEqual(liveOf(behind.at(-1)), { reason: null, commit: null, shows: head });
+    assert.deepEqual(live.shims.at(-1), { seed: null }, "a build the person asked to see is theirs to use");
+    const folder = String(
+      await tool("show_build", await personSays("m-folder", "show me the project"), { build: "live" }),
+    );
+    assert.match(folder, /now shows the project folder as it is/, folder);
+    assert.deepEqual(live.shims.at(-1), { seed: null }, "so is the folder");
   });
 
   it("a show or landing that answers the person while they watch Live only lights Reload", async () => {
@@ -331,6 +364,11 @@ describe("the harness's other doors into Live", () => {
     assert.deepEqual(liveOf(behind.at(-1)), { reason: "build", commit: head, shows: null });
     await lite.core.reloadLive();
     assert.equal(live.loads.length, 2, "Reload plays it");
+    assert.deepEqual(
+      live.shims.at(-1),
+      { seed: null },
+      "the person's Reload plays it with the browser's own Math.random",
+    );
   });
 
   it("a landing that answers the person while they watch Live lands it and only offers it to Reload", async () => {

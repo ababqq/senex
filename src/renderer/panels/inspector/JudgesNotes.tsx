@@ -7,6 +7,7 @@ import {
   checkWords,
   type FacetNode,
   GraphNodeKind,
+  hasScoredLiveness,
   type IterationNode,
   IterationStatus,
   type Liveness,
@@ -167,7 +168,7 @@ function Weakest({ alive }: { alive: Liveness }): JSX.Element | null {
 }
 
 function Alive({ alive }: { alive: Liveness | null }): JSX.Element | null {
-  if (!alive || alive.total === null) return null;
+  if (!hasScoredLiveness(alive)) return null;
   const explained = alive.principles.some((principle) => principle.reason || principle.fix);
   // The screen critic (software) asks how well the screen reads; only the place critic asks if it feels alive.
   const question = alive.critic === "screen" ? "How well does the screen read?" : "Does it feel alive?";

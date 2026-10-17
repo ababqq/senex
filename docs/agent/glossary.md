@@ -120,7 +120,7 @@ is product copy, not this glossary.
   persisted before the rename stay `game` and are never migrated: the thread kind, permission-rule and
   snapshot scopes, snapshot refs, `library/games/`, `workspaces/games/` and `games-root.json`.
 - **App kind**: what a project is (dashboard, form-flow, list-manager, content-site, editor, data-viz,
-  utility, graphics), declared by the plan, the scout or `studio.json`'s nested `project` block
+  utility, graphics), declared by the plan, the scout or `studio.json`'s nested `app` block
   (`loop/kinds.ts`). Not `ProjectKind`, which is how a folder runs (`three-vite`, `own-script`, …).
 - **Thread / conversation**: the same thing. APIs say `threadId`; the event store stores
   `conversations/<id>/events` (`src/substrate/event-store.ts`); the UI says chat.

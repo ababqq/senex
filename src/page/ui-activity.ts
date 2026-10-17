@@ -247,6 +247,18 @@ function countNavigations(scope: Foreign, counters: Counters): () => void {
   return check;
 }
 
+/**
+ * How Chrome words the `error` event it fires, with no error object, when an observer's callback
+ * resizes what it observes (an auto-sizing textarea, a chart in a flexible box). The event has no
+ * typed code, so its prefix is the only handle; an event carrying an error object is a real throw.
+ */
+const BROWSER_NOTICE_PREFIX = "ResizeObserver loop";
+
+/** Whether an `error` event is that browser notice and not something the page threw. */
+function isBrowserNotice(event: Foreign): boolean {
+  return !event?.error && String(event?.message ?? "").startsWith(BROWSER_NOTICE_PREFIX);
+}
+
 /** Count what goes wrong: uncaught errors, rejections, `console.error`, a resource that failed to load. */
 function countErrors(scope: Foreign, counters: Counters): void {
   const note = (message: unknown) => {
@@ -256,6 +268,7 @@ function countErrors(scope: Foreign, counters: Counters): void {
   scope.addEventListener?.(
     "error",
     (event: Foreign) => {
+      if (isBrowserNotice(event)) return;
       // A failed <img>, <script> or <link> reports on the element, not on the window.
       const target = event?.target;
       note(target && target !== scope ? `failed to load ${target.src ?? target.href ?? target.tagName}` : event);

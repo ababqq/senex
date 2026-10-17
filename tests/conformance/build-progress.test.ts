@@ -6,6 +6,7 @@ import {
   firstBuildShows,
   laterOf,
   liveBehindOf,
+  isEmptyScene,
   newBuildOffer,
   type StageWatch,
 } from "../../src/renderer/stage.ts";
@@ -489,4 +490,19 @@ test("single-session worker completion cannot be overwritten by an inferred firs
   assert.equal(done.facets[0]!.building, false);
   assert.equal(done.facets[0]!.satisfied, true);
   assert.equal(buildProgress(done).title, "Between builds");
+});
+
+test("takes a project for the empty starter only when its page shows nothing, whatever its own probes say", () => {
+  const starter = { phase: "empty", drawCalls: 0, pageEmpty: true };
+  assert.equal(isEmptyScene(starter), true);
+  // A todo list that names a probe `phase` and starts it at "empty" is a working page, and says so.
+  assert.equal(isEmptyScene({ phase: "empty", drawCalls: 0, pageEmpty: false }), false);
+  // A studio that cannot read the page keeps the report as it stood.
+  assert.equal(isEmptyScene({ phase: "empty", drawCalls: 0 }), true);
+  assert.equal(isEmptyScene({ phase: "empty", drawCalls: 0, pageEmpty: null }), true);
+  // And the report still has to say empty, with nothing drawn.
+  assert.equal(isEmptyScene({ phase: "playing", drawCalls: 0, pageEmpty: true }), false);
+  assert.equal(isEmptyScene({ phase: "empty", drawCalls: 12, pageEmpty: true }), false);
+  assert.equal(isEmptyScene(null), false);
+  assert.equal(isEmptyScene(undefined), false);
 });

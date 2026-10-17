@@ -105,6 +105,17 @@ export interface StageWatch {
   showEmpty: boolean;
 }
 
+/**
+ * Whether the project is the empty starter: it reports phase "empty" with nothing drawn, and its
+ * page shows nothing. Phase is a probe a project may name for its own use (a todo list that starts
+ * at "empty"), so a page the studio has seen to show something is not the starter; a studio that
+ * could not read the page (`pageEmpty` absent) keeps the report as it stood.
+ */
+export function isEmptyScene(state: Record<string, unknown> | null | undefined): boolean {
+  const reportsEmpty = state?.phase === "empty" && state?.drawCalls === 0;
+  return reportsEmpty && state?.pageEmpty !== false;
+}
+
 /** Whether the person is watching a project in Live: then only they change it. */
 export const watchingLive = (stage: StageWatch): boolean =>
   stage.visible && stage.view === StageView.Live && !stage.showEmpty;
