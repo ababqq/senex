@@ -122,14 +122,13 @@ scope: Codex's cover pre-existing files, never directories; the Claude hook matc
 ### Residual risks
 
 - **A Codex contractor can read the whole disk.** `codex exec` runs under Codex's own sandbox
-  (`workspace-write`, one writable root, no network), which restricts writes but not reads, and
-  Studio does not wrap the CLI in `ProcessSandbox`. The studio's secrets, both CLIs' sign-in homes
-  and sibling projects are named off limits in the brief only; the Claude path enforces the same list
-  as `Read()` deny rules, and `ProcessSandbox` enforces it for the harness and Bonsai. A
-  prompt-injected Codex build could copy what it reads into project files or its summary. Studio's
-  own secrets are safeStorage ciphertext; the exposed material is other projects, `~/.genex`, the
-  borrowed Codex sign-in and the ordinary home folder. Running the CLI under `ProcessSandbox` with
-  deny-read is planned, not done.
+  (`workspace-write`, one writable root, no network), which restricts writes but not reads; Studio
+  does not wrap it in `ProcessSandbox`. Only the brief names the studio's secrets, both CLIs' sign-in
+  homes and sibling projects off limits (the Claude path enforces them as `Read()` deny rules, and
+  `ProcessSandbox` for the harness and Bonsai), so a prompt-injected Codex build could copy what it
+  reads into project files or its summary. Studio's own secrets are safeStorage ciphertext; exposed
+  are other projects, `~/.genex`, the borrowed Codex sign-in and the home folder. Deny-read under
+  `ProcessSandbox` is planned, not done.
 - **An install briefly opens its manager's registry hosts to every sandboxed process.** sandbox-runtime's
   proxy filters against one process-wide allow-list, so `ProcessSandbox.run` widens it for the
   length of a package install and restores it afterwards (counted, in `finally`). Two installs
@@ -138,11 +137,10 @@ scope: Codex's cover pre-existing files, never directories; the Claude hook matc
 - **A Genex CLI run opens `api.genex.games` to every sandboxed process** for its length, by the
   same process-wide widening. Other processes hold no Genex token (it reaches only the CLI's
   preload, on stdin), so they can reach the API but not act as the user.
-- **The asset adapter still runs the pinned CLI with the user's real `HOME`** (`adapter.ts`
-  asset commands). The CLI's legacy cleanup therefore deletes `genex-*` entries under
-  `~/.claude/skills`, `~/.codex/skills` and `~/.cursor/skills` (and two legacy `~/.claude` files)
-  on a `genex__asset` call. `genex__cli` and publishing already use a contained `HOME`; giving
-  asset runs one is a follow-up.
+- **The asset adapter still runs the pinned CLI with the user's real `HOME`** (`adapter.ts`). Its
+  legacy cleanup therefore deletes `genex-*` entries under `~/.claude/skills`, `~/.codex/skills`
+  and `~/.cursor/skills` (and two legacy `~/.claude` files) on a `genex__asset` call. `genex__cli`
+  and publishing already use a contained `HOME`; asset runs are a follow-up.
 - **Windows sandbox residuals** are listed in [Windows sandbox](../windows-sandbox.md#residual-risks).
 - **A command a reply offers runs outside the sandbox.** Run starts the agent-written line with the
   user's own permissions. Only one visible line without control characters is accepted; a
@@ -158,7 +156,7 @@ scope: Codex's cover pre-existing files, never directories; the Claude hook matc
   takes the typed `IpcHandle` ([`src/main/ipc/registrar.ts`](../../src/main/ipc/registrar.ts)) and
   its dependencies explicitly; `handle()` and `pushToRenderer` live in
   [`src/main/ipc-handle.ts`](../../src/main/ipc-handle.ts). Plugin, MCP, terminal and permission
-  channels accept only the main window's top-level frame. Follow the [IPC recipe](recipes.md#ipc-channel).
+  channels accept only the main window's top-level frame.
 - **Boot state.** The renderer first calls `bootState` (`studio:boot`, registered before any core;
   contract in [`src/shared/boot.ts`](../../src/shared/boot.ts)): the platform, which it sets as
   `data-platform` on the root, and the phase. When `ProcessSandbox` raises
@@ -170,11 +168,10 @@ scope: Codex's cover pre-existing files, never directories; the Claude hook matc
   that window with the studio. On Windows, `studio:boot.setup` (native) first installs the sandbox
   with the unpacked srt-win
   ([`src/substrate/windows-sandbox-setup.ts`](../../src/substrate/windows-sandbox-setup.ts), one
-  UAC prompt) and then retries; a dismissed prompt changes nothing. Every other startup failure keeps the error dialog and exit; smoke
+  UAC prompt) and then retries. Every other startup failure keeps the error dialog and exit; smoke
   and developer launches fail as before (the `sandbox-setup` fixture shows the screen over a ready
   core). The window's title bar comes from
-  [`src/main/window-chrome.ts`](../../src/main/window-chrome.ts): `hiddenInset` on macOS
-  (lights on the headers' line), a themed 48 px `titleBarOverlay` on Windows and Linux
+  [`src/main/window-chrome.ts`](../../src/main/window-chrome.ts): `hiddenInset` on macOS, a themed 48 px `titleBarOverlay` on Windows and Linux
   (`studio:window.controls`).
 - [`src/main/studio-core.ts`](../../src/main/studio-core.ts) keeps the core's lifecycle, the event
   log's front door, settings and public methods. It assembles the EventStore, snapshots,
@@ -988,10 +985,12 @@ with a managed local runtime; core has no special Blender tool.
   unchanged recorded assets with a separate index and re-hashes the staged blob before committing;
   the director calls `assets.checkpoint` before merging.
 - **Export.** [`src/substrate/project-export.ts`](../../src/substrate/project-export.ts) stages fresh public
-  files and replaces only an app-managed destination; hidden files, env files, private-key names,
-  dependencies and symlinks are excluded or refused; parsed imports and references prune the
-  vendor folder. Static analysis cannot classify computed URLs, so browser export checks remain
-  required.
+  files and replaces only an app-managed destination; hidden files (`.well-known` aside), env files,
+  private-key names, dependencies and symlinks are excluded or refused, and a build's output keeps
+  every other file (`docs/`, `tests/`, notes stay out of sources only). Only
+  tags that load a file are checked, so links are navigation; parsed imports prune the vendor
+  folder, which a computed `import()` keeps whole. Computed URLs defeat static analysis, so
+  browser export checks remain required.
 
 ## Persistence and the event log
 

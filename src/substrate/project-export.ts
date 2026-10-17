@@ -6,19 +6,40 @@ import type { ExportResult } from "../shared/project-folder.ts";
 import { isBelow, isInside, toPosixRelative } from "./paths.ts";
 import { MIN_SECRET_LENGTH } from "../shared/redact.ts";
 
-const excluded = (name: string) =>
-  name.startsWith(".") ||
-  /^(node_modules|references|cache|__pycache__|coverage|tests?|docs|archive|research|evidence|captures|screenshots|logs)$/i.test(
-    name,
-  ) ||
-  /^(AGENTS|CLAUDE|NOTES|README|PLAN)(\.|$)/i.test(name) ||
+/** The one dot-folder a site publishes on purpose (`security.txt`, `assetlinks.json`). */
+const WELL_KNOWN = ".well-known";
+
+/**
+ * Never public, whatever is being exported: dotfiles (the well-known folder aside), dependencies,
+ * caches, and anything shaped like a secret, a key, a source map or a log.
+ */
+const neverPublic = (name: string) =>
+  (name.startsWith(".") && name !== WELL_KNOWN) ||
+  /^(node_modules|cache|__pycache__)$/i.test(name) ||
   /\.(pem|key|p12|pfx|jks|keystore|env|map|log)$/i.test(name) ||
   /^(id_rsa|id_ed25519|credentials|secrets|env)(\.|$)/i.test(name);
+
+/**
+ * The studio's scaffolding and a project's working folders. They keep a project's *source* export
+ * to its public files, and mean nothing in a build's output, where `docs/`, `notes.html` and a
+ * `tests/` demo page are the site.
+ */
+const devScaffolding = (name: string) =>
+  /^(references|coverage|tests?|docs|archive|research|evidence|captures|screenshots|logs)$/i.test(name) ||
+  /^(AGENTS|CLAUDE|NOTES|README|PLAN)(\.|$)/i.test(name);
+
+/** Which names an export leaves out: a build's output keeps everything that is not never-public. */
+const leftOut = (name: string, buildFolder: boolean) => neverPublic(name) || (!buildFolder && devScaffolding(name));
 
 /** `project.export` answers this to the harness, so it lives in `shared/project-folder.ts`. */
 export type { ExportResult };
 
 export interface ExportOptions {
+  /**
+   * The folder is a build's output, a dedicated folder whose every file is the site. Without it the
+   * folder is a project's sources and the studio's scaffolding and working folders stay out.
+   */
+  buildFolder?: boolean;
   /**
    * The credential values Studio holds (the same set its log redactor uses). A public file that
    * contains one stops the export: a token an agent wrote into a project must not be published.
@@ -120,11 +141,12 @@ async function stagePath(
   result: ExportResult,
   base: string,
   rel: string,
+  options: { buildFolder: boolean },
   destRel = rel,
 ): Promise<void> {
   const parts = rel.split(/[\\/]/);
   if (path.isAbsolute(rel) || parts.includes("..")) throw new Error(MESSAGE.InvalidPublicPath(rel));
-  if (parts.some(excluded)) {
+  if (parts.some((part) => leftOut(part, options.buildFolder))) {
     result.excluded.push(destRel);
     return;
   }
@@ -135,7 +157,7 @@ async function stagePath(
   if (st.isDirectory()) {
     for (const name of await readdir(src)) {
       // `/`-joined on every platform: these are the export's own names, listed and compared as such.
-      await stagePath(staging, result, base, path.posix.join(rel, name), path.posix.join(destRel, name));
+      await stagePath(staging, result, base, path.posix.join(rel, name), options, path.posix.join(destRel, name));
     }
     return;
   }
@@ -181,6 +203,8 @@ interface ReferenceCheck {
   visited: Set<string>;
   /** Vendored files something in the export actually loads. */
   neededVendor: Set<string>;
+  /** A project module imports by a name only the running page knows (`import(cond ? "a" : "b")`). */
+  opaqueImport: boolean;
 }
 
 /** A bare module specifier through the import map: the longest key that answers it wins. */
@@ -229,13 +253,69 @@ async function checkReference(
 
 async function scanModule(check: ReferenceCheck, text: string, file: string): Promise<void> {
   const [specifiers] = parse(text);
-  for (const specifier of specifiers)
+  const vendored = isBelow(path.join(check.staging, VENDOR_DIR), file);
+  for (const specifier of specifiers) {
     if (specifier.n !== undefined) await checkReference(check, specifier.n, file, true);
+    else if (specifier.d > -1 && !vendored) check.opaqueImport = true;
+  }
+}
+
+/** Tags whose `src` names a file the page loads. */
+const SRC_TAGS: ReadonlySet<string> = new Set([
+  "script",
+  "img",
+  "source",
+  "video",
+  "audio",
+  "track",
+  "iframe",
+  "embed",
+  "image",
+]);
+/** The `rel` values of a `<link>` whose `href` names a file the page loads, as against a page it points to. */
+const LOADED_RELS: ReadonlySet<string> = new Set([
+  "stylesheet",
+  "icon",
+  "shortcut",
+  "apple-touch-icon",
+  "mask-icon",
+  "preload",
+  "modulepreload",
+  "prefetch",
+  "manifest",
+]);
+
+/** An attribute's quoted value in a tag's attribute text (not `data-src`, which only looks like `src`). */
+function attributeOf(attributes: string, name: string): string | undefined {
+  return new RegExp(`(?<![\\w-])${name}\\s*=\\s*["']([^"']+)["']`, "i").exec(attributes)?.[1];
+}
+
+/**
+ * The files a page's own tags load. A link to another page (`<a href>`, `<area>`, `<base>`, a
+ * canonical or alternate `<link>`) is navigation: it may name the site's root, a folder, a clean
+ * URL or another site, none of which is a file the export has to hold.
+ */
+function loadedFiles(html: string): string[] {
+  const tags = html.replace(/<!--[\s\S]*?-->/g, "").matchAll(/<([a-z][\w-]*)\b([^>]*)>/gi);
+  return [...tags].flatMap(([, tag = "", attributes = ""]) => filesOfTag(tag.toLowerCase(), attributes));
+}
+
+/** The files one tag loads: a `<link>`'s `href` when its `rel` says so, the `src` (and a video's poster) of a media tag. */
+function filesOfTag(name: string, attributes: string): string[] {
+  const named = (attribute: string): string[] => {
+    const value = attributeOf(attributes, attribute);
+    return value ? [value] : [];
+  };
+  if (name === "link") {
+    const rels = (attributeOf(attributes, "rel") ?? "").toLowerCase().split(/\s+/);
+    return rels.some((rel) => LOADED_RELS.has(rel)) ? named("href") : [];
+  }
+  if (!SRC_TAGS.has(name)) return [];
+  return name === "video" ? [...named("src"), ...named("poster")] : named("src");
 }
 
 async function scanHtml(check: ReferenceCheck, text: string, file: string): Promise<void> {
-  for (const [, ref = ""] of text.matchAll(/(?:src|href)\s*=\s*["']([^"']+)["']/g))
-    await checkReference(check, ref, file, /\.m?js(?:[?#]|$)/i.test(ref));
+  for (const ref of loadedFiles(text)) await checkReference(check, ref, file, /\.m?js(?:[?#]|$)/i.test(ref));
   for (const [, body = ""] of text.matchAll(/<script\b[^>]*type=["']module["'][^>]*>([\s\S]*?)<\/script>/gi))
     await scanModule(check, body, file);
 }
@@ -271,19 +351,32 @@ async function checkReferences(
     queue: [],
     visited: new Set(),
     neededVendor: new Set(),
+    opaqueImport: false,
   };
-  for (const ref of Object.values(check.imports))
-    if (!ref.endsWith("/")) await checkReference(check, ref, page.entry, true);
   for (const rel of included) {
     if (isVendorFile(rel, vendor)) continue;
     await scanStagedFile(check, rel);
   }
+  await drainModules(check);
+  // A name only the running page can work out (`import(gpu ? "three/webgpu" : "three")`) may reach
+  // any library the page's import map names: with one in the project, they all stay. A page that
+  // imports only what it spells out ships only what it reaches — a todo list on the starter's map
+  // ships none of the 3D library.
+  if (check.opaqueImport) {
+    for (const ref of Object.values(check.imports))
+      if (!ref.endsWith("/")) await checkReference(check, ref, page.entry, true);
+    await drainModules(check);
+  }
+  return check.neededVendor;
+}
+
+/** Read every queued module once, following its imports into the queue. */
+async function drainModules(check: ReferenceCheck): Promise<void> {
   for (let file = check.queue.pop(); file !== undefined; file = check.queue.pop()) {
     if (check.visited.has(file)) continue;
     check.visited.add(file);
     await scanModule(check, await readFile(file, "utf8"), file);
   }
-  return check.neededVendor;
 }
 
 /** Drop the vendored files nothing loads (licences and notices stay), moving them to `excluded`. */
@@ -325,11 +418,12 @@ export async function exportPublicProject(
   const staging = await mkdtemp(path.join(parent, STAGING_PREFIX));
   const result: ExportResult = { dir: target, files: 0, included: [], excluded: [] };
   try {
-    for (const root of roots) await stagePath(staging, result, source, root);
+    const staged = { buildFolder: options.buildFolder === true };
+    for (const root of roots) await stagePath(staging, result, source, root, staged);
     if (vendor) {
       const names = await readdir(vendor);
       for (const name of names)
-        await stagePath(staging, result, await realpath(vendor), name, path.posix.join(VENDOR_DIR, name));
+        await stagePath(staging, result, await realpath(vendor), name, staged, path.posix.join(VENDOR_DIR, name));
     }
     // Studio's own vendored library is not the project's to leak into; everything else is checked.
     const leaked = options.secretValues

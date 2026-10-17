@@ -114,7 +114,7 @@ const README_FILES = ["README.md", "readme.md", "DESIGN.md", "docs/DESIGN.md"];
 const TITLED_TEMPLATE_FILES = ["index.html", "NOTES.md"];
 
 /** What a new folder's `.gitignore` starts with, before the studio's own rules. */
-const GITIGNORE_HEADER = "export/\n.DS_Store\n";
+const GITIGNORE_HEADER = ".DS_Store\n";
 
 /** The folders a template project exports beside its `index.html` when studio.json names none. */
 const DEFAULT_EXPORT_DIRS = ["src", "assets"];
@@ -1129,7 +1129,10 @@ export class ProjectWorkspaces {
       if (!isExportList(config.exportFiles)) throw new Error(MESSAGE.BadExportFiles);
       return exportPublicProject(builtOutput, targetDir, config.exportFiles, undefined, options);
     }
-    if (builtOutput) return exportPublicProject(builtOutput, targetDir, await readdir(builtOutput), undefined, options);
+    if (builtOutput) {
+      const roots = await readdir(builtOutput);
+      return exportPublicProject(builtOutput, targetDir, roots, undefined, { ...options, buildFolder: true });
+    }
     if (shape?.build) throw new Error(MESSAGE.BuildBeforeExport);
     if (shape && !config?.exportFiles) throw new Error(MESSAGE.DeclareExportFiles);
     const roots = config?.exportFiles ?? (await defaultExportRoots(dir));

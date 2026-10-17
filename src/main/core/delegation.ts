@@ -83,8 +83,8 @@ const MAX_NAMED_STILLS = 4;
 const MAX_STILL_BYTES = 8 * 1024 * 1024;
 /** How deep `project.tree` walks a project folder. */
 const PROJECT_TREE_DEPTH = 6;
-/** Folders `project.tree` never lists, beside anything hidden. */
-const PROJECT_TREE_SKIPPED: ReadonlySet<string> = new Set(["node_modules", "export"]);
+/** Folders `project.tree` never lists, beside anything hidden. A source folder called `export` is a project's own. */
+const PROJECT_TREE_SKIPPED: ReadonlySet<string> = new Set(["node_modules"]);
 /** How many images a brief carries to the engine. */
 const MAX_BRIEF_IMAGES = 16;
 

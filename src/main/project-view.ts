@@ -37,3 +37,29 @@ export function projectViewPreferences<S>(projectSession: S, offscreen: boolean)
     disableBlinkFeatures: PROJECT_DISABLED_BLINK_FEATURES.join(","),
   };
 }
+
+/** The longest file name a download's console line repeats. */
+const MAX_DOWNLOAD_NAME = 80;
+
+/** What the studio does with a file the page starts downloading, and what the console is told. */
+export interface DownloadDecision {
+  cancel: boolean;
+  note: string | null;
+}
+
+/**
+ * Live is the person's window, and their own save dialog answers a download. A window an agent
+ * drives has nobody to click it, so a "Download CSV" button would wait on a native dialog for the
+ * rest of the night: the download is cancelled and the console names the file, so a judge can tell
+ * a working Export button from a dead one.
+ */
+export function downloadDecision(offscreen: boolean, file: { name: string; mimeType: string }): DownloadDecision {
+  if (!offscreen) return { cancel: false, note: null };
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: control characters in a file name are replaced, not shown.
+  const name = file.name.replace(/[\u0000-\u001f\u007f]/g, "?").slice(0, MAX_DOWNLOAD_NAME) || "a file";
+  const kind = file.mimeType ? ` (${file.mimeType.slice(0, MAX_DOWNLOAD_NAME)})` : "";
+  return {
+    cancel: true,
+    note: `a download of ${name}${kind} started and was not saved: the preview does not save files`,
+  };
+}

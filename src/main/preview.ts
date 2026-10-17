@@ -50,7 +50,7 @@ import {
 import { PAGE_DISPATCH } from "./page-dispatch.ts";
 import { emulatePageFocus } from "./preview-focus.ts";
 import { anchoredBounds } from "./preview-anchor.ts";
-import { projectViewPreferences } from "./project-view.ts";
+import { downloadDecision, projectViewPreferences } from "./project-view.ts";
 import { capActions, type PreviewInputAction } from "../substrate/preview-input.ts";
 import { applyInputAction, type PageDispatch } from "./preview-input-driver.ts";
 import { cropImageFile, diffImageFiles, encodedImageStats, pairJpeg, resizeToJpeg } from "./preview-images.ts";
@@ -303,6 +303,18 @@ export class ProjectPreview {
       callback(allowed ? {} : { cancel: true });
     });
 
+    // A file the page starts downloading: Live's own dialog answers; a window an agent drives has
+    // nobody to click it, so the file is refused and the console says which (`project-view.ts`).
+    projectSession.on("will-download", (_event, item) => {
+      const decision = downloadDecision(this.options.offscreen ?? false, {
+        name: item.getFilename(),
+        mimeType: item.getMimeType(),
+      });
+      if (!decision.cancel) return;
+      item.cancel();
+      if (decision.note !== null) this.#noteOnce(decision.note);
+    });
+
     const view = new WebContentsView({
       // Sandboxed, no preload, no on-device speech (`project-view.ts`).
       webPreferences: projectViewPreferences(projectSession, this.options.offscreen ?? false),
@@ -473,6 +485,13 @@ export class ProjectPreview {
     // Never re-fetched from the main process: that sent a project's plain-http beacon off the machine.
     if (route.route === HttpRouteKind.Deny) return textResponse(HttpStatus.Forbidden);
     return this.#serveFile(route.project, url.pathname, request, { routes: true });
+  }
+
+  /** One console warning per distinct note per load. */
+  #noteOnce(note: string): void {
+    if (this.#blockedNoted.has(note)) return;
+    this.#blockedNoted.add(note);
+    this.#push({ at: Date.now(), level: "warning", message: note });
   }
 
   /** One console line per blocked origin per load: the harness reads why a project's request failed. */
