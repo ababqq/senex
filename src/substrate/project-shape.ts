@@ -71,6 +71,35 @@ export function declaresDependencies(pkg: PackageManifest | null): boolean {
   return Object.keys(packageDependencies(pkg)).length > 0;
 }
 
+/** The `test` script `npm init` (and yarn, pnpm) write into every new package: not a script anyone wrote. */
+const PLACEHOLDER_TEST_SCRIPT = /no test specified/i;
+
+/**
+ * Whether a package is software someone is making: it declares packages, or a script they wrote.
+ * A bare `package.json` (a name, or what `npm init` writes: a placeholder `test` script) is a
+ * folder waiting for a project, not one.
+ */
+export function declaresSoftware(pkg: PackageManifest | null): boolean {
+  const written = Object.entries(pkg?.scripts ?? {}).filter(
+    ([name, command]) => !(name === "test" && PLACEHOLDER_TEST_SCRIPT.test(command)),
+  );
+  return declaresDependencies(pkg) || written.length > 0;
+}
+
+/**
+ * The folder a shape serves, spelled once: no leading `./`, no trailing `/`, and null for the
+ * project folder itself (`.`, `./`, empty). Everything that compares or joins `serve` goes through
+ * this, so `dist/` and `dist` — or `./.` and `.` — are the same folder to the build, the mirror
+ * and the export gate.
+ */
+export function normalServe(serve: string | null | undefined): string | null {
+  const folder = (serve ?? "")
+    .trim()
+    .replace(/^(?:\.\/)+/, "")
+    .replace(/\/+$/, "");
+  return folder === "" || folder === "." ? null : folder;
+}
+
 /** A folder's package.json, or null when it is missing or does not parse. */
 export function readPackageManifest(dir: string): Promise<PackageManifest | null> {
   return readJsonIfExists<PackageManifest>(path.join(dir, "package.json")).catch(() => null);
@@ -119,7 +148,7 @@ function kindOf(evidence: KindEvidence): ProjectKind {
   return "own-script";
 }
 
-/** Where the bundler writes the built page. Vite (and most others) use dist/ unless told otherwise. */
+/** Where the bundler writes its output. Vite (and most others) use dist/ unless told otherwise. */
 async function outputDir(dir: string): Promise<string> {
   for (const name of VITE_CONFIGS) {
     const text = await readFile(path.join(dir, name), "utf8").catch(() => null);
@@ -127,6 +156,11 @@ async function outputDir(dir: string): Promise<string> {
     if (found) return found.replace(/^\.\//, "").replace(/\/+$/, "") || ".";
   }
   return DEFAULT_OUTPUT_DIR;
+}
+
+/** Whether the page's own script lives in the build's output folder, so the root page is the one to serve. */
+function loadsFromOutput(main: string, out: string): boolean {
+  return out !== "." && main.startsWith(`${out}/`);
 }
 
 /**
@@ -164,7 +198,11 @@ export async function detectProjectShape(dir: string): Promise<ProjectShape | nu
   const entryText = main === "index.html" ? null : await readFile(path.join(dir, main), "utf8").catch(() => null);
   const kind = kindOf({ html, srcs, names, pkg, entryText, build: hasBuild });
   const query = isGenexProject(pkg) ? GENEX_LOCAL_TEST_QUERY : "";
-  const serve = hasBuild ? await outputDir(dir) : ".";
+  const out = hasBuild ? await outputDir(dir) : ".";
+  // A page that already loads its script from the output folder (`tsc` writing dist/app.js beside
+  // a root index.html) is the served page: the build adds scripts, not a second page, so serving
+  // the output folder alone would answer "not found" under a green build.
+  const serve = loadsFromOutput(main, out) ? "." : out;
   const entry = `${serve === "." ? "index.html" : path.posix.join(serve, "index.html")}${query}`;
   // The lockfile names the manager, not the habit: `npm run build` in a pnpm workspace builds
   // against a node_modules the user never installed.

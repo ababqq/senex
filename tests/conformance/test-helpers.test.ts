@@ -219,8 +219,12 @@ describe("removeTree", () => {
     await writeFile(path.join(dir, "file.txt"), "x");
     // A process's working folder is held open without delete sharing, as a folder another
     // process is walking is: Windows refuses to remove it until the process lets go.
-    const holder = spawn(process.execPath, ["-e", "process.stdin.resume()"], { cwd: dir, stdio: "pipe" });
-    await once(holder, "spawn");
+    // The process holds its folder once it is running, not once it is created: wait for it to say so.
+    const holder = spawn(process.execPath, ["-e", "process.stdout.write('held'); process.stdin.resume()"], {
+      cwd: dir,
+      stdio: "pipe",
+    });
+    await once(holder.stdout, "data");
     await assert.rejects(rm(dir, { recursive: true, force: true }), { code: "EBUSY" });
     await removeTree(dir, {
       sleep: async () => {

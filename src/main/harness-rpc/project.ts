@@ -151,9 +151,9 @@ export function projectRpc(core: StudioCore, x: CoreInternals) {
     [HostMethod.ProjectExport]: async (p) => {
       await x.assertHarnessRoot(p.project, null);
       if (p.target !== undefined && p.target !== null) await assertExportTarget(core, String(p.target));
-      return core.projects.export(p.project, p.target ?? path.join(core.layout.exports, p.project), undefined, {
-        secretValues: core.knownSecretValues(),
-      });
+      // The same body as the Export button: a project that builds is built first, so its output
+      // (not its sources) is what is staged — and a broken build exports nothing.
+      return core.exportPublicCopy(p.project, p.target ?? path.join(core.layout.exports, p.project));
     },
     // The stills in <project>/references/, sniffed and resized, for a run whose board is
     // empty (a resume, or a board attached in an earlier chat).

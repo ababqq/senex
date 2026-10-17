@@ -382,31 +382,46 @@ export interface PackageCommands {
   add: string;
   /** How to run the package's `build` script with that manager. */
   build: string;
+  /**
+   * The registry hosts that command downloads from — the only hosts an install or an add is
+   * allowed to reach. yarn's default registry is its own host, and a yarn lockfile can still point
+   * at npm's (a project moved from npm), so it needs both.
+   */
+  registries: readonly string[];
 }
+
+/** The npm registry: where npm, pnpm and bun install from. */
+export const NPM_REGISTRY = "registry.npmjs.org";
+/** yarn's default registry (the same packages, served from yarn's own host). */
+const YARN_REGISTRY = "registry.yarnpkg.com";
 
 const NPM_COMMANDS: PackageCommands = {
   manager: "npm",
   install: "npm install",
   add: "npm install --save-exact",
   build: "npm run build",
+  registries: [NPM_REGISTRY],
 };
 const PNPM_COMMANDS: PackageCommands = {
   manager: "pnpm",
   install: "pnpm install",
   add: "pnpm add --save-exact",
   build: "pnpm run build",
+  registries: [NPM_REGISTRY],
 };
 const YARN_COMMANDS: PackageCommands = {
   manager: "yarn",
   install: "yarn install",
   add: "yarn add --exact",
   build: "yarn build",
+  registries: [YARN_REGISTRY, NPM_REGISTRY],
 };
 const BUN_COMMANDS: PackageCommands = {
   manager: "bun",
   install: "bun install",
   add: "bun add --exact",
   build: "bun run build",
+  registries: [NPM_REGISTRY],
 };
 
 const LOCKFILES: Array<{ file: string; commands: PackageCommands }> = [

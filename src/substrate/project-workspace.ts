@@ -47,10 +47,12 @@ import { ensureIgnoreRules, missingIgnoreRules, nestedRepos } from "./nested-rep
 import { isBelow, isInside, samePath, throughClaudeFolder } from "./paths.ts";
 import {
   declaresDependencies,
+  declaresSoftware,
   detectProjectShape,
   findProjectRoot,
   isBuiltShape,
   readPackageManifest,
+  normalServe,
   readProjectShape,
   recordsShape,
 } from "./project-shape.ts";
@@ -148,8 +150,10 @@ export interface AdoptOptions {
   subdir?: string;
   /**
    * May the studio write its starter project (`index.html`, `src/main.js`) into this folder?
-   * Default: only into a folder that holds no project of its own. `false` is "I am bringing my own
-   * files" — the contract module and the notes are still added.
+   * Default: only into a folder that holds no project of its own — software with no page yet (a
+   * `package.json` that declares packages or scripts) counts as one. `false` is "I am bringing my
+   * own files" — the contract module and the notes are still added; `true` asks for the starter
+   * anyway.
    */
   template?: boolean;
   /**
@@ -492,11 +496,16 @@ export class ProjectWorkspaces {
     assertProjectName(name);
     const dir = this.dirFor(name);
     const title = options.title ?? name;
-    if (await this.exists(name)) {
+    // A folder of somebody's software that has no page yet is theirs, not a new project: the
+    // starter would overwrite the files it shares a name with.
+    if ((await this.exists(name)) || (await this.#softwareWithoutPage(dir))) {
       await this.touch(name);
       return this.#describe(name, dir);
     }
-    await this.#writeTemplate(dir, { title, name, overwrite: true });
+    // A new project's folder is empty. One that already holds files keeps every one of them: the
+    // starter is merged beside them, never written over them.
+    const fresh = (await readdir(dir).catch(() => [] as string[])).length === 0;
+    await this.#writeTemplate(dir, { title, name, overwrite: fresh, keep: [...TEMPLATE_SOURCES] });
     await this.touch(name);
     return this.#describe(name, dir);
   }
@@ -862,13 +871,24 @@ export class ProjectWorkspaces {
     // parent never writes a starter project — a second index.html beside somebody's real one is
     // the mistake this whole sheet exists to stop.
     const nested = await nestedRepos(resolved);
+    // Software with no page of its own (a Next or Express app) is not an empty folder either: a
+    // starter page and a briefing that says "this project starts empty" would be false in it.
+    const packageWithoutPage = candidates.length === 0 && (await this.#softwareWithoutPage(resolved));
     const starter = candidates.some((candidate) => candidate.rel === ".")
       ? []
       : await this.plannedWrites(resolved, {
-          ...(candidates.length > 0 ? { template: false } : {}),
+          ...(candidates.length > 0 || packageWithoutPage ? { template: false } : {}),
           ...(nested.length > 0 ? { versionNested: true } : {}),
         });
-    return { dir: resolved, pathLabel: this.pathLabel(resolved), candidates, suggested, starter, nested };
+    return {
+      dir: resolved,
+      pathLabel: this.pathLabel(resolved),
+      candidates,
+      suggested,
+      starter,
+      nested,
+      packageWithoutPage,
+    };
   }
 
   async #preflight(candidate: ProjectCandidate): Promise<FolderPreflight> {
@@ -910,7 +930,24 @@ export class ProjectWorkspaces {
     await writeFile(file, `${JSON.stringify({ ...current, versionNested: true }, null, 2)}\n`);
   }
 
-  async #ensurePlayable(dir: string, name: string, title: string, options: AdoptOptions = {}): Promise<void> {
+  /** A `package.json` that declares software, and no `index.html`: a project of its own with no page to open yet. */
+  async #softwareWithoutPage(dir: string): Promise<boolean> {
+    if (await pathExists(path.join(dir, "index.html"))) return false;
+    return declaresSoftware(await readPackageManifest(dir));
+  }
+
+  /**
+   * The options a folder is adopted with. The starter project is written into a folder that holds
+   * no project of its own, whoever asks — the sheet's button, the chat pointing at a path, a test —
+   * so software with no page yet is `template: false` unless the caller asked for the starter.
+   */
+  async #adoptionOf(dir: string, options: AdoptOptions): Promise<AdoptOptions> {
+    if (options.template !== undefined || !(await this.#softwareWithoutPage(dir))) return options;
+    return { ...options, template: false };
+  }
+
+  async #ensurePlayable(dir: string, name: string, title: string, given: AdoptOptions = {}): Promise<void> {
+    const options = await this.#adoptionOf(dir, given);
     // A folder that already has a project of its own shape keeps its entry: the template's
     // index.html and src/main.js would only sit beside the real ones as dead scaffold. The
     // studio's contract module and helpers are still added — the project imports what it needs —
@@ -962,7 +999,8 @@ export class ProjectWorkspaces {
    * overwritten), and project-shape.test.ts holds the plan against what adoption really writes:
    * a promise about somebody else's folder is only worth making if it is kept.
    */
-  async plannedWrites(dir: string, options: AdoptOptions = {}): Promise<string[]> {
+  async plannedWrites(dir: string, given: AdoptOptions = {}): Promise<string[]> {
+    const options = await this.#adoptionOf(dir, given);
     const shape = await readProjectShape(dir);
     const writes = await this.#missingTemplateFiles(dir, templateKeep(shape, options));
     // A project of its own is held out of the template's pages above and given its own two.
@@ -1068,6 +1106,12 @@ export class ProjectWorkspaces {
     return validateProjectDir(dir);
   }
 
+  /** Whether the project builds into its own folder (`serve: "."`), so a build's output is the sources too. */
+  async #outputIsProject(dir: string): Promise<boolean> {
+    const shape = await readProjectShape(dir);
+    return Boolean(shape.build) && normalServe(shape.serve) === null;
+  }
+
   /** Self-contained web bundle: the project plus the vendored library, hostable anywhere. */
   async export(
     name: string,
@@ -1078,6 +1122,13 @@ export class ProjectWorkspaces {
     const dir = this.dirFor(name);
     const shape = await detectProjectShape(dir);
     const config = await readJsonIfExists<{ exportFiles?: string[] }>(path.join(dir, "studio.json"));
+    if (builtOutput && (await this.#outputIsProject(dir))) {
+      // The build wrote beside the sources (a root page loading its compiled script): the whole
+      // output folder is the project, so only the files the project declared are public.
+      if (!config?.exportFiles) throw new Error(MESSAGE.DeclareExportFiles);
+      if (!isExportList(config.exportFiles)) throw new Error(MESSAGE.BadExportFiles);
+      return exportPublicProject(builtOutput, targetDir, config.exportFiles, undefined, options);
+    }
     if (builtOutput) return exportPublicProject(builtOutput, targetDir, await readdir(builtOutput), undefined, options);
     if (shape?.build) throw new Error(MESSAGE.BuildBeforeExport);
     if (shape && !config?.exportFiles) throw new Error(MESSAGE.DeclareExportFiles);

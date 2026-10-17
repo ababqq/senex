@@ -12,6 +12,7 @@ not rewrite it. `studio.json` records that folder's shape, detected on first ope
 | `main` | The project's real entry module — the main owner edits it, other facets wire into it | `src/main.js` |
 | `build` | Shell command the studio runs (in the folder, or the facet's copy) before every preview | none |
 | `entry` | The page the studio serves; with a build, inside its output. May carry a query the page reads | `index.html` |
+| `serve` | The folder the page is served from. With a build it is the output folder (default `dist`); `.` serves the project folder itself, for a page at the root that loads its compiled scripts from beside it. Set it when the build writes its page somewhere else | the folder `entry` is in |
 | `bootMs` | How long the studio waits for the page to report itself ready before it looks anyway — 1000..60000, default 15000. Raise it for a project with a long data load or a top-level `await`. The studio reads this field and never writes it | none (15000) |
 | `app` | This project's kind and traits, declared once a run by the plan — a nested block, not the top-level `kind`, which is the project's SHAPE (an older `game` block is still read) | none |
 

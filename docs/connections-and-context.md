@@ -396,7 +396,7 @@ commands (doctor, budget, LLM models, job status and cancel, shop list) and, aft
 in a throwaway folder of its own, never the project, with only the Genex API reachable; setup,
 sign-in, publishing and generation commands are refused and point to the matching Genex tool.
 `genex__package` adds `@genex-ai/multiplayer` or `@genex-ai/embed-sdk` at Studio's pin to a
-build project after consent, opening the npm registry for that one install; Studio-template projects
+build project after consent, opening the lockfile manager's registry hosts for that one install; Studio-template projects
 without `package.json` cannot add them. Multiplayer is tested only on the published draft: build,
 add the package, publish a draft with `genex__publish`, then play the draft link. Studio's
 preview stays single-player. Fixture profiles refuse the CLI and package tools.

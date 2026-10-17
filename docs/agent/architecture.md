@@ -1,13 +1,12 @@
 # Architecture
 
-Technical reference for the external developer. Start with the [product overview](context.md) and
-the affected product page, then read only the section you need here. Each section states the
-current contract and names the code that owns it; history lives in Git and PR descriptions, not
-here. When code and this page disagree, fix the one that is wrong in the same change.
+Reference: read the [overview](context.md) and the
+affected product page first, then only the section you need. Each section states the current
+contract and names the code that owns it; history lives in Git and PRs. When code and this page
+disagree, fix the wrong one.
 
-The active app builds browser projects only. The Unity CLI, editor, bridge, templates, tools and UI
-are archived in [`archive/unity/`](../../archive/unity/); no flag enables them and there is no
-migration path.
+The active app builds browser projects only; Unity is archived in [`archive/unity/`](../../archive/unity/),
+no flag enables it and there is no migration path.
 
 ## Processes and trust boundaries
 
@@ -131,7 +130,7 @@ scope: Codex's cover pre-existing files, never directories; the Claude hook matc
   own secrets are safeStorage ciphertext; the exposed material is other projects, `~/.genex`, the
   borrowed Codex sign-in and the ordinary home folder. Running the CLI under `ProcessSandbox` with
   deny-read is planned, not done.
-- **An install briefly opens the npm registry to every sandboxed process.** sandbox-runtime's
+- **An install briefly opens its manager's registry hosts to every sandboxed process.** sandbox-runtime's
   proxy filters against one process-wide allow-list, so `ProcessSandbox.run` widens it for the
   length of a package install and restores it afterwards (counted, in `finally`). Two installs
   open it: the user's Install packages button and `genex__package`, a consented add of one of the
@@ -730,7 +729,7 @@ a tree key; the stage's **Try again** (`reloadPreview({retry: true})`) forgets t
 re-resolves the login shell PATH ([`src/substrate/toolchain.ts`](../../src/substrate/toolchain.ts); on
 Windows the process PATH plus the registry's machine and user PATH).
 The package manager comes from the lockfile; installing is the one thing that opens the network
-(`registry.npmjs.org`, `studio:packages.install`, behind a button), and only the lockfile's own
+(its `registries`, `studio:packages.install`, behind a button), and only the lockfile's own
 install line runs (`INSTALL_COMMANDS`/`isInstallCommand`). A failed or empty build shows the last
 good output with the reason (`studio:build.problem`,
 [`src/shared/build-problem.ts`](../../src/shared/build-problem.ts)); a judged load still fails. Build
@@ -744,11 +743,11 @@ string is in [`src/main/page-dispatch.ts`](../../src/main/page-dispatch.ts). `re
 lexically and then realpaths every request against the real root pinned at load: 404 for a missing
 or non-regular file, 403 for an escape (including a root swapped after load), 400 for a malformed
 one. The rewrite touches only the served document (`shouldRewrite`: the entry or a document/frame
-fetch, never under `vendor/`, never over 8 MB, never non-HTML), never a file on disk: charset first,
-the classic shim script, the page's own import map with only `three` and `three/webgpu` pointed at
-the studio hook (or the studio's own map), the module hook, then the page. It is idempotent; a
-blocking meta CSP gets one console line, not an edited policy. Bundled projects serve as
-`http://localhost:<port>/`, intercepted inside the preview's own session.
+fetch, never under `vendor/`, over 8 MB or non-HTML), never a file on disk: charset, the classic shim
+script, the page's import map with only `three` and `three/webgpu` pointed at the studio hook (or the
+studio's own map), the module hook, then the page; it is idempotent, and a blocking meta CSP gets one
+console line, not an edit. Bundled projects serve as `http://localhost:<port>/` and open at `/`; a GET navigation to an extensionless path no file answers gets the entry
+(`spaFallback`; `dir/` gives its own page), so client routers survive Reload; a missing asset or `fetch` keeps its 404.
 
 **Network policy.** The project partition is closed: `onBeforeRequest` allows only `project:`, `data:`,
 `blob:`, `devtools:`, registered loopback ports and https GET/HEAD to the exact public library and
@@ -1054,10 +1053,9 @@ with a managed local runtime; core has no special Blender tool.
   ([`src/shared/catalog-search/`](../../src/shared/catalog-search/)).
 - **Projects root.** It defaults to `~/AI Projects`; Settings → Projects picks another in main
   (`studio:projects-root.choose`, fixture-blocked), and `userData/games-root.json` restores it at boot
-  unless its parent is missing. Every project-named folder in the root is listed as a project, so
-  `changeRoot` accepts only a folder whose such subfolders the index already knows (library or
-  removed projects). It turns old-root projects into aliases so names and threads hold; the sandbox gains
-  write access to the new root.
+  unless its parent is missing. Every project-named folder in the root is a project, so `changeRoot`
+  accepts only a folder whose such subfolders the index knows (library or removed projects). It turns
+  old-root projects into aliases so names and threads hold; the sandbox gains write access to the new root.
 - **Secrets.** `SecretStore` ([`src/substrate/secrets.ts`](../../src/substrate/secrets.ts)) is
   Keychain-backed through safeStorage and fails closed without OS encryption, raising
   `SecretStorageUnavailableError` with a `SecretStorageIssue` code. On Linux, safeStorage's
