@@ -449,18 +449,33 @@ export function packageCommands(files: string[]): PackageCommands {
  * lines, and these are what the first lines used to be.
  */
 const SCRIPT_RUNNER_NOISE: readonly RegExp[] = [
-  /^>\s/, // npm and pnpm: "> app@1.0.0 build", "> tsc -b"
   /^\$\s/, // yarn 1 and bun echo the command
   /^yarn run v\d|^info Visit https:\/\/yarnpkg\.com|^Done in |^error Command failed with exit code/,
-  /^npm (warn|notice)\b/,
-  /^npm error (code|path|workspace|location|command|signal|errno|Lifecycle script|A complete log)\b/,
-  /^\s*(ELIFECYCLE|WARN)\s|^\s*ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL\b/,
+  /^npm (warn|notice)\b/i,
+  /^npm (error|ERR!) (code|path|workspace|location|command|signal|errno|syscall|Lifecycle script|A complete log|Exit status|\S+@\S+ \S+:|This is probably|Failed at|Make sure)/,
+  /^\s*(ELIFECYCLE|WARN)\s|^\s*ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL\b|^\s*Exit status \d+/,
   /^error: script ".*" exited with code \d+/,
 ];
 
-/** Whether a line is a package manager's own wrapper text rather than what the script printed. */
-export function isScriptRunnerNoise(line: string): boolean {
-  return SCRIPT_RUNNER_NOISE.some((pattern) => pattern.test(line.trim()));
+/** npm's and pnpm's `> name@version script` header: the one `> ` line that is never the script's. */
+const RUNNER_HEADER = /^> \S+@\S+ /;
+
+/**
+ * `lines` without a package manager's own wrapper text. The `> tsc -b` line under the header is
+ * the runner's too, but a `> ` line anywhere else (a code frame's pointer, a Gradle task) is the
+ * tool's, so it goes only when it follows the header.
+ */
+export function withoutRunnerNoise(lines: readonly string[]): string[] {
+  const kept: string[] = [];
+  let underHeader = false;
+  for (const line of lines) {
+    const header: boolean = RUNNER_HEADER.test(line);
+    const command: boolean = underHeader && line.startsWith("> ");
+    underHeader = header || command;
+    if (header || command || SCRIPT_RUNNER_NOISE.some((pattern) => pattern.test(line.trim()))) continue;
+    kept.push(line);
+  }
+  return kept;
 }
 
 /**

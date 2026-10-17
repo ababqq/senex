@@ -27,7 +27,7 @@ import { ensureDir, pathExists } from "../substrate/fsx.ts";
 import { HOST_GIT_CONFIG } from "../substrate/snapshots.ts";
 import { isInside } from "../substrate/paths.ts";
 import { normalServe } from "../substrate/project-shape.ts";
-import { NPM_REGISTRY, isScriptRunnerNoise, packageCommandsIn } from "../substrate/toolchain.ts";
+import { NPM_REGISTRY, packageCommandsIn, withoutRunnerNoise } from "../substrate/toolchain.ts";
 import type { ProjectShape } from "../substrate/project-workspace.ts";
 import { type RunRequest, type RunResult, shellQuote } from "../substrate/spawn.ts";
 import type { BuildProblem, InstallResult } from "../shared/build-problem.ts";
@@ -547,7 +547,7 @@ export function outputLines(result: Pick<RunResult, "stdout" | "stderr">, max: n
     .split("\n")
     .map((line) => line.trimEnd())
     .filter((line) => line.trim().length > 0);
-  const own = printed.filter((line) => !isScriptRunnerNoise(line));
+  const own = withoutRunnerNoise(printed);
   return (own.length > 0 ? own : printed).slice(0, max);
 }
 

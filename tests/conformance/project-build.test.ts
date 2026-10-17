@@ -273,6 +273,29 @@ describe("what a failed build tells the reader", () => {
     for (const [what, output, expected] of table) assert.deepEqual(outputLines(output, 12), expected, what);
   });
 
+  it("keeps a compiler's own '> ' lines, and drops npm 9 and pnpm's older footers", () => {
+    const babel = "SyntaxError: x.js: Unexpected token (2:3)\n\n  1 | a\n> 2 | b c\n    |   ^\n  3 | d";
+    assert.deepEqual(
+      outputLines({ stdout: babel, stderr: "" }, 12),
+      babel.split("\n").filter((line) => line.trim()),
+    );
+    const gradle = "FAILURE: Build failed\n> Task :compileJava FAILED\n> Compilation failed";
+    assert.deepEqual(outputLines({ stdout: gradle, stderr: "" }, 12), gradle.split("\n"));
+    const old = [
+      "npm WARN deprecated x",
+      "npm ERR! code ELIFECYCLE",
+      "npm ERR! errno 1",
+      "npm ERR! app@1.0.0 build: `tsc`",
+      "npm ERR! Exit status 1",
+      "error TS1",
+    ].join("\n");
+    assert.deepEqual(outputLines({ stdout: "", stderr: old }, 12), ["error TS1"]);
+    const pnpm = " ELIFECYCLE  Command failed with exit code 1.\n Exit status 1\nWARN  deprecated\nerror TS1";
+    assert.deepEqual(outputLines({ stdout: "", stderr: pnpm }, 12), ["error TS1"]);
+    const missing = "npm ERR! missing script: build";
+    assert.deepEqual(outputLines({ stdout: "", stderr: missing }, 12), [missing]);
+  });
+
   it("gives the stage three lines and the agent the dozen the compiler printed", async () => {
     const dir = await projectRepo("many");
     const root = path.join(await tmpDir("studio-shadow-"), "builds");
