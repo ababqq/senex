@@ -399,7 +399,7 @@ describe("the critic that judged a round, and a card nothing scored", () => {
     const failed = liveness(round({ critic: "screen", liveness: { total: 0, max: 0, scores: {} } }));
     assert.equal(hasScoredLiveness(failed), false);
     assert.equal(hasScoredLiveness(null), false);
-    assert.equal(hasScoredLiveness({ ...failed!, total: null }), false);
+    assert.equal(hasScoredLiveness({ ...failed!, total: null, max: 12 }), false, "no total, whatever the maximum");
     assert.equal(
       hasScoredLiveness(liveness(round({ liveness: { total: 0, max: 12, scores: {} } }))),
       true,

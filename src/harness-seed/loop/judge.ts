@@ -887,8 +887,9 @@ export function describeEvidence(candidate: Candidate, attached?: Attached): str
   if (candidate.audio?.available)
     lines.push(`audio probe after play: rms ${candidate.audio.rms}, spectral centroid ${candidate.audio.centroid} Hz`);
   if (candidate.demos && Object.keys(candidate.demos).length) {
+    const frames = demoFramesWord(attached);
     lines.push(
-      `scripted demo results (each demo's end frame is attached as an image): ${clipEvidence(JSON.stringify(candidate.demos), EVIDENCE_STATE_CHARS)} — ${BUILD_OUTPUT}`,
+      `scripted demo results (${frames}): ${clipEvidence(JSON.stringify(candidate.demos), EVIDENCE_STATE_CHARS)} — ${BUILD_OUTPUT}`,
     );
   }
   if (candidate.shots?.length) lines.push(...describeShots(candidate, attached));
@@ -904,6 +905,12 @@ export function describeEvidence(candidate: Candidate, attached?: Attached): str
       `WebGL errors (GPU process): ${clipList(candidate.gpuErrors, EVIDENCE_ERROR_LINES).join(" | ")} — ${BUILD_OUTPUT}`,
     );
   return lines.join("\n");
+}
+
+/** Where the demos' end frames are: attached, or (in a comparison that sent none of them) left off. */
+function demoFramesWord(attached?: Attached): string {
+  const sent = !attached || [...attached.cameras].some((camera) => camera.startsWith("demo:"));
+  return sent ? "each demo's end frame is attached as an image" : "no demo end frame is attached to this comparison";
 }
 
 /** What a judge is told about a motion strip: where it is, or that it was left off this comparison. */
@@ -1734,10 +1741,11 @@ export async function judgeAgainstReference(
     const subset = cameraSubset(evidence?.shots ?? [], i, votes);
     const chosen = subset ? shots.filter((s) => subset.includes(s.camera)) : shots;
     const label = `panel_${iterationId ?? "final"}_v${i + 1}`;
-    const { images, paired } = await panelImages(ctx, { run, evidence, chosen, subset, refs, label });
-    // A PAIR composite carries the build's chosen frames; loose frames are labelled with their camera.
+    const { images, paired, pairedCameras } = await panelImages(ctx, { run, evidence, chosen, subset, refs, label });
+    // A PAIR composite carries one camera's frame of the build, and only the composites that came back
+    // count; loose frames are labelled with their camera.
     const attached = paired
-      ? { cameras: new Set<string>(chosen.slice(0, MAX_PAIRED_SHOTS).map((s) => String(s.camera))), motion: 0 }
+      ? { cameras: new Set<string>(pairedCameras), motion: 0 }
       : attachedPictures({ tag: "THE BUILD", images });
     const userContent = panelContent(said, images, paired, attached);
     const raw = await askJudge(ctx, { run, systemPrompt: system, userContent, images });
@@ -1819,16 +1827,21 @@ async function panelImages(
     refs: ReferenceStats[];
     label: string;
   },
-): Promise<{ images: MessageImage[]; paired: boolean }> {
+): Promise<{ images: MessageImage[]; paired: boolean; pairedCameras: string[] }> {
   const pairs = await pairImagesFor(ctx, { run, shots: chosen.slice(0, MAX_PAIRED_SHOTS), refs, label });
   if (pairs.length)
-    return { images: [...pairs, ...imagesForReference(run, { limit: 2, nearTo: chosen })], paired: true };
+    return {
+      images: [...pairs, ...imagesForReference(run, { limit: 2, nearTo: chosen })],
+      paired: true,
+      pairedCameras: pairs.map((pair) => pair.camera),
+    };
   return {
     images: [
       ...imagesForCandidate(evidence as Candidate, "THE BUILD", subset),
       ...imagesForReference(run, { limit: 6, nearTo: chosen }),
     ],
     paired: false,
+    pairedCameras: [],
   };
 }
 

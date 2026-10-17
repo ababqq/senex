@@ -6,11 +6,13 @@
  */
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { lstat, mkdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { test } from "node:test";
 import { promisify } from "node:util";
+import { migrateLegacyIgnore } from "../../src/substrate/nested-repos.ts";
 import { coreLite } from "../helpers/core-lite.ts";
+import { tmpDir } from "../helpers/tmp.ts";
 
 const exec = promisify(execFile);
 
@@ -148,4 +150,72 @@ test("a .gitignore the user wrote, export/ included, is theirs", async () => {
   await writeFile(gitignore, theirs);
   await lite.core.projects.adopt(project.dir);
   assert.equal(await readFile(gitignore, "utf8"), theirs);
+});
+
+/** A fresh repository whose only commit is a `.gitignore` as an older studio wrote it. */
+async function legacyRepo(): Promise<{ dir: string; head: () => Promise<string> }> {
+  const dir = await tmpDir("studio-legacy-ignore-");
+  await exec("git", ["init", "-q", "-b", "main"], { cwd: dir });
+  await writeFile(path.join(dir, ".gitignore"), "export/\n.DS_Store\n.studio/\nnode_modules\n");
+  await committedAsAnOlderStudio(dir, ".gitignore");
+  return { dir, head: async () => (await exec("git", ["rev-parse", "HEAD"], { cwd: dir })).stdout.trim() };
+}
+
+const REPAIRED = ".DS_Store\n.studio/\nnode_modules\n";
+const LEGACY = `export/\n${REPAIRED}`;
+
+test("two opens at once repair a project's .gitignore once, and leave the folder clean", async () => {
+  const { dir, head } = await legacyRepo();
+  const before = await head();
+  await Promise.all([migrateLegacyIgnore(dir), migrateLegacyIgnore(dir), migrateLegacyIgnore(dir)]);
+  assert.equal(await readFile(path.join(dir, ".gitignore"), "utf8"), REPAIRED);
+  assert.equal(await dirt(dir), "");
+  const count = (await exec("git", ["rev-list", "--count", `${before}..HEAD`], { cwd: dir })).stdout.trim();
+  assert.equal(count, "1", "one repair commit");
+});
+
+test("a repository that will not take the commit gets its .gitignore back as it was", async () => {
+  const { dir, head } = await legacyRepo();
+  const before = await head();
+  // A held index lock stands for any reason git refuses: the repair must not leave a dirty file behind.
+  const lock = path.join(dir, ".git", "index.lock");
+  await writeFile(lock, "");
+  await migrateLegacyIgnore(dir);
+  await rm(lock);
+  assert.equal(await readFile(path.join(dir, ".gitignore"), "utf8"), LEGACY);
+  assert.equal(await head(), before);
+  assert.equal(await dirt(dir), "");
+});
+
+test("a repository in the middle of something of its owner's, or not the folder's own, is not committed into", async () => {
+  const rebasing = await legacyRepo();
+  await mkdir(path.join(rebasing.dir, ".git", "rebase-merge"));
+  const detached = await legacyRepo();
+  await exec("git", ["checkout", "-q", "--detach"], { cwd: detached.dir });
+  const inner = await legacyRepo();
+  const folder = path.join(inner.dir, "projects", "todo");
+  await mkdir(folder, { recursive: true });
+  await writeFile(path.join(folder, ".gitignore"), LEGACY);
+  await committedAsAnOlderStudio(inner.dir, "projects/todo/.gitignore");
+  const innerHead = await inner.head();
+  for (const [what, dir] of [
+    ["a rebase in progress", rebasing.dir],
+    ["a detached HEAD", detached.dir],
+    ["a folder inside a repository that is not its own", folder],
+  ] as const) {
+    await migrateLegacyIgnore(dir);
+    assert.equal(await readFile(path.join(dir, ".gitignore"), "utf8"), LEGACY, what);
+  }
+  assert.equal(await inner.head(), innerHead, "nothing was committed into the parent repository");
+});
+
+test("a .gitignore that is a link is not replaced with a file", async () => {
+  const { dir } = await legacyRepo();
+  await exec("git", ["rm", "-q", "--cached", ".gitignore"], { cwd: dir });
+  await rm(path.join(dir, ".gitignore"));
+  await writeFile(path.join(dir, "shared-ignore"), LEGACY);
+  await symlink("shared-ignore", path.join(dir, ".gitignore"));
+  await migrateLegacyIgnore(dir);
+  assert.equal(await readFile(path.join(dir, "shared-ignore"), "utf8"), LEGACY, "the link's target is the owner's");
+  assert.equal((await lstat(path.join(dir, ".gitignore"))).isSymbolicLink(), true, "and the link is still a link");
 });

@@ -50,7 +50,7 @@ import {
 import { PAGE_DISPATCH } from "./page-dispatch.ts";
 import { emulatePageFocus } from "./preview-focus.ts";
 import { anchoredBounds } from "./preview-anchor.ts";
-import { downloadDecision, downloadLine, projectViewPreferences } from "./project-view.ts";
+import { downloadDecision, downloadLine, isBrowserNotice, projectViewPreferences } from "./project-view.ts";
 import { capActions, type PreviewInputAction } from "../substrate/preview-input.ts";
 import { applyInputAction, type PageDispatch } from "./preview-input-driver.ts";
 import { cropImageFile, diffImageFiles, encodedImageStats, pairJpeg, resizeToJpeg } from "./preview-images.ts";
@@ -344,6 +344,7 @@ export class ProjectPreview {
       }
       this.#consoleAvailable = true;
       if (details.message === "__studio_console_channel_probe__") return;
+      if (isBrowserNotice(details.message)) return;
       this.#push({
         at: Date.now(),
         level: String(details.level),

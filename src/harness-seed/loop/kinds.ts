@@ -491,17 +491,17 @@ export function appLine(app: AnyRecord | null | undefined): string {
   const drives = drove
     ? ` Before every judgement the harness drives the same controls: ${drove}.${types ? TYPED_TEXT_NOTE : ""}`
     : "";
+  // Input traits written by hand (typing, navigation, mouse look, keyboard move) put their checks on
+  // the board whether or not a kind came with them, so the retraction is only for a run with none.
+  const hasInputChecks = traits.navigation || traits.typing || traits.mouseLook || traits.keyboardMove;
+  const noInputEvidence = hasInputChecks ? "" : NO_INPUT_EVIDENCE;
   // A run that declared no kind is software, and is driven by the default controls all the same:
   // the judge is told what was pressed, and that no input evidence was declared to hold against it.
-  if (!kind) {
-    // A run that wrote input traits by hand (typing, navigation…) has those checks on its board.
-    const hasInputChecks = traits.navigation || traits.typing || traits.mouseLook || traits.keyboardMove;
-    return `${UNDECLARED_PROJECT}${drives}${hasInputChecks ? "" : NO_INPUT_EVIDENCE}`;
-  }
+  if (!kind) return `${UNDECLARED_PROJECT}${drives}${noInputEvidence}`;
   const paths = [...kind.navigate, ...kind.edit];
   // `kind && navigate.length === 0 && edit.length === 0` — the shape of this test is the whole
   // point: a project with no input the studio can measure must be told about, not given an empty list.
-  if (paths.length === 0) return `PROJECT: ${kind.says}.${drives}${NO_INPUT_EVIDENCE}`;
+  if (paths.length === 0) return `PROJECT: ${kind.says}.${drives}${noInputEvidence}`;
   return `PROJECT: ${kind.says}.${drives} The input evidence is ${paths.join(", ")} in __studio.state() — report [dead-input] only if those are unchanged.`;
 }
 

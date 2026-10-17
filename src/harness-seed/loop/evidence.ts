@@ -443,8 +443,10 @@ export const STEP_WITNESS = `(() => {
       var state = window.__studio && typeof window.__studio.state === "function" ? window.__studio.state() : null;
       if (state && typeof state.simulatedMs === "number") simulatedMs = state.simulatedMs;
     } catch (err) { simulatedMs = null; }
-    // Only a canvas the page draws to with the GPU owes draws the counters count: a chart on a 2d
-    // canvas draws nothing they see. A shim that cannot say keeps every canvas held to its draws.
+    // Only a page that asked for a GPU context owes the draws the counters count: a chart on a 2d
+    // canvas draws nothing they see. The shim's answer is page-wide (a 2d chart beside a capability
+    // check that touches WebGL still reads as owing draws), and a shim that cannot say keeps every
+    // canvas held to its draws.
     var gl = window.__studioGl;
     var gpu = gl && typeof gl.gpu === "function" ? !!gl.gpu() : true;
     return {

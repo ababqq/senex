@@ -9139,6 +9139,14 @@ describe("a page with no canvas is a page, not a scene that failed to draw (seco
       1,
       "and a declared kind still says it once",
     );
+    // The same for a kind with no input probes of its own that was given input traits by hand
+    // (the documented opt-in for a walkable scene): its board carries those checks.
+    for (const app of [
+      { kind: "graphics", keyboardMove: true },
+      { kind: "graphics", mouseLook: true, keyboardMove: true },
+    ]) {
+      assert.doesNotMatch(appLine(app), /does not apply/, JSON.stringify(app));
+    }
     // A run that declared input traits without a kind has input checks on its board: nothing is retracted.
     for (const app of [{ typing: true }, { navigation: true, ui: true }, { mouseLook: true }, { keyboardMove: true }]) {
       const line = appLine(app);
@@ -9361,5 +9369,41 @@ describe("a page with no canvas is a page, not a scene that failed to draw (seco
     );
     assert.doesNotMatch(gateText, /motion strip from the scripted exercise is attached/);
     assert.match(gateText, /motion strip was captured but is not attached/);
+  });
+
+  it("DS-8. a reference panel names the cameras whose PAIR composite came back, and says where the demos' frames are", async () => {
+    const { judgeAgainstReference } = await import("../../src/harness-seed/loop/judge.ts");
+    const still = { label: "ref", mimeType: "image/jpeg", data: "aGk=" };
+    const shot = (camera: string) => ({ camera, base64: "aGk=", path: `/runs/${camera}.jpg` });
+    const recorder = ctxRecorder({
+      unknown: { value: null },
+      handlers: {
+        // The preview cannot make the composite for one camera.
+        "preview.pair": (params) => {
+          const path = String((params.right as { path?: string } | undefined)?.path ?? "");
+          if (path.includes("close")) throw new Error("no pair for close");
+          return { base64: "cGFpcg==", path: `/runs/pair-${path.split("/").pop()}` };
+        },
+        "engine.complete": () => ({
+          message: { content: '{"looks":"build","plays":"build","better":"x","biggest_gap":"","reason":"r"}' },
+        }),
+      },
+    });
+    await judgeAgainstReference(recorder.ctx as never, {
+      run: { runId: "r", reference: { name: "Linear", frames: [still, still] } } as never,
+      evidence: {
+        ok: true,
+        shots: [shot("default"), shot("close"), shot("wide")],
+        demos: { checkout: { ok: true } },
+      } as never,
+      votes: 1,
+    });
+    const text = String(
+      (recorder.paramsOf("engine.complete")[0] as { messages?: Array<{ content?: unknown }> })?.messages?.[0]?.content,
+    );
+    assert.match(text, /screenshots attached for cameras: default, wide/);
+    assert.match(text, /captured but not attached to this comparison: close/);
+    assert.match(text, /no demo end frame is attached to this comparison/);
+    assert.doesNotMatch(text, /each demo's end frame is attached as an image/);
   });
 });
