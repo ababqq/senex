@@ -274,6 +274,20 @@ function recordedInstall(meta: ShapeMeta, detected: ProjectShape | null): string
   return detected?.install ?? null;
 }
 
+/**
+ * A recorded `main` that is no longer in the folder (a builder renamed src/main.js to
+ * src/main.tsx and updated the page) follows the page's own script instead of refusing every
+ * run for a file that moved. Only `main` moves: build, serve and entry are the project's, and
+ * a read never writes studio.json.
+ */
+async function followedMain(dir: string, meta: ShapeMeta, recorded: ProjectShape): Promise<ProjectShape> {
+  const recordsMain = typeof meta.main === "string" && plainRelativePath(meta.main.trim());
+  if (!recordsMain || !recorded.own || (await pathExists(path.join(dir, recorded.main)))) return recorded;
+  const detected = await detectProjectShape(dir);
+  if (!detected || detected.main === recorded.main || !plainRelativePath(detected.main)) return recorded;
+  return (await pathExists(path.join(dir, detected.main))) ? { ...recorded, main: detected.main } : recorded;
+}
+
 /** The shape studio.json records, with what it leaves out detected once from the folder. */
 async function recordedShape(dir: string, meta: ShapeMeta): Promise<ProjectShape> {
   const entry = trimmedText(meta.entry) ?? TEMPLATE_SHAPE.entry;
@@ -288,7 +302,7 @@ async function recordedShape(dir: string, meta: ShapeMeta): Promise<ProjectShape
   const detected = isProjectKind(meta.kind) && declaresInstall ? null : await detectProjectShape(dir);
   const kind = isProjectKind(meta.kind) ? meta.kind : (detected?.kind ?? null);
   const own = typeof meta.own === "boolean" ? meta.own : build !== null || main !== TEMPLATE_SHAPE.main;
-  return {
+  const recorded = {
     entry,
     main,
     build,
@@ -297,6 +311,7 @@ async function recordedShape(dir: string, meta: ShapeMeta): Promise<ProjectShape
     kind: kind ?? (own ? "own-script" : TEMPLATE_SHAPE.kind),
     serve: trimmedText(meta.serve) ?? serveDirOf(entry),
   };
+  return followedMain(dir, meta, recorded);
 }
 
 /**

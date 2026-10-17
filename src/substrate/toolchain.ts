@@ -444,6 +444,26 @@ export function packageCommands(files: string[]): PackageCommands {
 }
 
 /**
+ * Lines a package manager prints around the script it runs (the `> app@1.0.0 build` header, the
+ * lifecycle failure after it), never the script's own words. A failed build is read for its first
+ * lines, and these are what the first lines used to be.
+ */
+const SCRIPT_RUNNER_NOISE: readonly RegExp[] = [
+  /^>\s/, // npm and pnpm: "> app@1.0.0 build", "> tsc -b"
+  /^\$\s/, // yarn 1 and bun echo the command
+  /^yarn run v\d|^info Visit https:\/\/yarnpkg\.com|^Done in |^error Command failed with exit code/,
+  /^npm (warn|notice)\b/,
+  /^npm error (code|path|workspace|location|command|signal|errno|Lifecycle script|A complete log)\b/,
+  /^\s*(ELIFECYCLE|WARN)\s|^\s*ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL\b/,
+  /^error: script ".*" exited with code \d+/,
+];
+
+/** Whether a line is a package manager's own wrapper text rather than what the script printed. */
+export function isScriptRunnerNoise(line: string): boolean {
+  return SCRIPT_RUNNER_NOISE.some((pattern) => pattern.test(line.trim()));
+}
+
+/**
  * The only command lines the studio's one network exemption may ever wrap. `studio.json` lives
  * inside the user's project folder — a downloaded project ships one, and a contractor can write one
  * mid-night — so a recorded `install` is honoured only when it is a package manager's own

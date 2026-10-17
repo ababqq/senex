@@ -5,7 +5,7 @@
  */
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { cp, mkdir, readFile, readdir, realpath, rm, stat, writeFile } from "node:fs/promises";
+import { cp, mkdir, readFile, readdir, realpath, rename, rm, stat, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { after, describe, it } from "node:test";
@@ -23,6 +23,7 @@ import {
   studioContractGeneration,
 } from "../../src/substrate/project-workspace.ts";
 import { bootBudget } from "../../src/substrate/preview-ready.ts";
+import { validateProjectDir } from "../../src/substrate/project-validation.ts";
 import { ensureRepo, git } from "../../src/substrate/snapshots.ts";
 import { buildContractorBrief } from "../../src/harness-seed/loop/chat-session.ts";
 import {
@@ -333,6 +334,63 @@ describe("a project's own shape", () => {
       null,
       "and 'this project has no packages' still means no button",
     );
+  });
+
+  it("follows the entry module to its new name when the recorded one is gone, and rewrites nothing", async () => {
+    // A builder renames src/main.js to src/main.tsx and updates index.html; the record still says
+    // src/main.js, and every Loop run was refused with "src/main.js is missing".
+    const dir = path.join(await tmpDir("studio-shape-"), "renamed");
+    await wreckageFolder(dir);
+    const recorded = {
+      entry: "dist/index.html",
+      main: "src/main.js",
+      build: "npm run build",
+      own: true,
+      kind: "three-vite",
+      serve: "dist",
+      install: "npm install",
+    };
+    const text = JSON.stringify(recorded);
+    await writeFile(path.join(dir, "studio.json"), text);
+    assert.equal((await readProjectShape(dir)).main, "src/main.js", "a recorded entry that is there is kept");
+    const page = (src: string) => `<!doctype html><div id="app"></div><script type="module" src="${src}"></script>`;
+    await rename(path.join(dir, "src", "main.js"), path.join(dir, "src", "main.tsx"));
+    await writeFile(path.join(dir, "index.html"), page("/src/main.tsx"));
+    assert.deepEqual(await readProjectShape(dir), { ...recorded, main: "src/main.tsx" }, "only the entry module moves");
+    assert.equal(await readFile(path.join(dir, "studio.json"), "utf8"), text, "reading never writes studio.json");
+    const { problems } = await validateProjectDir(dir);
+    assert.deepEqual(
+      problems.filter((problem) => problem.endsWith("is missing")),
+      [],
+      "so a night is no longer refused for a file that moved",
+    );
+
+    const refused = async (what: string, setup: () => Promise<void>) => {
+      await setup();
+      assert.equal((await readProjectShape(dir)).main, "src/main.js", what);
+    };
+    await refused("a page that names a file that is not there changes nothing", () =>
+      writeFile(path.join(dir, "index.html"), page("/src/gone.tsx")),
+    );
+    await refused("a page that climbs out of the folder changes nothing", async () => {
+      await writeFile(path.join(dir, "..", "outside.js"), "1");
+      await writeFile(path.join(dir, "index.html"), page("../outside.js"));
+    });
+    await refused("a folder with no page changes nothing", () => rm(path.join(dir, "index.html")));
+  });
+
+  it("leaves a recorded pipeline alone when only the entry module moved", async () => {
+    const dir = path.join(await tmpDir("studio-shape-"), "by-hand");
+    await wreckageFolder(dir);
+    await writeFile(
+      path.join(dir, "studio.json"),
+      JSON.stringify({ entry: "site/index.html", main: "src/gone.js", build: "make site", own: true, serve: "site" }),
+    );
+    const shape = await readProjectShape(dir);
+    assert.equal(shape.main, "src/main.js", "the entry module follows the page");
+    assert.equal(shape.build, "make site", "the hand-written build is the project's");
+    assert.equal(shape.serve, "site");
+    assert.equal(shape.entry, "site/index.html");
   });
 
   it("names the kind from what the page loads: an engine export, a CDN project, a 2D canvas", async () => {
