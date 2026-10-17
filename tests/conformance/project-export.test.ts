@@ -242,6 +242,37 @@ it("says a referenced file was left out on purpose when its name looks like a se
       await removeTree(temp);
     }
   }
+  // A folder is left out whole, however the root that named it was spelled…
+  for (const root of ["secrets", "secrets/", "./secrets", "secrets\\"]) {
+    const folder = await site({
+      "index.html": '<script type="module" src="./main.js"></script>',
+      "main.js": 'import "./secrets/keys.js";',
+      "secrets/keys.js": "x",
+    });
+    try {
+      await assert.rejects(
+        exportPublicProject(folder.source, folder.target, ["index.html", "main.js", root]),
+        /left out.*secrets\/keys\.js/s,
+        root,
+      );
+    } finally {
+      await removeTree(folder.temp);
+    }
+  }
+  // …and a name that only begins like one that was left out is still a missing file.
+  const near = await site({
+    "index.html": '<script type="module" src="./main.js"></script>',
+    "main.js": 'import "./secrets-extra/keys.js";',
+    "secrets/keys.js": "x",
+  });
+  try {
+    await assert.rejects(
+      exportPublicProject(near.source, near.target, ["index.html", "main.js", "secrets"]),
+      /missing a referenced public file/,
+    );
+  } finally {
+    await removeTree(near.temp);
+  }
   const typo = await site({
     "index.html": '<script type="module" src="./main.js"></script>',
     "main.js": 'import "./enb.js";',

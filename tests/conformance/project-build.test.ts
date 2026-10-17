@@ -271,14 +271,25 @@ describe("building a project the user owns", () => {
     await exec("git", ["init", "-q", "-b", "main"], { cwd: helper, env: GIT_ENV });
     await exec("git", ["add", "-A"], { cwd: helper, env: GIT_ENV });
     await exec("git", ["commit", "-qm", "helper"], { cwd: helper, env: GIT_ENV });
-    // …and a dependency folder a project committed deep inside itself is not part of any build.
+    // …a package folder a workspace installed deep inside itself, where only the root's is ignored,
+    // is not part of any build; one the project committed on purpose is.
+    await writeFile(path.join(dir, ".gitignore"), "/node_modules/\ndist/\nprogress/\n.env\n");
     await mkdir(path.join(dir, "apps", "web", "node_modules"), { recursive: true });
     await writeFile(path.join(dir, "apps", "web", "node_modules", "dep.js"), "1");
     await writeFile(path.join(dir, "apps", "web", "main.js"), "1");
-    await exec("git", ["add", "-f", "apps"], { cwd: dir, env: GIT_ENV });
+    await mkdir(path.join(dir, "functions", "node_modules", "lib"), { recursive: true });
+    await writeFile(path.join(dir, "functions", "node_modules", "lib", "index.js"), "1");
+    await exec("git", ["add", "-f", "functions/node_modules", "apps/web/main.js", ".gitignore"], {
+      cwd: dir,
+      env: GIT_ENV,
+    });
     const listed = await mirrorList(dir, "dist");
     assert.ok(listed.includes("apps/web/main.js"));
-    assert.ok(!listed.includes("apps/web/node_modules/dep.js"), "a dependency folder at any depth stays out");
+    assert.ok(
+      !listed.includes("apps/web/node_modules/dep.js"),
+      "an installed dependency folder at any depth stays out",
+    );
+    assert.ok(listed.includes("functions/node_modules/lib/index.js"), "one the project committed is its source");
 
     const root = path.join(await tmpDir("studio-shadow-"), "builds");
     const runner = fakeRunner();

@@ -1400,8 +1400,10 @@ describe("the Open Project sheet", () => {
     await writeFile(path.join(own, ".env.local"), "SESSION_SECRET=hunter3\n");
     await writeFile(path.join(own, ".env.example"), "SESSION_SECRET=\n");
     await mkdir(path.join(own, "server"), { recursive: true });
-    await writeFile(path.join(own, "server", "notes.db-wal"), "wal\n");
-    await writeFile(path.join(own, "server", "notes.db-shm"), "shm\n");
+    for (const side of ["notes.db-wal", "notes.db-shm", "app.sqlite-wal", "app.sqlite-shm"])
+      await writeFile(path.join(own, "server", side), "side file\n");
+    for (const side of ["data.sqlite3-wal", "data.sqlite3-shm"])
+      await writeFile(path.join(own, "server", side), "side file\n");
     // A database that ships with the app (a sample for sql.js) is the project's: it stays tracked.
     await mkdir(path.join(own, "public"), { recursive: true });
     await writeFile(path.join(own, "public", "sample.sqlite"), "sample\n");
@@ -1427,6 +1429,10 @@ describe("the Open Project sheet", () => {
       ".env.example",
       "server/notes.db-wal",
       "server/notes.db-shm",
+      "server/app.sqlite-wal",
+      "server/app.sqlite-shm",
+      "server/data.sqlite3-wal",
+      "server/data.sqlite3-shm",
     ]) {
       assert.ok(!tracked.includes(swept), `${swept} is in the first commit: ${tracked.join(", ")}`);
     }
@@ -1436,7 +1442,7 @@ describe("the Open Project sheet", () => {
     );
     // …and none of them is left over as an untracked file, which would refuse every landing.
     const leftover = (await exec("git", ["-C", own, "status", "--porcelain"])).stdout;
-    assert.doesNotMatch(leftover, /\.env|notes\.db/, leftover);
+    assert.doesNotMatch(leftover, /\.env|server\//, leftover);
 
     // What the user already wrote is theirs: a rule they have is never written twice, and the
     // one line that must not carry a slash (a fork's node_modules is a symlink, and a

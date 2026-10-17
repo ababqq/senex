@@ -282,6 +282,11 @@ async function checkReference(
   if (module && /\.m?js$/i.test(file)) check.queue.push(file);
 }
 
+/** A left-out root as the staged tree spells its files: `/`-separated, with no `./` and no trailing slash. */
+function stagedName(rel: string): string {
+  return path.posix.normalize(rel.replaceAll("\\", "/")).replace(/\/+$/, "");
+}
+
 /**
  * Check what a script's imports name. `tolerant` is for a classic script, which the lexer may not
  * be able to read at all: then there is nothing to follow, and nothing is refused for it.
@@ -447,7 +452,7 @@ async function checkReferences(
     queue: [],
     visited: new Set(),
     neededVendor: new Set(),
-    leftOut,
+    leftOut: leftOut.map(stagedName),
     opaqueImport: false,
   };
   for (const rel of included) {

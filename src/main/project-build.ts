@@ -150,7 +150,10 @@ export function buildFailureNote(problem: BuildProblem): string {
 /** Files that are never part of a build, however big the folder is. */
 const NEVER_MIRRORED = new Set([".git", "node_modules", ".studio"]);
 
-/** Whether a path holds a folder no build takes from the project, at any depth. */
+/**
+ * Whether a path an untracked listing names holds a folder no build takes from the project, at any
+ * depth: a workspace package's own `node_modules` that the root's ignore rule does not reach.
+ */
 function neverMirrored(rel: string): boolean {
   return rel.split("/").some((segment) => NEVER_MIRRORED.has(segment));
 }
@@ -564,16 +567,21 @@ export async function treeKey(dir: string, serve: string | null): Promise<string
   return hash.digest("hex");
 }
 
-/** The files that make up the project, relative to `dir`. */
+/**
+ * The files that make up the project, relative to `dir`: what git tracks, and what it has not been
+ * told to ignore. A folder named like a dependency folder is left out at the root, and below it
+ * only when untracked — one the project committed is part of its source.
+ */
 export async function mirrorList(dir: string, serve: string | null): Promise<string[]> {
-  const listed = await gitOut(dir, ["ls-files", "-z", "--cached", "--others", "--exclude-standard"]);
-  if (listed === null) return [...new Set(await walk(dir, serve, UNINDEXED_FILE_LIMIT))];
+  const tracked = await gitOut(dir, ["ls-files", "-z", "--cached"]);
+  if (tracked === null) return [...new Set(await walk(dir, serve, UNINDEXED_FILE_LIMIT))];
+  const untracked = (await gitOut(dir, ["ls-files", "-z", "--others", "--exclude-standard"])) ?? "";
   const out = new Set<string>();
-  for (const rel of listed.split("\0").filter(Boolean)) {
-    if (isServedOutput(rel, serve)) continue;
-    if (neverMirrored(rel)) continue;
-    out.add(rel);
-  }
+  const add = (listing: string, left: (rel: string) => boolean) => {
+    for (const rel of listing.split("\0").filter(Boolean)) if (!isServedOutput(rel, serve) && !left(rel)) out.add(rel);
+  };
+  add(tracked, (rel) => NEVER_MIRRORED.has(rel.split("/")[0] ?? ""));
+  add(untracked, neverMirrored);
   // Gitignored on purpose and read by every Vite build: a worker's build used the defaults
   // while the user's used their own values, and nobody could see why the two differed.
   for (const name of await readdir(dir).catch(() => [])) if (name.startsWith(".env")) out.add(name);

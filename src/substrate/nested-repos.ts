@@ -75,6 +75,8 @@ const IGNORE_RULES: Array<{ line: string; already: RegExp }> = [
   { line: "*.db-shm", already: /^\/?\*\.db-shm$/m },
   { line: "*.sqlite-wal", already: /^\/?\*\.sqlite-wal$/m },
   { line: "*.sqlite-shm", already: /^\/?\*\.sqlite-shm$/m },
+  { line: "*.sqlite3-wal", already: /^\/?\*\.sqlite3-wal$/m },
+  { line: "*.sqlite3-shm", already: /^\/?\*\.sqlite3-shm$/m },
 ];
 
 /** Which of those rules a folder's `.gitignore` is still missing. */

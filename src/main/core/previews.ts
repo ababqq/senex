@@ -1015,16 +1015,18 @@ export class PreviewService {
    * Remove this project's earlier shown builds: each is a full copy of the project, and nothing
    * else would ever delete one. A folder stays while any window serves it, while another show is
    * still preparing it, and when its name is not exactly one `showBuild` made for this project.
+   * Both are asked again for every folder, in that order: a Reload's show can finish while this one
+   * is removing the one before, and a folder is always preparing or already served, never neither.
    */
   async #retireShows(project: string, keep: string): Promise<void> {
     const root = path.join(this.#core.layout.scratch, SHOW_FOLDER);
     const entries = await readdir(root, { withFileTypes: true }).catch(() => []);
-    const serving = await this.#servedFolders();
-    for (const entry of entries) {
+    for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
       const tail = SHOW_NAME_TAIL.exec(entry.name);
       if (!entry.isDirectory() || !tail || entry.name.slice(0, tail.index) !== project) continue;
       const dir = path.join(root, entry.name);
-      if (dir === keep || this.#preparing.has(dir) || serving.has(await realpath(dir).catch(() => dir))) continue;
+      if (dir === keep || this.#preparing.has(dir)) continue;
+      if ((await this.#servedFolders()).has(await realpath(dir).catch(() => dir))) continue;
       await this.#core.snapshots.removeWorktree(project, dir).catch(() => {});
       await rm(dir, { recursive: true, force: true }).catch(() => {});
       this.#core.builds.forget(dir);
