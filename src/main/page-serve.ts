@@ -148,6 +148,35 @@ export function looksLikeDocument(html: string): boolean {
   return /^\s*(?:<!--[\s\S]*?-->\s*)*<(?:!doctype\b|html\b|head\b|body\b)/i.test(html);
 }
 
+/** What a refused request, navigation or new window is called in the project's console. */
+const BLOCKED_WHAT = {
+  request: "a network request to",
+  navigation: "a navigation to",
+  window: "opening a new window to",
+} as const;
+/** Why: an offline preview refuses requests and navigations; a new window would show a page that is not the project. */
+const BLOCKED_WHY = {
+  request: "projects run offline in the preview",
+  navigation: "projects run offline in the preview",
+  window: "the preview shows only the project, so a link that leaves it does not open",
+} as const;
+
+/**
+ * The console line for something the preview refused, and the key that says it once per origin per
+ * load. The origin is named, not the whole address (a query can hold a token); a `mailto:` or
+ * `tel:` link has no origin, so its scheme stands for it.
+ */
+export function blockedNote(kind: keyof typeof BLOCKED_WHAT, raw: string): { key: string; text: string } {
+  let origin = raw;
+  try {
+    const url = new URL(raw);
+    origin = url.origin !== "null" ? url.origin : url.protocol;
+  } catch {
+    /* not a URL: noted as given */
+  }
+  return { key: `${kind} ${origin}`, text: `the studio blocked ${BLOCKED_WHAT[kind]} ${origin}: ${BLOCKED_WHY[kind]}` };
+}
+
 /** The console line for a document too large to buffer. Its shape is asserted. */
 export function tooLargeNote(relPath: string, byteLength: number): string {
   const mb = (byteLength / (1024 * 1024)).toFixed(1);

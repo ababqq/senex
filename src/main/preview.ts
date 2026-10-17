@@ -31,6 +31,7 @@ import {
   HttpStatus,
   MAX_REWRITE_BYTES,
   answerRequest,
+  blockedNote,
   confinePreviewContents,
   isDocumentDest,
   isNavigation,
@@ -81,7 +82,6 @@ import { setTimeout as delay } from "node:timers/promises";
 const MESSAGE = {
   renderGone: (reason: string) => `render process gone: ${reason}`,
   unresponsive: "the page is unresponsive",
-  blocked: (what: string) => `the studio blocked ${what}: projects run offline in the preview`,
   pageSurfaceFallback: (reason: string | null) =>
     `the page surface could not be photographed${reason === null ? "" : ` (${reason})`}; the canvas was photographed instead`,
   noFrame: "the page produced no frame to photograph",
@@ -333,7 +333,10 @@ export class ProjectPreview {
     wc.on("did-start-navigation", () => {
       void this.#profiler.invalidate("navigation changed");
     });
-    wc.setWindowOpenHandler(() => ({ action: "deny" }));
+    wc.setWindowOpenHandler(({ url }) => {
+      this.#noteBlocked("window", url);
+      return { action: "deny" };
+    });
     // The page stays on project:// or its loopback origin: a remote page inside the studio's chrome,
     // which has no URL bar, is a sign-in form nobody can tell from the studio's own (SECUI-3).
     wc.on("will-navigate", (event) => {
@@ -517,23 +520,11 @@ export class ProjectPreview {
   }
 
   /** One console line per blocked origin per load: the harness reads why a project's request failed. */
-  #noteBlocked(kind: "request" | "navigation", raw: string): void {
-    let origin = raw;
-    try {
-      const url = new URL(raw);
-      origin = url.origin !== "null" ? url.origin : url.protocol;
-    } catch {
-      /* not a URL: note it as given */
-    }
-    const key = `${kind} ${origin}`;
+  #noteBlocked(kind: "request" | "navigation" | "window", raw: string): void {
+    const { key, text } = blockedNote(kind, raw);
     if (this.#blockedNoted.has(key)) return;
     this.#blockedNoted.add(key);
-    const what = kind === "request" ? `a network request to ${origin}` : `a navigation to ${origin}`;
-    this.#push({
-      at: Date.now(),
-      level: "warning",
-      message: MESSAGE.blocked(what),
-    });
+    this.#push({ at: Date.now(), level: "warning", message: text });
   }
 
   /**

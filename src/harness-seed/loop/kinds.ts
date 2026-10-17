@@ -94,6 +94,12 @@ export interface InputProbe {
 
 /** What the studio's page layer counts on every page (`src/page/ui-activity.ts`): the evidence the inputs landed. */
 const NAVIGATION_PATHS = ["ui.navigations", "ui.reactions"];
+/**
+ * The address or the page changed. The page layer counts per document, so a link to another HTML
+ * page starts new counters at zero: such a site is told apart by where the page says it is.
+ * `has()` first, because `!=` reads an unreported view as different and a blind page must not pass.
+ */
+export const VIEW_CHANGED = "(has('ui.view') && ui.view != early.ui.view)";
 const EDIT_PATHS = ["ui.edits"];
 /** What a scene's `player()` reports, for a canvas project a person walks and looks around in. */
 const LOOK_PATHS = ["player.yaw"];
@@ -502,7 +508,8 @@ export function appLine(app: AnyRecord | null | undefined): string {
   // `kind && navigate.length === 0 && edit.length === 0` — the shape of this test is the whole
   // point: a project with no input the studio can measure must be told about, not given an empty list.
   if (paths.length === 0) return `PROJECT: ${kind.says}.${drives}${noInputEvidence}`;
-  return `PROJECT: ${kind.says}.${drives} The input evidence is ${paths.join(", ")} in __studio.state() — report [dead-input] only if those are unchanged.`;
+  const evidence = kind.navigate.length ? [...paths, "ui.view"] : paths;
+  return `PROJECT: ${kind.says}.${drives} The input evidence is ${evidence.join(", ")} in __studio.state() — report [dead-input] only if those are unchanged.`;
 }
 
 /**
@@ -547,7 +554,7 @@ export function criticFor(app: AnyRecord | null | undefined): string {
 const TEMPLATE_PROBES: { navigate: InputProbe; edit: InputProbe; look: InputProbe; move: InputProbe } = {
   navigate: {
     paths: NAVIGATION_PATHS,
-    expr: "abs(delta('ui.navigations')) > 0 || abs(delta('ui.reactions')) > 0",
+    expr: `abs(delta('ui.navigations')) > 0 || abs(delta('ui.reactions')) > 0 || ${VIEW_CHANGED}`,
     note: "harness-owned: after the scripted clicks the address or the page changed — the pointer reaches something that responds",
   },
   edit: {
@@ -583,9 +590,7 @@ export function inputProbesFor(app: AnyRecord | null | undefined): {
   const kind = normalizeAppTraits(app).kind;
   const entry = kind ? APP_KINDS[kind] : null;
   return {
-    navigate: entry?.navigate.length
-      ? counterProbe(entry.navigate, "clicks", "the pointer reaches something that responds")
-      : TEMPLATE_PROBES.navigate,
+    navigate: entry?.navigate.length ? navigationProbe(entry.navigate) : TEMPLATE_PROBES.navigate,
     edit: entry?.edit.length
       ? counterProbe(entry.edit, "typing", "the keyboard reaches a field")
       : TEMPLATE_PROBES.edit,
@@ -602,6 +607,12 @@ function counterProbe(paths: string[], scripted: string, meaning: string): Input
     expr: paths.map((path) => `abs(delta('${path}')) > 0`).join(" || "),
     note: `harness-owned: after the scripted ${scripted} ${paths.join(" or ")} changed — ${meaning}`,
   };
+}
+
+/** The click axis: the counters, or the page now reporting another view. */
+function navigationProbe(paths: string[]): InputProbe {
+  const counters = counterProbe(paths, "clicks", "the pointer reaches something that responds");
+  return { ...counters, expr: `${counters.expr} || ${VIEW_CHANGED}` };
 }
 
 function lookProbe(paths: string[]): InputProbe {

@@ -9406,4 +9406,25 @@ describe("a page with no canvas is a page, not a scene that failed to draw (seco
     assert.match(text, /no demo end frame is attached to this comparison/);
     assert.doesNotMatch(text, /each demo's end frame is attached as an image/);
   });
+
+  it("DS-9. a link to another page changes the view though the new document's counters restart at zero", async () => {
+    const { withHarnessChecks } = await import("../../src/harness-seed/loop/spec.ts");
+    const spec = withHarnessChecks(
+      { id: "f", checks: [], cameras: [] } as never,
+      { ownsMain: true, app: { kind: "content-site" } } as never,
+    ) as { checks: Array<{ id: string; kind: string; expr: string }> };
+    const check = spec.checks.find((entry) => entry.id === "nav-changes-view")!;
+    // Page B is a new document: its counters begin at 0, but it reports where it is.
+    const separatePage = evaluateProbeCheck(check as never, {
+      state: { ui: { navigations: 0, reactions: 0, view: "/about.html" } },
+      stateEarly: { ui: { navigations: 0, reactions: 0, view: "/index.html" } },
+    });
+    assert.equal(separatePage.pass, true, JSON.stringify(separatePage));
+    // Nothing moved at all is still a failure.
+    const still = evaluateProbeCheck(check as never, {
+      state: { ui: { navigations: 0, reactions: 0, view: "/index.html" } },
+      stateEarly: { ui: { navigations: 0, reactions: 0, view: "/index.html" } },
+    });
+    assert.equal(still.pass, false);
+  });
 });

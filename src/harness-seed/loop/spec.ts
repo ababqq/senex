@@ -907,9 +907,11 @@ export const HARNESS_CHECKS: Record<string, AnyRecord & { expr?: string; note: s
     kind: CheckKind.Probe,
     weight: CheckWeight.Identity,
     origin: CheckOrigin.Harness,
-    expr: "abs(delta('ui.navigations')) > 0 || abs(delta('ui.reactions')) > 0",
+    // The one expression for the click axis lives in loop/kinds.ts; a page that begins at zero on
+    // every document (separate HTML files) is told apart there by the view it reports.
+    expr: inputProbesFor(undefined).navigate.expr,
     needs: ["ui.navigations", "ui.reactions"],
-    note: "harness-owned: after the scripted clicks the address or the page changed — the pointer reaches something that responds",
+    note: "harness-owned: after the scripted clicks the address, the page or the document changed — the pointer reaches something that responds",
   },
   "look-turns-camera": {
     kind: CheckKind.Probe,
