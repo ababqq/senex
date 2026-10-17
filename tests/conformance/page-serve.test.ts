@@ -936,6 +936,10 @@ describe("what the project's console says about something the preview refused", 
       blockedNote("request", "https://api.open-meteo.com/v1/forecast?x=1").origin,
       "https://api.open-meteo.com",
     );
+    // Only an origin the preview refused is "blocked"; a link to a page of the project is the project's to fix.
+    assert.equal(blockedNote("navigation", "https://github.com/me").blocked, "https://github.com");
+    assert.equal(blockedNote("tab", "project://site/about.html").blocked, null);
+    assert.equal(blockedNote("window", "https://github.com/me").blocked, null);
     // A link to a page of the project itself that asks for a new tab: nothing leaves the project, and
     // every such link is its own page, so each is noted once.
     const inside = blockedNote("tab", "project://site/about.html?token=abc#x");

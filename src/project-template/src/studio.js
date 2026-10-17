@@ -59,7 +59,7 @@ const DOM_TEXT_CHARS = 60;
  *   views?: Record<string, () => unknown>,
  *   cameras?: Record<string, () => unknown>,
  *   demos?: Record<string, () => unknown>,
- *   reset?: (seed: number) => void,
+ *   reset?: (seed: number, info?: { boot: boolean }) => void | Promise<void>,
  *   canvas?: HTMLCanvasElement,
  *   scene?: unknown,
  *   renderer?: unknown,
@@ -610,7 +610,9 @@ export function installStudio(config) {
   }
 
   window.__studio = api;
-  config.reset?.(seed, { boot: true });
+  const booting = config.reset?.(seed, { boot: true });
+  // An async reset is not waited for on load, but its failure is not lost.
+  if (typeof booting?.then === "function") booting.then(undefined, (error) => console.error(error));
   renderAll();
   if (typeof config.update === "function") rafHandle = requestAnimationFrame(loop);
   return api;

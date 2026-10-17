@@ -36,10 +36,14 @@ import { CaptureSurface, ProjectClock } from "../../shared/preview-contract.ts";
 const INPUT_SETTLE_MS = 120;
 /** How long a paced page's clock runs before a reload replaces it: a debounced autosave fires in this time. */
 const RELOAD_FLUSH_MS = 1_200;
+/** A page too stuck to answer the clock calls is reloaded after this much longer: reload is how it is recovered. */
+const RELOAD_FLUSH_GRACE_MS = 3_000;
 
 /** The delays a computer waits, injectable so a test does not. */
 export interface ComputerTimings {
   reloadFlushMs?: number;
+  /** How much longer than the flush a stuck page is waited for before it is reloaded anyway. */
+  flushGraceMs?: number;
 }
 /** Characters of the project's state in an answer: after an action, by default, and when asked for. */
 const STATE_CHARS = { afterAction: 600, default: 1_200, asked: 4_000 } as const;
@@ -318,7 +322,11 @@ export function computerTools(
     if (loadedHere && !force) return { port: window, problem: null, note: null };
     // The clock stood still between moves, so what the page was about to save (a debounced
     // autosave) never ran, and the reload would read as data loss. Let it run before the page goes.
-    if (loadedHere && paced) await moving(window, () => sleep(timings.reloadFlushMs ?? RELOAD_FLUSH_MS));
+    if (loadedHere && paced) {
+      const flush = timings.reloadFlushMs ?? RELOAD_FLUSH_MS;
+      const grace = timings.flushGraceMs ?? RELOAD_FLUSH_GRACE_MS;
+      await Promise.race([moving(window, () => sleep(flush)), sleep(flush + grace)]);
+    }
     const loaded = await previews.loadServed(window, grant.project, root, grant.entry);
     if (loaded.problem) {
       sessionPort.loaded = null;

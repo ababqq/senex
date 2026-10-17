@@ -149,6 +149,8 @@ export function looksLikeDocument(html: string): boolean {
 }
 
 /** What a refused request, navigation, new window or new tab is called in the project's console. */
+/** How many blocked origins a console answer names before it counts the rest. */
+const BLOCKED_ORIGINS_SHOWN = 5;
 const BLOCKED_WHAT = {
   request: "a network request to",
   navigation: "a navigation to",
@@ -172,7 +174,7 @@ const BLOCKED_WHY = {
 export function blockedNote(
   kind: keyof typeof BLOCKED_WHAT,
   raw: string,
-): { key: string; text: string; origin: string } {
+): { key: string; text: string; origin: string; blocked: string | null } {
   let origin = raw;
   try {
     const url = new URL(raw);
@@ -185,6 +187,9 @@ export function blockedNote(
     key: `${kind} ${origin}`,
     text: `the studio blocked ${BLOCKED_WHAT[kind]} ${origin}: ${BLOCKED_WHY[kind]}`,
     origin,
+    // Only a request or navigation to somewhere else is an origin the preview refused; a link that
+    // opens a window or a page of the project is the project's to change.
+    blocked: kind === "request" || kind === "navigation" ? origin : null,
   };
 }
 
@@ -196,7 +201,9 @@ export function blockedNote(
 export function blockedLine(entries: ReadonlyArray<{ blocked?: string }>): string | null {
   const origins = [...new Set(entries.map((entry) => entry.blocked).filter((origin) => typeof origin === "string"))];
   if (!origins.length) return null;
-  return `blocked by the preview's offline policy: ${origins.join(", ")} — an error from these is the preview, not the project`;
+  const shown = origins.slice(0, BLOCKED_ORIGINS_SHOWN).join(", ");
+  const more = origins.length > BLOCKED_ORIGINS_SHOWN ? ` +${origins.length - BLOCKED_ORIGINS_SHOWN} more` : "";
+  return `blocked by the preview's offline policy: ${shown}${more} — an error from these is the preview, not the project`;
 }
 
 /** The console line for a document too large to buffer. Its shape is asserted. */

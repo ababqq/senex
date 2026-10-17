@@ -1474,20 +1474,37 @@ function callProject(win: Foreign, verb: string, ...args: Foreign[]) {
   }
 }
 
+/** How long `seed()` waits for a reset that returns a promise before it answers anyway. */
+const SEED_SETTLE_MS = 10_000;
+
 /**
  * What `seed()` answers: the seed itself, or a promise of it when the project's reset returned a
  * promise (an IndexedDB or sql.js store loads its fixtures asynchronously) so the caller reads the
- * page after the reset, not during it. A rejected reset is reported, as a thrown one is.
+ * page after the reset, not during it. A rejected reset is reported, as a thrown one is, and one
+ * that is still running after `SEED_SETTLE_MS` (a reset waiting on a timer the paused clock holds)
+ * no longer holds the caller. `later` is a timer the page's clock does not own; without one there is no deadline.
  */
-export function settledSeed(seeded: number, pending: Foreign): number | Promise<number> {
+export function settledSeed(
+  seeded: number,
+  pending: Foreign,
+  later?: (ms: number) => Promise<void>,
+): number | Promise<number> {
   if (typeof pending?.then !== "function") return seeded;
-  return Promise.resolve(pending).then(
+  const reset = Promise.resolve(pending).then(
     () => seeded,
     (err: unknown) => {
       console.error(err);
       return seeded;
     },
   );
+  if (!later) return reset;
+  const deadline = later(SEED_SETTLE_MS).then(() => {
+    console.error(
+      new Error(`reset(${seeded}) was still running after ${SEED_SETTLE_MS / 1000}s; seed() answered anyway`),
+    );
+    return seeded;
+  });
+  return Promise.race([reset, deadline]);
 }
 
 function readProjectState(win: Foreign) {
@@ -1590,6 +1607,7 @@ function hookedAnswers() {
 /** What the shim's facade needs from the rest of the install. */
 interface FacadeParts {
   win: Foreign;
+  natives: Natives;
   watch: CanvasWatch;
   clock: ShimClock;
   lock: LockState;
@@ -1598,7 +1616,7 @@ interface FacadeParts {
 }
 
 // ── the merging facade ──
-function studioFacade({ win, watch, clock, lock, activity, ready }: FacadeParts) {
+function studioFacade({ win, natives, watch, clock, lock, activity, ready }: FacadeParts) {
   const injected = { keys: new Set(), look: { x: 0, y: 0 } };
   return {
     version: CLOCK_VERSION,
@@ -1625,7 +1643,11 @@ function studioFacade({ win, watch, clock, lock, activity, ready }: FacadeParts)
     },
     seed(value: Foreign) {
       const seeded = clock.seed(value);
-      return settledSeed(seeded, callProject(win, "seed", value));
+      return settledSeed(
+        seeded,
+        callProject(win, "seed", value),
+        (ms) => new Promise((resolve) => natives.setTimeout(resolve, ms)),
+      );
     },
     ...hookedAnswers(),
     // Recorded, never dispatched: preview.ts sends the DOM events itself, and a second copy
@@ -1810,7 +1832,7 @@ export function installStudioShim(rawOptions: Foreign) {
   watchTrustedInput(win, readiness);
   startPump({ natives, clock, loaders, options, gpuAsked: () => watch.gpu }, watch, readiness);
   const activity = installUiActivity({ scope: win });
-  installFacade(win, studioFacade({ win, watch, clock, lock, activity, ready }));
+  installFacade(win, studioFacade({ win, natives, watch, clock, lock, activity, ready }));
   installCaptureGlobal(win, watch, clock, natives);
   installClockGlobal({ win, natives, options, clock, watch, loaders, lock, readiness, random, ready });
   return win.__studioClock;

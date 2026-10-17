@@ -524,10 +524,10 @@ export class ProjectPreview {
 
   /** One console line per blocked origin per load: the harness reads why a project's request failed. */
   #noteBlocked(kind: "request" | "navigation" | "window" | "tab", raw: string): void {
-    const { key, text, origin } = blockedNote(kind, raw);
+    const { key, text, blocked } = blockedNote(kind, raw);
     if (this.#blockedNoted.has(key)) return;
     this.#blockedNoted.add(key);
-    this.#push({ at: Date.now(), level: "warning", message: text, blocked: origin });
+    this.#push({ at: Date.now(), level: "warning", message: text, ...(blocked ? { blocked } : {}) });
   }
 
   /**
@@ -729,10 +729,10 @@ export class ProjectPreview {
     const url = options.loopback
       ? loopbackEntryUrl(loopbackPortFor(project), entry, this.#siteBase)
       : `${SCHEME}://${project}/${entry}`;
-    // A built page's service worker and Cache Storage would answer with the previous build; its
-    // saved data (localStorage, IndexedDB) is left alone.
-    if (options.loopback) await this.#clearWorkers(new URL(url).origin);
+    // A built page's service worker and Cache Storage would answer with the previous build (an
+    // offline-first page rebuilds its cache on load); localStorage and IndexedDB are left alone.
     try {
+      if (options.loopback) await this.#clearWorkers(new URL(url).origin);
       await view.webContents.loadURL(url);
     } finally {
       this.#navigating = false;

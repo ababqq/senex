@@ -226,15 +226,22 @@ describe("the requested state — setup and its probe", () => {
 
 describe("computer tool — a playtester's clock (golden-boot-glory)", () => {
   /** The computer on a fake window that records what reached the project, for one screen role. */
-  async function playOn(role: "playtester" | "builder", extra: Array<Record<string, unknown>> = []) {
+  async function playOn(
+    role: "playtester" | "builder",
+    extra: Array<Record<string, unknown>> = [],
+    options: { hangStart?: boolean } = {},
+  ) {
     const { computerTools } = await import("../../src/main/core/computer-tools.ts");
     const { tmpDir } = await import("../helpers/tmp.ts");
     const reached: string[] = [];
     const timeline: string[] = [];
+    let armed = false;
     const port = {
       studioCall: async (method: string) => {
         reached.push(method);
         timeline.push(method);
+        // A renderer stuck in a loop never answers the call at all.
+        if (options.hangStart && armed && method === "start") return new Promise(() => {});
         return true;
       },
       input: async () => {
@@ -262,11 +269,12 @@ describe("computer tool — a playtester's clock (golden-boot-glory)", () => {
       "/nonexistent/build",
       await tmpDir("computer-clock-"),
       sessionPort as never,
-      { reloadFlushMs: 1 },
+      { reloadFlushMs: 1, flushGraceMs: 1 },
     );
     await tools.onLiveTool("computer", { action: "key", text: "d" });
     await tools.onLiveTool("computer", { action: "wait", duration: 0.01 });
     const before = timeline.length;
+    armed = true;
     for (const action of extra) await tools.onLiveTool("computer", action);
     return { reached, timeline: timeline.slice(before), prompt: String(tools.liveTools[0]?.description) };
   }
@@ -284,6 +292,8 @@ describe("computer tool — a playtester's clock (golden-boot-glory)", () => {
       ["start", "pause", "load", "pause"],
       "the clock runs, then stands still again, and only then is the page replaced",
     );
+    const hung = await playOn("playtester", [{ action: "reload" }], { hangStart: true });
+    assert.ok(hung.timeline.includes("load"), "a page too stuck to answer does not stop its own reload");
     const built = await playOn("builder", [{ action: "reload" }]);
     assert.deepEqual(built.timeline, ["load"], "a builder's page was running anyway");
     const first = await playOn("playtester", []);
@@ -340,5 +350,9 @@ describe("computer tool — what the console says was blocked", () => {
     assert.match(only, /blocked by the preview's offline policy: https:\/\/cdn\.example\.org/);
     assert.match(only, /console errors since load: none/, "a block is a warning, not an error");
     assert.equal(await answer([failed]).then((text) => /blocked by/.test(text)), false);
+    const many = await answer(Array.from({ length: 9 }, (_, i) => blocked(`https://h${i}.example`)));
+    assert.match(many, /h4\.example/);
+    assert.doesNotMatch(many, /h5\.example/, "five origins are named");
+    assert.match(many, /\+4 more/);
   });
 });

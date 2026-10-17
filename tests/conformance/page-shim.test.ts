@@ -930,6 +930,19 @@ describe("a reset that is not finished when it returns", () => {
     }
     assert.equal(failures.length, 1, "the failure is reported, as a synchronous one is");
   });
+
+  it("stops waiting for a reset that never finishes, and says so", async () => {
+    const reported: unknown[] = [];
+    const quiet = console.error;
+    console.error = (...args: unknown[]) => void reported.push(args[0]);
+    try {
+      const never = new Promise<void>(() => {});
+      assert.equal(await settledSeed(9, never, async () => {}), 9, "the deadline passes and the seed is answered");
+    } finally {
+      console.error = quiet;
+    }
+    assert.equal(reported.length, 1);
+  });
 });
 
 describe("starting a named view from the top of the page", () => {
