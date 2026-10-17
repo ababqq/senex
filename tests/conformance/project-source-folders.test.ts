@@ -66,6 +66,25 @@ test("a project the studio started with its old .gitignore loses the export/ lin
   );
 });
 
+test("a project that is only opened, not built in, gets the same repair, whatever the file's line endings", async () => {
+  const lite = await coreLite();
+  const rules = [".studio/", "node_modules", ".git.studio-backup", "*.sqlite", "output/", ".env", ".playwright-cli/"];
+  const rows: Array<[string, string, string]> = [
+    ["every studio rule", `export/\n.DS_Store\n${rules.join("\n")}\n`, `.DS_Store\n${rules.join("\n")}\n`],
+    ["Windows line endings", "export/\r\n.DS_Store\r\nbuild/\r\n", ".DS_Store\r\nbuild/\r\n"],
+    ["no final newline", "export/\n.DS_Store", ".DS_Store"],
+    ["a user's own export/ after other rules", "dist/\nexport/\n.DS_Store\n", "dist/\nexport/\n.DS_Store\n"],
+    ["an export/ not followed by the header's second line", "export/\n*.log\n", "export/\n*.log\n"],
+  ];
+  for (const [index, [what, before, after]] of rows.entries()) {
+    const project = await lite.core.projects.scaffold(`opened-${index}`, { title: `Opened ${index}` });
+    const gitignore = path.join(project.dir, ".gitignore");
+    await writeFile(gitignore, before);
+    await lite.core.projects.touch(project.name);
+    assert.equal(await readFile(gitignore, "utf8"), after, what);
+  }
+});
+
 test("a .gitignore the user wrote, export/ included, is theirs", async () => {
   const lite = await coreLite();
   const project = await lite.core.projects.scaffold("their-tool", { title: "Their tool" });

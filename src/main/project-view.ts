@@ -6,9 +6,13 @@
 /** The longest file name or type a download's console line repeats. */
 const MAX_DOWNLOAD_TEXT = 80;
 
+/** How many distinct refused downloads a load names on the console before it only says there were more. */
+export const MAX_DOWNLOAD_NOTES = 5;
+
 const MESSAGE = {
   downloadRefused: (name: string, kind: string) =>
     `a download of ${name}${kind} started and was not saved: the preview does not save files`,
+  moreDownloads: "more downloads were started and not saved: the preview does not save files",
 } as const;
 
 /**
@@ -68,4 +72,14 @@ export function downloadDecision(offscreen: boolean, file: { name: string; mimeT
   if (!offscreen) return { cancel: false, note: null };
   const kind = file.mimeType ? ` (${consoleText(file.mimeType)})` : "";
   return { cancel: true, note: MESSAGE.downloadRefused(consoleText(file.name) || "a file", kind) };
+}
+
+/**
+ * The console line a refused download earns, given the notes this load has already given: each
+ * distinct note once, the first few by name, then a single line saying there were more, then nothing.
+ * The caller records the note as said whenever it asked.
+ */
+export function downloadLine(said: ReadonlySet<string>, note: string): string | null {
+  if (said.has(note) || said.size > MAX_DOWNLOAD_NOTES) return null;
+  return said.size === MAX_DOWNLOAD_NOTES ? MESSAGE.moreDownloads : note;
 }

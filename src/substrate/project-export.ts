@@ -20,12 +20,15 @@ const neverPublic = (name: string) =>
   /^(id_rsa|id_ed25519|credentials|secrets|env)(\.|$)/i.test(name);
 
 /**
- * What the studio itself writes into a project's folder — the agents' rules, the decision log and
- * the reference stills — and a build that copies the project's files could carry into its output.
- * Never public, build output or not.
+ * What the studio itself writes into a project's folder — the agents' rules (`AGENTS.md`,
+ * `CLAUDE.md`, `CLAUDE.own.md`) and the decision logs (`NOTES.md`, `NOTES.<facet>.md`) — which a
+ * build that copies the project's files could carry into its output. Never public.
  */
 const studioAuthored = (name: string) =>
-  /^(AGENTS|CLAUDE)(\.|$)/i.test(name) || /^NOTES\.(md|markdown)$/i.test(name) || /^references$/i.test(name);
+  /^(AGENTS|CLAUDE)(\.own)?\.(md|markdown)$/i.test(name) || /^NOTES(\.[\w-]+)?\.(md|markdown)$/i.test(name);
+
+/** The folder the studio keeps its reference stills in, at the root of a project. */
+const REFERENCES_FOLDER = /^references$/i;
 
 /**
  * A project's working folders and pages. They keep a project's *source* export to its public
@@ -33,13 +36,17 @@ const studioAuthored = (name: string) =>
  * page are the site.
  */
 const devScaffolding = (name: string) =>
-  /^(coverage|tests?|docs|archive|research|evidence|captures|screenshots|logs)$/i.test(name) ||
+  /^(references|coverage|tests?|docs|archive|research|evidence|captures|screenshots|logs)$/i.test(name) ||
   /^(NOTES|README|PLAN)(\.|$)/i.test(name);
 
-/** Which names an export leaves out: a build's output keeps every file that is not never-public. */
-function leftOut(name: string, buildFolder: boolean): boolean {
+/**
+ * Which names an export leaves out: a build's output keeps every file that is not never-public or
+ * the studio's own (its reference stills are the root `references/` folder, not any folder of that name).
+ */
+function leftOut(name: string, buildFolder: boolean, atRoot: boolean): boolean {
   if (neverPublic(name) || studioAuthored(name)) return true;
-  return !buildFolder && devScaffolding(name);
+  if (buildFolder) return atRoot && REFERENCES_FOLDER.test(name);
+  return devScaffolding(name);
 }
 
 /** `project.export` answers this to the harness, so it lives in `shared/project-folder.ts`. */
@@ -157,7 +164,7 @@ async function stagePath(
 ): Promise<void> {
   const parts = rel.split(/[\\/]/);
   if (path.isAbsolute(rel) || parts.includes("..")) throw new Error(MESSAGE.InvalidPublicPath(rel));
-  if (parts.some((part) => leftOut(part, options.buildFolder))) {
+  if (parts.some((part, depth) => leftOut(part, options.buildFolder, depth === 0))) {
     result.excluded.push(destRel);
     return;
   }
@@ -197,7 +204,8 @@ async function rewriteEntry(staging: string): Promise<{ entry: string; html: str
 /** The page's import map (`imports` only; a scoped map is refused). */
 function importMapOf(html: string): Record<string, string> {
   const imports: Record<string, string> = {};
-  for (const [, body = ""] of html.matchAll(/<script\b[^>]*type=["']importmap["'][^>]*>([\s\S]*?)<\/script>/gi)) {
+  for (const { attributes, body } of pageParts(html).scripts) {
+    if (attributes.get("type")?.trim().toLowerCase() !== "importmap") continue;
     const map = JSON.parse(body);
     for (const [key, value] of Object.entries(map.imports ?? {})) if (typeof value === "string") imports[key] = value;
     if (map.scopes && Object.keys(map.scopes).length) throw new Error(MESSAGE.ScopedImportMap);
@@ -264,13 +272,26 @@ async function checkReference(
   if (module && /\.m?js$/i.test(file)) check.queue.push(file);
 }
 
-async function scanModule(check: ReferenceCheck, text: string, file: string): Promise<void> {
-  const [specifiers] = parse(text);
+/**
+ * Check what a script's imports name. `tolerant` is for a classic script, which the lexer may not
+ * be able to read at all: then there is nothing to follow, and nothing is refused for it.
+ */
+async function scanModule(check: ReferenceCheck, text: string, file: string, tolerant = false): Promise<void> {
+  let specifiers: ReturnType<typeof parse>[0];
+  try {
+    [specifiers] = parse(text);
+  } catch (error) {
+    if (tolerant) return;
+    throw error;
+  }
   const vendored = isBelow(path.join(check.staging, VENDOR_DIR), file);
   for (const specifier of specifiers) {
-    if (specifier.n !== undefined) await checkReference(check, specifier.n, file, true);
-    else if (specifier.d > -1 && !vendored && !namesProjectFile(text.slice(specifier.s, specifier.e)))
-      check.opaqueImport = true;
+    if (specifier.n !== undefined) {
+      await checkReference(check, specifier.n, file, true);
+      continue;
+    }
+    const computed = specifier.d > -1 && !namesProjectFile(text.slice(specifier.s, specifier.e));
+    if (computed && !vendored) check.opaqueImport = true;
   }
 }
 
@@ -283,6 +304,7 @@ function namesProjectFile(expression: string): boolean {
 const SRC_TAGS: ReadonlySet<string> = new Set([
   "script",
   "img",
+  "image",
   "source",
   "video",
   "audio",
@@ -305,69 +327,81 @@ const LOADED_RELS: ReadonlySet<string> = new Set([
   "manifest",
 ]);
 
-/** A tag, with quoted attribute values that may hold a `>`. */
-const TAG = /<([a-z][\w-]*)\b((?:"[^"]*"|'[^']*'|[^>"'])*)>/gi;
-/** An element whose body is text, not markup: what is inside is code or style, never tags. */
-const RAW_TEXT_ELEMENT = /(<(script|style|textarea)\b(?:"[^"]*"|'[^']*'|[^>"'])*>)([\s\S]*?)(<\/\2\s*>)/gi;
+/** One attribute of a tag: its name, and its value quoted either way or not at all. */
+const ATTRIBUTE = /([^\s"'<>/=]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)))?/g;
+/**
+ * What a page is made of, in document order: a comment (skipped), an element whose body is text
+ * (`script`, `style`, `textarea`: what is inside is code, never tags) and any other tag. A tag's
+ * quoted values may hold a `>`, and `<script-loader>` is not a script.
+ */
+const PAGE_NODE =
+  /<!--(?:-?>|[\s\S]*?-->)|<(script|style|textarea)(?![\w:-])((?:"[^"]*"|'[^']*'|[^>"'])*)>([\s\S]*?)<\/\1\s*>|<([a-z][\w-]*)((?:"[^"]*"|'[^']*'|[^>"'])*)>/gi;
 
-/** An attribute's value in a tag's attribute text, quoted or not (not `data-src`, which only looks like `src`). */
-function attributeOf(attributes: string, name: string): string | undefined {
-  const match = new RegExp(`(?<![\\w-])${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s"'<>=\`]+))`, "i").exec(attributes);
-  return match?.slice(1).find((value) => value !== undefined && value !== "");
+/** A tag's attributes by lower-case name, as a browser reads them: the first of a name wins. */
+function attributesOf(text: string): Map<string, string> {
+  const attributes = new Map<string, string>();
+  for (const [, name = "", double, single, bare] of text.matchAll(ATTRIBUTE)) {
+    const key = name.toLowerCase();
+    if (!attributes.has(key)) attributes.set(key, double ?? single ?? bare ?? "");
+  }
+  return attributes;
 }
 
-/** The page's markup without its comments, as a browser reads it (`<!-->` is an empty comment). */
-function withoutComments(html: string): string {
-  return html.replace(/<!--(?:-?>|[\s\S]*?-->)/g, "");
+/** What a page loads and runs: the files its tags name, and its scripts with their bodies. */
+interface PageParts {
+  files: string[];
+  scripts: Array<{ attributes: Map<string, string>; body: string }>;
 }
 
 /**
  * The files a page's own tags load. A link to another page (`<a href>`, `<area>`, `<base>`, a
  * canonical or alternate `<link>`) is navigation: it may name the site's root, a folder, a clean
- * URL or another site, none of which is a file the export has to hold. Script, style and textarea
- * bodies are text: a template string in a script is not a tag.
+ * URL or another site, none of which is a file the export has to hold.
  */
-function loadedFiles(page: string): string[] {
-  const markup = page.replace(RAW_TEXT_ELEMENT, "$1$4");
-  return [...markup.matchAll(TAG)].flatMap(([, tag = "", attributes = ""]) =>
-    filesOfTag(tag.toLowerCase(), attributes),
-  );
+function pageParts(html: string): PageParts {
+  const parts: PageParts = { files: [], scripts: [] };
+  for (const [node, rawName, rawAttributes = "", body = "", tagName, tagAttributes = ""] of html.matchAll(PAGE_NODE)) {
+    if (node.startsWith("<!--")) continue;
+    const name = (rawName ?? tagName ?? "").toLowerCase();
+    const attributes = attributesOf(rawName ? rawAttributes : tagAttributes);
+    parts.files.push(...filesOfTag(name, attributes));
+    if (name === "script" && rawName) parts.scripts.push({ attributes, body });
+  }
+  return parts;
 }
 
 /** The files one tag loads: a media tag's `src` (and a video's poster), a `<link>`'s `href` when its `rel` says so. */
-function filesOfTag(name: string, attributes: string): string[] {
-  const named = (attribute: string): string[] => {
-    const value = attributeOf(attributes, attribute);
-    return value ? [value] : [];
-  };
+function filesOfTag(name: string, attributes: Map<string, string>): string[] {
+  const named = (...keys: string[]): string[] =>
+    keys.flatMap((key) => (attributes.get(key) ? [attributes.get(key) ?? ""] : []));
   if (name === "link") {
-    const rels = (attributeOf(attributes, "rel") ?? "").toLowerCase().split(/\s+/);
+    const rels = (attributes.get("rel") ?? "").toLowerCase().split(/\s+/);
     const loaded = rels.some((rel) => LOADED_RELS.has(rel) || rel.startsWith("apple-touch"));
     return loaded ? named("href") : [];
   }
-  if (HREF_TAGS.has(name)) return [...named("href"), ...named("xlink:href")];
-  if (!SRC_TAGS.has(name)) return [];
-  if (name === "input" && attributeOf(attributes, "type")?.toLowerCase() !== "image") return [];
-  return name === "video" ? [...named("src"), ...named("poster")] : named("src");
+  const hrefs = HREF_TAGS.has(name) ? named("href", "xlink:href") : [];
+  if (!SRC_TAGS.has(name)) return hrefs;
+  if (name === "input" && attributes.get("type")?.toLowerCase() !== "image") return hrefs;
+  return [...hrefs, ...(name === "video" ? named("src", "poster") : named("src"))];
 }
 
 /** Whether a script's `type` makes it code the page runs, and as a module or as a classic script. */
-function scriptKind(attributes: string): "module" | "classic" | null {
-  const type = (attributeOf(attributes, "type") ?? "").trim().toLowerCase();
-  if (type === "module") return "module";
-  return type === "" || /^(?:text|application)\/(?:x-)?(?:java|ecma)script$/.test(type) ? "classic" : null;
+function scriptKind(type: string | undefined): "module" | "classic" | null {
+  const kind = (type ?? "").trim().toLowerCase();
+  if (kind === "module") return "module";
+  return kind === "" || /^(?:text|application)\/(?:x-)?(?:java|ecma)script$/.test(kind) ? "classic" : null;
 }
 
 async function scanHtml(check: ReferenceCheck, text: string, file: string): Promise<void> {
-  const page = withoutComments(text);
+  const { files, scripts } = pageParts(text);
   // A tag's `src="main.js"` is a URL relative to the page; only a module's own imports are names.
-  for (const ref of loadedFiles(page)) await checkReference(check, ref, file, /\.m?js(?:[?#]|$)/i.test(ref), false);
-  for (const [, open = "", , body = ""] of page.matchAll(RAW_TEXT_ELEMENT)) {
-    if (!/^<script\b/i.test(open)) continue;
-    const kind = scriptKind(open.replace(/^<script\b/i, "").replace(/>$/, ""));
-    if (kind === "module") await scanModule(check, body, file);
+  for (const ref of files) await checkReference(check, ref, file, /\.m?js(?:[?#]|$)/i.test(ref), false);
+  for (const { attributes, body } of scripts) {
+    // A script with a source ignores its body.
+    if (attributes.has("src")) continue;
+    const kind = scriptKind(attributes.get("type"));
     // A classic script can still `import()` a library: its body is read for that alone.
-    else if (kind === "classic") await scanModule(check, body, file).catch(() => {});
+    if (kind !== null) await scanModule(check, body, file, kind === "classic");
   }
 }
 

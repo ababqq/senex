@@ -50,7 +50,7 @@ import {
 import { PAGE_DISPATCH } from "./page-dispatch.ts";
 import { emulatePageFocus } from "./preview-focus.ts";
 import { anchoredBounds } from "./preview-anchor.ts";
-import { downloadDecision, projectViewPreferences } from "./project-view.ts";
+import { downloadDecision, downloadLine, projectViewPreferences } from "./project-view.ts";
 import { capActions, type PreviewInputAction } from "../substrate/preview-input.ts";
 import { applyInputAction, type PageDispatch } from "./preview-input-driver.ts";
 import { cropImageFile, diffImageFiles, encodedImageStats, pairJpeg, resizeToJpeg } from "./preview-images.ts";
@@ -72,9 +72,6 @@ import { errorMessage } from "../shared/errors.ts";
 import { setTimeout as delay } from "node:timers/promises";
 
 /** What the preview's console tells the agent about the project view, and why a call is refused. */
-/** How many distinct refused downloads a load names on the console before it only says there were more. */
-const MAX_DOWNLOAD_NOTES = 5;
-
 const MESSAGE = {
   renderGone: (reason: string) => `render process gone: ${reason}`,
   unresponsive: "the page is unresponsive",
@@ -86,7 +83,6 @@ const MESSAGE = {
     `screenshot found no compositor frame; retrying once without changing window visibility (${reason})`,
   notMethodName: (method: string) => `not a studio method name: ${method}`,
   consoleUnavailable: "Console observation unavailable; no console-clean claim is possible",
-  moreDownloads: "more downloads were started and not saved: the preview does not save files",
 } as const;
 
 export type { PageCaptureInfo };
@@ -491,7 +487,7 @@ export class ProjectPreview {
     item: Electron.DownloadItem,
     contents: Electron.WebContents,
   ): void => {
-    if (contents !== this.#view?.webContents) return;
+    if (contents && contents !== this.#view?.webContents) return;
     const decision = downloadDecision(this.options.offscreen ?? false, {
       name: item.getFilename(),
       mimeType: item.getMimeType(),
@@ -503,10 +499,10 @@ export class ProjectPreview {
 
   /** The first few distinct refused downloads of a load, then one line saying there were more: a page cannot fill the console with them. */
   #noteDownload(note: string): void {
-    if (this.#downloadNotes.has(note) || this.#downloadNotes.size > MAX_DOWNLOAD_NOTES) return;
-    const over = this.#downloadNotes.size === MAX_DOWNLOAD_NOTES;
+    const message = downloadLine(this.#downloadNotes, note);
+    if (message === null) return;
     this.#downloadNotes.add(note);
-    this.#push({ at: Date.now(), level: "warning", message: over ? MESSAGE.moreDownloads : note });
+    this.#push({ at: Date.now(), level: "warning", message });
   }
 
   /** One console line per blocked origin per load: the harness reads why a project's request failed. */

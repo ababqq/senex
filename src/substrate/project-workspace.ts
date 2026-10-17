@@ -43,7 +43,13 @@ import { exportPublicProject, type ExportOptions, type ExportResult } from "./pr
 import { ownNotes, ownRules, REFERENCES_README } from "./project-workspace-prompts.ts";
 import { type ProjectValidation, validateProjectDir } from "./project-validation.ts";
 import { atomicWriteJson, ensureDir, pathExists, readJsonForUpdate, readJsonIfExists } from "./fsx.ts";
-import { ensureIgnoreRules, hasLegacyIgnoreHeader, missingIgnoreRules, nestedRepos } from "./nested-repos.ts";
+import {
+  ensureIgnoreRules,
+  hasLegacyIgnoreHeader,
+  migrateLegacyIgnore,
+  missingIgnoreRules,
+  nestedRepos,
+} from "./nested-repos.ts";
 import { isBelow, isInside, samePath, throughClaudeFolder } from "./paths.ts";
 import {
   declaresDependencies,
@@ -480,6 +486,8 @@ export class ProjectWorkspaces {
       return;
     }
     if (!(await pathExists(dir))) return;
+    // Best effort: opening a project must not fail over a read-only `.gitignore`.
+    await migrateLegacyIgnore(dir).catch(() => undefined);
     this.#recents = [
       { name, dir, openedAt: new Date().toISOString() },
       ...this.#recents.filter((row) => row.name !== name && !samePath(row.dir, dir)),

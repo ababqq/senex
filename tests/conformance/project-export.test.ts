@@ -298,10 +298,24 @@ it("reads a page's tags as a browser does: what it loads must exist, what is onl
     ["a fragment reference", page('<svg><use href="#icon"></use></svg>')],
     ["an input that is not an image", page('<input type="text" src="./gone.png">')],
     ["a link the page only points to", page('<link rel="alternate" href="/feed.xml"><a href="/x">x</a>')],
+    [
+      "a quoted src inside another attribute",
+      page('<img alt=\'see src="./gone.png"\' src="ok.png">', { "ok.png": "png" }),
+    ],
+    [
+      "a script that has a src ignores its body",
+      page('<script src="main.js">import "./gone.js";</script>', { "main.js": "1;" }),
+    ],
   ];
   const missing: Array<[string, Record<string, string>]> = [
     ["a '>' inside a quoted attribute", page('<img alt="a > b" src="./gone.png">')],
-    ["a tag after an empty comment", page('<!--><img src="./gone.png">')],
+    ["a tag after an empty comment", page('<!--><img src="./gone.png"><!-- c -->')],
+    ["a custom element that starts like a script", page('<script-loader></script-loader><img src="./gone.png">')],
+    ["a comment opener inside a script string", page('<script>var s = "<!--";</script><img src="./gone.png">')],
+    ["a quoted src inside another attribute, then the real one", page('<img alt=\'src="./ok.png"\' src="./gone.png">')],
+    ["an image written as <image>", page('<image src="./gone.png">')],
+    ["an SVG image with xlink:href", page('<svg><image xlink:href="./gone.png"/></svg>')],
+    ["a classic script's dynamic import", page('<script>import("./gone.js");</script>')],
     ["an SVG image", page('<svg><image href="./gone.png"/></svg>')],
     ["an unquoted attribute", page("<link rel=stylesheet href=./gone.css>")],
     ["a video poster", page('<video poster="./gone.jpg"></video>')],
@@ -329,18 +343,30 @@ it("reads a page's tags as a browser does: what it loads must exist, what is onl
   }
 });
 
-it("never ships what the studio wrote into a project, even from a build that copied the project's files", async () => {
+it("never ships what the studio wrote into a project, even from a build that copied the project's files, and still ships pages that share those names", async () => {
   const { temp, source, target } = await site({
-    "index.html": '<a href="notes.html">Notes</a>',
+    "index.html":
+      '<a href="notes.html">Notes</a><a href="agents/">Agents</a><img src="claude.png"><img src="assets/references/x.png">',
     "notes.html": "<h1>Notes app</h1>",
-    "CLAUDE.html": "<h1>rules</h1>",
+    "agents/index.html": "<h1>Agents directory</h1>",
+    "claude.png": "png",
+    "assets/references/x.png": "png",
+    "CLAUDE.md": "rules",
+    "CLAUDE.own.md": "rules",
     "AGENTS.md": "rules",
     "NOTES.md": "decisions",
+    "NOTES.f1.md": "decisions",
     "references/mood.png": "png",
   });
   try {
     const result = await exportPublicProject(source, target, await readdir(source), undefined, { buildFolder: true });
-    assert.deepEqual(result.included.sort(), ["index.html", "notes.html"]);
+    assert.deepEqual(result.included.sort(), [
+      "agents/index.html",
+      "assets/references/x.png",
+      "claude.png",
+      "index.html",
+      "notes.html",
+    ]);
   } finally {
     await removeTree(temp);
   }

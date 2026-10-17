@@ -69,8 +69,12 @@ export function missingIgnoreRules(current: string | null): string[] {
   return IGNORE_RULES.filter((rule) => current === null || !rule.already.test(current)).map((rule) => rule.line);
 }
 
-/** The `export/` line the studio's own first `.gitignore` began with, from when exports were written into the project folder. */
-const LEGACY_EXPORT_LINE = "export/\n";
+/**
+ * The `export/` line the studio's own first `.gitignore` began with, from when exports were written
+ * into the project folder — and only while the `.DS_Store` line it was written with follows it
+ * (either line ending; the last line may lack one).
+ */
+const LEGACY_EXPORT_LINE = /^export\/\r?\n(?=\.DS_Store(?:\r?\n|$))/;
 
 /**
  * Whether a `.gitignore` still begins with the studio's old two-line header. Its `export/` rule
@@ -78,7 +82,18 @@ const LEGACY_EXPORT_LINE = "export/\n";
  * module there is left out of every commit; exports have gone to the studio's folder since.
  */
 export function hasLegacyIgnoreHeader(current: string | null): boolean {
-  return current?.startsWith(`${LEGACY_EXPORT_LINE}.DS_Store\n`) === true;
+  return current !== null && LEGACY_EXPORT_LINE.test(current);
+}
+
+/**
+ * Drop only that one line from a project's `.gitignore`, when it is there. The studio calls this
+ * as a project is opened, so a project nobody has built in since still lists its `src/export/`.
+ */
+export async function migrateLegacyIgnore(dir: string): Promise<void> {
+  const file = path.join(dir, ".gitignore");
+  const current = await readFile(file, "utf8").catch(() => null);
+  if (current === null || !hasLegacyIgnoreHeader(current)) return;
+  await writeFile(file, current.replace(LEGACY_EXPORT_LINE, ""));
 }
 
 /**
@@ -90,7 +105,7 @@ export async function ensureIgnoreRules(dir: string, header = ""): Promise<void>
   const file = path.join(dir, ".gitignore");
   const current = await readFile(file, "utf8").catch(() => null);
   const legacy = hasLegacyIgnoreHeader(current);
-  const kept = current !== null && legacy ? current.slice(LEGACY_EXPORT_LINE.length) : current;
+  const kept = current !== null && legacy ? current.replace(LEGACY_EXPORT_LINE, "") : current;
   const missing = missingIgnoreRules(kept);
   if (missing.length === 0 && !legacy) return;
   const before = kept === null ? header : `${kept.replace(/\s*$/, "")}\n`;

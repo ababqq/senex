@@ -230,8 +230,9 @@ and must stay so.
 **State.** Zustand domain stores in [`src/renderer/state/`](../../src/renderer/state/) (engines,
 event log, layout, library, plugins, session, threads, toasts, agent screens, command runs) are wired once by
 `createStudio(api)` in `state/studio.ts`: one `onEvent` subscription, the log poll, the bootstrap
-and the commands that span stores. One instance starts before React mounts, so StrictMode cannot subscribe twice. Components read through the selector hooks in `state/hooks.ts`
-; UI-only state stays local; derivations stay in the pure
+and the commands that span stores. The app has one instance started before React mounts, so
+StrictMode cannot subscribe twice. Components read through the selector hooks in `state/hooks.ts`
+(`useShallow` for objects and arrays); UI-only state stays local; derivations stay in the pure
 modules (`chat-entries.ts`, `run-graph.ts`, `build-progress.ts`,
 [`src/shared/run-state.ts`](../../src/shared/run-state.ts)); `localStorage` keys come only from
 [`src/renderer/storage.ts`](../../src/renderer/storage.ts). `tests/conformance/renderer-state.test.ts`
@@ -982,12 +983,11 @@ with a managed local runtime; core has no special Blender tool.
   the director calls `assets.checkpoint` before merging.
 - **Export.** [`src/substrate/project-export.ts`](../../src/substrate/project-export.ts) stages fresh public
   files and replaces only an app-managed destination; hidden files (`.well-known` aside), env files,
-  private-key names, dependencies and symlinks are excluded or refused. A build's folder keeps every
-  other file but the agents' own (`CLAUDE.*`, `AGENTS.*`, `NOTES.md`, `references/`); a project's
-  sources also leave out `docs/`, `tests/`, `notes.*`, and a project that builds into
-  itself exports only its declared files. Only tags that load a file are checked, so links are
-  navigation. Parsed imports prune the vendor folder; a computed `import()` keeps the import map's
-  libraries. Computed URLs defeat static analysis, so browser export checks remain required.
+  private-key names, dependencies and symlinks are excluded or refused. A build's folder keeps all but the agents' own files (`CLAUDE.md`, `AGENTS.md`,
+  `NOTES*.md`, a root `references/`); sources also drop `docs/`, `tests/`, `notes.*`, and an in-place
+  build exports only declared files. Only tags that load a file are checked; links
+  are navigation. Parsed imports prune the vendor folder (a computed `import()` keeps the import
+  map's libraries). Computed URLs defeat static analysis, so browser export checks remain required.
 
 ## Persistence and the event log
 
