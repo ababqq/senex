@@ -173,7 +173,8 @@ export function blockedNote(kind: keyof typeof BLOCKED_WHAT, raw: string): { key
   let origin = raw;
   try {
     const url = new URL(raw);
-    origin = kind === "tab" ? url.pathname : url.origin !== "null" ? url.origin : url.protocol;
+    const named = url.origin !== "null" ? url.origin : url.protocol;
+    origin = kind === "tab" ? url.pathname : named;
   } catch {
     /* not a URL: noted as given */
   }
