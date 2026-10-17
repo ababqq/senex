@@ -39,7 +39,7 @@ import type {
   ProjectRecent,
   ProjectShape,
 } from "../shared/project-folder.ts";
-import { exportPublicProject, type ExportOptions, type ExportResult } from "./project-export.ts";
+import { exportPublicProject, siteRoots, type ExportOptions, type ExportResult } from "./project-export.ts";
 import { ownNotes, ownRules, REFERENCES_README } from "./project-workspace-prompts.ts";
 import { type ProjectValidation, validateProjectDir } from "./project-validation.ts";
 import { atomicWriteJson, ensureDir, pathExists, readJsonForUpdate, readJsonIfExists } from "./fsx.ts";
@@ -122,7 +122,7 @@ const TITLED_TEMPLATE_FILES = ["index.html", "NOTES.md"];
 /** What a new folder's `.gitignore` starts with, before the studio's own rules. */
 const GITIGNORE_HEADER = ".DS_Store\n";
 
-/** The folders a template project exports beside its `index.html` when studio.json names none. */
+/** The folders a template project exports whole beside its pages when studio.json names none. */
 const DEFAULT_EXPORT_DIRS = ["src", "assets"];
 
 /**
@@ -211,7 +211,7 @@ const MESSAGE = {
   AppFolder: "that folder belongs to the app itself — pick a project folder you own",
   BuildBeforeExport: "Build the current project successfully before exporting",
   DeclareExportFiles:
-    "Declare the public files/directories in studio.json exportFiles before exporting this custom project",
+    'This project builds into its own folder, so Studio cannot tell its public files from its sources: list them in studio.json exportFiles (for example ["index.html", "dist"]) and export again',
   BadExportFiles: "exportFiles must be a nonempty list of public paths",
   InsideProject: "Choose a folder outside your projects.",
   RootNotEmpty: "Choose an empty folder. This one already has other folders in it.",
@@ -1145,19 +1145,25 @@ export class ProjectWorkspaces {
       return exportPublicProject(builtOutput, targetDir, roots, undefined, { ...options, buildFolder: true });
     }
     if (shape?.build) throw new Error(MESSAGE.BuildBeforeExport);
-    if (shape && !config?.exportFiles) throw new Error(MESSAGE.DeclareExportFiles);
-    const roots = config?.exportFiles ?? (await defaultExportRoots(dir));
+    const roots = config?.exportFiles ?? (await defaultExportRoots(dir, shape === null));
     if (!isExportList(roots)) throw new Error(MESSAGE.BadExportFiles);
     return exportPublicProject(dir, targetDir, roots, shape ? undefined : this.vendorDir, options);
   }
 }
 
-/** A template project's public files: its page plus whichever of the default folders it has. */
-async function defaultExportRoots(dir: string): Promise<string[]> {
-  const present = await Promise.all(
-    DEFAULT_EXPORT_DIRS.map(async (root) => ((await pathExists(path.join(dir, root))) ? root : null)),
-  );
-  return ["index.html", ...present.filter((root): root is string => root !== null)];
+/**
+ * The public files of a project that declared none: its pages and what they load (`siteRoots`).
+ * A template project also keeps its `index.html` and its `src` and `assets` folders whole, because
+ * its scripts load files by names no tag spells.
+ */
+async function defaultExportRoots(dir: string, template: boolean): Promise<string[]> {
+  const site = await siteRoots(dir);
+  if (!template) return site;
+  const present = (
+    await Promise.all(DEFAULT_EXPORT_DIRS.map(async (root) => ((await pathExists(path.join(dir, root))) ? root : null)))
+  ).filter((root): root is string => root !== null);
+  const rest = site.filter((file) => file !== "index.html" && !present.some((root) => file.startsWith(`${root}/`)));
+  return ["index.html", ...present, ...rest];
 }
 
 /** studio.json's `exportFiles`, as written by hand: a non-empty list of non-empty strings. */

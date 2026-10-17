@@ -4,6 +4,7 @@
  * workspace (`project-workspace.ts`) decides when each is written.
  */
 import type { ProjectShape } from "../shared/project-folder.ts";
+import { normalServe } from "./project-shape.ts";
 
 /** How many lines of the folder's own readme the seeded notes quote. */
 const QUOTED_README_LINES = 40;
@@ -22,7 +23,7 @@ export const REFERENCES_README = [
 
 /** The rule a project with a build gets: run it before finishing, and keep the contract's types. */
 function buildRule(build: string, serve: string): string {
-  const from = serve === "." ? "the project folder" : `\`${serve}/\``;
+  const from = normalServe(serve) === null ? "the project folder" : `\`${serve}/\``;
   return [
     `6. **Run \`${build}\` before you finish**, and fix what it reports. The studio runs the`,
     `   same build before every preview and before every judge looks: a build that fails is a`,
@@ -30,6 +31,12 @@ function buildRule(build: string, serve: string): string {
     `   \`./studio.js\`, the types are in \`src/studio.d.ts\` beside it — point the config at them`,
     `   rather than deleting the import. The page is served from ${from}; if the build writes it`,
     `   somewhere else, set \`serve\` in studio.json to that folder.`,
+    ...(normalServe(serve) === null
+      ? [
+          `   It builds into the project folder itself, so Export needs the public files listed`,
+          `   in studio.json \`exportFiles\` (for example \`["index.html", "dist"]\`).`,
+        ]
+      : []),
     "",
   ].join("\n");
 }

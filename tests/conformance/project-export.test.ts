@@ -1,9 +1,9 @@
-import { it } from "node:test";
+import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { mkdtemp, mkdir, writeFile, readFile, readdir, symlink, rm } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
-import { exportPublicProject, siteBaseOfEntry } from "../../src/substrate/project-export.ts";
+import { exportPublicProject, siteBaseOfEntry, siteRoots } from "../../src/substrate/project-export.ts";
 import { removeTree } from "../helpers/tmp.ts";
 
 it("exports public runtime files without nested credentials or private directories; fails safely on symlinks", async () => {
@@ -420,6 +420,258 @@ it("takes a file that exists as written over the one under the base", async () =
   } finally {
     await removeTree(built.temp);
   }
+});
+
+describe("the public files of a site no build made", () => {
+  it("are its pages and what they, their styles and their modules load, and nothing beside them", async () => {
+    const tree = await site({
+      "index.html":
+        '<link rel="stylesheet" href="css/site.css"><script type="module" src="js/app.js"></script><img src="img/logo.png"><a href="about.html">About</a>',
+      "about.html": "<h1>About</h1>",
+      "blog/post.html": '<link rel="stylesheet" href="../css/site.css">',
+      "css/site.css":
+        '@import "reset.css"; @import url("b.css"); @import \'c.css\' layer(x); body { background: url(../img/bg.png) } @font-face { src: url(font.woff2?v=1#x) } @import "https://fonts.example/css"; i { background: url(data:image/png;base64,AAAA) }',
+      "css/reset.css": '@import "site.css";',
+      "css/b.css": "b{}",
+      "css/c.css": "c{}",
+      "css/font.woff2": "font",
+      "js/app.js": 'import "./util.js";',
+      "js/util.js": "export const u = 1;",
+      "img/logo.png": "png",
+      "img/bg.png": "png",
+      "img/unused.png": "png",
+      "backup.sql": "insert",
+      "package.json": "{}",
+      "studio.json": "{}",
+      "CLAUDE.md": "rules",
+      "NOTES.md": "notes",
+      ".env": "SECRET=1",
+      "docs/index.html": "<h1>docs</h1>",
+      "tests/t.html": "<h1>t</h1>",
+      "node_modules/x/index.html": "<h1>x</h1>",
+      "README.html": "<h1>readme</h1>",
+    });
+    try {
+      const roots = await siteRoots(tree.source);
+      assert.deepEqual(roots, [
+        "about.html",
+        "blog/post.html",
+        "css/b.css",
+        "css/c.css",
+        "css/font.woff2",
+        "css/reset.css",
+        "css/site.css",
+        "img/bg.png",
+        "img/logo.png",
+        "index.html",
+        "js/app.js",
+        "js/util.js",
+      ]);
+      assert.deepEqual(await siteRoots(tree.source), roots, "the same answer twice");
+      const result = await exportPublicProject(tree.source, tree.target, roots);
+      assert.deepEqual([...result.included].sort(), roots);
+      assert.deepEqual(result.excluded, []);
+    } finally {
+      await removeTree(tree.temp);
+    }
+  });
+
+  it("name a left-out file a page needs, so the export says so instead of calling it missing", async () => {
+    for (const [file, tag] of [
+      ["docs/diagram.png", '<img src="docs/diagram.png">'],
+      ["secrets/keys.js", '<script type="module" src="secrets/keys.js"></script>'],
+      [".hidden/logo.png", '<img src=".hidden/logo.png">'],
+    ] as const) {
+      const tree = await site({ "index.html": tag, [file]: "x" });
+      try {
+        const roots = await siteRoots(tree.source);
+        assert.ok(roots.includes(file), `${file} is proposed so staging can say why it is out`);
+        await assert.rejects(exportPublicProject(tree.source, tree.target, roots), /left out/, file);
+        assert.equal(await readdir(tree.target).catch(() => null), null, "nothing was written");
+      } finally {
+        await removeTree(tree.temp);
+      }
+    }
+  });
+
+  it("never name a path outside the folder, a folder, or a file that is not there", async () => {
+    const tree = await site({
+      "site/index.html": [
+        '<img src="../outside.png"><img src="/../outside.png"><img src="%2e%2e/outside.png"><img src="..%2foutside.png">',
+        '<img src="./img/../../outside.png"><img src="/etc/passwd"><img src="file:///etc/passwd">',
+        '<img src="//evil.example/x.png"><img src="data:image/png;base64,AAAA"><a href="#top">t</a>',
+        '<img src="img/"><img src="/"><img src="./"><img src="gone.png">',
+      ].join(""),
+      "site/img/secret.txt": "secret",
+      "outside.png": "outside",
+    });
+    try {
+      const before = await readdir(tree.temp);
+      assert.deepEqual(await siteRoots(path.join(tree.source, "site")), ["index.html"]);
+      assert.deepEqual(await readdir(tree.temp), before, "reading a folder writes nothing");
+    } finally {
+      await removeTree(tree.temp);
+    }
+  });
+
+  it("find a page whatever its extension's case, leave a folder named like a page, and are empty for an empty folder", async () => {
+    const tree = await site({
+      "index.html": "<p>i</p>",
+      "page.HTML": "<p>p</p>",
+      "page.htm": "<p>h</p>",
+      "x.html/keep": "k",
+    });
+    try {
+      assert.deepEqual(await siteRoots(tree.source), ["index.html", "page.HTML"]);
+    } finally {
+      await removeTree(tree.temp);
+    }
+    const empty = await site({ "keep.txt": "x" });
+    try {
+      assert.deepEqual(await siteRoots(empty.source), []);
+    } finally {
+      await removeTree(empty.temp);
+    }
+    const scoped = await site({
+      "index.html": '<script type="importmap">{"imports":{"a":"/a.js"},"scopes":{"/x/":{"a":"/b.js"}}}</script>',
+    });
+    try {
+      await assert.rejects(siteRoots(scoped.source), /scoped import maps/);
+    } finally {
+      await removeTree(scoped.temp);
+    }
+  });
+
+  it("do not follow a link out of the folder, and propose a linked file so it is refused by name", async (t) => {
+    if (process.platform === "win32") return t.skip("creating a link needs a privilege on Windows");
+    const tree = await site({
+      "site/index.html": '<img src="link.png"><img src="shared/logo.png">',
+      "site/real.html": "<p>r</p>",
+      "secret.png": "secret",
+      "shared/logo.png": "logo",
+      "shared/p.html": "<p>outside</p>",
+    });
+    try {
+      const site = path.join(tree.source, "site");
+      await symlink(path.join(tree.source, "secret.png"), path.join(site, "link.png"));
+      await symlink(path.join(tree.source, "shared"), path.join(site, "shared"));
+      await symlink(path.join(tree.source, "secret.png"), path.join(site, "sneaky.html"));
+      const roots = await siteRoots(site);
+      assert.ok(!roots.includes("sneaky.html") && !roots.includes("shared/p.html"), roots.join(", "));
+      await assert.rejects(exportPublicProject(site, tree.target, roots), /refuses symlink/);
+      assert.equal(await readdir(tree.target).catch(() => null), null);
+    } finally {
+      await removeTree(tree.temp);
+    }
+  });
+
+  it("also gather what a page loads outside its tags' src and href, and a linked file, but not a linked page that is left out", async () => {
+    const tree = await site({
+      "index.html": [
+        "<style>@font-face{src:url(f.woff2)} body{background:url(bg.png)}</style>",
+        '<div style="background:url(inline.png)"></div>',
+        '<picture><source srcset="hero.webp 1x, hero2.webp 2x"><img src="hero.png" srcset="hero-s.png 480w, hero-l.png 960w"></picture>',
+        '<a href="resume.pdf">cv</a><a href="photos/1.jpg">p</a><a href="docs/guide.html">guide</a><a href="contact">c</a>',
+        '<meta property="og:image" content="share.png"><object data="movie.swf"></object>',
+      ].join(""),
+      "f.woff2": "x",
+      "bg.png": "x",
+      "inline.png": "x",
+      "hero.webp": "x",
+      "hero2.webp": "x",
+      "hero.png": "x",
+      "hero-s.png": "x",
+      "hero-l.png": "x",
+      "resume.pdf": "x",
+      "photos/1.jpg": "x",
+      "share.png": "x",
+      "movie.swf": "x",
+      "docs/guide.html": "<h1>guide</h1>",
+      "unlinked.pdf": "x",
+    });
+    try {
+      const roots = await siteRoots(tree.source);
+      assert.deepEqual(roots, [
+        "bg.png",
+        "f.woff2",
+        "hero-l.png",
+        "hero-s.png",
+        "hero.png",
+        "hero.webp",
+        "hero2.webp",
+        "index.html",
+        "inline.png",
+        "movie.swf",
+        "photos/1.jpg",
+        "resume.pdf",
+        "share.png",
+      ]);
+      const result = await exportPublicProject(tree.source, tree.target, roots);
+      assert.deepEqual(result.excluded, []);
+    } finally {
+      await removeTree(tree.temp);
+    }
+  });
+
+  it("skip a page they cannot understand, leave the folders a tool fills alone, and keep names that only begin like a folder", async () => {
+    const tree = await site({
+      "index.html": '<img src="assets2/x.png"><script src="src-extra.js"></script>',
+      "assets2/x.png": "x",
+      "src-extra.js": "1",
+      "templates/base.html": "<script src=\"{% static 'a.js' %}\"></script>",
+      "lab.html": '<script type="module">import "lodash";</script>',
+      "pct.html": '<img src="100%.png">',
+      "dist/index.html": "<p>stale</p>",
+      "output/report.html": "<p>r</p>",
+      "venv/lib/y.html": "<p>y</p>",
+      "htmlcov/index.html": "<p>c</p>",
+      "playwright-report/index.html": "<p>p</p>",
+      "vendor/lib/z.html": "<p>z</p>",
+    });
+    try {
+      assert.deepEqual(await siteRoots(tree.source), ["assets2/x.png", "index.html", "src-extra.js"]);
+    } finally {
+      await removeTree(tree.temp);
+    }
+  });
+
+  it("propose a file reached through a link, read nothing a left-out file imports, and refuse a Windows alias of a private name", async (t) => {
+    const tree = await site({
+      "index.html":
+        '<img src="link.png"><script type="module" src="env.js"></script><img src="id_rsa::$DATA"><img src="key.pem.">',
+      "env.js": 'import "./other.js";',
+      "other.js": "1",
+      "target.png": "x",
+      id_rsa: "private",
+      "key.pem": "private",
+    });
+    try {
+      if (process.platform !== "win32")
+        await symlink(path.join(tree.source, "target.png"), path.join(tree.source, "link.png"));
+      const roots = await siteRoots(tree.source);
+      assert.ok(roots.includes("env.js"), "a left-out module is proposed so staging says why");
+      assert.ok(!roots.includes("other.js"), "…and is not read");
+      for (const alias of ["id_rsa::$DATA", "key.pem."]) assert.ok(!roots.includes(alias), alias);
+      if (process.platform !== "win32")
+        assert.ok(roots.includes("link.png"), "a linked file is proposed so staging refuses it by name");
+      else t.diagnostic("no link on Windows");
+    } finally {
+      await removeTree(tree.temp);
+    }
+  });
+
+  it("stay strict where they were: a dangling string @import is not checked by an export of chosen files", async () => {
+    const tree = await site({
+      "index.html": '<link rel="stylesheet" href="a.css">',
+      "a.css": '@import "tailwindcss";',
+    });
+    try {
+      const result = await exportPublicProject(tree.source, tree.target, ["index.html", "a.css"]);
+      assert.deepEqual([...result.included].sort(), ["a.css", "index.html"]);
+    } finally {
+      await removeTree(tree.temp);
+    }
+  });
 });
 
 it("reads the base off a built entry page, and nothing else off disk", async () => {
