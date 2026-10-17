@@ -100,7 +100,7 @@ test("the copied code is the preset's own entry with its roles in order, and pas
   >;
   const palette = { ...core, background: "#101012" };
   const code = presetCode(genexDark, palette);
-  assert.match(code, /^ {2}preset\("genex", "Genex", Scheme\.Dark, \[\n/);
+  assert.match(code, /^ {2}preset\("genex", "Senex", Scheme\.Dark, \[\n/);
   assert.match(code, /\n {2}\]\),$/);
   assert.deepEqual(pastedColors(code), palette);
   assert.match(
@@ -120,8 +120,8 @@ test("pasting keyed colours sets only those roles; stray text sets nothing", () 
 
 test("the changes text lists each changed role from its designed colour", () => {
   const text = changesText(genexDark, { ...genexDark.colors, muted: "#999999" });
-  assert.equal(text, "Genex · dark\n  Muted text (muted): #a8a9ac → #999999");
-  assert.equal(changesText(genexDark, genexDark.colors), "Genex · dark\n  (unchanged)");
+  assert.equal(text, "Senex · dark\n  Muted text (muted): #a8a9ac → #999999");
+  assert.equal(changesText(genexDark, genexDark.colors), "Senex · dark\n  (unchanged)");
 });
 
 test("readability measures each role where it is drawn, against what AA asks of it", () => {

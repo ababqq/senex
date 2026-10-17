@@ -1,6 +1,6 @@
 # Performance
 
-How Genex's speed is defined, measured and kept. A performance change follows this page the way
+How Senex's speed is defined, measured and kept. A performance change follows this page the way
 a behavior change follows [verification](agent/verification.md). Numbers from a measurement go in
 the PR description and `.studio-dev/evidence/`, never into this page; this page names what is
 measured and how.

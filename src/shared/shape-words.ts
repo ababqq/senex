@@ -11,7 +11,7 @@ import type { FolderInspection, ProjectKind, ProjectShape } from "./project-fold
 
 /** For each kind: the phrase that finishes "This folder holds …", and the stage header's chip. */
 const KINDS: Record<ProjectKind, { phrase: string; chip: string }> = {
-  "studio-template": { phrase: "a project made from the Genex starter", chip: "studio starting point" },
+  "studio-template": { phrase: "a project made from the Senex starter", chip: "studio starting point" },
   "three-vite": { phrase: "a 3D project with its own build", chip: "3D · own build" },
   "three-modules": { phrase: "a 3D project that runs as written", chip: "3D · runs as written" },
   canvas2d: { phrase: "a 2D canvas project", chip: "2D canvas" },
@@ -38,7 +38,7 @@ export function runsWords(shape: ProjectShape): string {
 
 /** The toast after a folder is opened: what was found, and that it was not rewritten. */
 export function openedWords(title: string, shape: ProjectShape): string {
-  return `${title} is ${kindWords(shape.kind)} — Genex keeps it as it is and ${runsWords(shape)}.`;
+  return `${title} is ${kindWords(shape.kind)} — Senex keeps it as it is and ${runsWords(shape)}.`;
 }
 
 /**
@@ -48,7 +48,7 @@ export function openedWords(title: string, shape: ProjectShape): string {
  * harness refuses the night in its own words (`loop/main.ts` `nightRefusal`).
  */
 export const ENGINE_EXPORT_REFUSAL =
-  "This project was exported from a game engine. Genex can open it, play it and take screenshots — it cannot edit or judge a project that is already compiled. To have builders work on it, open the folder with the project's own scenes and scripts.";
+  "This project was exported from a game engine. Senex can open it, play it and take screenshots — it cannot edit or judge a project that is already compiled. To have builders work on it, open the folder with the project's own scenes and scripts.";
 
 /** Whether an overnight build can be started on this shape at all. */
 export function canBuildOvernight(kind: ProjectKind): boolean {
@@ -78,7 +78,7 @@ export function nestedWords(nested: string[]): string[] {
   const names = nested.map((rel) => `${rel}/`).join(", ");
   const one = nested.length === 1;
   return [
-    `${names} ${one ? "is a repository of its own" : "are repositories of their own"} — Genex adds ${one ? "its" : "their"} files to this folder's history the first time a build goes live, so work inside ${one ? "it" : "them"} is not lost.`,
+    `${names} ${one ? "is a repository of its own" : "are repositories of their own"} — Senex adds ${one ? "its" : "their"} files to this folder's history the first time a build goes live, so work inside ${one ? "it" : "them"} is not lost.`,
     `${one ? "Its own history is" : "Their own histories are"} kept beside ${one ? "it" : "them"}, renamed to .git.studio-backup.`,
   ];
 }
@@ -127,8 +127,8 @@ export function openOptions(inspection: FolderInspection): OpenOption[] {
     }
     facts.push(
       preflight.git === "repo"
-        ? "Genex saves each change to the folder’s own Git history."
-        : "Genex starts Git history here, so any change can be undone.",
+        ? "Senex saves each change to the folder’s own Git history."
+        : "Senex starts Git history here, so any change can be undone.",
     );
     facts.push(...nestedWords(preflight.nested));
     return {
@@ -156,7 +156,7 @@ export function openOptions(inspection: FolderInspection): OpenOption[] {
       headline: beside ? "no project of its own" : "an empty folder",
       detail: beside
         ? "the project inside it stays exactly where it is"
-        : "Genex adds a starter project, then you describe the one you want",
+        : "Senex adds a starter project, then you describe the one you want",
       facts: [
         ...(beside ? ["No starter project is written beside the project you already have."] : []),
         ...nestedWords(inspection.nested),

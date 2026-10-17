@@ -135,7 +135,7 @@ test("before the studio is up, the update is one notification that names the ver
   const { updates, log, clicks } = announcer({ studioUp: () => false });
   updates.downloaded("Genex 0.2.0");
   assert.deepEqual(log, [
-    "notify Update ready — restart: Genex 0.2.0 is downloaded. Click to restart now, or it installs the next time you quit.",
+    "notify Update ready — restart: Senex 0.2.0 is downloaded. Click to restart now, or it installs the next time you quit.",
   ]);
   clicks[0]?.();
   await setImmediate();
@@ -143,7 +143,7 @@ test("before the studio is up, the update is one notification that names the ver
   const unnamed = announcer({ studioUp: () => false });
   unnamed.updates.downloaded("");
   assert.deepEqual(unnamed.log, [
-    "notify Update ready — restart: A new version of Genex is downloaded. Click to restart now, or it installs the next time you quit.",
+    "notify Update ready — restart: A new version of Senex is downloaded. Click to restart now, or it installs the next time you quit.",
   ]);
 });
 
@@ -197,7 +197,7 @@ test("a published release Linux cannot install is offered for download, once per
 test("before the studio is up, a downloadable release is one notification that opens its page", () => {
   const { updates, log, clicks } = announcer({ studioUp: () => false });
   updates.available({ version: "0.2.0", url: PAGE });
-  assert.deepEqual(log, ["notify Genex 0.2.0 is available: Click to open its download page."]);
+  assert.deepEqual(log, ["notify Senex 0.2.0 is available: Click to open its download page."]);
   clicks[0]?.();
   assert.deepEqual(log.slice(1), [`open ${PAGE}`]);
 });

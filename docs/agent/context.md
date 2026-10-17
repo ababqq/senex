@@ -1,6 +1,6 @@
-# Genex: product overview
+# Senex: product overview
 
-Genex (formerly AI Game Studio) is a macOS Electron application for making local browser software
+Senex (formerly Genex) is a macOS Electron application for making local browser software
 (web apps, tools, sites) with AI. A person describes a project or a change, answers questions when needed, and reviews
 the running project. The project is a real local project that can be opened,
 edited and exported. Unity is retired.

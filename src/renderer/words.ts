@@ -1585,23 +1585,23 @@ export const UPDATE_WORDS = {
   restart: "Relaunch to update",
   restarting: "Relaunching…",
   /** The button's tooltip: the version a relaunch installs. */
-  hint: (version: string | null) => (version ? `Updates to Genex ${version}` : "Updates to the new version of Genex"),
+  hint: (version: string | null) => (version ? `Updates to Senex ${version}` : "Updates to the new version of Senex"),
   /** Linux: a newer release to download and install over this one. */
-  download: (version: string | null) => (version ? `Download Genex ${version}` : "Download the new Genex"),
+  download: (version: string | null) => (version ? `Download Senex ${version}` : "Download the new Senex"),
   downloadHint: "Opens the release page",
 } as const;
 
 /** Settings → About: the running version and Check for Updates (`panels/AboutSection.tsx`). */
 export const ABOUT_WORDS = {
   tab: "About",
-  product: "Genex",
-  version: (version: string) => `Genex ${version}`,
+  product: "Senex",
+  version: (version: string) => `Senex ${version}`,
   check: "Check for Updates",
   checking: "Checking…",
   current: "You're on the latest version.",
-  downloading: "A new version is downloading. Genex offers the relaunch when it's ready.",
-  ready: (version: string | null) => `Genex ${version ?? "update"} is ready to install.`,
-  available: (version: string | null) => `Genex ${version ?? "update"} is available.`,
+  downloading: "A new version is downloading. Senex offers the relaunch when it's ready.",
+  ready: (version: string | null) => `Senex ${version ?? "update"} is ready to install.`,
+  available: (version: string | null) => `Senex ${version ?? "update"} is available.`,
   off: "This build doesn't check for updates.",
   failed: "Couldn't check for updates. Check your connection and try again.",
   restart: "Relaunch to update",
@@ -1616,7 +1616,7 @@ export const ABOUT_WORDS = {
   copied: "Copied",
   /** What Copy version info puts on the clipboard, and the line beside it. */
   info: (version: string | null, platform: string, arch: string) =>
-    `Genex ${version ?? "development build"} · ${PLATFORM_NAMES[platform] ?? platform} · ${arch}`,
+    `Senex ${version ?? "development build"} · ${PLATFORM_NAMES[platform] ?? platform} · ${arch}`,
 } as const;
 
 /** Platforms by the names people know them by. */
@@ -2627,9 +2627,9 @@ export const LICENSE_WORDS = {
   link: "MIT License",
   title: "Licenses",
   intro:
-    "Genex is open source under the MIT License. It also includes software from other projects, each under its own license.",
+    "Senex is open source under the MIT License. It also includes software from other projects, each under its own license.",
   loading: "Loading…",
-  missing: "This build of Genex doesn’t include its license files.",
+  missing: "This build of Senex doesn’t include its license files.",
 } as const;
 
 /** Settings → Privacy: Share build metrics (`panels/PrivacySection.tsx`). PRIVACY.md says the same things. */
@@ -2640,9 +2640,9 @@ export const PRIVACY_WORDS = {
   shareWhat:
     "After each finished build, send anonymous numbers: times, token counts, the model and whether it worked. Never your prompts, code, files or project names.",
   paused: "Sharing is paused on the Genex side. Nothing is sent until it resumes.",
-  notSent: "This is a developer or test launch of Genex: nothing is sent from it.",
+  notSent: "This is a developer or test launch of Senex: nothing is sent from it.",
   queued: (count: number) => `${plural(count, "row")} waiting to be sent.`,
-  removed: "This build of Genex has build metrics sharing removed.",
+  removed: "This build of Senex has build metrics sharing removed.",
   preview: "See what would be sent",
   hidePreview: "Hide what would be sent",
   previewWhat: "The exact row a finished build becomes, anonymous id included.",

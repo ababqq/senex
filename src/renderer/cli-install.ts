@@ -14,7 +14,7 @@ const PROBLEM: Record<CliInstallProblem, (name: string) => string> = {
   [CliInstallProblem.Download]: (name) => `Couldn't download ${name}. Check your internet connection and try again.`,
   [CliInstallProblem.Installer]: (name) => `${name} didn't install. Try again.`,
   [CliInstallProblem.TimedOut]: (name) => `Installing ${name} took too long. Try again.`,
-  [CliInstallProblem.NotFound]: (name) => `${name} installed, but Genex can't find it. Try again.`,
+  [CliInstallProblem.NotFound]: (name) => `${name} installed, but Senex can't find it. Try again.`,
 };
 
 /** What a failed install says, or null when the job did not fail. */

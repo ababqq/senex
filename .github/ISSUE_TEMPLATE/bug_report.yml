@@ -56,7 +56,7 @@ body:
       description: |
         Paste Settings → Harness → Copy diagnostics if your build has it (it is redacted, but read
         it first). Otherwise give the commit or build, OS version, architecture and Node version. For a crash, include relevant lines from
-        the Genex profile logs/studio.log (macOS: ~/Library/Application Support/Genex/).
+        the Senex profile logs/studio.log (macOS: ~/Library/Application Support/Genex/, the folder is still named Genex for now).
       render: text
     validations:
       required: true

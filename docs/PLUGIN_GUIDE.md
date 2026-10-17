@@ -327,7 +327,7 @@ checked against its git object id; the repository's dotfiles and your authoring 
 fetched. Symlinks, submodules, truncated trees, files over 8 MiB, packages over 64 MiB or 400
 files, and a tree with no `plugin.json` are all refused.
 
-**A Marketplace listing.** The catalog every Genex app reads is
+**A Marketplace listing.** The catalog every Senex app reads is
 [genex-games/genex-plugins](https://github.com/genex-games/genex-plugins); a maintainer reviews
 each release before it is listed. Push the package to a public repository, take the 40-character
 commit sha, set `publisher` to your name, and run from a Studio checkout with a clone of your

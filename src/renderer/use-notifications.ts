@@ -173,7 +173,7 @@ function sendSystemNotices(arrived: Notice[], threads: ConversationRecord[], pro
   };
   const notes =
     arrived.length > 3
-      ? [{ title: "Genex", body: `${arrived.length} updates from your projects` }]
+      ? [{ title: "Senex", body: `${arrived.length} updates from your projects` }]
       : arrived.map((notice) => ({
           id: notice.id,
           title: source(notice),

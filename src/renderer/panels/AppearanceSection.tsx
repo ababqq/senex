@@ -296,7 +296,7 @@ function ThemeHeading({ editor, mixedSurfaces }: { editor: ThemeEditorModel; mix
   const { scheme, palette } = editor;
   const reset = () => {
     editor.change({ ...DEFAULT_APPEARANCE[scheme], overrides: {} });
-    editor.setNotice("Theme reset to Genex.");
+    editor.setNotice("Theme reset to Senex.");
     editor.setError("");
   };
   return (
@@ -462,7 +462,7 @@ function ImportControls({
   return (
     <>
       <p className="appearance-hint">
-        Genex tokens or VS Code JSON/JSONC. UI colors only; missing colors use Genex defaults.
+        Senex tokens or VS Code JSON/JSONC. UI colors only; missing colors use Senex defaults.
       </p>
       <div className="appearance-actions">
         <Button variant="default" disabled={!source.trim()} onClick={onImport}>
@@ -551,7 +551,7 @@ function ThemeShare({ editor }: { editor: ThemeEditorModel }) {
               setSource(event.target.value);
               setError("");
             }}
-            placeholder="Genex color tokens or VS Code UI colors"
+            placeholder="Senex color tokens or VS Code UI colors"
           />
           {share === ShareMode.Import && (
             <ImportControls

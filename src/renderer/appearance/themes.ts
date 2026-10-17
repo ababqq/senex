@@ -182,7 +182,7 @@ function preset(id: string, name: string, scheme: Scheme, values: string[], deta
 export const PRESETS: ThemePreset[] = [
   preset(
     "genex",
-    "Genex",
+    "Senex",
     Scheme.Dark,
     [
       "#0f0f10",
@@ -213,7 +213,7 @@ export const PRESETS: ThemePreset[] = [
   ),
   preset(
     "genex",
-    "Genex",
+    "Senex",
     Scheme.Light,
     [
       "#f9faf9",
@@ -403,7 +403,7 @@ export const THEME_FILE_MAX_BYTES = 128 * 1024;
 
 /** What a theme import that cannot be read tells the person, and the one build defect it can hit. */
 const MESSAGE = {
-  presetMissing: (scheme: Scheme) => `The ${scheme} Genex preset is missing.`,
+  presetMissing: (scheme: Scheme) => `The ${scheme} Senex preset is missing.`,
   unclosedComment: "Close the unfinished JSON comment.",
   newerFormat: "This theme uses a newer format. Choose a version 1 theme.",
   notOpaqueToken: (role: string) => `Use an opaque sRGB color token for ${role}.`,
@@ -411,7 +411,7 @@ const MESSAGE = {
   notHex: (key: string) => `Use a hex color for ${key}.`,
   tooLarge: "Choose a theme smaller than 128 KB.",
   notJson: "Use a valid JSON or JSONC theme file.",
-  noColors: "No supported UI colors found. Choose a Genex token file or a VS Code color theme.",
+  noColors: "No supported UI colors found. Choose a Senex token file or a VS Code color theme.",
 } as const;
 /** The contrast a theme starts at: its palette as designed. */
 export const DEFAULT_CONTRAST = 50;
