@@ -9107,8 +9107,9 @@ describe("a page with no canvas is a page, not a scene that failed to draw (seco
     assert.equal(proof.reason, "");
     assert.equal(proof.idleLoop, false);
     assert.equal(proof.note, "");
-    const chart = previewOf((tick) => ({ steppedFrames: tick * 8, drawCalls: 0, now: tick * 320, canvas: true }));
-    assert.equal((await proveStep(chart as never)).code, "no-draw", "a page that has a canvas still owes a draw");
+    // `canvas` is a canvas drawn to with the GPU (a chart on a 2d canvas reports false, as the form does).
+    const scene = previewOf((tick) => ({ steppedFrames: tick * 8, drawCalls: 0, now: tick * 320, canvas: true }));
+    assert.equal((await proveStep(scene as never)).code, "no-draw", "a page that draws with the GPU still owes a draw");
   });
 
   it("DS-2. a todo page's camera frames are the page: no 'UI outside the canvas' defect and no second copy of the same picture", async () => {
@@ -9138,6 +9139,12 @@ describe("a page with no canvas is a page, not a scene that failed to draw (seco
       1,
       "and a declared kind still says it once",
     );
+    // A run that declared input traits without a kind has input checks on its board: nothing is retracted.
+    for (const app of [{ typing: true }, { navigation: true, ui: true }, { mouseLook: true }, { keyboardMove: true }]) {
+      const line = appLine(app);
+      assert.match(line, /^PROJECT: nothing declared what kind of project this is\./, JSON.stringify(app));
+      assert.doesNotMatch(line, /does not apply/, JSON.stringify(app));
+    }
   });
 
   it("DS-4. a comparison's evidence text names only the pictures that went out with it, and says what was captured but left off", async () => {
@@ -9247,7 +9254,7 @@ describe("a page with no canvas is a page, not a scene that failed to draw (seco
     }
   });
 
-  it("DS-5. a scene keeps its setup before the seed, where its reset keeps what the setup chose", async () => {
+  it("DS-5b. a scene keeps its setup before the seed, where its reset keeps what the setup chose", async () => {
     const { gatherEvidence } = await import("../../src/harness-seed/loop/evidence.ts");
     const { ctx, calls } = resettingPage();
     await gatherEvidence(
@@ -9293,5 +9300,66 @@ describe("a page with no canvas is a page, not a scene that failed to draw (seco
       /controls-named|no-horizontal-overflow/,
       "a run that declared nothing has neither on its board",
     );
+  });
+
+  it("DS-7. the panel, the preservation gate and a partial motion strip say only what was sent", async () => {
+    const { judgeAgainstReference, optimizationPreservation, describeEvidence } = await import(
+      "../../src/harness-seed/loop/judge.ts"
+    );
+    const evidence = {
+      ok: true,
+      shots: [
+        { camera: "default", base64: "ZGVm" },
+        { camera: "user:view", base64: "dXNlcg==" },
+      ],
+      motion: [{ base64: "bTE=" }, { base64: "bTI=" }, { base64: "bTM=" }],
+    };
+    // A strip of six of which three frames are sent says so: MOTION 1…6 would name pictures that are not there.
+    const partial = describeEvidence(
+      { ...evidence, motion: Array.from({ length: 6 }, () => ({ base64: "bQ==" })) } as never,
+      { cameras: new Set(["default"]), motion: 3 },
+    );
+    assert.match(partial, /6-frame motion strip[^\n]*\(3 of its frames, MOTION 1…3, are attached\)/);
+    assert.doesNotMatch(partial, /MOTION 1…6/);
+
+    const still = { label: "ref", mimeType: "image/jpeg", data: "aGk=" };
+    const panelRecorder = ctxRecorder({
+      unknown: { value: null },
+      handlers: {
+        "engine.complete": () => ({
+          message: { content: '{"looks":"build","plays":"build","better":"x","biggest_gap":"","reason":"r"}' },
+        }),
+      },
+    });
+    await judgeAgainstReference(panelRecorder.ctx as never, {
+      run: { runId: "r", reference: { name: "Linear", frames: [still, still] } } as never,
+      evidence: evidence as never,
+      votes: 1,
+    });
+    const panelText = String(
+      (panelRecorder.paramsOf("engine.complete")[0] as { messages?: Array<{ content?: unknown }> })?.messages?.[0]
+        ?.content,
+    );
+    assert.doesNotMatch(panelText, /motion strip from the scripted exercise is attached/);
+    assert.match(panelText, /motion strip was captured but is not attached/);
+
+    const gate = ctxRecorder({
+      unknown: { value: null },
+      handlers: {
+        "engine.complete": () => ({ message: { content: '{"status":"preserved","reasons":[],"summary":"ok"}' } }),
+      },
+    });
+    await optimizationPreservation(gate.ctx as never, {
+      run: { runId: "r" } as never,
+      baseline: evidence as never,
+      candidate: evidence as never,
+      diff: "- a\n+ b",
+      checks: [],
+    });
+    const gateText = String(
+      (gate.paramsOf("engine.complete")[0] as { messages?: Array<{ content?: unknown }> })?.messages?.[0]?.content,
+    );
+    assert.doesNotMatch(gateText, /motion strip from the scripted exercise is attached/);
+    assert.match(gateText, /motion strip was captured but is not attached/);
   });
 });

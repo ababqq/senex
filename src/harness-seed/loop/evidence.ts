@@ -103,6 +103,7 @@ export interface StepProof {
   frames: number;
   drawCalls: number;
   ms: number;
+  /** The page has a canvas it draws to with the GPU, so it owes draws the counters count. */
   canvas: boolean;
   simulatedMs: number | null;
   idle: number;
@@ -442,11 +443,15 @@ export const STEP_WITNESS = `(() => {
       var state = window.__studio && typeof window.__studio.state === "function" ? window.__studio.state() : null;
       if (state && typeof state.simulatedMs === "number") simulatedMs = state.simulatedMs;
     } catch (err) { simulatedMs = null; }
+    // Only a canvas the page draws to with the GPU owes draws the counters count: a chart on a 2d
+    // canvas draws nothing they see. A shim that cannot say keeps every canvas held to its draws.
+    var gl = window.__studioGl;
+    var gpu = gl && typeof gl.gpu === "function" ? !!gl.gpu() : true;
     return {
       steppedFrames: Number(stats.steppedFrames) || 0,
       drawCalls: Number(stats.drawCalls) || 0,
       now: Number(stats.now) || 0,
-      canvas: !!(typeof document !== "undefined" && document.querySelector("canvas")),
+      canvas: !!(typeof document !== "undefined" && document.querySelector("canvas")) && gpu,
       simulatedMs: simulatedMs
     };
   } catch (err) {
@@ -968,7 +973,9 @@ async function proveClock(look: Look): Promise<void> {
  * early sample is taken BEFORE the scripted controls, so `delta('player.yaw')` and
  * `delta('player.x')` measure what the controls did — the first v2 run took it after them and
  * every probe delta measured drift. The two proving steps sit before it, so the early sample is
- * the same distance into the simulation for every build.
+ * the same distance into the simulation for every build — but for a page of software whose setup
+ * is replayed after the seed, which settles in wall time with the clock running: what it holds is
+ * the requested state, which is the point of replaying it, and not a fixed point of the simulation.
  */
 async function driveProject(look: Look): Promise<void> {
   const { ctx, h, motion, motionFrames, run, takeMotionFrame } = look;

@@ -754,10 +754,10 @@ export async function blindCompare(
     extraContext,
     "",
     "BUILD A",
-    describeCandidate(A, { tag: "BUILD A", images }),
+    describeCandidate(A, attachedPictures({ tag: "BUILD A", images })),
     "",
     "BUILD B",
-    describeCandidate(B, { tag: "BUILD B", images }),
+    describeCandidate(B, attachedPictures({ tag: "BUILD B", images })),
     "",
     'Reply with JSON only: {"facets":{"works":"A"|"B"|"tie","visuals":"A"|"B"|"tie","feel":"A"|"B"|"tie","play":"A"|"B"|"tie"},"defects":["worst …","next …"],"reason":"…"}',
   ]
@@ -790,8 +790,7 @@ interface SentImages {
   images: readonly MessageImage[];
 }
 
-function describeCandidate(candidate: Candidate, sent?: SentImages): string {
-  const attached = sent && attachedPictures(sent);
+function describeCandidate(candidate: Candidate, attached?: Attached): string {
   if (candidate.incumbent) {
     const body = candidate.evidence
       ? describeEvidence(candidate.evidence, attached)
@@ -801,10 +800,10 @@ function describeCandidate(candidate: Candidate, sent?: SentImages): string {
   return describeEvidence(candidate, attached) || "(no evidence captured)";
 }
 
-/** What of one build's evidence went out as pictures: its cameras by name, and whether its motion strip did. */
+/** What of one build's evidence went out as pictures: its cameras by name, and how many frames of its motion strip. */
 interface Attached {
   cameras: ReadonlySet<string>;
-  motion: boolean;
+  motion: number;
 }
 
 /** The name a motion frame's image label ends in (`BUILD A / MOTION 2`), as `imagesForCandidate` and `motionSample` write it. */
@@ -815,7 +814,7 @@ function attachedPictures({ tag, images }: SentImages): Attached {
   const names = images.flatMap((image) => (image.label?.startsWith(prefix) ? [image.label.slice(prefix.length)] : []));
   return {
     cameras: new Set(names.filter((name) => !MOTION_FRAME_NAME.test(name))),
-    motion: names.some((name) => MOTION_FRAME_NAME.test(name)),
+    motion: names.filter((name) => MOTION_FRAME_NAME.test(name)).length,
   };
 }
 
@@ -909,9 +908,11 @@ export function describeEvidence(candidate: Candidate, attached?: Attached): str
 
 /** What a judge is told about a motion strip: where it is, or that it was left off this comparison. */
 function motionLine(frames: number, attached?: Attached): string {
-  if (attached && !attached.motion)
+  if (attached && attached.motion === 0)
     return `a ${frames}-frame motion strip was captured but is not attached to this comparison — do not judge feel from pictures you cannot see`;
-  return `a ${frames}-frame motion strip from the scripted exercise is attached (MOTION 1…${frames}) — judge feel from it`;
+  const sent = attached ? Math.min(attached.motion, frames) : frames;
+  const of = sent < frames ? ` (${sent} of its frames, MOTION 1…${sent}, are attached)` : ` (MOTION 1…${frames})`;
+  return `a ${frames}-frame motion strip from the scripted exercise is attached${of} — judge feel from it`;
 }
 
 function imagesForCandidate(
@@ -1162,10 +1163,10 @@ export async function facetCompare(
     imagesLine(images),
     "",
     "BUILD A",
-    describeCandidate(A, { tag: "BUILD A", images }),
+    describeCandidate(A, attachedPictures({ tag: "BUILD A", images })),
     "",
     "BUILD B",
-    describeCandidate(B, { tag: "BUILD B", images }),
+    describeCandidate(B, attachedPictures({ tag: "BUILD B", images })),
     "",
     'Reply with JSON only: {"pick":"A"|"B"|"tie","satisfied":true|false,"defects":["worst …","next …"],"reason":"…"}',
   ]
@@ -1564,10 +1565,10 @@ export async function tasteVeto(
     imagesLine(images),
     "",
     "BUILD A",
-    describeCandidate(A, { tag: "BUILD A", images }),
+    describeCandidate(A, attachedPictures({ tag: "BUILD A", images })),
     "",
     "BUILD B",
-    describeCandidate(B, { tag: "BUILD B", images }),
+    describeCandidate(B, attachedPictures({ tag: "BUILD B", images })),
     "",
     `Reply with JSON only: ${TASTE_REPLY}`,
   ]
@@ -1734,7 +1735,11 @@ export async function judgeAgainstReference(
     const chosen = subset ? shots.filter((s) => subset.includes(s.camera)) : shots;
     const label = `panel_${iterationId ?? "final"}_v${i + 1}`;
     const { images, paired } = await panelImages(ctx, { run, evidence, chosen, subset, refs, label });
-    const userContent = panelContent(said, images, paired);
+    // A PAIR composite carries the build's chosen frames; loose frames are labelled with their camera.
+    const attached = paired
+      ? { cameras: new Set<string>(chosen.slice(0, MAX_PAIRED_SHOTS).map((s) => String(s.camera))), motion: 0 }
+      : attachedPictures({ tag: "THE BUILD", images });
+    const userContent = panelContent(said, images, paired, attached);
     const raw = await askJudge(ctx, { run, systemPrompt: system, userContent, images });
     ballots.push(normalizeBallot(raw));
   }
@@ -1828,7 +1833,7 @@ async function panelImages(
 }
 
 /** One vote's prompt: the reference, the pictures, the numbers and the build's state. */
-function panelContent(said: PanelFacts, images: MessageImage[], paired: boolean): string {
+function panelContent(said: PanelFacts, images: MessageImage[], paired: boolean, attached: Attached): string {
   const { run, evidence, distanceLines, best, styleFloor, integrationBoard } = said;
   const layout = paired
     ? "PAIR images are reference (LEFT) | our build (RIGHT)."
@@ -1847,7 +1852,7 @@ function panelContent(said: PanelFacts, images: MessageImage[], paired: boolean)
     integrationBoard ? `INTEGRATION SCOREBOARD (verified mechanically on this build):\n${integrationBoard}` : "",
     "",
     "THE BUILD",
-    describeCandidate(evidence as Candidate),
+    describeCandidate(evidence as Candidate, attached),
     "",
     'Reply with JSON only: {"looks":"build"|"reference"|"tie","plays":"build"|"reference"|"tie","better":"…or empty","biggest_gap":"…","reason":"…"}',
   ]
@@ -2212,16 +2217,17 @@ export async function optimizationPreservation(
     "optimization-preserve.md",
     "Review optimization preservation. Return status preserved, regressed or unavailable, reasons and summary. Identical visuals are valid; fidelity, content, controls and observation must remain intact.",
   );
+  const images = [...imagesForCandidate(baseline, "BEFORE"), ...imagesForCandidate(candidate, "AFTER")];
   const raw = await askJudge(ctx, {
     run,
     systemPrompt,
     userContent: JSON.stringify({
       diff,
-      baseline: describeCandidate(baseline),
-      candidate: describeCandidate(candidate),
+      baseline: describeCandidate(baseline, attachedPictures({ tag: "BEFORE", images })),
+      candidate: describeCandidate(candidate, attachedPictures({ tag: "AFTER", images })),
       checks,
     }),
-    images: [...imagesForCandidate(baseline, "BEFORE"), ...imagesForCandidate(candidate, "AFTER")],
+    images,
   });
   return {
     status: Object.values(PreservationStatus).includes(raw?.status) ? raw.status : PreservationStatus.Unavailable,

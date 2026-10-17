@@ -493,7 +493,11 @@ export function appLine(app: AnyRecord | null | undefined): string {
     : "";
   // A run that declared no kind is software, and is driven by the default controls all the same:
   // the judge is told what was pressed, and that no input evidence was declared to hold against it.
-  if (!kind) return `${UNDECLARED_PROJECT}${drives}${NO_INPUT_EVIDENCE}`;
+  if (!kind) {
+    // A run that wrote input traits by hand (typing, navigation…) has those checks on its board.
+    const hasInputChecks = traits.navigation || traits.typing || traits.mouseLook || traits.keyboardMove;
+    return `${UNDECLARED_PROJECT}${drives}${hasInputChecks ? "" : NO_INPUT_EVIDENCE}`;
+  }
   const paths = [...kind.navigate, ...kind.edit];
   // `kind && navigate.length === 0 && edit.length === 0` — the shape of this test is the whole
   // point: a project with no input the studio can measure must be told about, not given an empty list.

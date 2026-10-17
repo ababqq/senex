@@ -853,6 +853,31 @@ describe("proveStep: the studio owns the clock, or nothing it measures means any
     assert.equal(junk.reason, "the page has no studio clock (the shim did not load)");
   });
 
+  it("expects draws only of a canvas the page draws to with the GPU: a chart on a 2d canvas draws nothing the counters count", () => {
+    /** What the witness reads off a page with a canvas, a clock, and a shim that says (or cannot say) whether a GPU context was asked for. */
+    const witness = (gpu: unknown, canvas = true) => {
+      const window: Record<string, unknown> = {
+        __studioClock: { stats: () => ({ steppedFrames: 4, drawCalls: 0, now: 100 }) },
+        ...(gpu === "no-shim-answer" ? { __studioGl: {} } : { __studioGl: { gpu: () => gpu } }),
+      };
+      const document = { querySelector: () => (canvas ? {} : null) };
+      return JSON.parse(JSON.stringify(new vm.Script(STEP_WITNESS).runInNewContext({ window, document })));
+    };
+    assert.equal(witness(true).canvas, true, "a page that asked for WebGL or WebGPU owes draws");
+    assert.equal(witness(false).canvas, false, "a 2d chart does not");
+    assert.equal(witness(false, false).canvas, false, "and neither does a page with no canvas");
+    assert.equal(
+      witness(true, false).canvas,
+      false,
+      "a context with no canvas in the document has nothing to photograph",
+    );
+    assert.equal(
+      witness("no-shim-answer").canvas,
+      true,
+      "an older shim cannot say: the page keeps being held to its draws",
+    );
+  });
+
   it("is a verdict on every stage when the shim itself did not load", async () => {
     // A regression in the project is a warning on a challenger. The page layer not loading is not a
     // fact about the project at all: nothing measured below it can be believed on any stage.

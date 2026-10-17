@@ -1051,7 +1051,7 @@ function canvasesOf(watch: CanvasWatch) {
 }
 
 /** Publishes `__studioGl`: the GL errors, and the switch the optimization observer turns the counters off with. */
-function installGlGlobal(win: Foreign, watch: CanvasWatch, counters: boolean) {
+export function installGlGlobal(win: Foreign, watch: CanvasWatch, counters: boolean) {
   // A page that took the studio's older probe first (it is installed again on did-navigate)
   // keeps whatever it already saw: the shim owns the surface from here, not the history.
   try {
@@ -1069,6 +1069,8 @@ function installGlGlobal(win: Foreign, watch: CanvasWatch, counters: boolean) {
         return watch.glErrors.slice();
       },
       note: (message: unknown) => noteGl(watch, String(message)),
+      /** Whether the page has asked for a WebGL or WebGPU context: only such a page owes the draws the counters count. */
+      gpu: () => watch.gpu,
       /** The optimization observer turns the draw counters off around a sample. */
       count: (on: Foreign) => {
         counting = on !== false;

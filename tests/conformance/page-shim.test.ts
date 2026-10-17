@@ -27,6 +27,7 @@ import {
   mulberry32,
   normalizeShimOptions,
   readinessVerdict,
+  installGlGlobal,
   watchCanvases,
 } from "../../src/page/shim.ts";
 
@@ -518,6 +519,18 @@ describe("what the shim learns from the page's graphics calls", () => {
     const watch = watchCanvases(win);
     assert.equal(canvas.getContext("webgl"), null);
     assert.equal(watch.gpu, true);
+  });
+
+  it("answers the page, through __studioGl, whether a GL or GPU context has been asked for", () => {
+    const { win, canvas } = fakeWindow();
+    const watch = watchCanvases(win);
+    installGlGlobal(win, watch, true);
+    const gl = (win as unknown as { __studioGl: { gpu(): boolean } }).__studioGl;
+    assert.equal(gl.gpu(), false);
+    canvas.getContext("2d");
+    assert.equal(gl.gpu(), false);
+    canvas.getContext("webgl2");
+    assert.equal(gl.gpu(), true);
   });
 
   it("is told by a WebGPU adapter request, which comes before any context", async () => {
