@@ -6,7 +6,7 @@
  */
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { test } from "node:test";
 import { promisify } from "node:util";
@@ -24,13 +24,55 @@ test("a project's src/export folder is tracked by Git and listed by the harness'
   );
 
   const ignored = await exec("git", ["check-ignore", "-q", "src/export/csv.js"], { cwd: project.dir }).then(
-    () => true,
-    () => false,
+    () => 0,
+    (error: { code?: number }) => error.code ?? -1,
   );
-  assert.equal(ignored, false, "Git does not ignore a source folder called export");
+  assert.equal(ignored, 1, "Git does not ignore a source folder called export (check-ignore exits 1)");
   const staged = await exec("git", ["add", "-A", "--dry-run"], { cwd: project.dir });
   assert.match(staged.stdout, /src\/export\/csv\.js/, "and adding the project's files takes it");
 
   const tree = await lite.api()["project.tree"]({ project: project.name });
   assert.ok(tree.includes("src/export/csv.js"), tree.join(", "));
+});
+
+test("a project the studio started with its old .gitignore loses the export/ line when it is opened again, and only that line", async () => {
+  const lite = await coreLite();
+  const project = await lite.core.projects.scaffold("old-tool", { title: "Old tool" });
+  const gitignore = path.join(project.dir, ".gitignore");
+  // What the studio wrote before exports left the project folder, plus a rule of the user's own.
+  await writeFile(gitignore, "export/\n.DS_Store\n.studio/\nnode_modules\n.git.studio-backup\n*.sqlite\n");
+  assert.ok(
+    (await lite.core.projects.plannedWrites(project.dir)).includes(".gitignore"),
+    "the sheet promises the change",
+  );
+
+  await lite.core.projects.adopt(project.dir);
+  const text = await readFile(gitignore, "utf8");
+  assert.doesNotMatch(text, /^export\/$/m);
+  for (const kept of [".DS_Store", ".studio/", "node_modules", ".git.studio-backup", "*.sqlite"]) {
+    assert.match(text, new RegExp(`^${kept.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "m"), kept);
+  }
+  await mkdir(path.join(project.dir, "src", "export"), { recursive: true });
+  await writeFile(path.join(project.dir, "src", "export", "pdf.js"), "export const toPdf = () => 1;\n");
+  const ignored = await exec("git", ["check-ignore", "-q", "src/export/pdf.js"], { cwd: project.dir }).then(
+    () => 0,
+    (error: { code?: number }) => error.code ?? -1,
+  );
+  assert.equal(ignored, 1, "git check-ignore exits 1 for a path nothing ignores");
+  assert.equal(
+    (await lite.core.projects.plannedWrites(project.dir)).includes(".gitignore"),
+    false,
+    "and nothing is left to write",
+  );
+});
+
+test("a .gitignore the user wrote, export/ included, is theirs", async () => {
+  const lite = await coreLite();
+  const project = await lite.core.projects.scaffold("their-tool", { title: "Their tool" });
+  const gitignore = path.join(project.dir, ".gitignore");
+  const theirs =
+    "dist/\nexport/\n.DS_Store\n.studio/\nnode_modules\n.git.studio-backup\noutput/\n.env\n.playwright-cli/\n";
+  await writeFile(gitignore, theirs);
+  await lite.core.projects.adopt(project.dir);
+  assert.equal(await readFile(gitignore, "utf8"), theirs);
 });

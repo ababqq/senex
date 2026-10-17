@@ -4,6 +4,7 @@ import { mkdtemp, mkdir, writeFile, readFile, readdir, symlink, rm } from "node:
 import path from "node:path";
 import os from "node:os";
 import { exportPublicProject } from "../../src/substrate/project-export.ts";
+import { removeTree } from "../helpers/tmp.ts";
 
 it("exports public runtime files without nested credentials or private directories; fails safely on symlinks", async () => {
   const temp = await mkdtemp(path.join(os.tmpdir(), "studio-export-"));
@@ -154,7 +155,7 @@ it("exports a page whose links are navigation: the site root, a section, a folde
     const result = await exportPublicProject(source, target, ["index.html", "site.css", "app.js", "about"]);
     assert.deepEqual(result.included.sort(), ["about/index.html", "app.js", "index.html", "site.css"]);
   } finally {
-    await rm(temp, { recursive: true, force: true });
+    await removeTree(temp);
   }
 });
 
@@ -176,7 +177,7 @@ it("still stops on a resource the page needs and the export does not have", asyn
         what,
       );
     } finally {
-      await rm(temp, { recursive: true, force: true });
+      await removeTree(temp);
     }
   }
   // …and so does a stylesheet's own reference, and a module's.
@@ -187,7 +188,7 @@ it("still stops on a resource the page needs and the export does not have", asyn
   try {
     await assert.rejects(exportPublicProject(css.source, css.target, ["index.html", "a.css"]), /gone\.png/);
   } finally {
-    await rm(css.temp, { recursive: true, force: true });
+    await removeTree(css.temp);
   }
   const mod = await site({
     "index.html": '<script type="module" src="./m.js"></script>',
@@ -196,7 +197,7 @@ it("still stops on a resource the page needs and the export does not have", asyn
   try {
     await assert.rejects(exportPublicProject(mod.source, mod.target, ["index.html", "m.js"]), /gone\.js/);
   } finally {
-    await rm(mod.temp, { recursive: true, force: true });
+    await removeTree(mod.temp);
   }
 });
 
@@ -241,7 +242,7 @@ it("leaves the studio's 3D library out of a page that never loads it, and keeps 
     assert.ok(one.included.includes("vendor/three.module.js"));
     assert.ok(!one.included.includes("vendor/three.webgpu.js"), "a library nothing loads is not shipped");
   } finally {
-    await rm(temp, { recursive: true, force: true });
+    await removeTree(temp);
   }
 });
 
@@ -283,6 +284,105 @@ it("exports every page a build wrote, documentation and notes pages included, an
       assert.ok(!result.included.some((file) => file.startsWith(never)), `${never} is never public`);
     }
   } finally {
-    await rm(temp, { recursive: true, force: true });
+    await removeTree(temp);
+  }
+});
+
+it("reads a page's tags as a browser does: what it loads must exist, what is only text or a link need not", async () => {
+  const page = (body: string, extra: Record<string, string> = {}) => ({ "index.html": body, ...extra });
+  const fine: Array<[string, Record<string, string>]> = [
+    ["a plain relative script (no ./)", page('<script src="main.js"></script>', { "main.js": "1;" })],
+    ["a commented-out tag", page('<!-- <script src="./gone.js"></script> --><p>hi</p>')],
+    ["a data attribute that looks like src", page('<img data-src="./gone.png" alt="">')],
+    ["a template string in a script", page('<script>el.innerHTML = `<img src="${url}">`;</script>')],
+    ["a fragment reference", page('<svg><use href="#icon"></use></svg>')],
+    ["an input that is not an image", page('<input type="text" src="./gone.png">')],
+    ["a link the page only points to", page('<link rel="alternate" href="/feed.xml"><a href="/x">x</a>')],
+  ];
+  const missing: Array<[string, Record<string, string>]> = [
+    ["a '>' inside a quoted attribute", page('<img alt="a > b" src="./gone.png">')],
+    ["a tag after an empty comment", page('<!--><img src="./gone.png">')],
+    ["an SVG image", page('<svg><image href="./gone.png"/></svg>')],
+    ["an unquoted attribute", page("<link rel=stylesheet href=./gone.css>")],
+    ["a video poster", page('<video poster="./gone.jpg"></video>')],
+    ["an image input", page('<input type="image" src="./gone.png">')],
+    ["a precomposed touch icon", page('<link rel="apple-touch-icon-precomposed" href="./gone.png">')],
+    ["an uppercase tag", page('<IMG SRC="./gone.png">')],
+  ];
+  for (const [what, files] of fine) {
+    const { temp, source, target } = await site(files);
+    try {
+      await exportPublicProject(source, target, Object.keys(files));
+    } catch (error) {
+      assert.fail(`${what}: ${(error as Error).message}`);
+    } finally {
+      await removeTree(temp);
+    }
+  }
+  for (const [what, files] of missing) {
+    const { temp, source, target } = await site(files);
+    try {
+      await assert.rejects(exportPublicProject(source, target, Object.keys(files)), /gone\./, what);
+    } finally {
+      await removeTree(temp);
+    }
+  }
+});
+
+it("never ships what the studio wrote into a project, even from a build that copied the project's files", async () => {
+  const { temp, source, target } = await site({
+    "index.html": '<a href="notes.html">Notes</a>',
+    "notes.html": "<h1>Notes app</h1>",
+    "CLAUDE.html": "<h1>rules</h1>",
+    "AGENTS.md": "rules",
+    "NOTES.md": "decisions",
+    "references/mood.png": "png",
+  });
+  try {
+    const result = await exportPublicProject(source, target, await readdir(source), undefined, { buildFolder: true });
+    assert.deepEqual(result.included.sort(), ["index.html", "notes.html"]);
+  } finally {
+    await removeTree(temp);
+  }
+});
+
+it("keeps the 3D library for a classic inline script that imports it, and ships none for a lazy-loaded project page", async () => {
+  const temp = await mkdtemp(path.join(os.tmpdir(), "studio-export-lazy-"));
+  const vendor = path.join(temp, "vendor");
+  const map = '<script type="importmap">{"imports":{"three":"/vendor/three.module.js"}}</script>';
+  try {
+    await mkdir(vendor);
+    await writeFile(path.join(vendor, "three.module.js"), 'export const name = "three";');
+    await writeFile(path.join(vendor, "LICENSE"), "MIT");
+
+    const classic = path.join(temp, "classic");
+    await mkdir(classic);
+    await writeFile(
+      path.join(classic, "index.html"),
+      `${map}<script>import("three").then((m) => console.log(m));</script>`,
+    );
+    const kept = await exportPublicProject(classic, path.join(temp, "out-classic"), ["index.html"], vendor);
+    assert.ok(kept.included.includes("vendor/three.module.js"), kept.included.join(", "));
+
+    const lazy = path.join(temp, "lazy");
+    await mkdir(path.join(lazy, "pages"), { recursive: true });
+    await writeFile(path.join(lazy, "index.html"), `${map}<script type="module" src="./main.js"></script>`);
+    await writeFile(
+      path.join(lazy, "main.js"),
+      'const page = await import("./pages/" + location.hash.slice(1) + ".js");',
+    );
+    await writeFile(path.join(lazy, "pages", "home.js"), "export default 1;");
+    const shipped = await exportPublicProject(
+      lazy,
+      path.join(temp, "out-lazy"),
+      ["index.html", "main.js", "pages"],
+      vendor,
+    );
+    assert.deepEqual(
+      shipped.included.filter((file) => file.startsWith("vendor/")),
+      ["vendor/LICENSE"],
+    );
+  } finally {
+    await removeTree(temp);
   }
 });

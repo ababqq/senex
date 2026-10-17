@@ -3,6 +3,14 @@
  * creates. Kept free of Electron so the settings are tested as values, not read out of source.
  */
 
+/** The longest file name or type a download's console line repeats. */
+const MAX_DOWNLOAD_TEXT = 80;
+
+const MESSAGE = {
+  downloadRefused: (name: string, kind: string) =>
+    `a download of ${name}${kind} started and was not saved: the preview does not save files`,
+} as const;
+
 /**
  * Blink features no project page gets. On-device speech recognition asks the browser for
  * `media.mojom.OnDeviceSpeechRecognition`, a binder only Chrome registers: Electron treats the
@@ -38,13 +46,16 @@ export function projectViewPreferences<S>(projectSession: S, offscreen: boolean)
   };
 }
 
-/** The longest file name a download's console line repeats. */
-const MAX_DOWNLOAD_NAME = 80;
-
 /** What the studio does with a file the page starts downloading, and what the console is told. */
 export interface DownloadDecision {
   cancel: boolean;
   note: string | null;
+}
+
+/** Page-chosen text for one line of the console: no control characters, and short. */
+function consoleText(text: string): string {
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: control characters in page-chosen text are replaced, not shown.
+  return text.replace(/[\u0000-\u001f\u007f]/g, "?").slice(0, MAX_DOWNLOAD_TEXT);
 }
 
 /**
@@ -55,11 +66,6 @@ export interface DownloadDecision {
  */
 export function downloadDecision(offscreen: boolean, file: { name: string; mimeType: string }): DownloadDecision {
   if (!offscreen) return { cancel: false, note: null };
-  // biome-ignore lint/suspicious/noControlCharactersInRegex: control characters in a file name are replaced, not shown.
-  const name = file.name.replace(/[\u0000-\u001f\u007f]/g, "?").slice(0, MAX_DOWNLOAD_NAME) || "a file";
-  const kind = file.mimeType ? ` (${file.mimeType.slice(0, MAX_DOWNLOAD_NAME)})` : "";
-  return {
-    cancel: true,
-    note: `a download of ${name}${kind} started and was not saved: the preview does not save files`,
-  };
+  const kind = file.mimeType ? ` (${consoleText(file.mimeType)})` : "";
+  return { cancel: true, note: MESSAGE.downloadRefused(consoleText(file.name) || "a file", kind) };
 }

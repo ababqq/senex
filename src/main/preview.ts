@@ -72,6 +72,9 @@ import { errorMessage } from "../shared/errors.ts";
 import { setTimeout as delay } from "node:timers/promises";
 
 /** What the preview's console tells the agent about the project view, and why a call is refused. */
+/** How many distinct refused downloads a load names on the console before it only says there were more. */
+const MAX_DOWNLOAD_NOTES = 5;
+
 const MESSAGE = {
   renderGone: (reason: string) => `render process gone: ${reason}`,
   unresponsive: "the page is unresponsive",
@@ -83,6 +86,7 @@ const MESSAGE = {
     `screenshot found no compositor frame; retrying once without changing window visibility (${reason})`,
   notMethodName: (method: string) => `not a studio method name: ${method}`,
   consoleUnavailable: "Console observation unavailable; no console-clean claim is possible",
+  moreDownloads: "more downloads were started and not saved: the preview does not save files",
 } as const;
 
 export type { PageCaptureInfo };
@@ -236,6 +240,8 @@ export class ProjectPreview {
   #shimPresent: boolean | null = null;
   /** Origins whose blocked request or navigation this load has already noted on the project's console. */
   #blockedNoted = new Set<string>();
+  /** Refused downloads already said on the console this load. */
+  #downloadNotes = new Set<string>();
   /** How the studio reached this page's `three`, recorded when the entry was rewritten. */
   #reach: { reach: string; hooked: Record<string, string> } = { reach: "none", hooked: {} };
 
@@ -305,15 +311,7 @@ export class ProjectPreview {
 
     // A file the page starts downloading: Live's own dialog answers; a window an agent drives has
     // nobody to click it, so the file is refused and the console says which (`project-view.ts`).
-    projectSession.on("will-download", (_event, item) => {
-      const decision = downloadDecision(this.options.offscreen ?? false, {
-        name: item.getFilename(),
-        mimeType: item.getMimeType(),
-      });
-      if (!decision.cancel) return;
-      item.cancel();
-      if (decision.note !== null) this.#noteOnce(decision.note);
-    });
+    projectSession.on("will-download", this.#onDownload);
 
     const view = new WebContentsView({
       // Sandboxed, no preload, no on-device speech (`project-view.ts`).
@@ -487,11 +485,28 @@ export class ProjectPreview {
     return this.#serveFile(route.project, url.pathname, request, { routes: true });
   }
 
-  /** One console warning per distinct note per load. */
-  #noteOnce(note: string): void {
-    if (this.#blockedNoted.has(note)) return;
-    this.#blockedNoted.add(note);
-    this.#push({ at: Date.now(), level: "warning", message: note });
+  /** A download the page started: refused in a window an agent drives, and said once per file on the console. */
+  readonly #onDownload = (
+    _event: Electron.Event,
+    item: Electron.DownloadItem,
+    contents: Electron.WebContents,
+  ): void => {
+    if (contents !== this.#view?.webContents) return;
+    const decision = downloadDecision(this.options.offscreen ?? false, {
+      name: item.getFilename(),
+      mimeType: item.getMimeType(),
+    });
+    if (!decision.cancel) return;
+    item.cancel();
+    if (decision.note !== null) this.#noteDownload(decision.note);
+  };
+
+  /** The first few distinct refused downloads of a load, then one line saying there were more: a page cannot fill the console with them. */
+  #noteDownload(note: string): void {
+    if (this.#downloadNotes.has(note) || this.#downloadNotes.size > MAX_DOWNLOAD_NOTES) return;
+    const over = this.#downloadNotes.size === MAX_DOWNLOAD_NOTES;
+    this.#downloadNotes.add(note);
+    this.#push({ at: Date.now(), level: "warning", message: over ? MESSAGE.moreDownloads : note });
   }
 
   /** One console line per blocked origin per load: the harness reads why a project's request failed. */
@@ -698,6 +713,7 @@ export class ProjectPreview {
     this.#crashed = false;
     this.#console = [];
     this.#blockedNoted.clear();
+    this.#downloadNotes.clear();
     this.#consoleAvailable = false;
     const url = options.loopback
       ? loopbackEntryUrl(loopbackPortFor(project), entry)
@@ -737,6 +753,7 @@ export class ProjectPreview {
     this.#pageSurfaceNoted = false;
     this.#console = [];
     this.#blockedNoted.clear();
+    this.#downloadNotes.clear();
     this.#consoleAvailable = false;
     this.#loadError = null;
     this.#navigating = true;
@@ -756,6 +773,7 @@ export class ProjectPreview {
     if (!this.#view) return;
     this.#console = [];
     this.#blockedNoted.clear();
+    this.#downloadNotes.clear();
     this.#consoleAvailable = false;
     this.#loadError = null;
     // The user pressing Reload means "show me what is on disk NOW" — never a cached copy.
@@ -1390,6 +1408,7 @@ export class ProjectPreview {
     const retired = this.#session;
     this.#session = null;
     if (retired) {
+      retired.removeListener("will-download", this.#onDownload);
       retired.protocol.unhandle(SCHEME);
       retired.protocol.unhandle("http");
       retired.webRequest.onBeforeRequest(null);

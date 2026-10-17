@@ -95,6 +95,7 @@ export function declaresSoftware(pkg: PackageManifest | null): boolean {
 export function normalServe(serve: string | null | undefined): string | null {
   const folder = (serve ?? "")
     .trim()
+    .replaceAll("\\", "/")
     .replace(/^(?:\.\/)+/, "")
     .replace(/\/+$/, "");
   return folder === "" || folder === "." ? null : folder;

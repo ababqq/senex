@@ -43,7 +43,7 @@ import { exportPublicProject, type ExportOptions, type ExportResult } from "./pr
 import { ownNotes, ownRules, REFERENCES_README } from "./project-workspace-prompts.ts";
 import { type ProjectValidation, validateProjectDir } from "./project-validation.ts";
 import { atomicWriteJson, ensureDir, pathExists, readJsonForUpdate, readJsonIfExists } from "./fsx.ts";
-import { ensureIgnoreRules, missingIgnoreRules, nestedRepos } from "./nested-repos.ts";
+import { ensureIgnoreRules, hasLegacyIgnoreHeader, missingIgnoreRules, nestedRepos } from "./nested-repos.ts";
 import { isBelow, isInside, samePath, throughClaudeFolder } from "./paths.ts";
 import {
   declaresDependencies,
@@ -1011,7 +1011,7 @@ export class ProjectWorkspaces {
     }
     if (await this.#writesStudioJson(dir, shape, options)) writes.push("studio.json");
     const ignored = await readFile(path.join(dir, ".gitignore"), "utf8").catch(() => null);
-    if (missingIgnoreRules(ignored).length > 0) writes.push(".gitignore");
+    if (missingIgnoreRules(ignored).length > 0 || hasLegacyIgnoreHeader(ignored)) writes.push(".gitignore");
     // Version history is what makes a night undoable; an existing repository is left alone.
     if (!(await pathExists(path.join(dir, ".git")))) writes.push(".git");
     return writes;
@@ -1127,7 +1127,10 @@ export class ProjectWorkspaces {
       // output folder is the project, so only the files the project declared are public.
       if (!config?.exportFiles) throw new Error(MESSAGE.DeclareExportFiles);
       if (!isExportList(config.exportFiles)) throw new Error(MESSAGE.BadExportFiles);
-      return exportPublicProject(builtOutput, targetDir, config.exportFiles, undefined, options);
+      return exportPublicProject(builtOutput, targetDir, config.exportFiles, undefined, {
+        ...options,
+        buildFolder: false,
+      });
     }
     if (builtOutput) {
       const roots = await readdir(builtOutput);
