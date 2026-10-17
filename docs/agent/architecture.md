@@ -735,12 +735,11 @@ decisions (`servedRelative`, `resolveServed`, `servedLocation`, `routeHttp`,
 `projectRequestAllowed`, `previewNavigationAllowed`) and the only page rewrite; the input dispatch
 string is in [`src/main/page-dispatch.ts`](../../src/main/page-dispatch.ts). `resolveServed` checks
 lexically and then realpaths every request against the real root pinned at load: 404 for a missing
-or non-regular file, 403 for an escape (or a root swapped after load), 400 for a malformed one. The rewrite touches only the served document (`shouldRewrite`: the entry or a document/frame
-fetch, never under `vendor/`, over 8 MB or non-HTML), never a file on disk: charset, the classic shim
+or non-regular file, 403 for an escape (or a root swapped after load), 400 for a malformed one. The rewrite touches only the served document (`shouldRewrite`: the entry or a whole page navigated to, never under `vendor/`, over 8 MB or non-HTML), never a file on disk: charset, the classic shim
 script, the import map (the page's, with `three` and `three/webgpu` pointed at the studio hook, else the
 studio's), the module hook, then the page; it is idempotent, and a blocking meta CSP gets one
-console line, not an edit. Bundled projects serve as `http://localhost:<port>/` and open at `/` — or at the sub-path the built page names its files under, `/my-site/` (`site-base.ts`; a missing path is read again without the base); a GET navigation to an extensionless path no file answers gets the entry
-(`spaFallback`; `dir/` gives its own page), so client routers survive Reload; a missing asset or `fetch` keeps its 404.
+console line, not an edit. Bundled projects serve as `http://localhost:<port>/` and open at `/` — or at the sub-path the built page names its files under, `/my-site/` (`site-base.ts`; a missing path is read again without the base); a navigation is answered as a static host does (`/about` is `about.html`, `dir/` its page, `dir` a 307 to it) and, on a bundled project, one no file answers gets the entry
+(`spaFallback`); a missing asset or `fetch` keeps its 404.
 
 **Network policy.** The project partition is closed: `onBeforeRequest` allows only `project:`, `data:`,
 `blob:`, `devtools:`, registered loopback ports and https GET/HEAD to the exact public library and
@@ -1085,7 +1084,7 @@ with a managed local runtime; core has no special Blender tool.
   render-process-gone decisions and quit-step problems. `crashReporter` runs local-only
   (`uploadToServer: false`) with dumps in `<userData>/Crashpad`. Persisted writes remain immediate;
   renderer harness-log messages coalesce for 50 ms, bounded to 65,536 characters, and flush
-  before other UI events or shutdown. Diagnostics read only a bounded log suffix.
+  before other UI events or shutdown.
 - **Lifecycle rules.** [`src/main/app-lifecycle.ts`](../../src/main/app-lifecycle.ts) holds the
   Electron-free rules: process handlers log uncaught exceptions and rejections without exiting; the
   reload policy reloads a crashed renderer at most twice in 60 s and never after a `clean-exit`;
@@ -1093,11 +1092,11 @@ with a managed local runtime; core has no special Blender tool.
   and smoke sessions leave the page dead). The Dock, a second launch or Keep running revive a dead
   page; pushes skip it. `runShutdown` runs quit steps in order, each bounded (`shutdownSteps`), logs
   a failed or hung step and moves on.
-  `before-quit` calls `app.exit(0)` in a `finally`. `StudioCore.stop` logs a plugin lease release
+  `StudioCore.stop` logs a plugin lease release
   that fails instead of skipping the connectors, previews and harness host after it.
 - **Diagnostics.** [`src/main/diagnostics.ts`](../../src/main/diagnostics.ts) builds the redacted
   Settings → Harness → Copy diagnostics text (versions, OS, data and log paths, provider and CLI
-  status, the last 100 log lines) served on `studio:diagnostics` (fixture-safe). The renderer's
+  status, the last 100 log lines) served on `studio:diagnostics`. The renderer's
   `ErrorBoundary` ([`src/renderer/ErrorBoundary.tsx`](../../src/renderer/ErrorBoundary.tsx)) draws
   the app's error screen ([feature map](feature-map.md)).
 - Forge excludes development state and agent metadata explicitly (`.gitignore` is not a packaging

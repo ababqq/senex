@@ -16,7 +16,11 @@ import {
   confinePreviewContents,
   cspNote,
   findMetaCsp,
+  folderAddress,
+  isNavigation,
   loopbackEntryUrl,
+  looksLikeDocument,
+  redirectResponse,
   projectRequestAllowed,
   routedDocumentUrl,
   previewNavigationAllowed,
@@ -477,10 +481,11 @@ describe("a route no file answers (client-side routers)", () => {
       served: { ok: true, path: path.join(real, "about", "index.html") },
       routed: true,
     });
-    // Without the slash a static host would redirect; this server does not, so the folder is left as named.
+    // Without the slash a static host redirects to the folder, so its page's relative URLs resolve inside it.
     const slashless = await answerRequest("about", roots, "index.html", document, true);
     assert.equal(slashless.routed, false);
     assert.deepEqual(slashless.served, { ok: true, path: path.join(real, "about") });
+    assert.equal(slashless.redirect, "/about/");
     // Neither applies off the loopback origin, nor to a request that is not a navigation.
     const plain = await answerRequest("docs", roots, "index.html", document, false);
     assert.deepEqual(plain, { relative: "docs", served: { ok: true, path: path.join(real, "docs") }, routed: false });
@@ -688,6 +693,200 @@ describe('a site built for a sub-path (Vite `base: "/my-site/"`)', () => {
     const swapped = { ...roots, pinnedProjectRoot: () => path.join(parent, "pinned-elsewhere") };
     const refused = await answerRequest("my-site/index.html", swapped, "index.html", script, true);
     assert.equal(refused.served.ok, false);
+  });
+});
+
+describe("a folder of pages served the way a static host serves it", () => {
+  // Electron hands a protocol handler no `sec-fetch-dest`: a page is told from a fetch by its Accept.
+  const navigation = { method: "GET", dest: null, accept: "text/html,application/xhtml+xml,*/*;q=0.8" };
+  const fetched = { method: "GET", dest: null, accept: "*/*" };
+
+  async function site() {
+    const base = await tmpDir("studio-static-host-");
+    const write = (rel: string, text = rel) => {
+      fs.mkdirSync(path.dirname(path.join(base, rel)), { recursive: true });
+      fs.writeFileSync(path.join(base, rel), text);
+    };
+    for (const rel of [
+      "index.html",
+      "about.html",
+      "blog/index.html",
+      "blog/post-1.html",
+      "team.html",
+      "team/index.html",
+    ])
+      write(rel);
+    write("docs/n.txt");
+    return { base, real: fs.realpathSync(base), roots: { vendor: base, projectRoot: () => base } };
+  }
+
+  it("redirects a folder asked for without its slash, and serves its page asked for with it, on either origin", async () => {
+    const { real, roots } = await site();
+    for (const routes of [true, false]) {
+      const slashless = await answerRequest("blog", roots, "index.html", navigation, routes);
+      assert.deepEqual(slashless, {
+        relative: "blog",
+        served: { ok: true, path: path.join(real, "blog") },
+        routed: false,
+        redirect: "/blog/",
+      });
+      const slashed = await answerRequest("blog/", roots, "index.html", navigation, routes);
+      assert.deepEqual(slashed, {
+        relative: "blog/index.html",
+        served: { ok: true, path: path.join(real, "blog", "index.html") },
+        routed: true,
+      });
+    }
+  });
+
+  it("serves about.html for /about, and a page beats a folder of the same name", async () => {
+    const { real, roots } = await site();
+    for (const routes of [true, false]) {
+      const about = await answerRequest("about", roots, "index.html", navigation, routes);
+      assert.deepEqual(about, {
+        relative: "about.html",
+        served: { ok: true, path: path.join(real, "about.html") },
+        routed: true,
+      });
+      assert.equal(
+        (await answerRequest("blog/post-1", roots, "index.html", navigation, routes)).relative,
+        "blog/post-1.html",
+      );
+      const team = await answerRequest("team", roots, "index.html", navigation, routes);
+      assert.equal(team.relative, "team.html");
+      assert.equal(team.redirect, undefined);
+    }
+  });
+
+  it("leaves everything that is not a page request, a file, a vendor path or a missing path as it was", async () => {
+    const { roots } = await site();
+    for (const routes of [true, false]) {
+      for (const name of ["blog", "about", "nope", "nope.js"]) {
+        const asNamed = await answerRequest(name, roots, "index.html", fetched, routes);
+        assert.equal(asNamed.routed, false, name);
+        assert.equal(asNamed.redirect, undefined, name);
+        assert.equal(asNamed.relative, name, name);
+      }
+      const post = await answerRequest("about", roots, "index.html", { ...navigation, method: "POST" }, routes);
+      assert.equal(post.routed, false);
+      assert.equal((await answerRequest("about.html", roots, "index.html", navigation, routes)).routed, false);
+      // A path nothing answers keeps today's answer: the entry on loopback, a plain 404 off it.
+      const nope = await answerRequest("nope", roots, "index.html", navigation, routes);
+      assert.equal(nope.routed, routes);
+      assert.equal(nope.served.ok, routes);
+    }
+  });
+
+  it("builds the redirect address from the folder alone, as one path on this origin", () => {
+    const table: Array<[string, string]> = [
+      ["blog", "/blog/"],
+      ["a b/ü", "/a%20b/%C3%BC/"],
+      [".", "/"],
+      ["a/../blog", "/blog/"],
+      ["//evil.com", "/evil.com/"],
+      ["\\\\evil.com", "/%5C%5Cevil.com/"],
+      ["a//b", "/a/b/"],
+      ["x?y#z", "/x%3Fy%23z/"],
+    ];
+    for (const [folder, expected] of table) {
+      const address = folderAddress(folder);
+      assert.equal(address, expected, folder);
+      assert.equal(new URL(address, "http://localhost:41234").origin, "http://localhost:41234", folder);
+    }
+  });
+
+  it("answers a redirect as a 307 that is never cached, query kept by the caller", () => {
+    const response = redirectResponse("/blog/?x=1");
+    assert.equal(response.status, HttpStatus.TemporaryRedirect);
+    assert.equal(response.headers.get("location"), "/blog/?x=1");
+    assert.equal(response.headers.get("cache-control"), "no-store");
+  });
+
+  it("puts a redirect under the site base, so the router still sees its own path", async () => {
+    const { real, base } = await site();
+    const roots = { vendor: base, projectRoot: () => base, siteBase: () => "my-site" };
+    const answer = await answerRequest("my-site/blog", roots, "index.html", navigation, true);
+    assert.equal(answer.redirect, "/my-site/blog/");
+    assert.equal(answer.served.ok && answer.served.path, path.join(real, "blog"));
+  });
+
+  it("never redirects or serves a page outside the root, nor turns a refusal into a page", async () => {
+    const parent = await tmpDir("studio-static-host-hostile-");
+    const base = path.join(parent, "site");
+    const outside = path.join(parent, "outside");
+    fs.mkdirSync(path.join(base, "own"), { recursive: true });
+    fs.mkdirSync(outside);
+    fs.writeFileSync(path.join(base, "index.html"), "<h1>app</h1>");
+    fs.writeFileSync(path.join(outside, "index.html"), "secret");
+    fs.writeFileSync(path.join(outside, "page.html"), "secret");
+    fs.symlinkSync(outside, path.join(base, "linked-folder"));
+    fs.symlinkSync(path.join(outside, "page.html"), path.join(base, "page.html"));
+    fs.symlinkSync(path.join(outside, "index.html"), path.join(base, "own", "index.html"));
+    const roots = { vendor: base, projectRoot: () => base };
+    const real = fs.realpathSync(base);
+    for (const name of ["linked-folder", "linked-folder/", "page", "own", "own/", "../outside/", "..%2Foutside%2F"]) {
+      for (const routes of [true, false]) {
+        const answer = await answerRequest(name, roots, "index.html", navigation, routes);
+        const inside = !answer.served.ok || answer.served.path.startsWith(real);
+        assert.ok(inside, `${name} -> ${JSON.stringify(answer)}`);
+        if (!answer.served.ok && answer.served.status === HttpStatus.Forbidden) {
+          assert.equal(answer.redirect, undefined, name);
+          assert.equal(answer.routed, false, name);
+        }
+      }
+    }
+  });
+
+  it("builds a routed page's address from its protocol and host, whatever origin that is", () => {
+    assert.equal(
+      routedDocumentUrl("project://pond-life/blog", "blog/index.html"),
+      "project://pond-life/blog/index.html",
+    );
+    assert.equal(routedDocumentUrl("project://pond-life/x", "a b/index.html"), "project://pond-life/a%20b/index.html");
+    for (const entry of ["\\evil.com\\x.html", "//evil.com/x.html", "@evil.com/x.html"]) {
+      const url = new URL(routedDocumentUrl("project://pond-life/blog", entry));
+      assert.equal(url.protocol, "project:", entry);
+      assert.equal(url.host, "pond-life", entry);
+    }
+  });
+});
+
+describe("which documents receive the studio's shim when no fetch destination is sent", () => {
+  // Electron gives a protocol handler no sec-fetch-dest: a page is told from a fetch by its Accept.
+  const page = { method: "GET", dest: null, accept: "text/html,application/xhtml+xml,*/*;q=0.8" };
+
+  it("rewrites another page of the site that is navigated to, and still not a fetch of one", () => {
+    assert.equal(isNavigation(page), true);
+    assert.equal(shouldRewrite("text/html", "about.html", false, null, 400, isNavigation(page)), true);
+    assert.equal(
+      shouldRewrite("text/html", "about.html", false, null, 400, isNavigation({ ...page, accept: "*/*" })),
+      false,
+    );
+    assert.equal(
+      shouldRewrite("text/html", "about.html", false, null, 400, isNavigation({ ...page, method: "POST" })),
+      false,
+    );
+    assert.equal(
+      shouldRewrite("text/html", "about.html", false, null, 400),
+      false,
+      "no navigation is claimed by default",
+    );
+    assert.equal(shouldRewrite("text/html", "vendor/x.html", false, null, 400, true), false);
+    assert.equal(shouldRewrite("text/javascript", "a.js", false, null, 400, true), false);
+    assert.equal(shouldRewrite("text/html", "big.html", false, null, 9 * 1024 * 1024, true), false);
+  });
+
+  it("tells a whole page from a fragment a script asked for with the same Accept", () => {
+    for (const html of [
+      "<!doctype html><p>x",
+      "<HTML><body>",
+      "  <head><title>t",
+      "<body class=a>hi",
+      "<!-- c --><!DOCTYPE html>",
+    ])
+      assert.equal(looksLikeDocument(html), true, html);
+    for (const html of ["<li>one</li><li>two</li>", "<div class=card>x</div>", "", "plain text <b>bold</b>"])
+      assert.equal(looksLikeDocument(html), false, html);
   });
 });
 

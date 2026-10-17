@@ -63,13 +63,19 @@ export const CHARSET_BUDGET = 1024;
 /** The `sec-fetch-dest` values of an in-page navigation, the ones a document is rewritten for. */
 const DOCUMENT_DESTS: ReadonlySet<string> = new Set(["document", "iframe", "frame"]);
 
+/** Whether a `sec-fetch-dest` value names a document or a frame. */
+export function isDocumentDest(dest: string | null | undefined): boolean {
+  return DOCUMENT_DESTS.has(fetchDest(dest));
+}
+
 /** The statuses the `project://` protocol answers with. */
-export const HttpStatus = { Ok: 200, BadRequest: 400, Forbidden: 403, NotFound: 404 } as const;
+export const HttpStatus = { Ok: 200, TemporaryRedirect: 307, BadRequest: 400, Forbidden: 403, NotFound: 404 } as const;
 export type HttpStatus = (typeof HttpStatus)[keyof typeof HttpStatus];
 
 /** What a refusal says when nothing more specific is known. */
 const STATUS_TEXT: Record<HttpStatus, string> = {
   [HttpStatus.Ok]: "ok",
+  [HttpStatus.TemporaryRedirect]: "temporary redirect",
   [HttpStatus.BadRequest]: "bad request",
   [HttpStatus.Forbidden]: "forbidden",
   [HttpStatus.NotFound]: "not found",
@@ -78,6 +84,14 @@ const STATUS_TEXT: Record<HttpStatus, string> = {
 /** A plain-text protocol response: `body`, or the status's own words ("forbidden", "not found"). */
 export function textResponse(status: HttpStatus, body: string = STATUS_TEXT[status]): Response {
   return new Response(body, { status });
+}
+
+/** A redirect to a root-relative address: 307 and never cached, since the folder it names is being rewritten. */
+export function redirectResponse(location: string): Response {
+  return new Response(null, {
+    status: HttpStatus.TemporaryRedirect,
+    headers: { Location: location, "Cache-Control": "no-store" },
+  });
 }
 
 export interface RewriteOptions {
@@ -114,13 +128,24 @@ export function shouldRewrite(
   isEntryPath: boolean,
   secFetchDest: string | null | undefined,
   byteLength: number | null | undefined,
+  /** The request is a page navigation by its other headers (Electron sends no `sec-fetch-dest` to a protocol handler). */
+  asNavigation = false,
 ): boolean {
   if (isVendorPath(relPath)) return false;
   const tooLarge = typeof byteLength === "number" && Number.isFinite(byteLength) && byteLength > MAX_REWRITE_BYTES;
   if (tooLarge) return false;
   if (!isHtmlLike(contentType, relPath)) return false;
   if (isEntryPath) return true;
-  return DOCUMENT_DESTS.has(fetchDest(secFetchDest));
+  return asNavigation || DOCUMENT_DESTS.has(fetchDest(secFetchDest));
+}
+
+/**
+ * Whether a body is a whole page rather than a fragment: it has a doctype, `<html>`, `<head>` or
+ * `<body>` after leading comments. A script that asks for a fragment with an `Accept: text/html`
+ * of its own must not get the studio's tags inside it.
+ */
+export function looksLikeDocument(html: string): boolean {
+  return /^\s*(?:<!--[\s\S]*?-->\s*)*<(?:!doctype\b|html\b|head\b|body\b)/i.test(html);
 }
 
 /** The console line for a document too large to buffer. Its shape is asserted. */
@@ -621,7 +646,7 @@ function fetchDest(value: string | null | undefined): string {
 }
 
 /** Whether a request is a browser navigating to a page: a document, or a page asked for by name when no destination is sent. */
-function isNavigation(request: NavigationRequest): boolean {
+export function isNavigation(request: NavigationRequest): boolean {
   if (!PAGE_METHODS.has(request.method.toUpperCase())) return false;
   const dest = fetchDest(request.dest);
   return dest === "" ? /\btext\/html\b/i.test(request.accept ?? "") : DOCUMENT_DESTS.has(dest);
@@ -656,6 +681,8 @@ export interface Answer {
   relative: string;
   served: Served;
   routed: boolean;
+  /** Present when the request should go to this root-relative address instead (a folder asked for without its slash). */
+  redirect?: string;
 }
 
 /**
@@ -670,24 +697,61 @@ export function underSiteBase(relative: string, siteBase: string | null): string
 }
 
 /**
- * Where `asked` is found: as named first, and only when nothing is there, without the site base.
- * A refusal is never retried; a path that resolved before still resolves to the same file.
+ * Where `asked` is found: as named first, and only when nothing is there, without the site base
+ * (`under` is that base then, "" otherwise). A refusal is never retried.
  */
-async function locate(asked: string, roots: ServedRoots): Promise<{ requested: string; found: Served }> {
+async function locate(asked: string, roots: ServedRoots): Promise<{ requested: string; found: Served; under: string }> {
   const found = await servedLocation(asked, roots);
-  const stripped =
-    !found.ok && found.status === HttpStatus.NotFound ? underSiteBase(asked, roots.siteBase?.() ?? null) : null;
-  if (stripped === null) return { requested: asked, found };
-  return { requested: stripped, found: await servedLocation(stripped, roots) };
+  const siteBase = roots.siteBase?.() ?? null;
+  const stripped = !found.ok && found.status === HttpStatus.NotFound ? underSiteBase(asked, siteBase) : null;
+  if (stripped === null || siteBase === null) return { requested: asked, found, under: "" };
+  return { requested: stripped, found: await servedLocation(stripped, roots), under: siteBase };
+}
+
+/** A regular file the roots serve, or null: a folder, a refusal and a missing path all answer null. */
+async function servedFile(relative: string, roots: ServedRoots): Promise<{ ok: true; path: string } | null> {
+  const served = await servedLocation(relative, roots);
+  if (!served.ok) return null;
+  return (await stat(served.path).catch(() => null))?.isFile() ? served : null;
+}
+
+/** The root-relative address of a folder, always with its slash: one path on the same origin, whatever its name holds. */
+export function folderAddress(folder: string): string {
+  const parts = path.posix
+    .normalize(folder.replace(/^\/+/, ""))
+    .split("/")
+    .filter((part) => part !== "" && part !== ".");
+  return `/${parts.map((part) => `${encodeURIComponent(part)}/`).join("")}`;
+}
+
+/** `/about` is `about.html` when that file exists, before a folder of the same name is looked at, as on a static host. */
+async function cleanUrl(requested: string, roots: ServedRoots): Promise<Answer | null> {
+  const last = requested.split("/").findLast((part) => part !== "") ?? "";
+  if (requested.endsWith("/") || path.posix.extname(last) !== "") return null;
+  const relative = `${requested}.html`;
+  const served = await servedFile(relative, roots);
+  return served ? { relative, served, routed: true } : null;
+}
+
+/** A folder with a page of its own: that page asked for with the slash, a redirect to the slash without it. */
+async function folderPage(requested: string, found: Served, roots: ServedRoots, under: string): Promise<Answer | null> {
+  const isFolder = found.ok && (await stat(found.path).catch(() => null))?.isDirectory() === true;
+  if (!isFolder) return null;
+  const folder = requested.replace(/\/+$/, "");
+  const relative = path.posix.join(folder, "index.html");
+  const served = await servedFile(relative, roots);
+  if (!served) return null;
+  if (requested.endsWith("/")) return { relative, served, routed: true };
+  return { relative: requested, served: found, routed: false, redirect: folderAddress(path.posix.join(under, folder)) };
 }
 
 /**
- * The file a request is answered from. A bundled project owns its paths (`routes`): a navigation
- * to a folder that holds its own `index.html` gets that page, as every static host serves it; to a
- * folder without one, or to a path nothing answers, the app's entry (`spaFallback`) — a folder of
- * the same name as a route is not a page to list. Everything else, and every request on a
- * project with no routes, is read as named. A site built for a sub-path is read the same way
- * on the path without its base.
+ * The file a request is answered from. A navigation is answered as a static host answers it: a file
+ * as named, `/about` as `about.html`, a folder asked for with its slash as its `index.html` and
+ * without it by a redirect to the slash (so the page's relative URLs resolve inside the folder). On
+ * a bundled project that owns its paths (`routes`) a navigation no file answers gets the app's entry
+ * (`spaFallback`), a folder without a page of its own included. Everything else is read as named. A
+ * site built for a sub-path is read the same way on the path without its base.
  */
 export async function answerRequest(
   asked: string,
@@ -696,20 +760,15 @@ export async function answerRequest(
   request: NavigationRequest,
   routes: boolean,
 ): Promise<Answer> {
-  const { requested, found } = await locate(asked, roots);
+  const { requested, found, under } = await locate(asked, roots);
   const asNamed: Answer = { relative: requested, served: found, routed: false };
-  const ownsPaths = routes && isNavigation(request) && !isVendorPath(requested);
-  if (!ownsPaths) return asNamed;
-  const folder = found.ok && (await stat(found.path).catch(() => null))?.isDirectory() === true;
-  if (folder) {
-    // Asked for as a folder (a trailing slash), its page's relative URLs resolve inside it. Without
-    // the slash a static host redirects; this server does not, so such a folder is left as named
-    // when it has a page of its own.
-    const page = path.posix.join(requested.replace(/\/+$/, ""), "index.html");
-    const own = await servedLocation(page, roots);
-    if (own.ok) return requested.endsWith("/") ? { relative: page, served: own, routed: true } : asNamed;
-  }
-  const missing: Served = folder ? { ok: false, status: HttpStatus.NotFound } : found;
+  const refused = !found.ok && found.status !== HttpStatus.NotFound;
+  if (!isNavigation(request) || isVendorPath(requested) || refused) return asNamed;
+  if (found.ok && (await stat(found.path).catch(() => null))?.isFile()) return asNamed;
+  const page = (await cleanUrl(requested, roots)) ?? (await folderPage(requested, found, roots, under));
+  if (page) return page;
+  if (!routes) return asNamed;
+  const missing: Served = found.ok ? { ok: false, status: HttpStatus.NotFound } : found;
   const route = spaFallback(requested, missing, entryPath, request);
   if (route === null) return asNamed;
   const served = await servedLocation(route, roots);
@@ -718,11 +777,12 @@ export async function answerRequest(
 
 /**
  * The address the studio treats a routed response as being served from: this request's own
- * origin and the entry's path, so a file name that reads as an authority (`\\host\\x`) stays a path.
+ * protocol and host (`project://` has an opaque origin) and the entry's path, so a file name that reads as an authority (`\\host\\x`) stays a path.
  */
 export function routedDocumentUrl(requestUrl: string, relative: string): string {
   const encoded = relative.split("/").map(encodeURIComponent).join("/");
-  return `${new URL(requestUrl).origin}/${encoded}`;
+  const { protocol, host } = new URL(requestUrl);
+  return `${protocol}//${host}/${encoded}`;
 }
 
 /**

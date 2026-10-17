@@ -32,9 +32,13 @@ import {
   MAX_REWRITE_BYTES,
   answerRequest,
   confinePreviewContents,
+  isDocumentDest,
+  isNavigation,
+  looksLikeDocument,
   loopbackEntryUrl,
   projectRequestAllowed,
   previewNavigationAllowed,
+  redirectResponse,
   rewriteProjectHtml,
   routedDocumentUrl,
   routeHttp,
@@ -534,7 +538,8 @@ export class ProjectPreview {
 
   /**
    * `routes`: the project owns its paths (a built app on its loopback origin), so a navigation to
-   * one no file answers gets the app's page. The template's `project://` pages have no routes.
+   * one no file answers gets the app's page. The template's `project://` pages have no routes, but
+   * get the static-host rules (a folder's page, `/about` as `about.html`, a slash redirect).
    */
   async #serveFile(
     project: string,
@@ -558,7 +563,7 @@ export class ProjectPreview {
       siteBase: () => this.#siteBase,
     };
     // A routed answer is the app's own page, read through the same check and rewritten like the entry.
-    const { relative, served, routed } = await answerRequest(
+    const { relative, served, routed, redirect } = await answerRequest(
       requested,
       roots,
       this.#entryPath,
@@ -570,6 +575,7 @@ export class ProjectPreview {
       options.routes === true,
     );
     if (!served.ok) return textResponse(served.status);
+    if (redirect !== undefined) return redirectResponse(redirect + (request ? new URL(request.url).search : ""));
     const target = served.path;
     try {
       const response = await net.fetch(pathToFileURL(target).toString());
@@ -608,9 +614,11 @@ export class ProjectPreview {
   ): Promise<string | null> {
     const isEntry = this.#entryPath !== null && samePath(relative, this.#entryPath);
     const dest = request?.headers.get("sec-fetch-dest") ?? null;
+    const asked = request ? { method: request.method, dest, accept: request.headers.get("accept") } : null;
     // The cheap verdict first: every asset, every module, every fetch a project makes is decided
     // here without touching the disk again.
-    if (!shouldRewrite(response.headers.get("content-type"), relative, isEntry, dest, null)) return null;
+    const navigating = asked !== null && isNavigation(asked);
+    if (!shouldRewrite(response.headers.get("content-type"), relative, isEntry, dest, null, navigating)) return null;
     if (!(await this.#shimAvailable())) return null;
     // Content-Length is rarely present on a file:// response; the size comes from the file.
     let bytes: number | null = null;
@@ -624,6 +632,8 @@ export class ProjectPreview {
       return null;
     }
     const html = await response.text();
+    // A page reached only by its Accept header is a whole document; a fragment fetched that way is not.
+    if (!isEntry && !isDocumentDest(dest) && !looksLikeDocument(html)) return null;
     const result = rewriteProjectHtml(html, { shim: this.#shimOptions(), documentUrl });
     for (const note of result.notes) this.#push({ at: Date.now(), level: "warning", message: note });
     if (isEntry) this.#reach = { reach: result.reach, hooked: result.hooked };
