@@ -1818,6 +1818,45 @@ describe("the Open Project sheet", () => {
     }
   });
 
+  it("exports a build's folder whole and a project that builds into itself through its declared files only", async () => {
+    const { projects, base } = await workspaces();
+    const make = async (name: string, studio: Record<string, unknown>) => {
+      const dir = path.join(base, "library", name);
+      await mkdir(path.join(dir, "dist", "docs"), { recursive: true });
+      await writeFile(path.join(dir, "package.json"), JSON.stringify({ name, scripts: { build: "vite build" } }));
+      await writeFile(path.join(dir, "index.html"), '<a href="docs/index.html">Docs</a>');
+      await writeFile(
+        path.join(dir, "studio.json"),
+        JSON.stringify({ name, contractVersion: 1, build: "vite build", ...studio }),
+      );
+      return dir;
+    };
+    // A dedicated build folder: its documentation pages and notes are the site.
+    const dist = await make("site", { serve: "dist", entry: "dist/index.html" });
+    await writeFile(
+      path.join(dist, "dist", "index.html"),
+      '<a href="docs/index.html">Docs</a><a href="notes.html">Notes</a>',
+    );
+    await writeFile(path.join(dist, "dist", "docs", "index.html"), "<h1>Docs</h1>");
+    await writeFile(path.join(dist, "dist", "notes.html"), "<h1>Notes</h1>");
+    await writeFile(path.join(dist, "dist", ".env"), "SECRET=1");
+    const built = await projects.export("site", path.join(base, "exports", "site"), path.join(dist, "dist"));
+    assert.deepEqual([...built.included].sort(), ["docs/index.html", "index.html", "notes.html"]);
+
+    // A project that builds into its own folder: only what it declared, and its docs folder is not public.
+    const self = await make("self", { serve: ".\\", entry: "index.html", exportFiles: ["index.html", "docs"] });
+    await writeFile(path.join(self, "docs", "index.html"), "<h1>Docs</h1>").catch(() => {});
+    await mkdir(path.join(self, "docs"), { recursive: true });
+    await writeFile(path.join(self, "docs", "index.html"), "<h1>Docs</h1>");
+    const result = await projects.export("self", path.join(base, "exports", "self"), self);
+    assert.deepEqual([...result.included], ["index.html"], "the declared docs folder stays out of a source export");
+    await writeFile(
+      path.join(self, "studio.json"),
+      JSON.stringify({ name: "self", contractVersion: 1, build: "vite build", serve: ".\\", entry: "index.html" }),
+    );
+    await assert.rejects(projects.export("self", path.join(base, "exports", "self2"), self), /exportFiles/);
+  });
+
   it("never starts a night on a compiled export, whoever asked for it", async () => {
     const rig = await startRig();
     rigs.push(rig);

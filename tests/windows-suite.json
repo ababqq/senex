@@ -178,6 +178,8 @@
   "tests/conformance/project-file.test.ts",
   "tests/conformance/project-network-loads.test.ts",
   "tests/conformance/project-picker.test.ts",
+  "tests/conformance/project-source-folders.test.ts",
+  "tests/conformance/project-view.test.ts",
   "tests/conformance/provider-skills.test.ts",
   "tests/conformance/providers.test.ts",
   "tests/conformance/recovery.test.ts",

@@ -6,19 +6,58 @@ import type { ExportResult } from "../shared/project-folder.ts";
 import { isBelow, isInside, toPosixRelative } from "./paths.ts";
 import { MIN_SECRET_LENGTH } from "../shared/redact.ts";
 
-const excluded = (name: string) =>
-  name.startsWith(".") ||
-  /^(node_modules|references|cache|__pycache__|coverage|tests?|docs|archive|research|evidence|captures|screenshots|logs)$/i.test(
-    name,
-  ) ||
-  /^(AGENTS|CLAUDE|NOTES|README|PLAN)(\.|$)/i.test(name) ||
+/** The one dot-folder a site publishes on purpose (`security.txt`, `assetlinks.json`). */
+const WELL_KNOWN = ".well-known";
+
+/**
+ * Never public, whatever is being exported: dotfiles (the well-known folder aside), dependencies,
+ * caches, and anything shaped like a secret, a key, a source map or a log.
+ */
+const neverPublic = (name: string) =>
+  (name.startsWith(".") && name !== WELL_KNOWN) ||
+  /^(node_modules|cache|__pycache__)$/i.test(name) ||
   /\.(pem|key|p12|pfx|jks|keystore|env|map|log)$/i.test(name) ||
   /^(id_rsa|id_ed25519|credentials|secrets|env)(\.|$)/i.test(name);
+
+/**
+ * What the studio itself writes into a project's folder — the agents' rules (`AGENTS.md`,
+ * `CLAUDE.md`, `CLAUDE.own.md`) and the decision logs (`NOTES.md`, `NOTES.<facet>.md`) — which a
+ * build that copies the project's files could carry into its output. Never public.
+ */
+const studioAuthored = (name: string) =>
+  /^(AGENTS|CLAUDE)(\.own)?\.(md|markdown)$/i.test(name) || /^NOTES(\.[\w-]+)?\.(md|markdown)$/i.test(name);
+
+/** The folder the studio keeps its reference stills in, at the root of a project. */
+const REFERENCES_FOLDER = /^references$/i;
+
+/**
+ * A project's working folders and pages. They keep a project's *source* export to its public
+ * files, and mean nothing in a build's output, where `docs/`, `notes.html` and a `tests/` demo
+ * page are the site.
+ */
+const devScaffolding = (name: string) =>
+  /^(references|coverage|tests?|docs|archive|research|evidence|captures|screenshots|logs)$/i.test(name) ||
+  /^(NOTES|README|PLAN)(\.|$)/i.test(name);
+
+/**
+ * Which names an export leaves out: a build's output keeps every file that is not never-public or
+ * the studio's own (its reference stills are the root `references/` folder, not any folder of that name).
+ */
+function leftOut(name: string, buildFolder: boolean, atRoot: boolean): boolean {
+  if (neverPublic(name) || studioAuthored(name)) return true;
+  if (buildFolder) return atRoot && REFERENCES_FOLDER.test(name);
+  return devScaffolding(name);
+}
 
 /** `project.export` answers this to the harness, so it lives in `shared/project-folder.ts`. */
 export type { ExportResult };
 
 export interface ExportOptions {
+  /**
+   * The folder is a build's output, a dedicated folder whose every file is the site. Without it the
+   * folder is a project's sources and the studio's scaffolding and working folders stay out.
+   */
+  buildFolder?: boolean;
   /**
    * The credential values Studio holds (the same set its log redactor uses). A public file that
    * contains one stops the export: a token an agent wrote into a project must not be published.
@@ -120,11 +159,12 @@ async function stagePath(
   result: ExportResult,
   base: string,
   rel: string,
+  options: { buildFolder: boolean },
   destRel = rel,
 ): Promise<void> {
   const parts = rel.split(/[\\/]/);
   if (path.isAbsolute(rel) || parts.includes("..")) throw new Error(MESSAGE.InvalidPublicPath(rel));
-  if (parts.some(excluded)) {
+  if (parts.some((part, depth) => leftOut(part, options.buildFolder, depth === 0))) {
     result.excluded.push(destRel);
     return;
   }
@@ -135,7 +175,7 @@ async function stagePath(
   if (st.isDirectory()) {
     for (const name of await readdir(src)) {
       // `/`-joined on every platform: these are the export's own names, listed and compared as such.
-      await stagePath(staging, result, base, path.posix.join(rel, name), path.posix.join(destRel, name));
+      await stagePath(staging, result, base, path.posix.join(rel, name), options, path.posix.join(destRel, name));
     }
     return;
   }
@@ -164,7 +204,8 @@ async function rewriteEntry(staging: string): Promise<{ entry: string; html: str
 /** The page's import map (`imports` only; a scoped map is refused). */
 function importMapOf(html: string): Record<string, string> {
   const imports: Record<string, string> = {};
-  for (const [, body = ""] of html.matchAll(/<script\b[^>]*type=["']importmap["'][^>]*>([\s\S]*?)<\/script>/gi)) {
+  for (const { attributes, body } of pageParts(html).scripts) {
+    if (attributes.get("type")?.trim().toLowerCase() !== "importmap") continue;
     const map = JSON.parse(body);
     for (const [key, value] of Object.entries(map.imports ?? {})) if (typeof value === "string") imports[key] = value;
     if (map.scopes && Object.keys(map.scopes).length) throw new Error(MESSAGE.ScopedImportMap);
@@ -181,6 +222,8 @@ interface ReferenceCheck {
   visited: Set<string>;
   /** Vendored files something in the export actually loads. */
   neededVendor: Set<string>;
+  /** A project module imports by a name only the running page knows (`import(cond ? "a" : "b")`). */
+  opaqueImport: boolean;
 }
 
 /** A bare module specifier through the import map: the longest key that answers it wins. */
@@ -203,11 +246,13 @@ async function checkReference(
   reference: string,
   referrer: string,
   module = false,
+  /** A module specifier, which the import map names, rather than a URL a tag spells (`src="main.js"`). */
+  specifier = module,
 ): Promise<void> {
   if (/^(?:[a-z]+:|\/\/|#)/i.test(reference)) return;
   let ref = reference;
   let from = referrer;
-  const bareSpecifier = module && !ref.startsWith(".") && !ref.startsWith("/");
+  const bareSpecifier = specifier && !ref.startsWith(".") && !ref.startsWith("/");
   if (bareSpecifier) {
     ref = mapBareSpecifier(check.imports, ref);
     from = check.entry;
@@ -227,17 +272,137 @@ async function checkReference(
   if (module && /\.m?js$/i.test(file)) check.queue.push(file);
 }
 
-async function scanModule(check: ReferenceCheck, text: string, file: string): Promise<void> {
-  const [specifiers] = parse(text);
-  for (const specifier of specifiers)
-    if (specifier.n !== undefined) await checkReference(check, specifier.n, file, true);
+/**
+ * Check what a script's imports name. `tolerant` is for a classic script, which the lexer may not
+ * be able to read at all: then there is nothing to follow, and nothing is refused for it.
+ */
+async function scanModule(check: ReferenceCheck, text: string, file: string, tolerant = false): Promise<void> {
+  let specifiers: ReturnType<typeof parse>[0];
+  try {
+    [specifiers] = parse(text);
+  } catch (error) {
+    if (tolerant) return;
+    throw error;
+  }
+  const vendored = isBelow(path.join(check.staging, VENDOR_DIR), file);
+  for (const specifier of specifiers) {
+    if (specifier.n !== undefined) {
+      await checkReference(check, specifier.n, file, true);
+      continue;
+    }
+    const computed = specifier.d > -1 && !namesProjectFile(text.slice(specifier.s, specifier.e));
+    if (computed && !vendored) check.opaqueImport = true;
+  }
+}
+
+/** Whether a computed `import()` argument starts as a path (`"./pages/" + name`): a file of the project, never a map name. */
+function namesProjectFile(expression: string): boolean {
+  return /^\s*["'`](?:\.{1,2}\/|\/)/.test(expression);
+}
+
+/** Tags whose `src` names a file the page loads. */
+const SRC_TAGS: ReadonlySet<string> = new Set([
+  "script",
+  "img",
+  "image",
+  "source",
+  "video",
+  "audio",
+  "track",
+  "iframe",
+  "embed",
+  "input",
+]);
+/** SVG tags whose `href` (or `xlink:href`) names a file. */
+const HREF_TAGS: ReadonlySet<string> = new Set(["image", "use"]);
+/** The `rel` values of a `<link>` whose `href` names a file the page loads, as against a page it points to. */
+const LOADED_RELS: ReadonlySet<string> = new Set([
+  "stylesheet",
+  "icon",
+  "shortcut",
+  "mask-icon",
+  "preload",
+  "modulepreload",
+  "prefetch",
+  "manifest",
+]);
+
+/** One attribute of a tag: its name, and its value quoted either way or not at all. */
+const ATTRIBUTE = /([^\s"'<>/=]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)))?/g;
+/**
+ * What a page is made of, in document order: a comment (skipped), an element whose body is text
+ * (`script`, `style`, `textarea`: what is inside is code, never tags) and any other tag. A tag's
+ * quoted values may hold a `>`, and `<script-loader>` is not a script.
+ */
+const PAGE_NODE =
+  /<!--(?:-?>|[\s\S]*?-->)|<(script|style|textarea)(?![\w:-])((?:"[^"]*"|'[^']*'|[^>"'])*)>([\s\S]*?)<\/\1\s*>|<([a-z][\w-]*)((?:"[^"]*"|'[^']*'|[^>"'])*)>/gi;
+
+/** A tag's attributes by lower-case name, as a browser reads them: the first of a name wins. */
+function attributesOf(text: string): Map<string, string> {
+  const attributes = new Map<string, string>();
+  for (const [, name = "", double, single, bare] of text.matchAll(ATTRIBUTE)) {
+    const key = name.toLowerCase();
+    if (!attributes.has(key)) attributes.set(key, double ?? single ?? bare ?? "");
+  }
+  return attributes;
+}
+
+/** What a page loads and runs: the files its tags name, and its scripts with their bodies. */
+interface PageParts {
+  files: string[];
+  scripts: Array<{ attributes: Map<string, string>; body: string }>;
+}
+
+/**
+ * The files a page's own tags load. A link to another page (`<a href>`, `<area>`, `<base>`, a
+ * canonical or alternate `<link>`) is navigation: it may name the site's root, a folder, a clean
+ * URL or another site, none of which is a file the export has to hold.
+ */
+function pageParts(html: string): PageParts {
+  const parts: PageParts = { files: [], scripts: [] };
+  for (const [node, rawName, rawAttributes = "", body = "", tagName, tagAttributes = ""] of html.matchAll(PAGE_NODE)) {
+    if (node.startsWith("<!--")) continue;
+    const name = (rawName ?? tagName ?? "").toLowerCase();
+    const attributes = attributesOf(rawName ? rawAttributes : tagAttributes);
+    parts.files.push(...filesOfTag(name, attributes));
+    if (name === "script" && rawName) parts.scripts.push({ attributes, body });
+  }
+  return parts;
+}
+
+/** The files one tag loads: a media tag's `src` (and a video's poster), a `<link>`'s `href` when its `rel` says so. */
+function filesOfTag(name: string, attributes: Map<string, string>): string[] {
+  const named = (...keys: string[]): string[] =>
+    keys.flatMap((key) => (attributes.get(key) ? [attributes.get(key) ?? ""] : []));
+  if (name === "link") {
+    const rels = (attributes.get("rel") ?? "").toLowerCase().split(/\s+/);
+    const loaded = rels.some((rel) => LOADED_RELS.has(rel) || rel.startsWith("apple-touch"));
+    return loaded ? named("href") : [];
+  }
+  const hrefs = HREF_TAGS.has(name) ? named("href", "xlink:href") : [];
+  if (!SRC_TAGS.has(name)) return hrefs;
+  if (name === "input" && attributes.get("type")?.toLowerCase() !== "image") return hrefs;
+  return [...hrefs, ...(name === "video" ? named("src", "poster") : named("src"))];
+}
+
+/** Whether a script's `type` makes it code the page runs, and as a module or as a classic script. */
+function scriptKind(type: string | undefined): "module" | "classic" | null {
+  const kind = (type ?? "").trim().toLowerCase();
+  if (kind === "module") return "module";
+  return kind === "" || /^(?:text|application)\/(?:x-)?(?:java|ecma)script$/.test(kind) ? "classic" : null;
 }
 
 async function scanHtml(check: ReferenceCheck, text: string, file: string): Promise<void> {
-  for (const [, ref = ""] of text.matchAll(/(?:src|href)\s*=\s*["']([^"']+)["']/g))
-    await checkReference(check, ref, file, /\.m?js(?:[?#]|$)/i.test(ref));
-  for (const [, body = ""] of text.matchAll(/<script\b[^>]*type=["']module["'][^>]*>([\s\S]*?)<\/script>/gi))
-    await scanModule(check, body, file);
+  const { files, scripts } = pageParts(text);
+  // A tag's `src="main.js"` is a URL relative to the page; only a module's own imports are names.
+  for (const ref of files) await checkReference(check, ref, file, /\.m?js(?:[?#]|$)/i.test(ref), false);
+  for (const { attributes, body } of scripts) {
+    // A script with a source ignores its body.
+    if (attributes.has("src")) continue;
+    const kind = scriptKind(attributes.get("type"));
+    // A classic script can still `import()` a library: its body is read for that alone.
+    if (kind !== null) await scanModule(check, body, file, kind === "classic");
+  }
 }
 
 /** One staged project file: HTML and CSS references are checked, modules queued. */
@@ -271,19 +436,33 @@ async function checkReferences(
     queue: [],
     visited: new Set(),
     neededVendor: new Set(),
+    opaqueImport: false,
   };
-  for (const ref of Object.values(check.imports))
-    if (!ref.endsWith("/")) await checkReference(check, ref, page.entry, true);
   for (const rel of included) {
     if (isVendorFile(rel, vendor)) continue;
     await scanStagedFile(check, rel);
   }
+  await drainModules(check);
+  // A name only the running page can work out (`import(gpu ? "three/webgpu" : "three")`) may reach
+  // any library the page's import map names: with one in the project, those entries and what they
+  // import stay (a prefix entry like `three/addons/` is not followed). A page that imports only
+  // what it spells out ships only what it reaches — a todo list on the starter's map ships none of
+  // the 3D library.
+  if (check.opaqueImport) {
+    for (const ref of Object.values(check.imports))
+      if (!ref.endsWith("/")) await checkReference(check, ref, page.entry, true);
+    await drainModules(check);
+  }
+  return check.neededVendor;
+}
+
+/** Read every queued module once, following its imports into the queue. */
+async function drainModules(check: ReferenceCheck): Promise<void> {
   for (let file = check.queue.pop(); file !== undefined; file = check.queue.pop()) {
     if (check.visited.has(file)) continue;
     check.visited.add(file);
     await scanModule(check, await readFile(file, "utf8"), file);
   }
-  return check.neededVendor;
 }
 
 /** Drop the vendored files nothing loads (licences and notices stay), moving them to `excluded`. */
@@ -325,11 +504,12 @@ export async function exportPublicProject(
   const staging = await mkdtemp(path.join(parent, STAGING_PREFIX));
   const result: ExportResult = { dir: target, files: 0, included: [], excluded: [] };
   try {
-    for (const root of roots) await stagePath(staging, result, source, root);
+    const staged = { buildFolder: options.buildFolder === true };
+    for (const root of roots) await stagePath(staging, result, source, root, staged);
     if (vendor) {
       const names = await readdir(vendor);
       for (const name of names)
-        await stagePath(staging, result, await realpath(vendor), name, path.posix.join(VENDOR_DIR, name));
+        await stagePath(staging, result, await realpath(vendor), name, staged, path.posix.join(VENDOR_DIR, name));
     }
     // Studio's own vendored library is not the project's to leak into; everything else is checked.
     const leaked = options.secretValues

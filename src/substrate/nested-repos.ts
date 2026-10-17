@@ -69,14 +69,47 @@ export function missingIgnoreRules(current: string | null): string[] {
   return IGNORE_RULES.filter((rule) => current === null || !rule.already.test(current)).map((rule) => rule.line);
 }
 
-/** Top up a folder's `.gitignore` with the rules the studio needs; what the user wrote is kept. */
+/**
+ * The `export/` line the studio's own first `.gitignore` began with, from when exports were written
+ * into the project folder — and only while the `.DS_Store` line it was written with follows it
+ * (either line ending; the last line may lack one).
+ */
+const LEGACY_EXPORT_LINE = /^export\/\r?\n(?=\.DS_Store(?:\r?\n|$))/;
+
+/**
+ * Whether a `.gitignore` still begins with the studio's old two-line header. Its `export/` rule
+ * (any folder of that name, at any depth) hides a project's own `src/export/` from Git, so a
+ * module there is left out of every commit; exports have gone to the studio's folder since.
+ */
+export function hasLegacyIgnoreHeader(current: string | null): boolean {
+  return current !== null && LEGACY_EXPORT_LINE.test(current);
+}
+
+/**
+ * Drop only that one line from a project's `.gitignore`, when it is there. The studio calls this
+ * as a project is opened, so a project nobody has built in since still lists its `src/export/`.
+ */
+export async function migrateLegacyIgnore(dir: string): Promise<void> {
+  const file = path.join(dir, ".gitignore");
+  const current = await readFile(file, "utf8").catch(() => null);
+  if (current === null || !hasLegacyIgnoreHeader(current)) return;
+  await writeFile(file, current.replace(LEGACY_EXPORT_LINE, ""));
+}
+
+/**
+ * Top up a folder's `.gitignore` with the rules the studio needs; what the user wrote is kept —
+ * but for the one line the studio wrote itself and that now does harm: a file that still begins
+ * with the studio's old header loses its `export/` line.
+ */
 export async function ensureIgnoreRules(dir: string, header = ""): Promise<void> {
   const file = path.join(dir, ".gitignore");
   const current = await readFile(file, "utf8").catch(() => null);
-  const missing = missingIgnoreRules(current);
-  if (missing.length === 0) return;
-  const before = current === null ? header : `${current.replace(/\s*$/, "")}\n`;
-  await writeFile(file, `${before}${missing.join("\n")}\n`);
+  const legacy = hasLegacyIgnoreHeader(current);
+  const kept = current !== null && legacy ? current.replace(LEGACY_EXPORT_LINE, "") : current;
+  const missing = missingIgnoreRules(kept);
+  if (missing.length === 0 && !legacy) return;
+  const before = kept === null ? header : `${kept.replace(/\s*$/, "")}\n`;
+  await writeFile(file, `${before}${missing.map((line) => `${line}\n`).join("")}`);
 }
 
 /** Whether `rel` is one of the nested repositories or lies inside one. */

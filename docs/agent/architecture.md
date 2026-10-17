@@ -122,14 +122,13 @@ scope: Codex's cover pre-existing files, never directories; the Claude hook matc
 ### Residual risks
 
 - **A Codex contractor can read the whole disk.** `codex exec` runs under Codex's own sandbox
-  (`workspace-write`, one writable root, no network), which restricts writes but not reads, and
-  Studio does not wrap the CLI in `ProcessSandbox`. The studio's secrets, both CLIs' sign-in homes
-  and sibling projects are named off limits in the brief only; the Claude path enforces the same list
-  as `Read()` deny rules, and `ProcessSandbox` enforces it for the harness and Bonsai. A
-  prompt-injected Codex build could copy what it reads into project files or its summary. Studio's
-  own secrets are safeStorage ciphertext; the exposed material is other projects, `~/.genex`, the
-  borrowed Codex sign-in and the ordinary home folder. Running the CLI under `ProcessSandbox` with
-  deny-read is planned, not done.
+  (`workspace-write`, one writable root, no network), which restricts writes but not reads; Studio
+  does not wrap it in `ProcessSandbox`. Only the brief names the studio's secrets, both CLIs' sign-in
+  homes and sibling projects off limits (the Claude path enforces them as `Read()` deny rules, and
+  `ProcessSandbox` for the harness and Bonsai), so a prompt-injected Codex build could copy what it
+  reads into project files or its summary. Studio's own secrets are safeStorage ciphertext; exposed
+  are other projects, `~/.genex`, the borrowed Codex sign-in and the home folder. Running Codex under
+  `ProcessSandbox` with deny-read is planned, not done.
 - **An install briefly opens its manager's registry hosts to every sandboxed process.** sandbox-runtime's
   proxy filters against one process-wide allow-list, so `ProcessSandbox.run` widens it for the
   length of a package install and restores it afterwards (counted, in `finally`). Two installs
@@ -138,11 +137,10 @@ scope: Codex's cover pre-existing files, never directories; the Claude hook matc
 - **A Genex CLI run opens `api.genex.games` to every sandboxed process** for its length, by the
   same process-wide widening. Other processes hold no Genex token (it reaches only the CLI's
   preload, on stdin), so they can reach the API but not act as the user.
-- **The asset adapter still runs the pinned CLI with the user's real `HOME`** (`adapter.ts`
-  asset commands). The CLI's legacy cleanup therefore deletes `genex-*` entries under
-  `~/.claude/skills`, `~/.codex/skills` and `~/.cursor/skills` (and two legacy `~/.claude` files)
-  on a `genex__asset` call. `genex__cli` and publishing already use a contained `HOME`; giving
-  asset runs one is a follow-up.
+- **The asset adapter still runs the pinned CLI with the user's real `HOME`** (`adapter.ts`). Its
+  legacy cleanup therefore deletes `genex-*` entries under `~/.claude/skills`, `~/.codex/skills`
+  and `~/.cursor/skills` (and two legacy `~/.claude` files) on a `genex__asset` call. `genex__cli`
+  and publishing already use a contained `HOME`; giving asset runs one is a follow-up.
 - **Windows sandbox residuals** are listed in [Windows sandbox](../windows-sandbox.md#residual-risks).
 - **A command a reply offers runs outside the sandbox.** Run starts the agent-written line with the
   user's own permissions. Only one visible line without control characters is accepted; a
@@ -158,7 +156,7 @@ scope: Codex's cover pre-existing files, never directories; the Claude hook matc
   takes the typed `IpcHandle` ([`src/main/ipc/registrar.ts`](../../src/main/ipc/registrar.ts)) and
   its dependencies explicitly; `handle()` and `pushToRenderer` live in
   [`src/main/ipc-handle.ts`](../../src/main/ipc-handle.ts). Plugin, MCP, terminal and permission
-  channels accept only the main window's top-level frame. Follow the [IPC recipe](recipes.md#ipc-channel).
+  channels accept only the main window's top-level frame.
 - **Boot state.** The renderer first calls `bootState` (`studio:boot`, registered before any core;
   contract in [`src/shared/boot.ts`](../../src/shared/boot.ts)): the platform, which it sets as
   `data-platform` on the root, and the phase. When `ProcessSandbox` raises
@@ -170,19 +168,17 @@ scope: Codex's cover pre-existing files, never directories; the Claude hook matc
   that window with the studio. On Windows, `studio:boot.setup` (native) first installs the sandbox
   with the unpacked srt-win
   ([`src/substrate/windows-sandbox-setup.ts`](../../src/substrate/windows-sandbox-setup.ts), one
-  UAC prompt) and then retries; a dismissed prompt changes nothing. Every other startup failure keeps the error dialog and exit; smoke
-  and developer launches fail as before (the `sandbox-setup` fixture shows the screen over a ready
-  core). The window's title bar comes from
-  [`src/main/window-chrome.ts`](../../src/main/window-chrome.ts): `hiddenInset` on macOS
-  (lights on the headers' line), a themed 48 px `titleBarOverlay` on Windows and Linux
+  UAC prompt) and then retries. Every other startup failure keeps the error dialog and exit, as do
+  smoke and developer launches (the `sandbox-setup` fixture shows the screen over a ready core).
+  The title bar comes from [`src/main/window-chrome.ts`](../../src/main/window-chrome.ts):
+  `hiddenInset` on macOS, a themed 48 px `titleBarOverlay` on Windows and Linux
   (`studio:window.controls`).
 - [`src/main/studio-core.ts`](../../src/main/studio-core.ts) keeps the core's lifecycle, the event
   log's front door, settings and public methods. It assembles the EventStore, snapshots,
   `ProjectWorkspaces`, the engine registry, the preview pool and the `HarnessHost`.
 - The harness RPC handlers live in [`src/main/harness-rpc/`](../../src/main/harness-rpc/), one file
   per namespace, typed by `HarnessHostApi`; `api()` returns `HarnessHostHandlers`, so a handler
-  reads only declared params and answers its declared result without a cast. Follow the
-  [RPC recipe](recipes.md#harness-rpc-method).
+  reads only declared params and answers its declared result without a cast.
 - Behavior lives in services under [`src/main/core/`](../../src/main/core/) (previews, delegation,
   recovery, self-improvement, plugin tools, conversation, assets, project threads, the self-edit
   gate, connections, plan drafts), which reach the core's shared state through one typed
@@ -191,8 +187,7 @@ scope: Codex's cover pre-existing files, never directories; the Claude hook matc
   loaded by dynamic import only when their flag is set. Acceptance drivers that need seed code load
   the shipped copy from `resources/harness-seed/` by a path computed at run time.
 - [`src/main/dev/`](../../src/main/dev/) is the development controller (`control.ts`), fixture
-  projects (`fixtures.ts`, assembled from `fixture-kit.ts` and one `fixture-<part>.ts` per scenario
-  part: engines, chat, history, build graph, notifications) and the fixture policy
+  projects (`fixtures.ts`, assembled from `fixture-kit.ts` and one `fixture-<part>.ts` per scenario part) and the fixture policy
   (`native-policy.ts`), which classifies
   every IPC channel fixture-safe or native; an unclassified map channel fails the typecheck. The
   controller is main-owned and absent from the ordinary preload contract.
@@ -207,12 +202,12 @@ code import none from the substrate.
 | --- | --- | --- |
 | Renderer API | [`studio-api.ts`](../../src/shared/studio-api.ts) | The fixed named calls of `window.studio`. |
 | IPC channels | [`ipc-channels.ts`](../../src/shared/ipc-channels.ts) | Ties each `studio:*` invoke channel to its call, payload and result, and each push channel (`studio:event`, `studio:terminal`, `studio:claude-login`, `studio:codex-login`) to its `on*` subscription. Preload, `handle()` and the fixture policy take their types from it. |
-| UI events | [`ui-events.ts`](../../src/shared/ui-events.ts) | `studio:event` carries a `UiEvent` from `UiEventMap`. `UiEvent` names each (`UiEvent.PreviewFrame`). `StudioCore.emit` and `pushUiEvent` are checked against it; the renderer narrows on `event.type`. Harness notifications are forwarded unchanged, so harness-written fields stay optional and unknown names still arrive and are ignored. |
+| UI events | [`ui-events.ts`](../../src/shared/ui-events.ts) | `studio:event` carries a `UiEvent` from `UiEventMap`. `StudioCore.emit` and `pushUiEvent` are checked against it; the renderer narrows on `event.type`. Harness notifications are forwarded unchanged, so harness-written fields stay optional and unknown names still arrive and are ignored. |
 | Durable custom events | [`custom-events.ts`](../../src/shared/custom-events.ts) | `CustomEvent` names them (`CUSTOM_EVENT_TYPES` lists the values; `customEventData` builds a record); `CustomEventMap` types what the app reads, every field optional. Read through `customEvent`/`customPayload`, never by casting `data.payload`. |
 | Event log | [`event-log.ts`](../../src/shared/event-log.ts) | Events, conversations and snapshot records. |
 | Harness RPC | [`harness-api.ts`](../../src/shared/harness-api.ts) | `HarnessHostApi`, `HostMethod` (the method names), `HARNESS_PARAM_SCHEMAS`; the seed's `types/host-api.d.ts` and `loop/host-methods.ts` are generated from it (`node scripts/gen-harness-types.ts`). |
 | RPC data | [`preview-contract.ts`](../../src/shared/preview-contract.ts), [`engine-requests.ts`](../../src/shared/engine-requests.ts), [`optimization.ts`](../../src/shared/optimization.ts), [`mcp.ts`](../../src/shared/mcp.ts), [`project-folder.ts`](../../src/shared/project-folder.ts) | Capture, pixel, input, readiness and console shapes; the serializable halves of a completion and a delegation. |
-| Engines and providers | [`engine-descriptor.ts`](../../src/shared/engine-descriptor.ts), [`providers.ts`](../../src/shared/providers.ts) | What the UI knows about an engine, and the one provider table (see [Engines and providers](#engines-and-providers)). |
+| Engines and providers | [`engine-descriptor.ts`](../../src/shared/engine-descriptor.ts), [`providers.ts`](../../src/shared/providers.ts) | What the UI knows about an engine, and the one provider table. |
 | Time units | [`duration.ts`](../../src/shared/duration.ts) | `SECOND_MS`, `MINUTE_MS`, `HOUR_MS` for every named wait; the seed's `loop/time.ts` is held to it. |
 
 Add a new event or channel here first ([event recipe](recipes.md#event-type)); no payload `as`
@@ -226,8 +221,7 @@ edits (`skill-edits.ts`) — and the seed keeps its own. `tests/conformance/seed
 and `tests/conformance/providers.test.ts` replay the same inputs through both copies. Other
 two-copy rules: the ownership glob ([`src/substrate/ownership.ts`](../../src/substrate/ownership.ts)
 and the seed's `loop/review.ts`), and the engine-export refusal (`ENGINE_EXPORT_REFUSAL` in
-[`shape-words.ts`](../../src/shared/shape-words.ts) and the seed's `nightRefusal`). See the
-[seed contract recipe](recipes.md#seed-contract). `verify:architecture` fails any new import
+[`shape-words.ts`](../../src/shared/shape-words.ts) and the seed's `nightRefusal`). `verify:architecture` fails any new import
 cycle in `src`; [`scripts/boundary-allowlist.json`](../../scripts/boundary-allowlist.json) is empty
 and must stay so.
 
@@ -761,7 +755,7 @@ per-project network opt-in yet.
 `ProjectPreview.create()`: its own session partition (`project-preview`, `project-preview-facet-N`),
 `sandbox`, `contextIsolation`, no Node, `webSecurity`, no preload or IPC, `window.open` refused.
 The session grants pointer lock (plus fullscreen on screen) and denies every other permission,
-microphone and camera included. The view turns off `PROJECT_DISABLED_BLINK_FEATURES`
+microphone and camera included; an agent's window cancels downloads. The view turns off `PROJECT_DISABLED_BLINK_FEATURES`
 (`OnDeviceWebSpeechAvailable`, `InstallOnDeviceSpeechRecognition`): on-device speech recognition
 (`SpeechRecognition.available()`/`install()` with `processLocally`, or `start()` with it and a
 `lang`) asks for a Mojo binder only Chrome registers, and Electron kills the whole renderer for the
@@ -988,10 +982,12 @@ with a managed local runtime; core has no special Blender tool.
   unchanged recorded assets with a separate index and re-hashes the staged blob before committing;
   the director calls `assets.checkpoint` before merging.
 - **Export.** [`src/substrate/project-export.ts`](../../src/substrate/project-export.ts) stages fresh public
-  files and replaces only an app-managed destination; hidden files, env files, private-key names,
-  dependencies and symlinks are excluded or refused; parsed imports and references prune the
-  vendor folder. Static analysis cannot classify computed URLs, so browser export checks remain
-  required.
+  files and replaces only an app-managed destination; hidden files (`.well-known` aside), env files,
+  private-key names, dependencies and symlinks are excluded or refused. A build's folder keeps all but the agents' own files (`CLAUDE.md`, `AGENTS.md`,
+  `NOTES*.md`, a root `references/`); sources also drop `docs/`, `tests/`, `notes.*`, and an in-place
+  build exports only declared files. Only tags that load a file are checked; links
+  are navigation. Parsed imports prune the vendor folder (a computed `import()` keeps the import
+  map's libraries). Computed URLs defeat static analysis, so browser export checks remain required.
 
 ## Persistence and the event log
 

@@ -50,7 +50,7 @@ import {
 import { PAGE_DISPATCH } from "./page-dispatch.ts";
 import { emulatePageFocus } from "./preview-focus.ts";
 import { anchoredBounds } from "./preview-anchor.ts";
-import { projectViewPreferences } from "./project-view.ts";
+import { downloadDecision, downloadLine, projectViewPreferences } from "./project-view.ts";
 import { capActions, type PreviewInputAction } from "../substrate/preview-input.ts";
 import { applyInputAction, type PageDispatch } from "./preview-input-driver.ts";
 import { cropImageFile, diffImageFiles, encodedImageStats, pairJpeg, resizeToJpeg } from "./preview-images.ts";
@@ -236,6 +236,8 @@ export class ProjectPreview {
   #shimPresent: boolean | null = null;
   /** Origins whose blocked request or navigation this load has already noted on the project's console. */
   #blockedNoted = new Set<string>();
+  /** Refused downloads already said on the console this load. */
+  #downloadNotes = new Set<string>();
   /** How the studio reached this page's `three`, recorded when the entry was rewritten. */
   #reach: { reach: string; hooked: Record<string, string> } = { reach: "none", hooked: {} };
 
@@ -302,6 +304,10 @@ export class ProjectPreview {
       if (!allowed) this.#noteBlocked("request", details.url);
       callback(allowed ? {} : { cancel: true });
     });
+
+    // A file the page starts downloading: Live's own dialog answers; a window an agent drives has
+    // nobody to click it, so the file is refused and the console says which (`project-view.ts`).
+    projectSession.on("will-download", this.#onDownload);
 
     const view = new WebContentsView({
       // Sandboxed, no preload, no on-device speech (`project-view.ts`).
@@ -473,6 +479,30 @@ export class ProjectPreview {
     // Never re-fetched from the main process: that sent a project's plain-http beacon off the machine.
     if (route.route === HttpRouteKind.Deny) return textResponse(HttpStatus.Forbidden);
     return this.#serveFile(route.project, url.pathname, request, { routes: true });
+  }
+
+  /** A download the page started: refused in a window an agent drives, and said once per file on the console. */
+  readonly #onDownload = (
+    _event: Electron.Event,
+    item: Electron.DownloadItem,
+    contents: Electron.WebContents,
+  ): void => {
+    if (contents && contents !== this.#view?.webContents) return;
+    const decision = downloadDecision(this.options.offscreen ?? false, {
+      name: item.getFilename(),
+      mimeType: item.getMimeType(),
+    });
+    if (!decision.cancel) return;
+    item.cancel();
+    if (decision.note !== null) this.#noteDownload(decision.note);
+  };
+
+  /** The first few distinct refused downloads of a load, then one line saying there were more: a page cannot fill the console with them. */
+  #noteDownload(note: string): void {
+    const message = downloadLine(this.#downloadNotes, note);
+    if (message === null) return;
+    this.#downloadNotes.add(note);
+    this.#push({ at: Date.now(), level: "warning", message });
   }
 
   /** One console line per blocked origin per load: the harness reads why a project's request failed. */
@@ -679,6 +709,7 @@ export class ProjectPreview {
     this.#crashed = false;
     this.#console = [];
     this.#blockedNoted.clear();
+    this.#downloadNotes.clear();
     this.#consoleAvailable = false;
     const url = options.loopback
       ? loopbackEntryUrl(loopbackPortFor(project), entry)
@@ -718,6 +749,7 @@ export class ProjectPreview {
     this.#pageSurfaceNoted = false;
     this.#console = [];
     this.#blockedNoted.clear();
+    this.#downloadNotes.clear();
     this.#consoleAvailable = false;
     this.#loadError = null;
     this.#navigating = true;
@@ -737,6 +769,7 @@ export class ProjectPreview {
     if (!this.#view) return;
     this.#console = [];
     this.#blockedNoted.clear();
+    this.#downloadNotes.clear();
     this.#consoleAvailable = false;
     this.#loadError = null;
     // The user pressing Reload means "show me what is on disk NOW" — never a cached copy.
@@ -1371,6 +1404,7 @@ export class ProjectPreview {
     const retired = this.#session;
     this.#session = null;
     if (retired) {
+      retired.removeListener("will-download", this.#onDownload);
       retired.protocol.unhandle(SCHEME);
       retired.protocol.unhandle("http");
       retired.webRequest.onBeforeRequest(null);
