@@ -138,6 +138,27 @@ describe("counting what a person does", () => {
     assert.deepEqual(page.consoleErrors, [["boom"]], "the page's own console.error still runs");
   });
 
+  it("does not count the browser's own ResizeObserver notice, and still counts a real error that mentions it", () => {
+    // Chrome fires an `error` event with this message and no error object when an observer's callback
+    // resizes what it observes. A dashboard or a textarea that auto-sizes does it all the time.
+    const page = stubPage();
+    const activity = installUiActivity({ scope: page.scope });
+    for (const message of [
+      "ResizeObserver loop completed with undelivered notifications.",
+      "ResizeObserver loop limit exceeded",
+    ]) {
+      page.window("error", { message, target: page.scope });
+    }
+    assert.equal(activity.report().errors, 0, "a notice is not a throw");
+    page.window("error", {
+      message: "ResizeObserver loop completed with undelivered notifications.",
+      error: new Error("thrown from the callback"),
+      target: page.scope,
+    });
+    page.window("error", { message: "Uncaught Error: ResizeObserver loop is a name in my code", target: page.scope });
+    assert.equal(activity.report().errors, 2, "an error object, or a message that only mentions it, is counted");
+  });
+
   it("counts the page changing only within a moment of an input", () => {
     const page = stubPage();
     const activity = installUiActivity({ scope: page.scope });

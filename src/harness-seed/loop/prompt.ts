@@ -183,7 +183,8 @@ async function readProjectInventory(
     const dir = options.projectDir ?? "";
     const extra = Array.isArray(options.extraReads) ? options.extraReads : [];
     const extraLines = extra.map(
-      (folder) => `- ${folder} (the user named this — read_file the stills here, do not copy them)`,
+      (folder) =>
+        `- ${folder} (the user named this — read_file the stills here; copy one only if the user asks to use it)`,
     );
     return [
       `## This project's folder`,
@@ -191,8 +192,8 @@ async function readProjectInventory(
         ? `You are working in \`${dir}\`. Relative paths resolve here. Do not \`cd\` elsewhere. Do not create another copy of this project. Do not search the rest of the disk for folders named \`references\`.`
         : `These files live in the folder the user opened.`,
       extra.length
-        ? `The user named stills outside this folder. Look at them with \`read_file\` using those absolute paths. Do not copy them into this project.\n${extraLines.join("\n")}`
-        : `Stills may be in \`references/\`, \`ref/\`, or a path the user named. Look at them with \`read_file\`. Do not load them as project assets.`,
+        ? `The user named stills outside this folder. Look at them with \`read_file\` using those absolute paths. Do not copy them into this project unless the user asks to use one in it.\n${extraLines.join("\n")}`
+        : `Stills may be in \`references/\`, \`ref/\`, or a path the user named. Look at them with \`read_file\`. Do not load them as project assets unless the user asks to use one in the product.`,
       lines.length ? lines.join("\n") + more : "- (empty folder)",
     ].join("\n");
   } catch {

@@ -16,6 +16,27 @@ export const SCROLL_TO_TOP = `(() => {
   return true;
 })()`;
 
+/**
+ * The Live stage's page probe: the project's own phase and draw count, and — only for a project
+ * that says its phase is "empty", the starter's word — whether its page really shows nothing
+ * (`inspect().dom.empty()`), so a working page that names a probe `phase` is not swapped for the
+ * placeholder. `pageEmpty` stays null where the studio cannot tell.
+ */
+export const LIVE_PROBE = `(() => {
+  let state = null;
+  try {
+    const full = window.__studio ? window.__studio.state() : null;
+    if (full) {
+      let pageEmpty = null;
+      if (full.phase === "empty") {
+        try { pageEmpty = window.__studio.inspect().dom.empty(); } catch {}
+      }
+      state = { phase: full.phase, drawCalls: full.drawCalls, pageEmpty };
+    }
+  } catch {}
+  return { complete: document.readyState === "complete", resources: performance.getEntriesByType("resource").length, state };
+})()`;
+
 /** Installed once per page: remembers whether any trusted (native) input ever arrived. */
 export const TRUSTED_PROBE = `(() => {
   if (window.__studioTrustedProbe) return true;

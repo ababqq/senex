@@ -216,6 +216,11 @@ export interface Liveness {
   principles: Principle[];
 }
 
+/** Whether a round's liveness card scored anything: a critic that failed leaves a total and a maximum of nothing. */
+export function hasScoredLiveness(card: Liveness | null): card is Liveness {
+  return card !== null && card.total !== null && Boolean(card.max);
+}
+
 export interface FlagInfo {
   what: string;
   checkId: string | null;
@@ -1229,11 +1234,14 @@ function keepAskedWork(node: IterationNode, payload: Payload): void {
   if (fix && leftOpen(node.fix)) node.fix = fix;
   const liveness = parseLiveness(payload.liveness);
   if (!liveness) return;
+  // The round's record names the critic that judged it beside the card; a card that carries no
+  // critic of its own (one a failed critic left behind) is that critic's.
+  const critic = liveness.critic ?? strOrNull(payload.critic);
   if (!node.liveness) {
-    node.liveness = liveness;
+    node.liveness = { ...liveness, critic };
     return;
   }
-  node.liveness.critic ??= liveness.critic;
+  node.liveness.critic ??= critic;
   node.liveness.total ??= liveness.total;
   node.liveness.max ??= liveness.max;
   node.liveness.biggest ??= liveness.biggest;

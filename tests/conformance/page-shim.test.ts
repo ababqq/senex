@@ -7,7 +7,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { PAGE_DISPATCH } from "../../src/main/page-dispatch.ts";
-import { SCROLL_TO_TOP } from "../../src/main/preview-page-scripts.ts";
+import { LIVE_PROBE, SCROLL_TO_TOP } from "../../src/main/preview-page-scripts.ts";
 import vm from "node:vm";
 import { PROJECT_DISABLED_BLINK_FEATURES, projectViewPreferences } from "../../src/main/project-view.ts";
 import { installStudio, makeRng } from "../../src/project-template/src/studio.js";
@@ -27,6 +27,7 @@ import {
   mulberry32,
   normalizeShimOptions,
   readinessVerdict,
+  watchCanvases,
 } from "../../src/page/shim.ts";
 
 const FRAME_MS = 1000 / 60;
@@ -445,6 +446,89 @@ describe("readiness", () => {
   });
 });
 
+describe("a page that never asks for the GPU", () => {
+  const dom = { elapsed: 700, quiet: true, complete: true, frames: 0, drawCalls: 0, gpu: false, readyMs: 15_000 };
+
+  it("is ready once it has loaded and gone quiet, with or without animation frames", () => {
+    for (const frames of [0, 1, 30]) {
+      const verdict = readinessVerdict({ ...dom, frames });
+      assert.equal(verdict.settle, "quiet-no-gpu", `${frames} frames`);
+      assert.equal(verdict.ready, true);
+      assert.equal(verdict.timedOut, false);
+    }
+  });
+
+  it("is not ready while the document is loading or a resource is in flight", () => {
+    assert.equal(readinessVerdict({ ...dom, complete: false }).settle, null);
+    assert.equal(readinessVerdict({ ...dom, quiet: false }).settle, null);
+  });
+
+  it("still waits, as before, for a page that asked for a GL or GPU context and has drawn nothing", () => {
+    assert.equal(readinessVerdict({ ...dom, gpu: true, frames: 9 }).settle, null);
+    assert.equal(readinessVerdict({ ...dom, gpu: true, frames: 9, elapsed: 9_000 }).settle, "quiet-no-draw");
+    assert.equal(readinessVerdict({ ...dom, gpu: true, frames: 9, drawCalls: 4 }).settle, "quiet");
+  });
+
+  it("is judged as before when the page does not say (a shim that cannot tell)", () => {
+    const { gpu: _unknown, ...unknown } = dom;
+    assert.equal(readinessVerdict(unknown).settle, null);
+  });
+});
+
+describe("what the shim learns from the page's graphics calls", () => {
+  /** A window with a canvas and a WebGPU entry point whose natives only count their calls. */
+  function fakeWindow({ refuse = false } = {}) {
+    const calls = { getContext: [] as string[], requestAdapter: 0 };
+    class Canvas {
+      addEventListener() {}
+      getContext(type: string) {
+        calls.getContext.push(type);
+        return refuse ? null : { type };
+      }
+    }
+    class Gpu {
+      requestAdapter() {
+        calls.requestAdapter++;
+        return Promise.resolve(null);
+      }
+    }
+    return { win: { HTMLCanvasElement: Canvas, GPU: Gpu }, calls, canvas: new Canvas(), gpu: new Gpu() };
+  }
+
+  it("is not told about a 2d canvas, a canvas nobody drew on, or a page with no canvas at all", () => {
+    const { win, canvas } = fakeWindow();
+    const watch = watchCanvases(win);
+    assert.equal(watch.gpu, false);
+    canvas.getContext("2d");
+    assert.equal(watch.gpu, false, "a chart is not a scene");
+  });
+
+  it("is told by every way a page asks for a GL or GPU context", () => {
+    for (const type of ["webgl", "experimental-webgl", "webgl2", "webgpu"]) {
+      const { win, canvas, calls } = fakeWindow();
+      const watch = watchCanvases(win);
+      canvas.getContext(type);
+      assert.equal(watch.gpu, true, type);
+      assert.deepEqual(calls.getContext, [type], "and the page's own call still happens");
+    }
+  });
+
+  it("is told even when the browser refuses the context: the page meant to draw", () => {
+    const { win, canvas } = fakeWindow({ refuse: true });
+    const watch = watchCanvases(win);
+    assert.equal(canvas.getContext("webgl"), null);
+    assert.equal(watch.gpu, true);
+  });
+
+  it("is told by a WebGPU adapter request, which comes before any context", async () => {
+    const { win, gpu, calls } = fakeWindow();
+    const watch = watchCanvases(win);
+    assert.equal(await gpu.requestAdapter(), null);
+    assert.equal(watch.gpu, true);
+    assert.equal(calls.requestAdapter, 1);
+  });
+});
+
 describe("the studio's own globals", () => {
   it("answers with the studio's object however hard a page assigns over it", () => {
     const target: Record<string, unknown> = {};
@@ -647,6 +731,74 @@ describe("the contract's own look accumulator, where the roads meet", () => {
     } finally {
       page.restore();
     }
+  });
+});
+
+describe("what the template's state() reports", () => {
+  /** The template's contract installed on a fake page, with `window.__studio_error` as the page left it. */
+  function stateOf(probes: () => Record<string, unknown>, crash?: unknown): Record<string, unknown> {
+    const globals = globalThis as unknown as Record<string, unknown>;
+    const before = { window: globals.window, document: globals.document };
+    globals.window = { addEventListener: () => {}, ...(crash === undefined ? {} : { __studio_error: crash }) };
+    globals.document = { addEventListener: () => {}, querySelector: () => null, pointerLockElement: null };
+    try {
+      const api = installStudio({ hud: false, probes } as never) as { state(): Record<string, unknown> };
+      return api.state();
+    } finally {
+      Object.assign(globals, before);
+    }
+  }
+
+  it("keeps the crash field the studio's own: a probe called error is a form's message, not an uncaught throw", () => {
+    const state = stateOf(() => ({ error: "Title is required", items: 1 }));
+    assert.equal(state.error, null, "nothing crashed");
+    assert.equal(state.items, 1, "the other probes are reported as they were");
+  });
+
+  it("still reports the crash the page really had", () => {
+    assert.equal(stateOf(() => ({ error: "Title is required" }), "boom").error, "boom");
+  });
+
+  it("lets a probe name the studio does not guard (a stopwatch's running) read as the project's own", () => {
+    assert.equal(stateOf(() => ({ running: true })).running, true);
+  });
+});
+
+describe("the probe the Live stage reads off a project's page", () => {
+  /** What the probe answers on a page whose contract reports `state` and whose DOM is `empty` (or cannot say). */
+  function probed(state: Record<string, unknown> | null, empty: boolean | "throws" | "absent") {
+    const dom = empty === "absent" ? undefined : { empty: () => (empty === "throws" ? Promise.reject() : empty) };
+    const window = {
+      __studio: state
+        ? {
+            state: () => state,
+            inspect: () => {
+              if (empty === "throws") throw new Error("no dom");
+              return { dom };
+            },
+          }
+        : undefined,
+    };
+    const document = { readyState: "complete" };
+    const performance = { getEntriesByType: () => [] };
+    // Through JSON, as the page's answer reaches the studio: the result lives in another realm.
+    return JSON.parse(JSON.stringify(new vm.Script(LIVE_PROBE).runInNewContext({ window, document, performance })));
+  }
+
+  it("asks the page whether it shows anything only when the project says its phase is empty", () => {
+    assert.deepEqual(probed({ phase: "empty", drawCalls: 0 }, true).state, {
+      phase: "empty",
+      drawCalls: 0,
+      pageEmpty: true,
+    });
+    assert.equal(probed({ phase: "empty", drawCalls: 0 }, false).state.pageEmpty, false, "a todo list at 'empty'");
+    assert.equal(probed({ phase: "playing", drawCalls: 4 }, false).state.pageEmpty, null, "no other phase is asked");
+  });
+
+  it("says it cannot tell, rather than failing, for a page that cannot answer", () => {
+    assert.equal(probed({ phase: "empty", drawCalls: 0 }, "throws").state.pageEmpty, null);
+    assert.equal(probed({ phase: "empty", drawCalls: 0 }, "absent").state.pageEmpty, null);
+    assert.equal(probed(null, true).state, null, "a page with no contract reports no state");
   });
 });
 

@@ -20,7 +20,7 @@ screens, data and controls, and replace `phase: "empty"`. Five rules; tables in 
 5. **Deterministic, local, nothing downloaded.** Randomness only from `reset(seed)` or the `rng` in `update()`; no wall
    clock, network or CDN. Data in memory or `localStorage`; `reset(1)` runs on every load, so on boot never wipe what a
    person saved or add sample entries or extras unless asked; draw the first screen only from `seed` (the judge reseeds with
-   1). Images and icons: code, or Studio’s registry tools into `assets/` (verify in the preview). `references/`: LOOK only.
+   1). Images and icons: code, or Studio’s registry tools into `assets/` (verify in the preview). `references/`: LOOK only — unless the user asks to use their own image (logo, photo): copy that into `assets/`.
 
 Three lessons every facet re-learned: non-owner facets touch `src/main.js` only inside the `FACET
 WIRING` block (one import, one init line — the harness union-merges it, anything else conflicts);

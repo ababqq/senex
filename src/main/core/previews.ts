@@ -104,6 +104,15 @@ const REFERENCE_NOTE = /\.(md|txt|json)$/i;
 const STAND_IN_IDLE_MS = 2 * MINUTE_MS;
 
 /** Errors the user reads when a build cannot be shown or landed, and why a reference is no still. */
+/** How a preview load differs from a harness's own. */
+export interface PreviewLoadOptions {
+  /** Leave `Math.random` to the browser: the page is the person's to use, not a run to compare. */
+  nativeRandom?: boolean;
+}
+
+/** What the person's own loads of Live pass: the harness's RPC has no way to ask for it. */
+const PERSONS_LOAD: PreviewLoadOptions = { nativeRandom: true };
+
 const MESSAGE = {
   noPreview: "no preview is attached (headless mode)",
   profilingNeedsStage: "profiling requires a stage preview",
@@ -424,8 +433,11 @@ export class PreviewService {
     };
   }
 
-  /** `preview.load`: serve a project (or a checked worktree of it) into a preview, one load per handle at a time. */
-  loadPreview(p: HarnessParams<"preview.load">): Promise<string> {
+  /**
+   * `preview.load`: serve a project (or a checked worktree of it) into a preview, one load per handle
+   * at a time. The person's own loads of Live say so in `options`; the harness's never can.
+   */
+  loadPreview(p: HarnessParams<"preview.load">, options: PreviewLoadOptions = {}): Promise<string> {
     const handle = p.handle ?? LIVE_HANDLE;
     return serial(this.#x.previewOperations, handle, async () => {
       const profiling = Boolean(p.candidateId && p.revision);
@@ -434,7 +446,7 @@ export class PreviewService {
       const port = this.preview(p.handle);
       if (p.candidateId && p.revision)
         return this.#loadCandidate(p, { candidateId: p.candidateId, revision: p.revision }, port);
-      return this.#loadServedPreview(p, handle, checkedRoot, port);
+      return this.#loadServedPreview(p, handle, checkedRoot, port, options);
     });
   }
 
@@ -461,6 +473,7 @@ export class PreviewService {
     handle: string,
     checkedRoot: string | null,
     port: PreviewPort,
+    options: PreviewLoadOptions,
   ): Promise<string> {
     const remembered = { project: p.project, root: checkedRoot, entry: p.entry, loaded: null as string | null };
     this.#x.servedRoots.set(handle, remembered);
@@ -472,7 +485,10 @@ export class PreviewService {
     try {
       const served = await this.servedEntry(p.project, checkedRoot, p.entry, port, { fallback: isLive });
       if (!served) return unservedUrl(p);
-      const url = await port.load(p.project, served.entry, served.root, { loopback: served.loopback });
+      const url = await port.load(p.project, served.entry, served.root, {
+        loopback: served.loopback,
+        ...(options.nativeRandom ? { shim: { seed: null } } : {}),
+      });
       // Only now is Live current: a load that failed leaves what waited for Reload waiting.
       if (isLive) await this.#live.loaded(p.project, { print, root: checkedRoot });
       remembered.loaded = servedKey(served);
@@ -951,12 +967,13 @@ export class PreviewService {
       if (candidate.problem) throw new Error(candidate.problem);
       if (this.#x.servedRoots.get(LIVE_HANDLE) !== previous) throw new Error(MESSAGE.previewChanged);
       liveAttempted = true;
-      await this.loadPreview({ project, root: showDir });
+      await this.loadPreview({ project, root: showDir }, PERSONS_LOAD);
     } catch (error) {
       if (liveAttempted && previous)
-        await this.loadPreview({ project: previous.project, root: previous.root, entry: previous.entry }).catch(
-          () => {},
-        );
+        await this.loadPreview(
+          { project: previous.project, root: previous.root, entry: previous.entry },
+          PERSONS_LOAD,
+        ).catch(() => {});
       await this.#core.snapshots.removeWorktree(project, showDir).catch(() => {});
       await rm(showDir, { recursive: true, force: true }).catch(() => {});
       throw error;
@@ -1196,7 +1213,7 @@ export class PreviewService {
       }
     }
     if (offerLive) await this.offerLive({ project, root: null });
-    else await this.loadPreview({ project });
+    else await this.loadPreview({ project }, PERSONS_LOAD);
     await this.#core.projects.touch(project).catch(() => {});
     return { commit: resolved, how: already ? "already" : "merged" };
   }
@@ -1298,7 +1315,11 @@ export class PreviewService {
     }
     try {
       if (waiting.commit) await this.showBuild(waiting.project, waiting.commit);
-      else await this.loadPreview({ project: waiting.project, ...(waiting.root ? { root: waiting.root } : {}) });
+      else
+        await this.loadPreview(
+          { project: waiting.project, ...(waiting.root ? { root: waiting.root } : {}) },
+          PERSONS_LOAD,
+        );
     } catch (error) {
       this.#live.clear();
       throw error;

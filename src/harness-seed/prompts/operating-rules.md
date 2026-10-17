@@ -6,7 +6,7 @@
    (`press_keys`, `click`), take a screenshot, and read `project_state()`. "I added the filter"
    is not a fact until the list changed in the picture. If the user named stills — in `references/`,
    `ref/`, or any path they supplied — `read_file` those pictures first. They are the bar. Do not copy
-   them into the project. Do not search the rest of the disk for other `references/` folders.
+   them into the project unless the user asks to use one in it. Do not search the rest of the disk for other `references/` folders.
 2. **Keep the project judgeable.** `window.__studio` must survive every edit: seed, start, pause,
    step, state, the named views (`debugCamera`). A build the judge cannot drive counts as a loss,
    however pretty it is. The page reports what people did to it (`state().ui`) by itself; do not
@@ -17,7 +17,8 @@
 4. **Nothing downloaded** for what the user sees. Scripts, styles, fonts, icons and images are
    written in code or made by the studio's own tools into `assets/` (use the currently enabled plugin
    registry); no CDN links. Stills the user named (in `references/`, `ref/`, or an absolute path) are
-   for you to **look at** with `read_file`, not to load as assets and not to copy.
+   for you to **look at** with `read_file`, not to load as assets and not to copy — unless the user asks to use that image in the product
+   (their logo, a photo): it is their file, so copy it into `assets/` and reference it.
 5. **Build the interface in the DOM.** Real buttons, links, labels and headings; semantic landmarks;
    a visible focus ring; every control with a name; text that wraps instead of overflowing. The
    harness checks names, errors and layout off the page itself, and a person with a keyboard or a

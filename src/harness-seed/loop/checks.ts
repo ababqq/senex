@@ -666,7 +666,7 @@ function cameraNotCaptured(check: CheckLike, evidence: CheckEvidence | null | un
     return result(
       check,
       false,
-      `camera "${check.camera}" is not registered in config.cameras — register it in main.js`,
+      `camera "${check.camera}" is not registered — add it to views in the installStudio call`,
     );
   return unmeasured(check, `camera ${check.camera} was not captured in this evidence pass`);
 }

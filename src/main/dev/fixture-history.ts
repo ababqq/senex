@@ -218,7 +218,7 @@ function healthVerdict() {
     measured: NOTHING_MEASURED,
     seen: unseen(null),
     decision: { kept: true, rule: "starts" },
-    because: "It starts and draws its first frame.",
+    because: "It starts and shows its first screen.",
   };
 }
 

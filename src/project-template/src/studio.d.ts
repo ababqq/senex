@@ -194,6 +194,7 @@ export interface StudioState {
   pointerLock: boolean;
   /** The screen the last `debugCamera()` showed; `default` is the page as it loads. */
   camera: string;
+  /** The page's last uncaught error. The studio's own: a probe called `error` is not reported here. */
   error: string | null;
   player: PlayerPose | null;
   /** What people did to the page, reported by the studio itself — see {@link UiActivity}. */

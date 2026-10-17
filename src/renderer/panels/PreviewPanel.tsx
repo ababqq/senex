@@ -28,7 +28,7 @@ import type { BesideTarget } from "../open-beside.ts";
 import { OPEN_BUILD_EVENT } from "../open-build.ts";
 import { replyAbout } from "../reply-about.ts";
 import type { RunGraph as RunGraphModel } from "../run-graph.ts";
-import { StageView, watchingLive } from "../stage.ts";
+import { isEmptyScene, StageView, watchingLive } from "../stage.ts";
 import { threadLog } from "../state/event-log.ts";
 import { useEventLog, useLaunch, useShallow, useThreads } from "../state/hooks.ts";
 import { isWorkingStatus } from "../state/threads.ts";
@@ -106,7 +106,7 @@ function stageFlags({
     builds: graph !== null || planning,
     project: Boolean(project),
   });
-  const emptyScene = live.state?.phase === "empty" && live.state?.drawCalls === 0;
+  const emptyScene = isEmptyScene(live.state);
   const showEmpty = Boolean(project && stageView === StageView.Live && emptyScene);
   const liveLoading = Boolean(
     project && live.liveLoad?.project === project && stageView === StageView.Live && !showEmpty,

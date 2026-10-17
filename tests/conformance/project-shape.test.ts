@@ -489,6 +489,36 @@ describe("a project's own shape", () => {
     assert.deepEqual(rows[0]!.problems, [], rows[0]!.problems.join("; "));
   });
 
+  it("warns about Math.random only in a project that runs on the studio's contract", async () => {
+    // The contract's `reset(seed)` is what makes two runs comparable, so a project on it is held to
+    // its rng. A todo app that never installed it calls Math.random for ids and has no run to compare.
+    const { projects } = await workspaces();
+    const base = await tmpDir("studio-shape-");
+    const page = `<!doctype html><title>t</title>\n<script type="module" src="src/main.js"></script>`;
+    const todo = path.join(base, "todo");
+    await mkdir(path.join(todo, "src"), { recursive: true });
+    await writeFile(path.join(todo, "index.html"), page);
+    await writeFile(path.join(todo, "src", "main.js"), `const id = Math.random().toString(36).slice(2);\n`);
+    const plain = await projects.validateAt(todo);
+    assert.deepEqual(
+      plain.warnings.filter((warning) => /Math\.random/.test(warning)),
+      [],
+      plain.warnings.join("; "),
+    );
+    const contracted = path.join(base, "contracted");
+    await mkdir(path.join(contracted, "src"), { recursive: true });
+    await writeFile(path.join(contracted, "index.html"), page);
+    await writeFile(
+      path.join(contracted, "src", "main.js"),
+      `installStudio({ probes: () => ({}) });\nconst x = Math.random();\n`,
+    );
+    const checked = await projects.validateAt(contracted);
+    assert.ok(
+      checked.warnings.some((warning) => /src\/main\.js uses Math\.random\(\)/.test(warning)),
+      checked.warnings.join("; "),
+    );
+  });
+
   it("says plainly which hosts a project loads from that the preview cannot reach (R6: public library CDNs are reachable)", async () => {
     const { projects } = await workspaces();
     const dir = path.join(await tmpDir("studio-shape-"), "cdn-project");

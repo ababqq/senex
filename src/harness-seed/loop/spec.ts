@@ -178,7 +178,7 @@ export interface Catalogue {
 export type BoardOutcomes = Record<string, { pass?: boolean | null } | undefined>;
 
 // The kind table lives in one module (loop/kinds.ts) so nobody re-decides what a kind is. It
-// is re-exported here because the two callers that normalise a plan's project block — autopilot
+// is re-exported here because the two callers that normalise a plan's app block — autopilot
 // and the director — have always imported it from the spec module.
 export { normalizeAppTraits };
 
@@ -756,7 +756,7 @@ function noteUnregistered(check: Check, { cameras, demos }: ValidationContext): 
   const camera = check.camera;
   const unregisteredCamera =
     Array.isArray(cameras) && camera && !cameras.includes(camera) && !camera.startsWith("eye:");
-  if (unregisteredCamera) addNote(check, `camera "${camera}" is not registered yet — register it in config.cameras`);
+  if (unregisteredCamera) addNote(check, `camera "${camera}" is not registered yet — add it to config.views`);
   const demoNamed = demoNameOf(check);
   const unregisteredDemo = Array.isArray(demos) && demoNamed && !demos.includes(demoNamed);
   if (unregisteredDemo) addNote(check, `demo "${demoNamed}" is not registered yet — add it to config.demos`);
@@ -1206,8 +1206,9 @@ export async function saveCatalogue(
 /**
  * Whether a catalogue entry has earned a place in the planner's prompt. What the seed itself
  * ships is no longer a hypothesis: since the craft opinions left for `library/recipes` the
- * catalogue holds only the five technical checks that say "this is a project and the harness can
- * see and drive it", and a project that keeps failing one of them has a defect, not a bad check.
+ * catalogue holds only the technical checks (three for every project, five more for a graphics one)
+ * that say "this is a project and the harness can see and drive it", and a project that keeps failing
+ * one of them has a defect, not a bad check.
  * Content the runs grew (origin judge / spike) is shown only once it has caught a defect at
  * least LEARNED_MIN_CATCHES times across LEARNED_MIN_RUNS runs — a one-run defect is not
  * knowledge. Everything else (a check a planner hand-wrote) is still voted out by use: shown
@@ -1377,7 +1378,7 @@ export function recordCatalogueOutcomes<C extends Pick<Catalogue, "checks">>(
   return catalogue;
 }
 
-/** The kind a plan declared, from its name or from its project block. */
+/** The kind a plan declared, from its name or from its app block. */
 function declaredKindOf(kind: string | { kind?: string } | null): string | null {
   if (typeof kind === "string") return kind;
   return typeof kind?.kind === "string" ? kind.kind : null;

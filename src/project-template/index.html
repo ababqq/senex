@@ -37,7 +37,11 @@
         box.textContent = `${message}\n\n${stack ?? ""}`;
         window.__studio_error = { message, stack: stack ?? "" };
       }
-      window.addEventListener("error", (event) => report(event.message, event.error?.stack));
+      window.addEventListener("error", (event) => {
+        // Chrome's notice that an observer's callback resized what it watches (no error object) is not a crash.
+        if (!event.error && String(event.message).startsWith("ResizeObserver loop")) return;
+        report(event.message, event.error?.stack);
+      });
       window.addEventListener("unhandledrejection", (event) => report(String(event.reason?.message ?? event.reason), event.reason?.stack));
     </script>
     <script type="module" src="/src/main.js"></script>

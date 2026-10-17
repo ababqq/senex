@@ -168,7 +168,7 @@ const BECAUSE: Record<string, string> = {
   stopped: "Not judged: the lead stopped this round, and the work it had done is kept.",
   "first-build": "Nothing to compare it with: the build started from an empty project, so it is judged on its own.",
   "no-start": "Nothing to compare it with: the project as it stood could not be photographed.",
-  starts: "It starts and draws its first frame.",
+  starts: "It starts and shows its first screen.",
   "does-not-start": "It did not start when it was looked at.",
   preferred: "The judge preferred it.",
   "not-preferred": "The judge preferred the other build.",

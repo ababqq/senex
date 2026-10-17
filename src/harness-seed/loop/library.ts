@@ -1036,6 +1036,14 @@ function recipesSection(recipes: readonly RecipeHit[]): string[] {
   ];
 }
 
+/** The page rules this board carries as harness-owned checks, named; nothing when it carries none (a run that declared nothing has neither). */
+function pageChecksLine(spec: BriefOptions["spec"]): string {
+  const onBoard = ["controls-named", "no-horizontal-overflow"].filter((id) =>
+    (spec.checks ?? []).some((c: Check) => c.id === id && c.origin === CheckOrigin.Harness),
+  );
+  return onBoard.length ? ` The harness-owned checks ${onBoard.join(" and ")} measure this off the page itself.` : "";
+}
+
 /** The rules that do not change, in the template's terms or the project's own. */
 function briefRules(
   run: BriefOptions["run"],
@@ -1048,7 +1056,7 @@ function briefRules(
       ? `- Tag every object you create: \`obj.userData.tag = "<tag>"\` — untagged objects are invisible to scene checks and do not count.`
       : `- Make what you build measurable: a probe in \`probes()\` for what it holds, a view in \`views\` that shows its screen (and its empty and error states), a demo in \`demos\` for a workflow the generic exercise cannot reach.`,
     screen
-      ? `- THE PAGE IS THE PRODUCT: build the interface in the DOM — real buttons, links, labels and headings, landmarks, a visible focus ring, text that wraps, every control named. Handle empty, loading and error states and show a failure on the page. The harness-owned checks controls-named and no-horizontal-overflow measure this off the page itself.`
+      ? `- THE PAGE IS THE PRODUCT: build the interface in the DOM — real buttons, links, labels and headings, landmarks, a visible focus ring, text that wraps, every control named. Handle empty, loading and error states and show a failure on the page.${pageChecksLine(spec)}`
       : `- THE PROJECT'S OWN SCREEN: this project has its own UI and input handling — keep them as they are; do not rebuild its screens or add a second input path.`,
     template
       ? `- INPUT: the harness drives real clicks, typing and keys, so ordinary DOM event handlers on real elements are the input path. A canvas project that passes update reads keys from ctx.keys (Mouse1/Mouse2 included), look from ctx.look, wheel from ctx.wheel — never add your own pointer-lock or mousemove listeners; studio.js owns them.`

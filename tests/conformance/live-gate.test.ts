@@ -21,17 +21,20 @@ import { tmpDir } from "../helpers/tmp.ts";
 function fakePort() {
   const port = {
     loads: [] as Array<{ project: string; root: string | null }>,
+    /** The page-shim options each load asked for, in order: `{ seed: null }` leaves Math.random alone. */
+    shims: [] as Array<{ seed?: number | null } | undefined>,
     reloads: 0,
     inputs: 0,
     disposed: false,
     /** The next load fails, as a page that never arrived does. */
     failNext: false,
-    async load(project: string, entry: string, root?: string) {
+    async load(project: string, entry: string, root?: string, options?: { shim?: { seed?: number | null } }) {
       if (port.failNext) {
         port.failNext = false;
         throw new Error("the page did not load");
       }
       port.loads.push({ project, root: root ?? null });
+      port.shims.push(options?.shim);
       return `project://${project}/${entry}`;
     },
     async reload() {
@@ -130,6 +133,20 @@ describe("Live's gate", () => {
     assert.equal(hidden[0]!.inputs, 1);
     // Nothing changed in the project folder, so nothing waits for Reload.
     assert.deepEqual(behind, []);
+  });
+
+  it("the person's own Live load leaves Math.random to the browser; a harness load keeps the studio's seed", async () => {
+    // A todo app that makes its ids with Math.random() would otherwise give the first item added
+    // after each reload the id the first item had before it. A judged look still needs the seed.
+    const { lite, live, hidden, api } = await stage();
+    const loadAsPerson = previewIpc(lite)("studio:preview.load");
+    await loadAsPerson({ project: "pong" });
+    assert.deepEqual(live.shims.at(-1), { seed: null });
+    await api["preview.load"]!({ project: "pong" });
+    assert.equal(hidden[0]!.shims.at(-1)?.seed, undefined, "the stand-in keeps the default seed");
+    await api["preview.load"]!({ project: "pong", handle: "live" });
+    assert.equal(hidden[0]!.shims.at(-1)?.seed, undefined, "and so does a harness load that names Live");
+    assert.equal(live.shims.length, 2, "Live was loaded twice, both times by the person");
   });
 
   it("a harness look with no load of its own sees in the stand-in what Live shows", async () => {

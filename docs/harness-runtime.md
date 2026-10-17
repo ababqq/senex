@@ -22,7 +22,8 @@ edit, look and move probes read, whether it wants eye cameras, its critic and it
 OFF until the planner, the director or `studio.json`'s nested `app` block declares it, so a project
 nobody described carries no harness input check at all; a declared kind supplies its traits and an
 explicit boolean beside it wins. The harness drives that kind's play script before every
-judgement, and `appLine(run.app)` is the first line of every judge call. Two critics, not one:
+judgement, and `appLine(run.app)` is the first line of every judge call (for a run that declared no kind it
+says so, names those default controls and retracts `[dead-input]`). Two critics, not one:
 `screen` for software a person reads and operates (the default) and `place` for a world a person moves
 through (`graphics`). A run that declared no kind is read as software everywhere: it is offered no scene's
 check, recipe or artefact class, gets the main-flow playtest, and skips the renderer-only optimization stage.

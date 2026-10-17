@@ -224,7 +224,66 @@ describe("every look replays the setup", () => {
     return { ctx, calls };
   }
 
-  it("presses the keys before the seed and warns when the state did not land", async () => {
+  it("presses the keys of a scene before the seed and warns when the state did not land", async () => {
+    const setup = (normalizeScoutReport(REPORT) as any).setup;
+    const wrong = stubCtx({ version: 1, maps: { activeId: "street" }, player: { x: 0, y: 0, z: 0 } });
+    const evidence = await gatherEvidence(
+      wrong.ctx as never,
+      {
+        run: { runId: "r", project: "p", setup, app: { kind: "graphics" } },
+        iterationId: "001",
+        seed: 1,
+        eyes: false,
+        audio: false,
+      } as never,
+    );
+    const inputAt = wrong.calls.findIndex(
+      (c) =>
+        c.method === "preview.input" &&
+        Array.isArray((c.payload as { actions?: unknown[] }).actions) &&
+        (c.payload as { actions: Array<{ type: string }> }).actions[0]?.type === "tap",
+    );
+    const seedAt = wrong.calls.findIndex((c) => c.method === "preview.call" && c.payload.method === "seed");
+    assert.ok(inputAt >= 0 && seedAt > inputAt, "a scene's setup script runs before the deterministic seed");
+    assert.equal(evidence.requestedState?.reached, false);
+    assert.ok(
+      evidence.warnings.some((w: string) => /requested state not reached: maps\.activeId is "street"/.test(w)),
+      evidence.warnings.join(" | "),
+    );
+    const right = stubCtx({ version: 1, maps: { activeId: "macba" }, player: { x: 0, y: 0, z: 0 } });
+    const landed = await gatherEvidence(
+      right.ctx as never,
+      {
+        run: { runId: "r", project: "p", setup, app: { kind: "graphics" } },
+        iterationId: "001",
+        seed: 1,
+        eyes: false,
+        audio: false,
+      } as never,
+    );
+    assert.equal(landed.requestedState?.reached, true);
+    assert.ok(!landed.warnings.some((w: string) => /requested state/.test(w)));
+    const none = stubCtx({ version: 1 });
+    const plain = await gatherEvidence(
+      none.ctx as never,
+      {
+        run: { runId: "r", project: "p", app: { kind: "graphics" } },
+        iterationId: "001",
+        seed: 1,
+        eyes: false,
+        audio: false,
+      } as never,
+    );
+    assert.equal(plain.requestedState, null, "no setup, nothing replayed");
+    // Without a setup nothing is pressed before the seed; the scripted controls come after it.
+    const firstInput = none.calls.findIndex((c) => c.method === "preview.input");
+    const seed = none.calls.findIndex((c) => c.method === "preview.call" && c.payload.method === "seed");
+    assert.ok(firstInput === -1 || firstInput > seed, "no input before the seed without a setup");
+  });
+
+  it("presses the keys of a page of software after the seed and warns when the state did not land", async () => {
+    // A run that declared no kind is software. The seed goes back to the first screen, so the state
+    // is requested after it (`harness-incidents.test.ts`, DS-5, holds the loss it prevents).
     const setup = (normalizeScoutReport(REPORT) as any).setup;
     const wrong = stubCtx({ version: 1, maps: { activeId: "street" }, player: { x: 0, y: 0, z: 0 } });
     const evidence = await gatherEvidence(
@@ -238,11 +297,12 @@ describe("every look replays the setup", () => {
         (c.payload as { actions: Array<{ type: string }> }).actions[0]?.type === "tap",
     );
     const seedAt = wrong.calls.findIndex((c) => c.method === "preview.call" && c.payload.method === "seed");
-    assert.ok(inputAt >= 0 && seedAt > inputAt, "the setup script runs before the deterministic seed");
+    assert.ok(seedAt >= 0 && inputAt > seedAt, "the setup script runs after the deterministic seed");
     assert.equal(evidence.requestedState?.reached, false);
-    assert.ok(
-      evidence.warnings.some((w: string) => /requested state not reached: maps\.activeId is "street"/.test(w)),
-      evidence.warnings.join(" | "),
+    assert.equal(
+      evidence.warnings.filter((w: string) => /requested state not reached: maps\.activeId is "street"/.test(w)).length,
+      1,
+      "said once, from the one replay",
     );
     const right = stubCtx({ version: 1, maps: { activeId: "macba" }, player: { x: 0, y: 0, z: 0 } });
     const landed = await gatherEvidence(
@@ -251,16 +311,6 @@ describe("every look replays the setup", () => {
     );
     assert.equal(landed.requestedState?.reached, true);
     assert.ok(!landed.warnings.some((w: string) => /requested state/.test(w)));
-    const none = stubCtx({ version: 1 });
-    const plain = await gatherEvidence(
-      none.ctx as never,
-      { run: { runId: "r", project: "p" }, iterationId: "001", seed: 1, eyes: false, audio: false } as never,
-    );
-    assert.equal(plain.requestedState, null, "no setup, nothing replayed");
-    // Without a setup nothing is pressed before the seed; the scripted controls come after it.
-    const firstInput = none.calls.findIndex((c) => c.method === "preview.input");
-    const seed = none.calls.findIndex((c) => c.method === "preview.call" && c.payload.method === "seed");
-    assert.ok(firstInput === -1 || firstInput > seed, "no input before the seed without a setup");
   });
 
   it("runs a demo setup and reports a demo the project does not have", async () => {

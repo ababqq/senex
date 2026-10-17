@@ -538,7 +538,7 @@ journal ([the full journal](#the-night-director-workers-and-judging)). The Mac i
 `skills/<skill>.md`, landing whole on the text they were staged against, else replaying their
 anchored edits all or none), the architect's, and the agent's own. Each records
 `post_snapshot_id`; **Undo this change** (`studio:selfchange.undo`) reverses only its diff and
-records `self_change_undone`. Rewinds put `library/projects` back afterwards; `rollbackTo` refuses
+records `self_change_undone`. Rewinds put `library/games` back afterwards; `rollbackTo` refuses
 while a run, contractor or user turn is in flight. `StudioSettings.learning` gates automatic apply,
 the sweep, the architect and `studio:skillopt.start`; the harness asks `learning.enabled` first.
 
@@ -559,7 +559,7 @@ Approval dispatches the brief with the legacy `reviewPlan` flag cleared.
 **Scout.** Before the plan, a read-only scout (`loop/scout.ts`) plays to the requested state and
 reports a `setup` (actions or a demo plus a `verify` probe), a builder count and what exists.
 `decompose` folds the plan to the scout's ceiling (`clampFacets`). `run.setup` is replayed after
-every load by evidence, capture and the computer tool; typed facets carry the `requested-state`
+every load by evidence (after the seed, for software), capture and the computer tool; typed facets carry the `requested-state`
 check. A completion-only engine has no scout; a failed scout is a decision card.
 
 **Director.** On a session-capable engine Autopilot is one session's night (`loop/director.ts`,
@@ -680,7 +680,7 @@ it is converted in a deterministic commit. `landBuild` applies the same conversi
 **Project kinds and evidence.** `loop/kinds.ts` is the one table of eight kinds, with their traits
 (off until declared), probe axes, critic (`screen`, or `place` for `graphics`) and exercise script;
 `appLine(run.app)` heads every judge call. `run.app` comes from the plan, then the scout, then
-`studio.json`'s nested `project` block; the plan's declaration is written back and committed once a
+`studio.json`'s nested `app` block; the plan's declaration is written back and committed once a
 night. `gatherEvidence` (clock proof `proveStep`, one classifier `classifyEvidenceFailure`) is
 described in the [harness runtime guide](../harness-runtime.md). `library/checks.json` holds only
 the technical checks; craft checks are `library/recipes` entries retrieved by failing check,
@@ -985,9 +985,8 @@ with a managed local runtime; core has no special Blender tool.
   files and replaces only an app-managed destination; hidden files (`.well-known` aside), env files,
   private-key names, dependencies and symlinks are excluded or refused. A build's folder keeps all but the agents' own files (`CLAUDE.md`, `AGENTS.md`,
   `NOTES*.md`, a root `references/`); sources also drop `docs/`, `tests/`, `notes.*`, and an in-place
-  build exports only declared files. Only tags that load a file are checked; links
-  are navigation. Parsed imports prune the vendor folder (a computed `import()` keeps the import
-  map's libraries). Computed URLs defeat static analysis, so browser export checks remain required.
+  build exports only declared files. Only tags that load a file are checked.
+  Parsed imports prune the vendor folder (a computed `import()` keeps the mapped libraries). Computed URLs defeat static analysis; browser export checks remain required.
 
 ## Persistence and the event log
 

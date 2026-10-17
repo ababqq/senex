@@ -7,7 +7,7 @@
     "the hook finds a renderer whose frames go through an EffectComposer",
     "the end-of-frame capture reads the composer's output, not the scene before the post pass",
     "a scene held in a module closure is inspectable",
-    "studio.json's nested project block is the third declaration source",
+    "studio.json's nested app block is the third declaration source",
     "a kind with no input probes invites no [dead-input] report"
   ],
   "shape": {

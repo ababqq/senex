@@ -215,7 +215,8 @@ export async function validateProjectDir(dir: string): Promise<ProjectValidation
   if (unresolvedProblem) problems.push(unresolvedProblem);
 
   const use = await scanContractUse(dir, sources);
-  warnings.push(...use.randomUsers.map((rel) => MESSAGE.MathRandom(rel)));
+  // Only a project on the studio's contract has a seeded run to keep comparable.
+  if (use.installsContract) warnings.push(...use.randomUsers.map((rel) => MESSAGE.MathRandom(rel)));
   const nonExecutable = reach === "none" ? null : nonExecutableSource(sources);
   if (nonExecutable) problems.push(MESSAGE.TypescriptUnbuilt(toPosixRelative(path.relative(dir, nonExecutable))));
   // The one problem the night can do something about on its own: a page that never loads the

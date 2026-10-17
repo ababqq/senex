@@ -22,6 +22,7 @@ import {
   STEP_WITNESS,
   withObservationPatience,
 } from "../../src/harness-seed/loop/gauntlet.ts";
+import { cameraList, gather, run, stubCtx } from "../helpers/evidence-stub.ts";
 import { observationOnlyFailure } from "../../src/harness-seed/loop/autopilot.ts";
 import { SIDEWAYS_SCROLL_WARN_PX } from "../../src/harness-seed/loop/evidence.ts";
 import { describeEvidence } from "../../src/harness-seed/loop/judge.ts";
@@ -42,148 +43,6 @@ import {
   writeDeclaredApp,
 } from "../../src/harness-seed/loop/kinds.ts";
 import { applyPlayScript, CONTROL_EXERCISE, WALK_EXERCISE } from "../../src/harness-seed/loop/play-script.ts";
-
-interface StubOptions {
-  /** Base64 payload per screenshot call, in order; repeats simulate a stale compositor frame. */
-  frames: string[];
-  cameras?: unknown;
-  demos?: unknown;
-  /** What the page logged: `error` entries are the ones a build is judged on. */
-  console?: Array<{ level: string; message: string }>;
-  /** What `preview.ready` answers. `null` is an older studio that has no such host call. */
-  ready?: Record<string, unknown> | null;
-  /** What `preview.pageUi` answers. Absent is a studio that cannot see outside the canvas. */
-  pageUi?: Record<string, unknown> | null;
-  /** The user:view-vs-canvas diff fraction; `null` means it could not be computed. */
-  diff?: number | null;
-  /** The step witness, read three times per pass. `null` is a page with no studio clock. */
-  witness?: ((tick: number) => unknown) | null;
-  /** Pixel stats per shot, in screenshot order. */
-  stats?: Array<Record<string, unknown> | null>;
-  /** What `debugCamera` answers; the default registers every name asked for. */
-  debugCamera?: (name: string) => unknown;
-  /** What surface the port says it PHOTOGRAPHED; absent is a port that does not say. */
-  shotSurface?: (payload: Record<string, unknown>) => string | undefined;
-  /** Return a message to make that screenshot throw. */
-  failShot?: (payload: Record<string, unknown>) => string | null;
-  /** A message to make the console read throw — the one call outside the drive block's catch. */
-  failConsole?: string;
-  /** Answers for `preview.evaluate` that are not the step witness. */
-  evaluate?: (expression: string) => unknown;
-  /** Fields the page's `state()` carries beside its frame counter. */
-  state?: Record<string, unknown>;
-}
-
-const READY_NOW = {
-  ready: true,
-  ms: 0,
-  pageMs: 0,
-  timedOut: false,
-  budgetMs: 15_000,
-  via: "shim",
-  phase: "ready",
-  reason: null,
-  polls: 1,
-  gesture: { needed: false, done: false, reasons: [] },
-};
-
-function stubCtx(options: StubOptions) {
-  let shotIndex = 0;
-  let tick = 0;
-  const calls: Array<{ method: string; payload: Record<string, unknown> }> = [];
-  const ctx = {
-    cancelled: false,
-    setStatus: () => {},
-    call: async (method: string, payload: Record<string, unknown> = {}) => {
-      calls.push({ method, payload });
-      switch (method) {
-        case "preview.reload":
-        case "preview.load":
-          return {};
-        case "preview.ready":
-          if (options.ready === null) throw new Error("no such host call: preview.ready");
-          return { ...READY_NOW, ...(options.ready ?? {}) };
-        case "preview.pageUi":
-          if (!options.pageUi) throw new Error("no such host call: preview.pageUi");
-          return options.pageUi;
-        case "preview.diff":
-          return options.diff === undefined
-            ? { compared: 1_000, diffFraction: 0 }
-            : options.diff === null
-              ? { compared: 0 }
-              : { compared: 1_000, diffFraction: options.diff };
-        case "preview.status":
-          return { loadError: null, crashed: false };
-        case "preview.state":
-          return { version: 1, frame: shotIndex, ...(options.state ?? {}) };
-        case "preview.gesture":
-          return { knocked: true, trusted: null };
-        case "preview.input":
-          return { ok: true, applied: 1, width: 800, height: 600 };
-        case "preview.console":
-          if (options.failConsole) throw new Error(options.failConsole);
-          return options.console ?? [];
-        case "preview.gpuErrors":
-          return [];
-        case "preview.evaluate": {
-          const expression = String(payload.expression);
-          if (expression.includes("studio step witness")) {
-            tick++;
-            if (options.witness === null) return null;
-            return options.witness
-              ? options.witness(tick)
-              : {
-                  steppedFrames: tick * 8,
-                  drawCalls: tick * 40,
-                  now: tick * 320,
-                  canvas: true,
-                  simulatedMs: tick * 320,
-                };
-          }
-          return options.evaluate ? options.evaluate(expression) : false;
-        }
-        case "preview.screenshot": {
-          const failure = options.failShot?.(payload);
-          if (failure) throw new Error(failure);
-          const base64 = options.frames[Math.min(shotIndex, options.frames.length - 1)];
-          const stats = options.stats?.[Math.min(shotIndex, options.stats.length - 1)] ?? null;
-          shotIndex++;
-          const surface = options.shotSurface?.(payload);
-          return {
-            base64,
-            bytes: base64.length,
-            path: `/runs/shots/${shotIndex}.jpg`,
-            stats,
-            ...(surface ? { surface } : {}),
-          };
-        }
-        case "preview.call": {
-          const m = payload.method;
-          if (m === "cameras") return options.cameras ?? { ok: false };
-          if (m === "demos") return options.demos ?? { ok: false };
-          if (m === "demo") return { ok: true, demo: payload.arg, result: { done: true } };
-          if (m === "debugCamera" && options.debugCamera) return options.debugCamera(String(payload.arg));
-          return { ok: true };
-        }
-        default:
-          return {};
-      }
-    },
-  };
-  return { ctx, calls };
-}
-
-const run = { runId: "run_test", project: "proj" };
-
-/** The .mjs destructure makes TS see every option as required; the loop passes them optionally. */
-function gather(ctx: unknown, extra: Record<string, unknown> = {}) {
-  return gatherEvidence(ctx as never, { run, iterationId: "001", seed: 1, ...extra } as never);
-}
-
-/** Every camera the pass photographed, in order — the demo and user frames included. */
-function cameraList(evidence: { shots: Array<{ camera: string }> }): string[] {
-  return evidence.shots.map((shot) => shot.camera);
-}
 
 describe("gatherEvidence after the stale-frame night", () => {
   it("retakes a duplicate frame once and accepts the fresh one — the race costs a retake, not the iteration", async () => {
@@ -493,7 +352,12 @@ describe("the kind a project declares, and what the harness assumes without one"
     const canvas = appLine({ kind: "graphics" });
     assert.match(canvas, /the artefact class \[dead-input\] does not apply — do not report it/);
     assert.doesNotMatch(canvas, /ui\./);
-    assert.equal(appLine(undefined), "", "an undeclared project tells the judge nothing about a kind");
+    // An undeclared project is software, driven by the default controls all the same: the judge is
+    // told what was pressed, and that there is no input evidence to hold against it.
+    const undeclared = appLine(undefined);
+    assert.match(undeclared, /^PROJECT: nothing declared what kind of project this is\./);
+    assert.match(undeclared, /Before every judgement the harness drives the same controls: /);
+    assert.match(undeclared, /the artefact class \[dead-input\] does not apply — do not report it/);
     assert.match(
       appLine({ kind: "form-flow" }),
       /Before every judgement the harness drives the same controls: focus the first text field, type "Ada Lovelace", press Tab/,
@@ -959,6 +823,17 @@ describe("proveStep: the studio owns the clock, or nothing it measures means any
     const riding = await proveStep(record(moving, { ok: true, frames: 8, idle: 0 }).ctx as never);
     assert.equal(riding.idleLoop, false);
     assert.equal(riding.note, "");
+    // A page of DOM has no animation loop to speak of: a form that draws on input is the normal case.
+    const dom = await proveStep(
+      record((tick) => ({ steppedFrames: tick * 8, drawCalls: 0, now: tick * 320, canvas: false }), {
+        ok: true,
+        frames: 8,
+        idle: 8,
+      }).ctx as never,
+    );
+    assert.equal(dom.ok, true, dom.reason);
+    assert.equal(dom.idleLoop, false);
+    assert.equal(dom.note, "");
     // A studio too old to answer with counts says nothing rather than accusing the project.
     const silent = await proveStep(record(moving).ctx as never);
     assert.equal(silent.askedFrames, 0);
@@ -1007,7 +882,7 @@ describe("proveStep: the studio owns the clock, or nothing it measures means any
     assert.match(later.clock.reason, sentence);
   });
 
-  it("frames without draws indict a page that has a canvas and only warn on one that does not", async () => {
+  it("frames without draws indict a page that has a canvas; a page without one has nothing to draw", async () => {
     const dry = (canvas: boolean) => (tick: number) => ({
       steppedFrames: tick * 8,
       drawCalls: 0,
@@ -1019,14 +894,26 @@ describe("proveStep: the studio owns the clock, or nothing it measures means any
       scaffold: true,
     });
     assert.match(canvasPage.problems.join(" | "), /frames ran but nothing was drawn/);
-    // A DOM-first screen is exactly the shape the readiness ladder exists for; the pixel rule
-    // still votes on blankness after the screenshots.
-    const domPage = await gather(stubCtx({ frames: ["a", "b", "c"], witness: dry(false) }).ctx, {
+    // A page of DOM draws nothing the counters can count: the clock is all there is to prove, and
+    // neither a problem nor a warning is owed for what it never meant to do.
+    for (const iterationId of ["base", "001"]) {
+      const domPage = await gather(stubCtx({ frames: ["a", "b", "c"], witness: dry(false) }).ctx, {
+        iterationId,
+        scaffold: iterationId === "base",
+      });
+      const said = [...domPage.problems, ...domPage.warnings].join(" | ");
+      assert.ok(!/nothing was drawn/.test(said), `${iterationId}: ${said}`);
+      assert.equal(domPage.clock.ok, true, `${iterationId}: ${domPage.clock.reason}`);
+    }
+  });
+
+  it("still holds a page with no canvas to the studio's clock", async () => {
+    const stuck = (tick: number) => ({ steppedFrames: tick * 8, drawCalls: 0, now: 500, canvas: false });
+    const flat = await gather(stubCtx({ frames: ["a", "b", "c"], witness: stuck }).ctx, {
       iterationId: "base",
       scaffold: true,
     });
-    assert.ok(!domPage.problems.some((p: string) => /nothing was drawn/.test(p)), domPage.problems.join(" | "));
-    assert.match(domPage.warnings.join(" | "), /frames ran but nothing was drawn/);
+    assert.match(flat.problems.join(" | "), /the studio clock did not advance/);
   });
 });
 
@@ -1144,6 +1031,30 @@ describe("surfaces: the canvas is judged, the page is shown", () => {
       evidence.warnings.join(" | "),
       /the page the user sees differs from the canvas capture on the default camera \(40\.0% of pixels\)/,
     );
+  });
+
+  it("says nothing about UI outside the canvas when the camera frames are the page itself", async () => {
+    // A page with no canvas has its camera frames taken off the compositor: the DOM is already in
+    // them, so "user:view shows it, the canvas frames do not" would be false, and a second copy of
+    // the same picture would be noise.
+    const card = { entries: ['h1 "Todos"', "div.card"], coverage: 0.9, canvas: null, viewport: null, uiPrimary: true };
+    const onPage = {
+      frames: ["a", "b", "c", "d"],
+      cameras: ["default", "close"],
+      pageUi: card,
+      shotSurface: () => "page",
+    };
+    const same = await gather(stubCtx({ ...onPage, diff: 0.001 }).ctx);
+    const said = same.warnings.join(" | ");
+    assert.ok(!/outside the canvas|differs from the canvas/.test(said), said);
+    assert.ok(!cameraList(same).includes("user:view"), "the same picture twice");
+    assert.deepEqual(same.pageUi, { entries: ['h1 "Todos"', "div.card"], coverage: 0.9, primary: true });
+    // …and the picture is still kept when the two compositor frames really differ, or cannot be compared.
+    for (const diff of [0.4, null]) {
+      const differing = await gather(stubCtx({ ...onPage, diff }).ctx);
+      assert.ok(cameraList(differing).includes("user:view"), `diff ${diff}`);
+      assert.ok(!/outside the canvas|differs from the canvas/.test(differing.warnings.join(" | ")));
+    }
   });
 
   it("retakes a page capture that throws off the canvas, with a warning and no problem", async () => {
