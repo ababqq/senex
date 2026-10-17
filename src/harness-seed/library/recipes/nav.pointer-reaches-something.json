@@ -11,10 +11,10 @@
   "check": {
     "id": "nav-changes-view",
     "kind": "probe",
-    "expr": "abs(delta('ui.navigations')) > 0 || abs(delta('ui.reactions')) > 0",
+    "expr": "abs(delta('ui.navigations')) > 0 || abs(delta('ui.reactions')) > 0 || (has('ui.view') && ui.view != early.ui.view)",
     "needs": ["ui.navigations", "ui.reactions"],
     "weight": "identity",
-    "note": "After the scripted clicks the address or the page changed: a navigation or a reaction was counted."
+    "note": "After the scripted clicks the address or the page changed: a navigation or a reaction was counted, or the page reports another view (a link to a separate HTML page starts its counters at zero)."
   },
   "port": "One router module owns the current view; links are plain <a href=\"#/view\"> so the browser does the history work, and the shell renders from the route.",
   "evidence": [],

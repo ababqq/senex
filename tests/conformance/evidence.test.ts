@@ -11,6 +11,7 @@
  */
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import path from "node:path";
 import { describe, it } from "node:test";
 import vm from "node:vm";
 import {
@@ -347,6 +348,7 @@ describe("the kind a project declares, and what the harness assumes without one"
     for (const path of ["ui.navigations", "ui.reactions", "ui.edits"])
       assert.match(form, new RegExp(path.replace(".", "\\.")));
     assert.match(form, /report \[dead-input\] only if those are unchanged/);
+    assert.match(form, /ui\.view/, "a link to another page changes the view, not the counters");
     // A canvas has no input the studio can measure. The retraction is the whole point of the
     // branch: an empty evidence list would invite the report it exists to prevent.
     const canvas = appLine({ kind: "graphics" });
@@ -364,7 +366,7 @@ describe("the kind a project declares, and what the harness assumes without one"
     );
   });
 
-  it("measures the input checks on the counters this kind actually answers on", () => {
+  it("measures the input checks on the counters this kind actually answers on", async () => {
     const evidence = {
       state: { ui: { navigations: 0, reactions: 3, edits: 0 } },
       stateEarly: { ui: { navigations: 0, reactions: 0, edits: 0 } },
@@ -377,9 +379,26 @@ describe("the kind a project declares, and what the harness assumes without one"
     );
     assert.equal(probe(inputProbesFor({ kind: "form-flow" }).edit.expr).pass, false, "nothing was typed into a field");
     // An undeclared project is still measured on the page-level counters.
+    // The check the harness installs and the recipe that names it say the same thing as the probe.
+    const installed = withHarnessChecks({ id: "f", checks: [] as Check[], cameras: [] }, {
+      ownsMain: true,
+      app: { navigation: true },
+    } as never);
+    assert.equal(
+      installed.checks.find((check: { id: string }) => check.id === "nav-changes-view")?.expr,
+      inputProbesFor(undefined).navigate.expr,
+    );
+    const recipe = JSON.parse(
+      await readFile(
+        path.join("src", "harness-seed", "library", "recipes", "nav.pointer-reaches-something.json"),
+        "utf8",
+      ),
+    );
+    assert.equal(recipe.check.expr, inputProbesFor(undefined).navigate.expr);
+    // …and by the view the page reports, because a link to a separate HTML page starts new counters.
     assert.equal(
       inputProbesFor(undefined).navigate.expr,
-      "abs(delta('ui.navigations')) > 0 || abs(delta('ui.reactions')) > 0",
+      "abs(delta('ui.navigations')) > 0 || abs(delta('ui.reactions')) > 0 || (has('ui.view') && ui.view != early.ui.view)",
     );
     assert.equal(inputProbesFor(undefined).edit.expr, "abs(delta('ui.edits')) > 0");
     // "declare typing: true" is the documented remedy for a graphics project that has a text box,

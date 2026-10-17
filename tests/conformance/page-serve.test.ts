@@ -18,6 +18,7 @@ import {
   findMetaCsp,
   folderAddress,
   isNavigation,
+  blockedNote,
   loopbackEntryUrl,
   looksLikeDocument,
   redirectResponse,
@@ -908,6 +909,37 @@ describe("which documents receive the studio's shim when no fetch destination is
       assert.equal(looksLikeDocument(html), true, html);
     for (const html of ["<li>one</li><li>two</li>", "<div class=card>x</div>", "", "plain text <b>bold</b>"])
       assert.equal(looksLikeDocument(html), false, html);
+  });
+});
+
+describe("what the project's console says about something the preview refused", () => {
+  it("names the origin, once per kind, and says why a link out or a new window did not open", () => {
+    const table: Array<["request" | "navigation" | "window", string, string, string]> = [
+      [
+        "request",
+        "https://api.example.com/x?y=1",
+        "request https://api.example.com",
+        "a network request to https://api.example.com",
+      ],
+      ["navigation", "https://example.com/a", "navigation https://example.com", "a navigation to https://example.com"],
+      ["window", "https://github.com/me", "window https://github.com", "opening a new window to https://github.com"],
+      ["window", "mailto:hi@example.com", "window mailto:", "opening a new window to mailto:"],
+      ["window", "not a url", "window not a url", "opening a new window to not a url"],
+    ];
+    for (const [kind, raw, key, what] of table) {
+      const note = blockedNote(kind, raw);
+      assert.equal(note.key, key, raw);
+      assert.ok(note.text.startsWith(`the studio blocked ${what}: `), note.text);
+    }
+    assert.match(blockedNote("window", "https://github.com/me").text, /the preview shows only the project/);
+    // A link to a page of the project itself that asks for a new tab: nothing leaves the project, and
+    // every such link is its own page, so each is noted once.
+    const inside = blockedNote("tab", "project://site/about.html?token=abc#x");
+    assert.equal(inside.key, "tab /about.html");
+    assert.match(inside.text, /opening a new tab to \/about\.html: the preview shows one window/);
+    assert.doesNotMatch(inside.text, /token|project:/);
+    assert.notEqual(blockedNote("tab", "project://site/contact.html").key, inside.key);
+    assert.match(blockedNote("request", "https://api.example.com").text, /projects run offline in the preview/);
   });
 });
 

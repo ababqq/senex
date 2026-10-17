@@ -751,7 +751,7 @@ per-project network opt-in yet.
 
 **Project view.** Every project view (Live, facet ports, selftest, e2e fixtures) comes from
 `ProjectPreview.create()`: its own session partition (`project-preview`, `project-preview-facet-N`),
-`sandbox`, `contextIsolation`, no Node, `webSecurity`, no preload or IPC, `window.open` refused.
+`sandbox`, `contextIsolation`, no Node, `webSecurity`, no preload or IPC, `window.open` refused, noted.
 The session grants pointer lock (plus fullscreen on screen) and denies every other permission,
 microphone and camera included; an agent's window cancels downloads. The view turns off `PROJECT_DISABLED_BLINK_FEATURES`
 (`OnDeviceWebSpeechAvailable`, `InstallOnDeviceSpeechRecognition`): on-device speech recognition
@@ -1096,7 +1096,7 @@ with a managed local runtime; core has no special Blender tool.
   that fails instead of skipping the connectors, previews and harness host after it.
 - **Diagnostics.** [`src/main/diagnostics.ts`](../../src/main/diagnostics.ts) builds the redacted
   Settings → Harness → Copy diagnostics text (versions, OS, data and log paths, provider and CLI
-  status, the last 100 log lines) served on `studio:diagnostics`. The renderer's
+  status, last 100 log lines) served on `studio:diagnostics`. The renderer's
   `ErrorBoundary` ([`src/renderer/ErrorBoundary.tsx`](../../src/renderer/ErrorBoundary.tsx)) draws
   the app's error screen ([feature map](feature-map.md)).
 - Forge excludes development state and agent metadata explicitly (`.gitignore` is not a packaging
