@@ -66,15 +66,15 @@ test("a project the studio started with its old .gitignore loses the export/ lin
   );
 });
 
-/** Commit what is staged as the studio of an earlier version did (the machine running the test may have no git identity). */
-async function committedAsAnOlderStudio(dir: string): Promise<void> {
-  await exec(
-    "git",
-    ["-c", "user.name=Senex", "-c", "user.email=studio@example.test", "commit", "-q", "-m", "an older studio's commit"],
-    {
-      cwd: dir,
-    },
-  );
+/**
+ * Stage `files` and commit them as the studio of an earlier version did. The machine running the
+ * test may have no git identity, and a Windows one may convert line endings on the way in
+ * (`core.autocrlf`, which the studio's own git never does): the file is committed as written.
+ */
+async function committedAsAnOlderStudio(dir: string, ...files: string[]): Promise<void> {
+  const config = ["-c", "core.autocrlf=false", "-c", "user.name=Senex", "-c", "user.email=studio@example.test"];
+  await exec("git", [...config, "add", "--", ...files], { cwd: dir });
+  await exec("git", [...config, "commit", "-q", "-m", "an older studio's commit"], { cwd: dir });
 }
 
 /** What a repository's porcelain status says, one line per change. */
@@ -106,8 +106,7 @@ test("a project that is only opened, not built in, gets the same repair, committ
     const gitignore = path.join(project.dir, ".gitignore");
     // What the project looked like under the old studio: that file, committed.
     await writeFile(gitignore, before);
-    await exec("git", ["add", ".gitignore"], { cwd: project.dir });
-    await committedAsAnOlderStudio(project.dir);
+    await committedAsAnOlderStudio(project.dir, ".gitignore");
     const head = (await exec("git", ["rev-parse", "HEAD"], { cwd: project.dir })).stdout;
     await lite.core.projects.touch(project.name);
     assert.equal(await readFile(gitignore, "utf8"), after, what);
@@ -122,8 +121,7 @@ test("opening a project never touches a .gitignore its owner is in the middle of
   const project = await lite.core.projects.scaffold("busy-tool", { title: "Busy tool" });
   const gitignore = path.join(project.dir, ".gitignore");
   await writeFile(gitignore, "export/\n.DS_Store\n.studio/\n");
-  await exec("git", ["add", ".gitignore"], { cwd: project.dir });
-  await committedAsAnOlderStudio(project.dir);
+  await committedAsAnOlderStudio(project.dir, ".gitignore");
   // Their own edit, not yet committed.
   const edited = "export/\n.DS_Store\n.studio/\n# my notes\n";
   await writeFile(gitignore, edited);
@@ -133,8 +131,7 @@ test("opening a project never touches a .gitignore its owner is in the middle of
   // And a file they staged for their own next commit stays staged when a repair is committed.
   const other = await lite.core.projects.scaffold("staging-tool", { title: "Staging tool" });
   await writeFile(path.join(other.dir, ".gitignore"), "export/\n.DS_Store\n.studio/\n");
-  await exec("git", ["add", ".gitignore"], { cwd: other.dir });
-  await committedAsAnOlderStudio(other.dir);
+  await committedAsAnOlderStudio(other.dir, ".gitignore");
   await writeFile(path.join(other.dir, "notes.txt"), "mine\n");
   await exec("git", ["add", "notes.txt"], { cwd: other.dir });
   await lite.core.projects.touch(other.name);

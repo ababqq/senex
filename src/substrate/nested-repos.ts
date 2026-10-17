@@ -94,8 +94,9 @@ export function hasLegacyIgnoreHeader(current: string | null): boolean {
  *
  * A tracked file is committed on its own (`--only`: whatever the owner staged stays staged), so
  * opening leaves the folder as clean as it found it and a later landing does not refuse over it;
- * a tracked file with edits of its own is the owner's mid-edit and is left alone; a repository
- * that will not take the commit gets the file back as it was.
+ * a tracked file with edits of its own is the owner's mid-edit and is left alone (so is a checkout
+ * whose own git converts line endings, which the studio's git does not: it reads as modified); a
+ * repository that will not take the commit gets the file back as it was.
  */
 export async function migrateLegacyIgnore(dir: string): Promise<void> {
   const file = path.join(dir, ".gitignore");
