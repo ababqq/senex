@@ -932,6 +932,14 @@ describe("what the project's console says about something the preview refused", 
       assert.ok(note.text.startsWith(`the studio blocked ${what}: `), note.text);
     }
     assert.match(blockedNote("window", "https://github.com/me").text, /the preview shows only the project/);
+    assert.equal(
+      blockedNote("request", "https://api.open-meteo.com/v1/forecast?x=1").origin,
+      "https://api.open-meteo.com",
+    );
+    // Only an origin the preview refused is "blocked"; a link to a page of the project is the project's to fix.
+    assert.equal(blockedNote("navigation", "https://github.com/me").blocked, "https://github.com");
+    assert.equal(blockedNote("tab", "project://site/about.html").blocked, null);
+    assert.equal(blockedNote("window", "https://github.com/me").blocked, null);
     // A link to a page of the project itself that asks for a new tab: nothing leaves the project, and
     // every such link is its own page, so each is noted once.
     const inside = blockedNote("tab", "project://site/about.html?token=abc#x");
@@ -1023,6 +1031,14 @@ describe("what the project partition may request (SECUI-3)", () => {
       "https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js",
       "https://fonts.googleapis.com/css2?family=Inter",
       "https://fonts.gstatic.com/s/inter/v13/abc.woff2",
+      "https://cdn.tailwindcss.com/",
+      "https://code.jquery.com/jquery-3.7.1.min.js",
+      "https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js",
+      "https://use.fontawesome.com/releases/v5.15.4/css/all.css",
+      "https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css",
+      "https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css",
+      "https://d3js.org/d3.v7.min.js",
+      "https://cdn.plot.ly/plotly-2.35.2.min.js",
     ]) {
       assert.equal(projectRequestAllowed(url, ports, "GET"), true, url);
       assert.equal(projectRequestAllowed(url, ports, "HEAD"), true, url);
@@ -1041,6 +1057,11 @@ describe("what the project partition may request (SECUI-3)", () => {
       // A punycode lookalike: Cyrillic "е" in jsdelivr.
       ["https://cdn.jsdеlivr.net/npm/three/x.js", "GET"],
       ["https://cdn.jsdelivr.net./npm/three/x.js", "GET"],
+      ["https://code.jquery.com/jquery.js", "POST"],
+      ["https://cdn.tailwindcss.com.attacker.example/", "GET"],
+      ["https://d3js.org:8443/d3.v7.min.js", "GET"],
+      ["https://www.d3js.org/d3.v7.min.js", "GET"],
+      ["https://ajax.googleapis.com@attacker.example/x.js", "GET"],
     ] as const)
       assert.equal(projectRequestAllowed(url, ports, method), false, `${method} ${url}`);
   });

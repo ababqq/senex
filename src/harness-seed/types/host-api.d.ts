@@ -1290,6 +1290,8 @@ export interface PreviewConsoleEntry {
   message: string;
   source?: string;
   line?: number;
+  /** The origin the studio blocked, on the studio's own line about it; absent on the page's. */
+  blocked?: string;
 }
 // ↑ src/shared/preview-contract.ts
 

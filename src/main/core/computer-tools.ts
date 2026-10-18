@@ -26,6 +26,7 @@ import type { ComputerToolRole } from "../../substrate/computer-tool-prompts.ts"
 import { ensureDir } from "../../substrate/fsx.ts";
 import { LIVE_HANDLE } from "../../substrate/preview-pool.ts";
 import { CAMERA_SETTLE_MS, DEFAULT_SHOT_QUALITY, captureSurface, requestedSurface, surfaceWord } from "./capture.ts";
+import { blockedLine } from "../page-serve.ts";
 import type { PreviewService } from "./previews.ts";
 import { iterationDir, safePathSegment } from "./run-shots.ts";
 import type { SessionPort } from "./session-port.ts";
@@ -33,6 +34,17 @@ import { CaptureSurface, ProjectClock } from "../../shared/preview-contract.ts";
 
 /** How long an input settles before the state is read back. */
 const INPUT_SETTLE_MS = 120;
+/** How long a paced page's clock runs before a reload replaces it: a debounced autosave fires in this time. */
+const RELOAD_FLUSH_MS = 1_200;
+/** A page too stuck to answer the clock calls is reloaded after this much longer: reload is how it is recovered. */
+const RELOAD_FLUSH_GRACE_MS = 3_000;
+
+/** The delays a computer waits, injectable so a test does not. */
+export interface ComputerTimings {
+  reloadFlushMs?: number;
+  /** How much longer than the flush a stuck page is waited for before it is reloaded anyway. */
+  flushGraceMs?: number;
+}
 /** Characters of the project's state in an answer: after an action, by default, and when asked for. */
 const STATE_CHARS = { afterAction: 600, default: 1_200, asked: 4_000 } as const;
 /** How many of the latest console errors an answer lists. */
@@ -167,13 +179,16 @@ async function wait(ctx: ActionContext): Promise<LiveToolResult> {
 }
 
 async function consoleErrors(ctx: ActionContext): Promise<LiveToolResult> {
-  const errors = ctx.port.consoleEntries(ctx.session.loadedAt()).filter((entry) => entry.level === "error");
-  if (!errors.length) return "console errors since load: none";
+  const entries = ctx.port.consoleEntries(ctx.session.loadedAt());
+  const errors = entries.filter((entry) => entry.level === "error");
+  const blocked = blockedLine(entries);
+  const blockedText = blocked ? `\n${blocked}` : "";
+  if (!errors.length) return `console errors since load: none${blockedText}`;
   const listed = errors
     .slice(-CONSOLE_ERRORS_SHOWN)
     .map((entry) => `- ${entry.message}`)
     .join("\n");
-  return `console errors since load (${errors.length}):\n${listed}`;
+  return `console errors since load (${errors.length}):\n${listed}${blockedText}`;
 }
 
 const HOST_ACTIONS: Record<ComputerHostAction, HostActionHandler> = {
@@ -283,6 +298,7 @@ export function computerTools(
   initialRoot: string,
   outDir: string,
   sessionPort: SessionPort,
+  timings: ComputerTimings = {},
 ): ComputerTools {
   let root = initialRoot;
   const role: AgentScreen["role"] = grant.role ?? "builder";
@@ -302,8 +318,15 @@ export function computerTools(
   });
   const loadOnce = async (force = false): Promise<ComputerLoad> => {
     const window = await sessionPort.get();
-    const alreadyLoaded = !force && sessionPort.loaded?.root === root;
-    if (alreadyLoaded) return { port: window, problem: null, note: null };
+    const loadedHere = sessionPort.loaded?.root === root;
+    if (loadedHere && !force) return { port: window, problem: null, note: null };
+    // The clock stood still between moves, so what the page was about to save (a debounced
+    // autosave) never ran, and the reload would read as data loss. Let it run before the page goes.
+    if (loadedHere && paced) {
+      const flush = timings.reloadFlushMs ?? RELOAD_FLUSH_MS;
+      const grace = timings.flushGraceMs ?? RELOAD_FLUSH_GRACE_MS;
+      await Promise.race([moving(window, () => sleep(flush)), sleep(flush + grace)]);
+    }
     const loaded = await previews.loadServed(window, grant.project, root, grant.entry);
     if (loaded.problem) {
       sessionPort.loaded = null;

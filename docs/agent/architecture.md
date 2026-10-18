@@ -741,11 +741,11 @@ console line, not an edit. Bundled projects serve as `http://localhost:<port>/` 
 (`spaFallback`); a missing asset or `fetch` keeps its 404.
 
 **Network policy.** The project partition is closed: `onBeforeRequest` allows only `project:`, `data:`,
-`blob:`, `devtools:`, registered loopback ports and https GET/HEAD to the exact public library and
+`blob:`, `devtools:`, registered loopback ports and https GET/HEAD to the public library and
 font CDN hosts in [`src/substrate/preview-network.ts`](../../src/substrate/preview-network.ts);
 `#serveLoopback` answers 403 instead of fetching; navigation stays on `project://` or the loopback
 origin; WebRTC is limited to proxied UDP (`confinePreviewContents`). Blocked origins are noted once
-per load; `validateAt` and the Open Project sheet name hosts a page loads code from. There is no
+per load, after the errors; `validateAt` and the Open Project sheet name hosts a page loads code from. No
 per-project network opt-in yet.
 
 **Project view.** Every project view (Live, facet ports, selftest, e2e fixtures) comes from

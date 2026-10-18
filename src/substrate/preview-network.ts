@@ -12,6 +12,15 @@ export const PREVIEW_CDN_HOSTS: ReadonlySet<string> = new Set([
   "cdnjs.cloudflare.com",
   "fonts.googleapis.com",
   "fonts.gstatic.com",
+  // The libraries a page is most often written against without a bundler.
+  "cdn.tailwindcss.com",
+  "code.jquery.com",
+  "ajax.googleapis.com",
+  "use.fontawesome.com",
+  "maxcdn.bootstrapcdn.com",
+  "stackpath.bootstrapcdn.com",
+  "d3js.org",
+  "cdn.plot.ly",
 ]);
 
 const READS = new Set(["GET", "HEAD"]);

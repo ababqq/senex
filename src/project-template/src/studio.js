@@ -59,7 +59,7 @@ const DOM_TEXT_CHARS = 60;
  *   views?: Record<string, () => unknown>,
  *   cameras?: Record<string, () => unknown>,
  *   demos?: Record<string, () => unknown>,
- *   reset?: (seed: number) => void,
+ *   reset?: (seed: number, info?: { boot: boolean }) => void | Promise<void>,
  *   canvas?: HTMLCanvasElement,
  *   scene?: unknown,
  *   renderer?: unknown,
@@ -388,9 +388,16 @@ export function installStudio(config) {
       look.y = 0;
       wheel.x = 0;
       wheel.y = 0;
-      config.reset?.(seed, { boot: false });
+      const pending = config.reset?.(seed, { boot: false });
       renderAll();
-      return seed;
+      // A reset that loads its fixtures asynchronously (IndexedDB, sql.js) is waited for, so the
+      // judge reads the page after it; a synchronous one still answers the seed at once.
+      if (typeof pending?.then !== "function") return seed;
+      const seeded = seed;
+      return pending.then(() => {
+        renderAll();
+        return seeded;
+      });
     },
 
     /** Resume live play after seed() or pause(). The project is already running on load. */
@@ -603,7 +610,9 @@ export function installStudio(config) {
   }
 
   window.__studio = api;
-  config.reset?.(seed, { boot: true });
+  const booting = config.reset?.(seed, { boot: true });
+  // An async reset is not waited for on load, but its failure is not lost.
+  if (typeof booting?.then === "function") booting.then(undefined, (error) => console.error(error));
   renderAll();
   if (typeof config.update === "function") rafHandle = requestAnimationFrame(loop);
   return api;
