@@ -29,7 +29,9 @@ the project, not defects to correct. Change what the brief asks for and leave th
    use `Math.random` or a counter (not `crypto.randomUUID`, which the studio does not seed), and a
    project with a loop or a `reset(seed)` draws from that. Two builds that cannot be run on one seed
    cannot be compared. Whatever this project already loads at run time keeps loading: the template's
-   "nothing is downloaded" rule is about the studio's offline scaffold, not about your project. New
+   "nothing is downloaded" rule is about the studio's offline scaffold, not about your project (the preview
+   blocks hosts beyond the public library CDNs, and its unbuilt `project://` page has no cookies, Cache Storage or
+   service workers). New
    images or icons come from the studio's own tools; `references/` is for you to LOOK at, unless the
    user asks to use their own image (logo, photo): that file is theirs, so copy it into `assets/`.
 __BUILD_RULE__

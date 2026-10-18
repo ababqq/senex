@@ -1008,9 +1008,9 @@ async function reviewCandidate(stage: Stage): Promise<OptimizationResult | null>
       "No source optimization proposed",
     );
   const spec = { id: STAGE_ID, owns: frozen.changedFiles, checks: [] };
-  // A project the user brought is judged by the contract rules only (M4.6): its own Math.random
-  // and its own clock are the project, and a single one of them used to discard the whole
-  // optimized candidate.
+  // A project the user brought is judged by the contract rules only (M4.6): its scene graph and
+  // wiring are its own, and a single template-only finding used to discard the whole optimized
+  // candidate.
   const violations = mechanicalReview(frozen.diff, spec, { ownsMain: true, template: run.ownShape !== true });
   if (violations.length)
     return finish(

@@ -171,7 +171,7 @@ itself and keeps the memory file its brief names current.)
   fit two rounds stops after one.
 - The studio looks into every running worker's worktree for you every few minutes and wakes you
   when what it sees changes: files touched outside the worker's own, an entry module edited
-  beyond its wiring line, `Math.random` in project code, a round that has written nothing. That is a
+  beyond its wiring line, a round that has written nothing. That is a
   correction to steer now, not at the end of the round — a contract violation you leave standing
   costs the worker the whole round when the reviewer reverts it.
 - A defect a judge names while judging one worker lands on the worker whose files it is in, with a

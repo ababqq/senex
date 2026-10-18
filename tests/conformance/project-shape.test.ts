@@ -548,10 +548,10 @@ describe("a project's own shape", () => {
     assert.deepEqual(rows[0]!.problems, [], rows[0]!.problems.join("; "));
   });
 
-  it("warns about Math.random only in a project built on the studio's template", async () => {
-    // The template's `reset(seed)` and its rng are what make two runs comparable, so a project on it
-    // is held to them. A project of the user's own (a todo app that makes ids with Math.random, even
-    // after the studio attached its contract) runs on a page whose Math.random the shim seeds.
+  it("does not warn about Math.random, in a project built on the template or any other", async () => {
+    // Flipped on purpose (owner decision, 2026-10-18): the studio seeds Math.random in every judged
+    // run and the person's own Live window keeps the browser's, so a todo app that makes ids with it
+    // owes nothing, and neither does a project on the template.
     const { projects } = await workspaces();
     const base = await tmpDir("studio-shape-");
     const warned = async (dir: string) =>
@@ -574,9 +574,7 @@ describe("a project's own shape", () => {
     const template = await projects.scaffold("random-template", { title: "Random template" });
     const main = path.join(template.dir, "src", "main.js");
     await writeFile(main, `${await readFile(main, "utf8")}\nconst x = Math.random();\n`);
-    const templateWarned = await warned(template.dir);
-    assert.equal(templateWarned.length, 1, templateWarned.join("; "));
-    assert.match(templateWarned[0]!, /src\/main\.js uses Math\.random\(\)/);
+    assert.deepEqual(await warned(template.dir), [], "a project on the studio's template");
   });
 
   it("says plainly which hosts a project loads from that the preview cannot reach (R6: public library CDNs are reachable)", async () => {
