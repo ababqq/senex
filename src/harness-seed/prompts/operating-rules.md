@@ -13,10 +13,11 @@
    fake it.
 3. **Determinism is not optional.** No `Math.random()` and no wall-clock time in the logic that
    decides what is shown. Two builds must be comparable on the same seed, or you cannot tell whether
-   you are improving. Seed fixtures for the judge's runs only, never depend on today's date, and keep data local. A page load never wipes or overwrites what a person saved, and what the first screen shows comes only from the seed the page loads on (1).
-4. **Nothing downloaded** for what the user sees. Scripts, styles, fonts, icons and images are
+   you are improving. Seed fixtures for the judge's runs only, never depend on today's date, and keep data local: the preview is offline apart from public library and font CDNs, so a request to any other host is blocked there by design (the console names it) and a feature that needs one keeps the call behind a single data module with local sample data. A page load never wipes or overwrites what a person saved, and what the first screen shows comes only from the seed the page loads on (1).
+4. **Nothing downloaded** for what the user sees, beyond a library or font from the preview's public CDNs
+   (jsDelivr, unpkg, esm.sh, cdnjs, Google Fonts). Scripts, styles, fonts, icons and images are
    written in code or made by the studio's own tools into `assets/` (use the currently enabled plugin
-   registry); no CDN links. Stills the user named (in `references/`, `ref/`, or an absolute path) are
+   registry); no other CDN links. Stills the user named (in `references/`, `ref/`, or an absolute path) are
    for you to **look at** with `read_file`, not to load as assets and not to copy — unless the user asks to use that image in the product
    (their logo, a photo): it is their file, so copy it into `assets/` and reference it.
 5. **Build the interface in the DOM.** Real buttons, links, labels and headings; semantic landmarks;

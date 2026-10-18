@@ -1678,6 +1678,23 @@ async function weighFrames(look: Look): Promise<LookEnd> {
   weighEmptyBase(look);
 }
 
+/** How many blocked origins a warning names before it counts the rest. */
+const BLOCKED_ORIGINS_NAMED = 5;
+
+/**
+ * The origins the preview refused to reach (a `fetch` to an API, a hot-linked image): the page's
+ * own error for that carries no address, so without this the dashboard's error state reads as a bug
+ * in the project. A warning, never a problem: a mistyped external URL is blocked the same way.
+ */
+function blockedWarning(entries: ReadonlyArray<{ blocked?: string }>): string[] {
+  const origins = [...new Set(entries.map((entry) => entry.blocked).filter((origin) => typeof origin === "string"))];
+  if (!origins.length) return [];
+  const more = origins.length > BLOCKED_ORIGINS_NAMED ? ` +${origins.length - BLOCKED_ORIGINS_NAMED} more` : "";
+  return [
+    `blocked by the preview's offline policy: ${origins.slice(0, BLOCKED_ORIGINS_NAMED).join(", ")}${more} — an error from these is the preview, not the project`,
+  ];
+}
+
 /** The console against what the page inherited, and the GPU's own errors. */
 async function readConsole(look: Look): Promise<LookEnd> {
   const { ctx, h, inheritedConsole, problems, warnings } = look;
@@ -1688,7 +1705,7 @@ async function readConsole(look: Look): Promise<LookEnd> {
   const consoleVerdict = consoleProblems(consoleErrors, inheritedConsole);
   look.consoleVerdict = consoleVerdict;
   problems.push(...consoleVerdict.problems);
-  warnings.push(...consoleVerdict.warnings);
+  warnings.push(...consoleVerdict.warnings, ...blockedWarning(consoleEntries));
 
   look.gpuErrors = [];
   try {

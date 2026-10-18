@@ -9427,4 +9427,38 @@ describe("a page with no canvas is a page, not a scene that failed to draw (seco
     });
     assert.equal(still.pass, false);
   });
+
+  it("DS-10. a request the preview blocked is named beside the page's own errors, as a warning", async () => {
+    const blocked = (origin: string) => ({
+      level: "warning",
+      message: `the studio blocked a network request to ${origin}`,
+      blocked: origin,
+    });
+    const weather = await gather(
+      stubCtx({
+        frames: ["a", "b", "c"],
+        console: [
+          blocked("https://api.open-meteo.com"),
+          { level: "error", message: "TypeError: Failed to fetch" },
+          blocked("https://api.open-meteo.com"),
+        ],
+      }).ctx,
+    );
+    assert.deepEqual(
+      weather.problems,
+      ["1 console error(s)"],
+      "the error still counts: a mistyped URL is blocked the same way",
+    );
+    const line = weather.warnings.filter((warning: string) => /blocked by the preview/.test(warning));
+    assert.equal(line.length, 1, "once, not once per request");
+    assert.match(line[0]!, /https:\/\/api\.open-meteo\.com/);
+    assert.match(line[0]!, /the preview, not the project/);
+    const quiet = await gather(stubCtx({ frames: ["a", "b", "c"], console: [{ level: "error", message: "x" }] }).ctx, {
+      iterationId: "002",
+    });
+    assert.equal(
+      quiet.warnings.some((warning: string) => /blocked by the preview/.test(warning)),
+      false,
+    );
+  });
 });

@@ -17,10 +17,11 @@ screens, data and controls, and replace `phase: "empty"`. Five rules; tables in 
 4. **Make it measurable.** A probe in `probes()` per thing the project holds, a view in `views` per
    screen worth photographing (always empty and error), a demo in `demos` per workflow the generic
    exercise cannot reach. The page reports what was done to it (`state().ui`) by itself; never fake it.
-5. **Deterministic, local, nothing downloaded.** Randomness only from `reset(seed)` or the `rng` in `update()`; no wall
-   clock, network or CDN. Data in memory or `localStorage`; `reset(1)` runs on every load, so on boot never wipe what a
-   person saved or add sample entries or extras unless asked; draw the first screen only from `seed` (the judge reseeds with
-   1). Images and icons: code, or Studio’s registry tools into `assets/` (verify in the preview). `references/`: LOOK only — unless the user asks to use their own image (logo, photo): copy that into `assets/`.
+5. **Deterministic, local.** Randomness only from `reset(seed)` or the `rng` in `update()`; no wall clock. The preview is
+   offline but for public library and font CDNs: other requests are blocked by design (the console names them), so keep an
+   outside service behind one data module with local sample data. `project://` has no cookies, Cache Storage or service
+   workers. Data in memory, `localStorage` or IndexedDB; `reset(1)` runs on every load, so on boot never wipe what a
+   person saved or add sample entries unless asked; draw the first screen only from `seed` (the judge reseeds with 1). Images and icons: code, or Studio’s registry tools into `assets/` (verify in the preview). `references/`: LOOK only — unless the user asks to use their own image (logo, photo): copy that into `assets/`.
 
 Three lessons every facet re-learned: non-owner facets touch `src/main.js` only inside the `FACET
 WIRING` block (one import, one init line — the harness union-merges it, anything else conflicts);

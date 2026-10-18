@@ -12,7 +12,7 @@ export interface StubOptions {
   cameras?: unknown;
   demos?: unknown;
   /** What the page logged: `error` entries are the ones a build is judged on. */
-  console?: Array<{ level: string; message: string }>;
+  console?: Array<{ level: string; message: string; blocked?: string }>;
   /** What `preview.ready` answers. `null` is an older studio that has no such host call. */
   ready?: Record<string, unknown> | null;
   /** What `preview.pageUi` answers. Absent is a studio that cannot see outside the canvas. */

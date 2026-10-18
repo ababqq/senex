@@ -1065,7 +1065,7 @@ function briefRules(
       ? `- Keep window.__studio working (installStudio with probes, views and demos). A build the harness cannot drive is a loss.`
       : `- Keep the studio able to see this project. It attaches to the page and watches what is done to it — do not fight it; and where the entry calls \`installStudio({ probes })\`, leave those lines in. A build the harness cannot inspect is a loss.`,
     template
-      ? `- Determinism: rng from update() or reset(seed), no Math.random, no wall clock, no network.`
+      ? `- Determinism: rng from update() or reset(seed), no Math.random, no wall clock. The preview is offline apart from public library CDNs: another host is blocked by design, so keep a feature that needs one behind a data module with local sample data.`
       : `- Determinism: the studio seeds Math.random and owns the clock for this page, so the same seed replays the same run — take time from the delta your own loop already computes, never from a second clock of your own.`,
     `- Capture (${toolCall(roleEngine(run, RoleKey.Builder), "capture")}) after every meaningful change and LOOK before you finish; write what you tried and why in ${facetNotes(spec.id)}.`,
     `- A line beginning \`HARNESS:\` in ${facetNotes(spec.id)} is read by the loop, not by the next builder: use it to say a check cannot pass as written (name the check id) or that a camera cannot see what it asks — the planner re-points the check instead of you burning iterations.`,
