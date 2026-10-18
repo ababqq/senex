@@ -251,7 +251,7 @@ export function isResumeFailure(err: any): boolean {
  * is how one night was spent moving a real project's DOM UI into a HUD it never had.
  */
 const TEMPLATE_RULE =
-  "When you build, follow CLAUDE.md in the workspace root: keep window.__studio (seed/start/pause/step/state/debugCamera) working, keep interaction deterministic (rng from reset(seed), never Math.random), assets come from procedural code, imports, or the currently enabled plugin tools. Follow the selected tool’s returned file paths and verification guidance.";
+  "When you build, follow CLAUDE.md in the workspace root: keep window.__studio (seed/start/pause/step/state/debugCamera) working, draw fixtures and the first screen only from reset(seed) (the studio seeds Math.random and owns the clock in judged runs), assets come from procedural code, imports, or the currently enabled plugin tools. Follow the selected tool’s returned file paths and verification guidance.";
 
 /**
  * …and the same rule for a project that came with its own shape: what it already is stays, the

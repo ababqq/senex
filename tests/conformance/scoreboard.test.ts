@@ -1653,7 +1653,7 @@ describe("code reviewer, mechanical half", () => {
     assert.deepEqual(files.get("src/x.js")?.removed, ["removed"]);
   });
 
-  it("flags Math.random, wall clock, untagged batches, and edits outside ownership", () => {
+  it("flags untagged batches and edits outside ownership, and never Math.random or the wall clock", () => {
     const diff = [
       "+++ b/src/city.js",
       "@@ -1,0 +1,5 @@",
@@ -1667,8 +1667,9 @@ describe("code reviewer, mechanical half", () => {
       "+export const x = 1;",
     ].join("\n");
     const violations = mechanicalReview(diff, { id: "city", owns: ["src/city.js"], checks: [] });
-    assert.ok(violations.some((v) => /Math\.random/.test(v.what)));
-    assert.ok(violations.some((v) => /wall-clock/.test(v.what)));
+    // Flipped on purpose (owner decision, 2026-10-18): the studio seeds Math.random and owns the
+    // clock in judged runs, so neither is a finding any more, in a template project or any other.
+    assert.ok(!violations.some((v) => /Math\.random|wall-clock/.test(v.what)), JSON.stringify(violations));
     assert.ok(violations.some((v) => /none tagged/.test(v.what)));
     assert.ok(violations.some((v) => /outside this facet's ownership \(src\/lighting\.js\)/.test(v.what)));
     assert.ok(violations.every((v) => v.source === "mechanical"));

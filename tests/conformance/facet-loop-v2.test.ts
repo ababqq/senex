@@ -11,8 +11,8 @@ import { gitFile } from "../helpers/git.ts";
  *    and their diff summary reaches the next brief;
  *  - spikes: an identity check that fails twice is solved in a spike worktree, and the passing
  *    spike becomes a recipe in the technique library that the next brief carries;
- *  - the code reviewer: a Math.random() in the diff is caught and fixed in the same session
- *    before any evidence is spent.
+ *  - the code reviewer: a batch of untagged objects in the diff is caught and fixed in the same
+ *    session before any evidence is spent.
  */
 import { newestFixtureBuild } from "../helpers/fake-ollama.ts";
 import assert from "node:assert/strict";
@@ -207,10 +207,10 @@ describe("facet loop v2: scoreboard, veto, memory, spikes, review", () => {
         if (/YOUR FACET: Water|facet "Water"/.test(request.prompt)) {
           builds.water++;
           await mkdir(path.join(request.cwd, "src"), { recursive: true });
-          // Iteration 1 smuggles Math.random() in — the reviewer must catch it before evidence.
+          // Iteration 1 smuggles a batch of untagged objects in — the reviewer must catch it before evidence.
           const body =
             builds.water === 1
-              ? "// water\nconst r = Math.random();\nexport const water = r;\n"
+              ? "// water\nconst a = new THREE.Mesh();\nconst b = new THREE.Mesh();\nconst c = new THREE.Mesh();\nconst d = new THREE.Mesh();\nexport const water = [a, b, c, d];\n"
               : `// water attempt ${builds.water}\nexport const water = ${builds.water};\n`;
           await writeFile(path.join(request.cwd, "src", "water.js"), body);
           await mkdir(path.join(request.cwd, "docs", "notes"), { recursive: true });
@@ -398,12 +398,12 @@ describe("facet loop v2: scoreboard, veto, memory, spikes, review", () => {
     assert.ok(resumed.length >= 2, `water resumed its session ${resumed.length} times`);
     assert.ok(resumed.some((d) => /You are resuming your own session/.test(d.prompt)));
 
-    // The code reviewer caught Math.random() and the fix happened in the same session, before evidence.
+    // The code reviewer caught the untagged batch and the fix happened in the same session, before evidence.
     const reviews = customEvents(events, "facet_review");
     assert.ok(
       reviews.some(
         (r) =>
-          r.facetId === "water" && (r.violations as Array<{ what: string }>).some((v) => /Math\.random/.test(v.what)),
+          r.facetId === "water" && (r.violations as Array<{ what: string }>).some((v) => /none tagged/.test(v.what)),
       ),
     );
     assert.ok(

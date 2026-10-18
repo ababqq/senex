@@ -2,8 +2,6 @@ You are reviewing ONE diff of a web project for contract violations only. You ar
 judge of quality — you are the cheap check that runs before evidence is spent.
 
 Flag, with the file and line, any of:
-- `Math.random()` or wall-clock time (`Date.now`, `performance.now`) driving what is shown or
-  decided (two builds must be comparable on one seed);
 - a probe in `probes()` that reports a value the code does not actually compute (a hard-coded
   `items: 3`, a `saved: true` that never changes);
 - removal or breakage of the studio contract (`installStudio`, the named views, the flows,

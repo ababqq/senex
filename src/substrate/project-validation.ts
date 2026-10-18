@@ -52,7 +52,6 @@ const MESSAGE = {
       )} as packages, and nothing here resolves them — this project needs a build command (studio.json "build") or an import map`,
   TypescriptUnbuilt: (file: string) =>
     `${file} is TypeScript and nothing here builds it — a browser cannot run it as written; this project needs a build command (studio.json "build")`,
-  MathRandom: (file: string) => `${file} uses Math.random() — runs will not be comparable`,
   BootsPaused:
     "studio.js boots paused (`let running = false`) and nothing calls start() — the project will sit on one frozen frame",
   PredatesInspect: "src/studio.js predates the v2 contract (no inspect()) — scene and element checks are unavailable",
@@ -122,8 +121,6 @@ interface ContractUse {
   hasInspect: boolean;
   bootsPaused: boolean;
   callsStart: boolean;
-  /** Project sources (relative to the folder) that call `Math.random()`, in the order read. */
-  randomUsers: string[];
 }
 
 /** Read every reachable source for the contract's traces: the module itself, and the project's calls into it. */
@@ -134,7 +131,6 @@ async function scanContractUse(dir: string, sources: string[]): Promise<Contract
     hasInspect: false,
     bootsPaused: false,
     callsStart: false,
-    randomUsers: [],
   };
   for (const file of sources) {
     const text = await readFile(file, "utf8").catch(() => "");
@@ -142,7 +138,7 @@ async function scanContractUse(dir: string, sources: string[]): Promise<Contract
     // with it, and counting it made every folder holding the file report "loaded" — which is
     // how a project the studio could only attach to was told to install what was never called.
     if (file.endsWith("studio.js")) noteContractModule(use, text);
-    else noteProjectSource(use, toPosixRelative(path.relative(dir, file)), text);
+    else noteProjectSource(use, text);
   }
   return use;
 }
@@ -153,11 +149,10 @@ function noteContractModule(use: ContractUse, text: string): void {
   if (/let\s+running\s*=\s*false/.test(text)) use.bootsPaused = true;
 }
 
-function noteProjectSource(use: ContractUse, rel: string, text: string): void {
+function noteProjectSource(use: ContractUse, text: string): void {
   const installs = /installStudio\s*\(/.test(text);
   if (/window\.__studio\s*=/.test(text) || installs) use.installsContract = true;
   if (installs && /\bprobes\s*[:(]/.test(text)) use.hasProbes = true;
-  if (/\bMath\.random\s*\(/.test(text)) use.randomUsers.push(rel);
   if (/\.start\s*\(/.test(text)) use.callsStart = true;
 }
 
@@ -215,9 +210,6 @@ export async function validateProjectDir(dir: string): Promise<ProjectValidation
   if (unresolvedProblem) problems.push(unresolvedProblem);
 
   const use = await scanContractUse(dir, sources);
-  // The template's rng is what keeps its runs comparable. A project of the user's own runs on a
-  // page whose Math.random the shim seeds, whatever it installs, so it owes no such rule.
-  if (use.installsContract && !shape.own) warnings.push(...use.randomUsers.map((rel) => MESSAGE.MathRandom(rel)));
   const nonExecutable = reach === "none" ? null : nonExecutableSource(sources);
   if (nonExecutable) problems.push(MESSAGE.TypescriptUnbuilt(toPosixRelative(path.relative(dir, nonExecutable))));
   // The one problem the night can do something about on its own: a page that never loads the

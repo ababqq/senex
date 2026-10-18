@@ -1724,12 +1724,14 @@ describe("harness incidents", () => {
       "+scene.add(new THREE.Mesh(g, m));",
     ].join("\n");
     const onTemplate = mechanicalReview(diff, spec, { ownsMain: true });
-    assert.deepEqual(onTemplate.map((v) => v.category).sort(), ["determinism", "tags", "wall-clock"]);
+    // Flipped on purpose (owner decision, 2026-10-18): Math.random and the clock are no longer
+    // findings in a template project either; the untagged batch is the template's rule that remains.
+    assert.deepEqual(onTemplate.map((v) => v.category).sort(), ["tags"]);
     for (const violation of onTemplate) assert.equal(templateOnlyFinding(violation), true, violation.what);
     assert.deepEqual(
       mechanicalReview(diff, spec, { ownsMain: true, template: false }),
       [],
-      "the user's own randomness and clock are the project",
+      "the user's own scene graph is the project",
     );
 
     const removed = [
@@ -9031,30 +9033,21 @@ describe("the calls a chat stood behind, and the clock it speaks in (completion 
     assert.equal(lessons.join(" ").match(/\bcameras?\b/i), null, lessons.join(" | "));
   });
 
-  it("CB-5. mechanical review does not send a list or form to a game loop to fix a clock read", async () => {
+  it("CB-5. mechanical review does not send a list or form anywhere to fix a clock read or a random pick", async () => {
+    // Flipped on purpose (owner decision, 2026-10-18). It used to name the counter held in the store;
+    // the studio seeds Math.random and owns the clock in judged runs, so an id from Date.now() or a
+    // "Surprise me" from Math.random() is ordinary code in a template project too.
     const { mechanicalReview } = await import("../../src/harness-seed/loop/review.ts");
     const diff = [
       "diff --git a/src/list.js b/src/list.js",
       "--- a/src/list.js",
       "+++ b/src/list.js",
-      "@@ -1,1 +1,2 @@",
+      "@@ -1,1 +1,3 @@",
       " export const todos = [];",
       "+export const todo = { id: Date.now(), title: 'Call Ada' };",
+      "+export const pick = () => todos[Math.floor(Math.random() * todos.length)];",
     ].join("\n");
-    const found = mechanicalReview(diff, { template: true } as never) as unknown as Array<{
-      category: string;
-      fix: string;
-      file: string;
-    }>;
-    const clock = found.filter((violation) => violation.category === "wall-clock");
-    assert.equal(clock.length, 1, JSON.stringify(found));
-    assert.equal(clock[0]!.file, "src/list.js");
-    assert.doesNotMatch(
-      clock[0]!.fix,
-      /^derive time from dt in update\(\)/,
-      "the fix names ids and displayed times first",
-    );
-    assert.match(clock[0]!.fix, /counter held in the store/);
+    assert.deepEqual(mechanicalReview(diff, { template: true } as never), []);
   });
 
   it("CB-6. the reference panel's fallback prompt compares a product on layout and type, not a title's materials", async () => {

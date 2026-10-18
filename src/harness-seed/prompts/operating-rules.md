@@ -11,9 +11,11 @@
    step, state, the named views (`debugCamera`). A build the judge cannot drive counts as a loss,
    however pretty it is. The page reports what people did to it (`state().ui`) by itself; do not
    fake it.
-3. **Determinism is not optional.** No `Math.random()` and no wall-clock time in the logic that
-   decides what is shown. Two builds must be comparable on the same seed, or you cannot tell whether
-   you are improving. Seed fixtures for the judge's runs only, never depend on today's date, and keep data local: the preview is offline apart from public library and font CDNs, so a request to any other host is blocked there by design (the console names it) and a feature that needs one keeps the call behind a single data module with local sample data. A page load never wipes or overwrites what a person saved, and what the first screen shows comes only from the seed the page loads on (1).
+3. **The first screen replays.** The studio seeds `Math.random` and owns the clock in judged runs (the
+   person's own Live window keeps the browser's), so ids, timestamps, "N days ago" and random picks are
+   ordinary code in handlers and displays. What must replay is the fixtures and the first screen: draw them
+   only from the seed the page loads on (1), seed fixtures for the judge's runs only, and let a simulation
+   loop take its time from the delta `update()` gets. Keep data local: the preview is offline apart from public library and font CDNs, so a request to any other host is blocked there by design (the console names it) and a feature that needs one keeps the call behind a single data module with local sample data. A page load never wipes or overwrites what a person saved, and what the first screen shows comes only from the seed the page loads on (1).
 4. **Nothing downloaded** for what the user sees, beyond a library or font from the preview's public CDNs
    (jsDelivr, unpkg, esm.sh, cdnjs, Google Fonts). Scripts, styles, fonts, icons and images are
    written in code or made by the studio's own tools into `assets/` (use the currently enabled plugin

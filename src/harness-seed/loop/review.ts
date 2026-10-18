@@ -1,7 +1,7 @@
 /**
  * The code reviewer — HARNESS-REWORK.md §4.7. A cheap pass over an attempt's diff for
  * contract violations before any evidence is spent: the mechanical scan finds what a regex
- * can (Math.random, wall clock, a removed installStudio, untagged new meshes, edits outside
+ * can (a removed installStudio, untagged new meshes, edits outside
  * the facet's files); the model pass, when enabled and the diff is small, finds what a regex
  * cannot (a probe that lies). Findings are handed back to the builder in the same session.
  */
@@ -273,33 +273,15 @@ function isSourceFile(file: string): boolean {
   return /\.(m?js|ts)$/.test(file);
 }
 
-/** Inside the template: no Math.random, no wall clock, and new objects are tagged. */
+/**
+ * Inside the template: new objects are tagged. Math.random and the clock are not findings: the
+ * studio seeds the page's randomness and owns its clock in every judged run, and the person's own
+ * Live window keeps the browser's, so ids, timestamps and "surprise me" are ordinary code.
+ */
 function templateFindings({ file, added, template }: FileReview): Violation[] {
   const templateSource = template && isSourceFile(file) && !file.endsWith("studio.js");
   if (!templateSource) return [];
   const violations: Violation[] = [];
-  for (const { line, text } of added) {
-    if (/\bMath\.random\s*\(/.test(text)) {
-      violations.push({
-        file,
-        line,
-        category: "determinism",
-        what: "Math.random() in project code — two builds cannot be compared on one seed",
-        fix: "use the rng passed into update() or a generator seeded in reset(seed)",
-        source: "mechanical",
-      });
-    }
-    if (/\b(Date\.now|performance\.now)\s*\(/.test(text) && !/\/\/.*(log|debug)/i.test(text)) {
-      violations.push({
-        file,
-        line,
-        category: "wall-clock",
-        what: "wall-clock time drives the project — judging is stepped, not clocked",
-        fix: "ids: a counter held in the store; a time a person reads: a fixed value seeded in reset(seed); only an animation or simulation loop derives time from dt in update()",
-        source: "mechanical",
-      });
-    }
-  }
   const newMeshes = added.filter(({ text }) =>
     /new\s+THREE\.(Mesh|InstancedMesh|SkinnedMesh|Group|Points|Line|Sprite)\b/.test(text),
   ).length;
