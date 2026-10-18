@@ -464,9 +464,10 @@ const SELFTEST_STEPS: readonly SelftestStep[] = [
         "+const o = new THREE.Group();",
       ].join("\n");
       const violations = mechanicalReview(diff, { id: "city", owns: ["src/city.js"], checks: [] });
+      // The studio seeds Math.random and owns the clock in judged runs: neither is a finding.
       check(
-        "random flagged",
-        violations.some((v) => /Math\.random/.test(v.what)),
+        "random not flagged",
+        violations.every((v) => !/Math\.random/.test(v.what)),
       );
       check(
         "untagged flagged",
