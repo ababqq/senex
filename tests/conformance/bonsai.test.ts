@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
 import { it } from "node:test";
-import { mkdtemp, mkdir, readdir, readFile, writeFile, rm, symlink, truncate } from "node:fs/promises";
+import { mkdtemp, mkdir, readdir, readFile, stat, writeFile, rm, symlink, truncate } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { createServer, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
 import { once } from "node:events";
+import { setTimeout as delay } from "node:timers/promises";
 import { BonsaiEngine, InferenceQueue } from "../../src/substrate/engines/bonsai.ts";
 import {
   BonsaiRuntime,
@@ -23,6 +24,7 @@ import {
 import { LocalSessions } from "../../src/substrate/engines/local-session.ts";
 import { summarizeLocalCheckpoint } from "../../src/substrate/engines/local-checkpoint.ts";
 import { download } from "../../src/substrate/bonsai/download.ts";
+import { SECOND_MS } from "../../src/shared/duration.ts";
 import { createHash } from "node:crypto";
 import { EngineError, DelegateEventType, type DelegateEvent } from "../../src/substrate/engines/types.ts";
 import { baseBrief } from "../../src/harness-seed/loop/autopilot.ts";
@@ -392,14 +394,39 @@ async function weightsServer(answer: (res: ServerResponse, start: number, reques
   return { url, ranges, close };
 }
 
-/** Send `bytes` from `start` as a full or ranged answer; `upTo` cuts the connection after that many. */
-function sendWeights(res: ServerResponse, bytes: Buffer, start: number, upTo = bytes.length - start) {
+const SAVED_POLL_MS = 5;
+/** How long a cut waits for the client to save what it was sent; past it the cut happens anyway and the test fails. */
+const SAVED_WAIT_MS = 5 * SECOND_MS;
+
+/**
+ * Resolves once `partial` holds `size` bytes. A cut that races the client's save can drop the chunk
+ * still queued in the response body, so the fixture cuts only after the bytes are on disk.
+ */
+async function savedAtLeast(partial: string, size: number) {
+  for (let waited = 0; waited < SAVED_WAIT_MS; waited += SAVED_POLL_MS) {
+    if (((await stat(partial).catch(() => null))?.size ?? 0) >= size) return;
+    await delay(SAVED_POLL_MS);
+  }
+}
+
+/**
+ * Send `bytes` from `start` as a full or ranged answer; `upTo` cuts the connection once the client has
+ * saved that many bytes into `partial`.
+ */
+function sendWeights(
+  res: ServerResponse,
+  bytes: Buffer,
+  start: number,
+  { upTo = bytes.length - start, partial = "" } = {},
+) {
   res.writeHead(start ? 206 : 200, {
     "Content-Length": String(bytes.length - start),
     ...(start ? { "Content-Range": `bytes ${start}-${bytes.length - 1}/${bytes.length}` } : {}),
   });
   if (upTo >= bytes.length - start) return void res.end(bytes.subarray(start));
-  res.write(bytes.subarray(start, start + upTo), () => setTimeout(() => res.socket?.destroy(), 30));
+  res.write(bytes.subarray(start, start + upTo), () => {
+    void savedAtLeast(partial, start + upTo).then(() => res.socket?.destroy());
+  });
 }
 
 const weightsSpec = (url: string, bytes: Buffer) => ({
@@ -411,10 +438,11 @@ const weightsSpec = (url: string, bytes: Buffer) => ({
 
 it("a download whose connection drops mid-file resumes from the saved bytes and finishes", async () => {
   const bytes = Buffer.from("weights that arrive over a connection that keeps dropping");
-  const server = await weightsServer((res, start, request) =>
-    sendWeights(res, bytes, start, request < 3 ? 12 : undefined),
-  );
   const root = await mkdtemp(path.join(os.tmpdir(), "bonsai-dropped-"));
+  const partial = path.join(root, "fixture.gguf.part");
+  const server = await weightsServer((res, start, request) =>
+    sendWeights(res, bytes, start, request < 3 ? { upTo: 12, partial } : {}),
+  );
   const waits: number[] = [];
   try {
     const published = await download(weightsSpec(server.url, bytes), root, new AbortController().signal, () => {}, {
