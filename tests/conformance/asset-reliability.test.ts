@@ -1,11 +1,16 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
+import { mkdtemp, mkdir, stat, writeFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { reconcileGeneratedAssets } from "../../src/main/project-assets.ts";
 import { validateArguments, validateManifest } from "../../src/substrate/plugins/manifest.ts";
 import { readFile } from "node:fs/promises";
+const exists = (target: string) =>
+  stat(target).then(
+    () => true,
+    () => false,
+  );
 
 test("retained generated originals survive missing delivery and renamed local copies retain provenance", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "asset-reliability-"));
@@ -97,6 +102,53 @@ test("host checkpoint preserves unrelated staged and unstaged changes and refuse
     await writeFile(path.join(root, "assets/trout.glb"), "user replacement");
     await assert.rejects(checkpoints.checkpoint("project", root), /was modified/);
     await assert.rejects(checkpoints.record("project", root, "genex", "job", ["index.html"]), /Only delivered/);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+test("a checkpoint never runs a filter the folder's config names, and stops on one it cannot switch off", {
+  skip: process.platform === "win32" && "shell-script filters",
+}, async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "asset-checkpoint-hostile-"));
+  const marker = path.join(root, "RAN");
+  const git = async (...args: string[]) =>
+    (await exec("git", args, { cwd: root, env: { ...process.env, ...GIT_ENV } })).stdout.trim();
+  try {
+    await git("init", "-q");
+    await writeFile(path.join(root, "index.html"), "initial");
+    await git("add", ".");
+    await git("commit", "-q", "-m", "initial");
+    await mkdir(path.join(root, "assets"));
+    await writeFile(path.join(root, "assets/hero.png"), "the delivered bytes");
+    const checkpoints = new AssetCheckpoints(path.join(root, ".git/host-deliveries.json"));
+    await checkpoints.record("project", root, "genex", "job", ["assets/hero.png"]);
+    const config = path.join(root, ".git", "config");
+    await writeFile(config, `${await readFile(config, "utf8")}[filter "hostile"]\n\tclean = touch '${marker}'; cat\n`);
+    await writeFile(path.join(root, ".gitattributes"), "* filter=hostile\n");
+    const saved = process.env.GIT_DIR;
+    const elsewhere = await mkdtemp(path.join(os.tmpdir(), "asset-checkpoint-other-"));
+    await exec("git", ["init", "-q"], { cwd: elsewhere });
+    process.env.GIT_DIR = path.join(elsewhere, ".git");
+    let done: Awaited<ReturnType<AssetCheckpoints["checkpoint"]>>;
+    try {
+      done = await checkpoints.checkpoint("project", root);
+    } finally {
+      if (saved === undefined) delete process.env.GIT_DIR;
+      else process.env.GIT_DIR = saved;
+      await rm(elsewhere, { recursive: true, force: true });
+    }
+    assert.deepEqual(done.files, ["assets/hero.png"]);
+    assert.equal(await git("show", `${done.revision}:assets/hero.png`), "the delivered bytes");
+    assert.equal(await git("rev-parse", "HEAD"), done.revision, "the commit landed in the folder, not in GIT_DIR");
+    assert.equal(await exists(marker), false, "the filter never ran");
+
+    await writeFile(path.join(root, "assets/second.png"), "more");
+    await checkpoints.record("project", root, "genex", "job-2", ["assets/second.png"]);
+    await writeFile(config, `${await readFile(config, "utf8")}[filter "a=b"]\n\tclean = touch '${marker}'; cat\n`);
+    const head = await git("rev-parse", "HEAD");
+    await assert.rejects(checkpoints.checkpoint("project", root), { code: "unsafe-config-key" });
+    assert.equal(await git("rev-parse", "HEAD"), head, "nothing was committed");
+    assert.equal(await exists(marker), false, "nor did the one named with an equals sign");
   } finally {
     await rm(root, { recursive: true, force: true });
   }

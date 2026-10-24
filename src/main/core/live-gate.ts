@@ -66,13 +66,19 @@ function changedPaths(status: string): string[] {
 }
 
 /**
+ * A folder host git refuses to run in reads as one git cannot read: Live still opens it, and the
+ * refusal is said where the project's build reports it.
+ */
+const unreadable = (read: Promise<string | null>): Promise<string | null> => read.catch(() => null);
+
+/**
  * A folder's state as far as the preview cares: its commit, what git says is uncommitted, and the
  * size and time of each such path. Null when git cannot read it, which the gate reads as changed.
  * `--no-optional-locks`: a look never rewrites the person's index.
  */
 export async function folderPrint(dir: string): Promise<string | null> {
-  const head = await gitOrNull(dir, ["rev-parse", "--verify", "--quiet", "HEAD"]);
-  const status = await gitOrNull(dir, ["--no-optional-locks", "status", "--porcelain=v1", "-z"]);
+  const head = await unreadable(gitOrNull(dir, ["rev-parse", "--verify", "--quiet", "HEAD"]));
+  const status = await unreadable(gitOrNull(dir, ["--no-optional-locks", "status", "--porcelain=v1", "-z"]));
   if (status === null) return null;
   const hash = createHash("sha1")
     .update(head ?? "")
@@ -89,7 +95,7 @@ export async function folderPrint(dir: string): Promise<string | null> {
 
 /** A folder's checked-out commit, or null when git cannot say. */
 async function headOf(dir: string): Promise<string | null> {
-  return (await gitOrNull(dir, ["rev-parse", "--verify", "--quiet", "HEAD"]))?.trim() || null;
+  return (await unreadable(gitOrNull(dir, ["rev-parse", "--verify", "--quiet", "HEAD"])))?.trim() || null;
 }
 
 /** Whether two paths name one folder, links resolved. */

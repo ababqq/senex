@@ -20,6 +20,11 @@ const IDENTITY = [
   "commit.gpgsign=false",
   "-c",
   "core.hooksPath=/dev/null",
+  // A checkout writes the bytes the test wrote, whatever line-ending setting the developer has.
+  "-c",
+  "core.autocrlf=false",
+  "-c",
+  "core.eol=lf",
 ];
 
 export async function fixtureGit(dir: string, args: string[]): Promise<string> {

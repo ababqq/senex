@@ -22,6 +22,7 @@ import { resetToolchain } from "../../substrate/toolchain.ts";
 import { buildFailureNote, servedAfterBuild } from "../project-build.ts";
 import type { BuildProblem, InstallResult } from "../../shared/build-problem.ts";
 import { describeUnknownImage, sniffImage } from "../../substrate/image-sniff.ts";
+import { unlessRefused } from "../../substrate/git-policy.ts";
 import { claudeFolderChanges, git } from "../../substrate/snapshots.ts";
 import type { DelegateRequest } from "../../substrate/engines/types.ts";
 import type { ReferenceFrame } from "../../shared/protocol.ts";
@@ -967,7 +968,9 @@ export class PreviewService {
     const projectDir = this.#core.projects.dirFor(project);
     await this.#core.assertProjectAllowed(projectDir);
     this.#core.snapshots.register({ name: project, dir: projectDir });
-    const resolved = (await git(projectDir, ["rev-parse", "--verify", `${commit}^{commit}`]).catch(() => "")).trim();
+    const resolved = (
+      await git(projectDir, ["rev-parse", "--verify", `${commit}^{commit}`]).catch(unlessRefused(""))
+    ).trim();
     if (!resolved) throw new Error(MESSAGE.notInHistory(commit, project));
     // Prepare an independent revision. A failed build must never delete the currently served one.
     const showDir = path.join(
@@ -1231,7 +1234,9 @@ export class PreviewService {
       ([cwd, delegation]) => path.resolve(cwd) === path.resolve(projectDir) && delegation.abort !== asker,
     );
     if (building) throw new Error(MESSAGE.contractorBuilding(project));
-    const resolved = (await git(projectDir, ["rev-parse", "--verify", `${commit}^{commit}`]).catch(() => "")).trim();
+    const resolved = (
+      await git(projectDir, ["rev-parse", "--verify", `${commit}^{commit}`]).catch(unlessRefused(""))
+    ).trim();
     if (!resolved) throw new Error(MESSAGE.notInHistory(commit, project));
     // A build never brings Claude Code's project settings or hooks: the person's own session in
     // the project loads them, and nothing a night or the harness made may choose them.
@@ -1242,7 +1247,10 @@ export class PreviewService {
     // landed. A path the conversion is about to absorb reads modified only because it has not
     // happened yet, so it is not what "the user has uncommitted edits" means here.
     const absorbed = await nestedForLanding(projectDir, resolved);
-    const dirty = dirtyOutside((await git(projectDir, ["status", "--porcelain"]).catch(() => "")).trim(), absorbed);
+    const dirty = dirtyOutside(
+      (await git(projectDir, ["status", "--porcelain"]).catch(unlessRefused(""))).trim(),
+      absorbed,
+    );
     if (dirty.length > 0) {
       throw new Error(MESSAGE.uncommittedEdits(dirty.length));
     }
@@ -1355,7 +1363,9 @@ export class PreviewService {
     if (!COMMIT_HASH.test(String(commit ?? ""))) throw new Error(MESSAGE.notCommitHash(commit));
     const projectDir = this.#core.projects.dirFor(project);
     await this.#core.assertProjectAllowed(projectDir);
-    const resolved = (await git(projectDir, ["rev-parse", "--verify", `${commit}^{commit}`]).catch(() => "")).trim();
+    const resolved = (
+      await git(projectDir, ["rev-parse", "--verify", `${commit}^{commit}`]).catch(unlessRefused(""))
+    ).trim();
     if (!resolved) throw new Error(MESSAGE.notInHistory(commit, project));
     await this.#live.offer({ project, root: null, commit: resolved });
     return resolved;

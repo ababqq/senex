@@ -67,9 +67,8 @@ host for arrives over the harness RPC, which is therefore an untrusted surface:
   inside the exports folder. EventStore thread and artifact ids are plain names, and
   `saveRunArtifact` resolves inside `runs/<runId>/`.
 - A revision the harness names must resolve to a commit (`resolveCommit`) and reaches git after
-  `--end-of-options`; `reset` takes the hash. Host git always runs with `HOST_GIT_CONFIG`
-  (`-c core.fsmonitor= -c core.hooksPath=/dev/null`), so a repository's config cannot make the
-  host run a program.
+  `--end-of-options` (`reset`: the hash). Host git is built by `git-policy.ts`:
+  a repository's config cannot make it run a program or leave the folder, nested repositories aside.
 - The harness cannot choose its own rewind target; see [Snapshots and health](#snapshots-and-health).
 
 `tests/conformance/rpc-authority.test.ts` holds the hostile-root table;
@@ -629,7 +628,7 @@ artifacts and restores it on resume, clamped to `MAX_DIRECTOR_MEMORY`. Adoption 
 `git init`. Snapshot commits land on the user's checked-out branch with hooks disabled and are
 refused during a merge, rebase, cherry-pick or revert. `SnapshotEngine.restore` runs every check
 before any reset and refuses (`branch-changed`, `history-changed`, `operation-in-progress`,
-`rescue-failed`) leaving the folder untouched; the mandatory rescue snapshot is named on
+`rescue-failed`, or `HostGitRefusedError`) touching nothing; the mandatory rescue snapshot is named on
 `workspace_restored`. Every loop shell command is built in `loop/git.ts`; model text goes through
 `shellQuote` and a commit reaches a command line only when `isCommit`.
 

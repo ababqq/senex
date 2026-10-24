@@ -24,13 +24,8 @@ import { shortId } from "./ids.ts";
 import { throughClaudeFolder } from "./paths.ts";
 import type { SnapshotGitRefs } from "./types.ts";
 import { type SnapshotRecord, SnapshotScope } from "../shared/event-log.ts";
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
-import { startWithRecovery } from "./process-start.ts";
 import { errorMessage } from "../shared/errors.ts";
-import { hostGitArgs, hostGitConfig, hostGitEnv } from "./git-policy.ts";
-
-const execFileAsync = promisify(execFile);
+import { hostGit, unlessRefused } from "./git-policy.ts";
 
 /** The snapshot index entry is a contract the UI reads too; it lives in `shared/event-log.ts`. */
 export type { SnapshotRecord } from "../shared/event-log.ts";
@@ -131,23 +126,9 @@ export const GIT_ENV = {
   GIT_TERMINAL_PROMPT: "0",
 };
 
-/**
- * Config a repository cannot override on the host: a `.git/config` planted in a project folder
- * (`core.fsmonitor = ./x.sh`, `core.hooksPath`) must never make a host-side status, diff or
- * commit run a program. `-c` beats every config file.
- */
-export { HOST_GIT_CONFIG } from "./git-policy.ts";
-
+/** Run git in a project folder as the studio: through host git, with the studio's identity and any `env` on top. */
 export async function git(dir: string, args: string[], env: Record<string, string> = {}): Promise<string> {
-  const environment = hostGitEnv({ ...GIT_ENV, ...env });
-  const config = await hostGitConfig(dir, environment);
-  const { stdout } = await startWithRecovery(() =>
-    execFileAsync("git", [...config, "-C", dir, ...hostGitArgs(args)], {
-      windowsHide: true,
-      env: environment,
-      maxBuffer: GIT_MAX_BUFFER_BYTES,
-    }),
-  );
+  const { stdout } = await hostGit(dir, args, { env: { ...GIT_ENV, ...env }, maxBuffer: GIT_MAX_BUFFER_BYTES });
   return stdout;
 }
 
@@ -161,12 +142,9 @@ export async function claudeFolderChanges(dir: string, from: string, to: string)
   return changed.split("\0").filter((file) => file && throughClaudeFolder(file));
 }
 
+/** A git call whose failure is an answer, so it is null; a refusal to run in the folder is still thrown. */
 export async function gitOrNull(dir: string, args: string[], env: Record<string, string> = {}): Promise<string | null> {
-  try {
-    return await git(dir, args, env);
-  } catch {
-    return null;
-  }
+  return await git(dir, args, env).catch(unlessRefused(null));
 }
 
 /** Why a revision was refused: it does not name a commit, or git would read it as an option. */

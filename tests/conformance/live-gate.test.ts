@@ -8,10 +8,11 @@
  */
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { access, mkdir, realpath, writeFile } from "node:fs/promises";
+import { access, appendFile, mkdir, realpath, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { createIpcHandle, type IpcResult, type IpcSender } from "../../src/main/ipc-handle.ts";
 import { registerPreviewIpc } from "../../src/main/ipc/preview.ts";
+import { HostGitRefusal } from "../../src/substrate/git-policy.ts";
 import { coreLite, type CoreLite } from "../helpers/core-lite.ts";
 import { gitFile } from "../helpers/git.ts";
 import { makeFakePreview } from "../helpers/studio-rig.ts";
@@ -545,5 +546,36 @@ describe("the harness's other doors into Live", () => {
     assert.deepEqual(live.loads, ["pong"], "only the person's own load reached Live");
     assert.equal(hidden.length, 2, "each session opened a window of its own");
     for (const port of hidden) assert.ok(port.loads.includes("pong"));
+  });
+});
+
+/**
+ * A folder whose `.git/config` names a filter under a name `-c` cannot carry is one host git
+ * refuses to run in (`HostGitRefusedError`). The builds of such a project are never shown, landed
+ * or offered, and say why; Live itself still opens it, since serving only reads files, and the
+ * project's build is where the person reads the reason.
+ */
+describe("a folder whose git settings Senex will not run in", () => {
+  async function refusedStage() {
+    const opened = await stage();
+    const head = await commitChange(opened.dir, "plaza.js", "export const plaza = 'red';\n");
+    await appendFile(path.join(opened.dir, ".git", "config"), `[filter "a=b"]\n\tclean = true\n`);
+    return { ...opened, head };
+  }
+  const refusedAsUnsafe = (error: unknown) => (error as { code?: unknown }).code === HostGitRefusal.UnsafeConfigKey;
+
+  it("shows, lands and offers none of its builds, and the refusal reaches the caller", async () => {
+    const { lite, head } = await refusedStage();
+    await assert.rejects(() => lite.core.showBuild("pong", head), refusedAsUnsafe);
+    await assert.rejects(() => lite.core.landBuild("pong", head), refusedAsUnsafe);
+    await assert.rejects(() => lite.core.offerBuild("pong", head), refusedAsUnsafe);
+  });
+
+  it("still opens in Live, for a load and for Reload", async () => {
+    const { lite, live } = await refusedStage();
+    await lite.core.loadPreview({ project: "pong" });
+    assert.equal(live.loads.length, 2);
+    await lite.core.reloadLive({ retry: true });
+    assert.equal(live.reloads, 1, "Reload reached the page");
   });
 });

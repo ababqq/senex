@@ -80,3 +80,27 @@ test("one walk answers both stamps, and the full one is the single stamp", async
     await rm(dir, { recursive: true, force: true });
   }
 });
+
+test("a stamp describes the folder it was asked about, whatever git routing the app's environment carries", async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "content-stamp-routed-"));
+  const other = await mkdtemp(path.join(os.tmpdir(), "content-stamp-other-"));
+  const saved = { GIT_DIR: process.env.GIT_DIR, GIT_WORK_TREE: process.env.GIT_WORK_TREE };
+  try {
+    await promisify(execFile)("git", ["init", dir]);
+    await promisify(execFile)("git", ["init", other]);
+    await writeFile(path.join(dir, "index.html"), "mine");
+    await writeFile(path.join(other, "elsewhere.html"), "not mine");
+    const plain = await workspaceContentStamp(dir);
+    assert.ok(plain);
+    process.env.GIT_DIR = path.join(other, ".git");
+    process.env.GIT_WORK_TREE = other;
+    assert.equal(await workspaceContentStamp(dir), plain);
+  } finally {
+    for (const [key, value] of Object.entries(saved)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+    await rm(dir, { recursive: true, force: true });
+    await rm(other, { recursive: true, force: true });
+  }
+});

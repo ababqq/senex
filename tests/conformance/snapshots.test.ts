@@ -15,6 +15,8 @@ import {
   STUDIO_COMMITTER,
   ensureRepo,
   git,
+  gitOrNull,
+  resolveCommit,
   snapshotRef,
 } from "../../src/substrate/snapshots.ts";
 import { NESTED_BACKUP, nestedRepos, versionNestedForLanding } from "../../src/substrate/project-workspace.ts";
@@ -812,6 +814,70 @@ describe("a repository whose own config names a program", () => {
     assert.equal(await exists(marker), false, "configured filters never run on the host");
     assert.equal(await readFile(path.join(repo.dir, "src/main.js"), "utf8"), original);
   });
+  it("refuses a name host git cannot switch off, and a work tree outside the folder, before touching either", async () => {
+    const repo = await dirtyUserRepo({ modified: {}, staged: {}, untracked: {} });
+    const outside = await tmpDir("planted-refusal-");
+    const marker = path.join(outside, "RAN");
+    const engine = new SnapshotEngine([{ name: "project", dir: repo.dir }]);
+    await engine.init();
+    const config = path.join(repo.dir, ".git", "config");
+    const original = await readFile(config, "utf8");
+    // A backslash starts an escape in a config value, so a Windows path is written with each one doubled.
+    const bait = marker.replaceAll("\\", "\\\\");
+    await writeFile(config, `${original}[filter "a=b"]\n\tclean = touch '${bait}'; cat\n`);
+    await writeFile(path.join(repo.dir, ".gitattributes"), "src/main.js filter=a=b\n");
+    await assert.rejects(() => engine.snapshot({ scope: "game", reason: "refused", projectWorkspace: "project" }), {
+      code: "unsafe-config-key",
+    });
+    assert.equal(await exists(marker), false, "the filter never ran");
+
+    const parent = path.dirname(repo.dir);
+    await writeFile(path.join(parent, "top.txt"), "a file next to the project, in nobody's repository\n");
+    await writeFile(config, `${original}[core]\n\tworktree = ../..\n`);
+    await rm(path.join(repo.dir, ".gitattributes"));
+    await assert.rejects(() => engine.snapshot({ scope: "game", reason: "refused", projectWorkspace: "project" }), {
+      code: "foreign-work-tree",
+    });
+    assert.equal(
+      await readFile(path.join(parent, "top.txt"), "utf8"),
+      "a file next to the project, in nobody's repository\n",
+    );
+    await writeFile(config, original);
+    assert.deepEqual(await repo.status(), [], "the folder was never touched");
+  });
+
+  it("refuses a folder whose .git is an empty directory inside a larger repository, leaving that repository alone", async () => {
+    const enclosing = path.join(await tmpDir("enclosed-"), "enclosing");
+    const project = path.join(enclosing, "proj");
+    await mkdir(path.join(project, ".git"), { recursive: true });
+    await fixtureGit(enclosing, ["init", "-q", "-b", "main"]);
+    await writeFile(path.join(enclosing, "v.txt"), "v\n");
+    await fixtureGit(enclosing, ["add", "v.txt"]);
+    await fixtureGit(enclosing, ["commit", "-q", "-m", "v"]);
+    await writeFile(path.join(project, "a.txt"), "a\n");
+    await writeFile(path.join(enclosing, "outside.txt"), "an edit next to the project\n");
+    const head = await fixtureGit(enclosing, ["rev-parse", "HEAD"]);
+    const engine = new SnapshotEngine([{ name: "project", dir: project }]);
+    await engine.init();
+    await assert.rejects(() => engine.snapshot({ scope: "game", reason: "refused", projectWorkspace: "project" }), {
+      code: "foreign-git-dir",
+    });
+    assert.equal(await fixtureGit(enclosing, ["rev-parse", "HEAD"]), head, "the larger repository took no commit");
+    assert.equal(await readFile(path.join(enclosing, "outside.txt"), "utf8"), "an edit next to the project\n");
+  });
+
+  it("says why a restore, and a lookup of a commit, stop in a folder host git refuses, not that the branch moved", async () => {
+    const repo = await dirtyUserRepo({ modified: {}, staged: {}, untracked: {} });
+    const engine = new SnapshotEngine([{ name: "project", dir: repo.dir }]);
+    await engine.init();
+    const before = await engine.snapshot({ scope: "game", reason: "before", projectWorkspace: "project" });
+    const config = path.join(repo.dir, ".git", "config");
+    await writeFile(config, `${await readFile(config, "utf8")}[filter "a=b"]\n\tclean = cat\n`);
+    await assert.rejects(() => engine.restore(before, { projectWorkspace: "project" }), { code: "unsafe-config-key" });
+    await assert.rejects(() => resolveCommit(repo.dir, "HEAD"), { code: "unsafe-config-key" });
+    assert.equal(await gitOrNull(repo.dir, ["rev-parse", "HEAD"]).catch((error) => error.code), "unsafe-config-key");
+  });
+
   it("never makes a host-side snapshot, diff, restore or content stamp run it", async () => {
     const repo = await dirtyUserRepo({ modified: {}, staged: {}, untracked: {} });
     const outside = await tmpDir("planted-config-");

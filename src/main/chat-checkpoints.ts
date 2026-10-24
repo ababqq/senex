@@ -11,12 +11,10 @@ import { serial } from "./core/serial.ts";
  * LFS conversion. Large files stay subject to the checkpoint size limit. Path lists use stdin.
  */
 import path from "node:path";
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
 import { createHash, randomUUID } from "node:crypto";
 import { copyFile, lstat, mkdir, readdir, realpath, rm, rmdir } from "node:fs/promises";
 import { GIT_ENV } from "../substrate/snapshots.ts";
-import { hostGitArgs, hostGitConfig, hostGitEnv } from "../substrate/git-policy.ts";
+import { hostGit } from "../substrate/git-policy.ts";
 import { pathExists } from "../substrate/fsx.ts";
 import { nestedRepos } from "../substrate/project-workspace.ts";
 import { isBelow } from "../substrate/paths.ts";
@@ -106,7 +104,6 @@ export const chatCheckpointRef = (
 const rewoundRef = (threadId: string): string =>
   `${refRoot(threadId)}/rewound/${Date.now().toString(36)}-${randomUUID().slice(0, 8)}`;
 
-const exec = promisify(execFile);
 /** The PATH filters such as git-lfs are found on (an app started from the Finder has a bare one). */
 let toolPath: string | undefined;
 /**
@@ -114,23 +111,16 @@ let toolPath: string | undefined;
  * as they are: Git for Windows installs with core.autocrlf=true, which wrote LF files back as CRLF.
  */
 async function read(dir: string, args: string[], env: Record<string, string> = {}, input?: string): Promise<string> {
-  const environment = hostGitEnv({ ...(toolPath ? { PATH: toolPath } : {}), ...env });
-  const config = await hostGitConfig(dir, environment);
-  const running = exec("git", [...config, "-C", dir, "-c", "core.autocrlf=false", ...hostGitArgs(args)], {
-    env: environment,
+  const { stdout } = await hostGit(dir, ["-c", "core.autocrlf=false", ...args], {
+    env: { ...(toolPath ? { PATH: toolPath } : {}), ...env },
     maxBuffer: 64 * 1024 * 1024,
+    ...(input === undefined ? {} : { input }),
   });
-  if (input !== undefined) running.child.stdin?.end(input);
-  return (await running).stdout;
+  return stdout;
 }
 /** Git as the studio: its identity, isolated configuration, and no hooks (reference-transaction). */
 async function write(dir: string, args: string[]): Promise<string> {
-  const env = hostGitEnv(GIT_ENV);
-  const config = await hostGitConfig(dir, env);
-  const { stdout } = await exec("git", [...config, "-C", dir, ...args], {
-    env,
-    maxBuffer: 16 * 1024 * 1024,
-  });
+  const { stdout } = await hostGit(dir, args, { env: GIT_ENV, maxBuffer: 16 * 1024 * 1024 });
   return stdout;
 }
 const quiet = <T>(work: Promise<T>): Promise<T | null> => work.catch(() => null);

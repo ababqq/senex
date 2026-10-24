@@ -8,12 +8,10 @@
  * with an exec bit and any type this list does not know are shown in the file manager instead,
  * never launched. Credentials and the studio's own secrets are not files the chat can link to.
  */
-import { execFile, spawn } from "node:child_process";
 import { createWriteStream, type Stats } from "node:fs";
 import { chmod, mkdir, realpath, rename, rm, stat } from "node:fs/promises";
 import path from "node:path";
 import { pipeline } from "node:stream/promises";
-import { promisify } from "node:util";
 import { StudioPlatform } from "../shared/boot.ts";
 import {
   CHAT_FILE_LIMIT,
@@ -26,9 +24,7 @@ import {
 import { extensionOf, fileKind } from "../shared/project-file.ts";
 import { credentialHomes } from "../substrate/credential-homes.ts";
 import { isInside } from "../substrate/paths.ts";
-import { hostGitConfig, hostGitEnv } from "../substrate/git-policy.ts";
-
-const execFileAsync = promisify(execFile);
+import { type HostGitContext, hostGit, hostGitContext, hostGitSpawn } from "../substrate/git-policy.ts";
 
 /** Why a click on a file the chat names opens nothing. */
 const MESSAGE = {
@@ -208,14 +204,7 @@ function opensBeside(file: string): boolean {
   return kind === "markdown" || kind === "image";
 }
 
-const git = async (dir: string, args: string[]) => {
-  const env = hostGitEnv();
-  return execFileAsync("git", [...(await hostGitConfig(dir, env)), "-C", dir, ...args], {
-    encoding: "utf8",
-    maxBuffer: GIT_OUTPUT_MAX,
-    env,
-  });
-};
+const git = (dir: string, args: string[]) => hostGit(dir, args, { maxBuffer: GIT_OUTPUT_MAX });
 
 /** A commit's files as `ls-tree -r -z` lists them: path → blob, symbolic links left out. */
 function treeEntries(stdout: string): Map<string, string> {
@@ -234,15 +223,17 @@ export class ChatFileResolver {
   readonly #trees = new Map<string, Promise<Map<string, string>>>();
   /** The folder's file list, briefly, for names given without their folder. */
   readonly #listings = new Map<string, { at: number; files: Promise<string[]> }>();
+  /** One scan of a project folder serves every file link resolved in the next moments. */
+  readonly #scans = new Map<string, { at: number; context: Promise<HostGitContext> }>();
 
   constructor(toolPath: () => Promise<string> = async () => process.env.PATH ?? "") {
     this.#toolPath = toolPath;
   }
 
-  /** The toolchain PATH without ambient Git configuration or credential routing. */
-  async #userGitEnv(): Promise<NodeJS.ProcessEnv> {
+  /** The toolchain PATH, the one thing a read of the project's git history takes from the app's environment. */
+  async #toolEnv(): Promise<NodeJS.ProcessEnv> {
     const toolPath = await this.#toolPath().catch(() => process.env.PATH ?? "");
-    return hostGitEnv(toolPath ? { PATH: toolPath } : {});
+    return toolPath ? { PATH: toolPath } : {};
   }
 
   async resolve(scope: ChatFileScope, refs: ChatFileRef[]): Promise<Array<ChatFileLink | null>> {
@@ -399,14 +390,23 @@ export class ChatFileResolver {
   /** The raw file's blob identity; resolving a link never executes a repository clean filter. */
   async #blobOf(dir: string, file: string): Promise<string | null> {
     try {
-      const { stdout } = await execFileAsync("git", ["-C", dir, "hash-object", "--no-filters", "--", file], {
-        encoding: "utf8",
-        env: await this.#userGitEnv(),
+      const { stdout } = await hostGit(dir, ["hash-object", "--no-filters", "--", file], {
+        context: await this.#scan(dir),
       });
-      return String(stdout).trim() || null;
+      return stdout.trim() || null;
     } catch {
       return null;
     }
+  }
+
+  /** The folder's git scan, kept for `LISTING_MS`: a reply that links many files would otherwise scan once per file. */
+  #scan(dir: string): Promise<HostGitContext> {
+    const cached = this.#scans.get(dir);
+    if (cached && Date.now() - cached.at < LISTING_MS) return cached.context;
+    const context = this.#toolEnv().then((env) => hostGitContext(dir, env));
+    this.#scans.set(dir, { at: Date.now(), context });
+    context.catch(() => this.#scans.delete(dir));
+    return context;
   }
 
   async #denyRoots(scope: ChatFileScope): Promise<string[]> {
@@ -423,10 +423,9 @@ export class ChatFileResolver {
     await mkdir(folder, { recursive: true });
     const partial = path.join(folder, `.${process.pid}-${Date.now()}.partial`);
     // Read stored bytes; opening a chat link never runs smudge filters or downloads LFS content.
-    const child = spawn("git", ["-C", scope.project.dir, "cat-file", "blob", blob], {
-      stdio: ["ignore", "pipe", "ignore"],
-      env: await this.#userGitEnv(),
-    });
+    const context = await hostGitContext(scope.project.dir, await this.#toolEnv());
+    const child = hostGitSpawn(context, ["cat-file", "blob", blob]);
+    child.stderr.resume();
     const exited = new Promise<number | null>((resolve, reject) => {
       child.once("error", reject);
       child.once("close", resolve);

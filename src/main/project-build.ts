@@ -21,10 +21,8 @@ import { constants } from "node:fs";
 import { cp, lstat, mkdir, readdir, realpath, rm, stat, symlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { createHash } from "node:crypto";
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
 import { ensureDir, pathExists } from "../substrate/fsx.ts";
-import { HOST_GIT_CONFIG } from "../substrate/snapshots.ts";
+import { HostGitRefusedError, hostGit, hostGitContext, unlessRefused } from "../substrate/git-policy.ts";
 import { isInside } from "../substrate/paths.ts";
 import { normalServe } from "../substrate/project-shape.ts";
 import { NPM_REGISTRY, packageCommandsIn, withoutRunnerNoise } from "../substrate/toolchain.ts";
@@ -33,8 +31,6 @@ import { type RunRequest, type RunResult, shellQuote } from "../substrate/spawn.
 import type { BuildProblem, InstallResult } from "../shared/build-problem.ts";
 import { MINUTE_MS } from "../shared/duration.ts";
 import { GENEX_PROJECT_PACKAGES, isGenexProjectPackage } from "../shared/genex.ts";
-
-const execFileAsync = promisify(execFile);
 
 /** How long a project's own build may run. */
 const BUILD_TIMEOUT_MS = 5 * MINUTE_MS;
@@ -241,7 +237,19 @@ export class ProjectBuilds {
     // studio.json, a bundler config, a link) is never built into, copied from or served.
     if (serve !== null && !spelledInside(serve)) return this.#refused(source, MESSAGE.ServeOutside);
     const command = source.shape.build;
-    return command ? this.#build(source, dir, serve, command) : this.#asWritten(source, dir, serve);
+    return command
+      ? this.#unlessGitRefused(source, () => this.#build(source, dir, serve, command))
+      : this.#asWritten(source, dir, serve);
+  }
+
+  /** A folder host git will not run in is a refused build that says why, not a build of whatever a plain walk finds. */
+  async #unlessGitRefused(source: BuildSource, work: () => Promise<BuildOutcome>): Promise<BuildOutcome> {
+    try {
+      return await work();
+    } catch (error) {
+      if (error instanceof HostGitRefusedError) return this.#refused(source, error.message);
+      throw error;
+    }
   }
 
   /**
@@ -557,10 +565,11 @@ export function outputLines(result: Pick<RunResult, "stdout" | "stderr">, max: n
  */
 export async function treeKey(dir: string, serve: string | null): Promise<string> {
   const hash = createHash("sha256");
-  const tree = await gitOut(dir, ["rev-parse", "HEAD^{tree}"]);
+  const gitOut = await gitReader(dir);
+  const tree = await gitOut(["rev-parse", "HEAD^{tree}"]);
   if (tree !== null) {
     hash.update(tree);
-    const status = (await gitOut(dir, ["status", "--porcelain", "-uall"])) ?? "";
+    const status = (await gitOut(["status", "--porcelain", "-uall"])) ?? "";
     for (const line of status.split("\n").filter(Boolean)) {
       const renamedTo = line.slice(3).split(" -> ").at(-1) ?? "";
       const rel = renamedTo.replace(/^"|"$/g, "");
@@ -586,9 +595,10 @@ export async function treeKey(dir: string, serve: string | null): Promise<string
  * only when untracked — one the project committed is part of its source.
  */
 export async function mirrorList(dir: string, serve: string | null): Promise<string[]> {
-  const tracked = await gitOut(dir, ["ls-files", "-z", "--cached"]);
+  const gitOut = await gitReader(dir);
+  const tracked = await gitOut(["ls-files", "-z", "--cached"]);
   if (tracked === null) return [...new Set(await walk(dir, serve, UNINDEXED_FILE_LIMIT))];
-  const untracked = (await gitOut(dir, ["ls-files", "-z", "--others", "--exclude-standard"])) ?? "";
+  const untracked = (await gitOut(["ls-files", "-z", "--others", "--exclude-standard"])) ?? "";
   const out = new Set<string>();
   const add = (listing: string, left: (rel: string) => boolean) => {
     for (const rel of listing.split("\0").filter(Boolean)) if (!isServedOutput(rel, serve) && !left(rel)) out.add(rel);
@@ -630,15 +640,18 @@ async function stamp(file: string): Promise<string> {
   return info ? `${info.size}:${info.mtimeMs}` : "gone";
 }
 
-/** git, read-only, never throwing: a folder that is not a repository simply answers null. */
-async function gitOut(dir: string, args: string[]): Promise<string | null> {
-  try {
-    const { stdout } = await execFileAsync("git", [...HOST_GIT_CONFIG, "-C", dir, ...args], {
-      env: { ...process.env, GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_SYSTEM: "/dev/null", GIT_TERMINAL_PROMPT: "0" },
-      maxBuffer: GIT_MAX_BUFFER,
-    });
-    return stdout;
-  } catch {
-    return null;
-  }
+/**
+ * git in a folder, read-only: a folder that is not a repository answers null. One host git declines
+ * to run in throws its refusal, which a build reports, rather than being read as a plain folder. The
+ * folder is scanned once for all its commands.
+ */
+async function gitReader(dir: string): Promise<(args: string[]) => Promise<string | null>> {
+  const context = await hostGitContext(dir).catch(unlessRefused(null));
+  return async (args) => {
+    if (!context) return null;
+    return await hostGit(dir, args, { context, maxBuffer: GIT_MAX_BUFFER }).then(
+      (answer) => answer.stdout,
+      unlessRefused(null),
+    );
+  };
 }
