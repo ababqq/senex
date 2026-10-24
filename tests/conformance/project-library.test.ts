@@ -34,6 +34,15 @@ describe("project-first library", () => {
       1,
     );
   });
+  it("names projects whose titles keep no letter or digit `project`, then `project-2`", async () => {
+    const taken = new Set((await rig.core.projects.list()).map((g) => g.name));
+    assert.ok(!taken.has("project") && !taken.has("project-2"), "the library starts without them");
+    const first = await rig.core.createProject("호텔 예약 사이트");
+    const second = await rig.core.createProject("여행 계획 🧳");
+    assert.equal(first.name, "project");
+    assert.equal(second.name, "project-2");
+    assert.equal(first.title, "호텔 예약 사이트", "the title the person typed is what the sidebar shows");
+  });
   it("rename/pin/cover survive restart; removal keeps library files and re-adding restores history", async () => {
     const project = await rig.core.createProject("Neon Harbor");
     const thread = await rig.core.threadForProject(project.name);
