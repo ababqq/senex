@@ -67,6 +67,24 @@ describe("a site's own 404 page", () => {
     }
   });
 
+  it("answers a page, a folder's page and a slash redirect before it turns to 404.html", async () => {
+    const { real, roots } = await siteWith404();
+    const ask = (name: string) => answerRequest(name, roots, "index.html", navigation, false);
+    assert.deepEqual(await ask("about"), {
+      relative: "about.html",
+      served: { ok: true, path: path.join(real, "about.html") },
+      routed: true,
+    });
+    assert.deepEqual(await ask("blog/"), {
+      relative: "blog/index.html",
+      served: { ok: true, path: path.join(real, "blog", "index.html") },
+      routed: true,
+    });
+    const folder = await ask("blog");
+    assert.equal(folder.redirect, "/blog/");
+    assert.equal(folder.status, undefined);
+  });
+
   it("keeps the plain 404 for a script, a style sheet, an image, a fetch and a post: only a page gets the page", async () => {
     const { roots } = await siteWith404();
     const asked: Array<[string, string, Parameters<typeof answerRequest>[3]]> = [
