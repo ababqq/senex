@@ -23,7 +23,7 @@ import os from "node:os";
 import path from "node:path";
 import { type CoverLook, firstCoverRecipe, rollCoverRecipe } from "../shared/cover-recipe.ts";
 import { assetFormat } from "../shared/project-assets.ts";
-import { folderNameFromTitle, MAX_SLUG_LENGTH, PROJECT_NAME_RE, slugFromName } from "../shared/project-folder-name.ts";
+import { folderNameFromTitle, numberedSlug, PROJECT_NAME_RE, slugFromName } from "../shared/project-folder-name.ts";
 import {
   displayCover,
   validateProjectCover,
@@ -279,7 +279,7 @@ async function reserveNamedFolder(parent: string, base: string): Promise<string>
 /** `base`, or `base-2`, `base-3`… — the first name `taken` does not hold, cut before the number is added. */
 function uniqueName(base: string, taken: { has(name: string): boolean }): string {
   let name = base;
-  for (let n = 2; taken.has(name); n++) name = `${base.slice(0, MAX_SLUG_LENGTH - `-${n}`.length)}-${n}`;
+  for (let n = 2; taken.has(name); n++) name = numberedSlug(base, n);
   return name;
 }
 
@@ -533,8 +533,7 @@ export class ProjectWorkspaces {
     }
     const base = slugFromName(title);
     for (let suffix = 1; ; suffix++) {
-      const tail = suffix === 1 ? "" : `-${suffix}`;
-      const name = base.slice(0, MAX_SLUG_LENGTH - tail.length) + tail;
+      const name = numberedSlug(base, suffix);
       if (this.#aliases.has(name)) continue;
       if (!(await madeFolder(path.join(this.root, name)))) continue;
       await this.scaffold(name, { title });

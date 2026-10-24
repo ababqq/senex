@@ -35,6 +35,16 @@ export function slugFromName(raw: string): string {
 }
 
 /**
+ * The `n`th copy of a name: the name itself for the first, then `name-2`, `name-3`. The name is cut
+ * to leave room for the number, never the number, and the cut does not leave a dash before it.
+ */
+export function numberedSlug(base: string, n: number): string {
+  if (n <= 1) return base;
+  const tail = `-${n}`;
+  return `${base.slice(0, MAX_SLUG_LENGTH - tail.length).replace(/-+$/g, "")}${tail}`;
+}
+
+/**
  * The folder a project gets in a folder the user chose: the title as typed, made a name every file
  * system keeps — no separator, not hidden, no trailing dot or space, not a device. A title is at
  * most 80 UTF-16 units, so at most 240 bytes: the name always fits.
