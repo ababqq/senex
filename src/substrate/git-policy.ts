@@ -15,11 +15,12 @@
  * folder keeps its own `.git/config`, which this does not scan.
  */
 import { type ChildProcess, type ChildProcessByStdio, execFile, spawn } from "node:child_process";
-import { stat } from "node:fs/promises";
+import { readFile, realpath, stat } from "node:fs/promises";
 import path from "node:path";
 import type { Readable } from "node:stream";
 import { promisify } from "node:util";
 import { SECOND_MS } from "../shared/duration.ts";
+import { isInside } from "./paths.ts";
 import { startWithRecovery } from "./process-start.ts";
 
 const exec = promisify(execFile);
@@ -30,6 +31,8 @@ const SCAN_TIMEOUT_MS = 20 * SECOND_MS;
 /** The most output a host command may print when its caller names no limit. */
 const DEFAULT_MAX_BUFFER_BYTES = 32 * 1024 * 1024;
 const WORK_TREE_MAX_BUFFER_BYTES = 64 * 1024;
+/** How much of a `.git` file is read: a pointer is one short line. */
+const GIT_FILE_MAX_CHARS = 4096;
 
 /** The keys that make git run a program chosen by a name the folder invents: filter, diff and merge drivers. */
 const DRIVER_KEY =
@@ -77,6 +80,8 @@ export const HostGitRefusal = {
   UnsafeConfigKey: "unsafe-config-key",
   /** The folder's `core.worktree` sends git's work tree somewhere else. */
   ForeignWorkTree: "foreign-work-tree",
+  /** The folder's `.git` file names the git directory of another work tree, so its commits would land there. */
+  ForeignGitDir: "foreign-git-dir",
 } as const;
 export type HostGitRefusal = (typeof HostGitRefusal)[keyof typeof HostGitRefusal];
 
@@ -84,7 +89,9 @@ const MESSAGE = {
   UnsafeConfigKey: (key: string) =>
     `This folder's git settings name a program in a way Senex cannot switch off (${JSON.stringify(key).slice(0, 80)}). Remove or rename that entry in .git/config, then try again.`,
   ForeignWorkTree: (top: string) =>
-    `This folder's .git/config sets core.worktree to a place outside the folder (${top}). Remove that setting from .git/config, then try again.`,
+    `This folder's .git/config sets core.worktree to a place other than this folder (${top}). Remove that setting from .git/config, then try again.`,
+  ForeignGitDir: (target: string) =>
+    `This folder's .git file points at the git directory of another folder (${target}), so Senex's saves would be written there. Remove or replace the .git file, then try again.`,
 } as const;
 
 /** A host git command was declined, with a typed `code`, so that nothing runs in or around the folder. */
@@ -212,7 +219,7 @@ async function workTreeOf(dir: string, env: NodeJS.ProcessEnv): Promise<string |
       windowsHide: true,
     });
     running.child.stdin?.end();
-    return (await running).stdout.trim() || null;
+    return (await running).stdout.replace(/\r?\n$/, "") || null;
   } catch {
     return null;
   }
@@ -228,21 +235,61 @@ async function sameFolder(a: string, b: string): Promise<boolean> {
   }
 }
 
+/** Whether `inner` is `outer` or lies under it, by real path. */
+async function lies(inner: string, outer: string): Promise<boolean> {
+  try {
+    const [deep, shallow] = await Promise.all([realpath(inner), realpath(outer)]);
+    return isInside(shallow, deep);
+  } catch {
+    return false;
+  }
+}
+
 /**
- * A `core.worktree` can send `add -A` and `reset --hard` into files outside the folder. It is
- * checked only when the folder holds its own `.git`, where git would honor it: a linked worktree,
- * `--separate-git-dir` and a `.git` file all answer with the folder itself.
+ * A `core.worktree` can send `add -A` and `reset --hard` into files outside the folder. The work
+ * tree git reports must be the folder: a linked worktree, `--separate-git-dir` and a `.git` file
+ * all answer with the folder itself. A folder with no `.git` of its own inside a larger repository
+ * reads that repository, so its work tree may also be a folder that contains this one.
  */
 async function refuseForeignWorkTree(dir: string, env: NodeJS.ProcessEnv, keys: ReadonlySet<string>): Promise<void> {
   if (!keys.has("core.worktree")) return;
+  const top = await workTreeOf(dir, env);
+  if (top === null || (await sameFolder(top, dir))) return;
   const holdsGit = await stat(path.join(dir, ".git")).then(
     () => true,
     () => false,
   );
-  if (!holdsGit) return;
-  const top = await workTreeOf(dir, env);
-  if (top === null || (await sameFolder(top, dir))) return;
+  if (!holdsGit && (await lies(dir, top))) return;
   throw new HostGitRefusedError(HostGitRefusal.ForeignWorkTree, MESSAGE.ForeignWorkTree(top));
+}
+
+/**
+ * A `.git` file is a pointer, and one planted in a downloaded folder can point at the git directory
+ * of the person's other project, where the studio's saves and restores would then land. A pointer
+ * to a linked worktree's or a submodule's directory, or to a separate git directory, is the folder's
+ * own; one that names the `.git` directory of another work tree is not.
+ */
+async function refuseForeignGitFile(dir: string): Promise<void> {
+  let text: string;
+  try {
+    const file = path.join(dir, ".git");
+    if (!(await stat(file)).isFile()) return;
+    text = (await readFile(file, "utf8")).slice(0, GIT_FILE_MAX_CHARS);
+  } catch {
+    return;
+  }
+  const pointer = /^gitdir:[ \t]*(.+?)[ \t]*$/m.exec(text)?.[1];
+  if (pointer === undefined) return;
+  const target = path.resolve(dir, pointer);
+  if (path.basename(target) !== ".git") return;
+  const parent = path.dirname(target);
+  if (await sameFolder(parent, dir)) return;
+  throw new HostGitRefusedError(HostGitRefusal.ForeignGitDir, MESSAGE.ForeignGitDir(target));
+}
+
+/** Auto-maintenance can run a program a folder's `gc.recentObjectsHook` names, and the key cannot be reset: it is turned off for such a folder. */
+function maintenancePins(keys: ReadonlySet<string>): string[] {
+  return keys.has("gc.recentobjectshook") ? ["-c", "gc.auto=0", "-c", "maintenance.auto=false"] : [];
 }
 
 /**
@@ -278,7 +325,12 @@ export async function hostGitConfig(dir: string, env: NodeJS.ProcessEnv = hostGi
   const listing = await configListing(dir, env);
   const keys = new Set(listing.split("\0").filter(Boolean));
   await refuseForeignWorkTree(dir, env, keys);
-  return [...HOST_GIT_CONFIG, ...driverOverrides(listing, await trustedMergeDrivers(dir, env, keys))];
+  await refuseForeignGitFile(dir);
+  return [
+    ...HOST_GIT_CONFIG,
+    ...maintenancePins(keys),
+    ...driverOverrides(listing, await trustedMergeDrivers(dir, env, keys)),
+  ];
 }
 
 /** What one scan of a folder yields: run any number of commands from it without scanning again. */

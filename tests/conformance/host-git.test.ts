@@ -257,6 +257,18 @@ describe("host git never runs a program a folder's config names", { skip: !POSIX
     assert.equal(await exists(marker), false);
   });
 
+  it("never lets auto-maintenance run the program a gc.recentObjectsHook names", async () => {
+    const { dir, marker, failing } = await planted();
+    await config(dir, `[gc]\n\tauto = 1\n\tpruneExpire = now\n\trecentObjectsHook = ${failing} TAG\n`);
+    // Enough loose objects for `gc --auto` to run: it counts the files in objects/17 and scales by 256.
+    await mkdir(path.join(dir, ".git", "objects", "17"), { recursive: true });
+    for (const name of ["a".repeat(38), "b".repeat(38)])
+      await writeFile(path.join(dir, ".git", "objects", "17", name), "not an object");
+    await hostGit(dir, ["commit", "--allow-empty", "-m", "x"], { env: GIT_ENV }).catch(() => undefined);
+    await hostGit(dir, ["merge", "--no-ff", "-m", "y", "HEAD"], { env: GIT_ENV }).catch(() => undefined);
+    assert.equal(await exists(marker), false);
+  });
+
   it("never opens an editor, whatever core.editor says", async () => {
     const { dir, marker, failing } = await planted();
     await config(dir, `[core]\n\teditor = ${failing}\n`);
@@ -407,6 +419,57 @@ describe("host git stays in its folder", { skip: !POSIX && "symbolic links and s
     await config(dir, `[core]\n\tworktree = ../missing\n`);
     await assert.rejects(() => hostGit(dir, ["add", "-A"]));
     assert.equal(await exists(path.join(root, "missing")), false);
+  });
+
+  it("refuses a work tree an enclosing repository sends elsewhere, though the folder has no .git of its own", async () => {
+    const { root } = await aboveAndOutside();
+    const outside = path.join(root, "victim");
+    await mkdir(outside);
+    await writeFile(path.join(outside, "secret.txt"), "not the project's\n");
+    const parent = path.join(root, "enclosing");
+    await mkdir(path.join(parent, "proj"), { recursive: true });
+    await fixtureGit(parent, ["init", "-q", "-b", "main"]);
+    await config(parent, `[core]\n\tworktree = ${outside}\n`);
+    await writeFile(path.join(parent, "proj", "a.txt"), "a\n");
+    await assert.rejects(
+      () => hostGit(path.join(parent, "proj"), ["ls-files", "--others"]),
+      refused(HostGitRefusal.ForeignWorkTree),
+    );
+  });
+
+  it("still works for a folder inside a larger repository whose work tree contains it", async () => {
+    const { root } = await aboveAndOutside();
+    const parent = path.join(root, "larger");
+    await mkdir(path.join(parent, "proj"), { recursive: true });
+    await fixtureGit(parent, ["init", "-q", "-b", "main"]);
+    await config(parent, `[core]\n\tworktree = ${parent}\n`);
+    await writeFile(path.join(parent, "proj", "a.txt"), "a\n");
+    assert.match((await hostGit(path.join(parent, "proj"), ["ls-files", "--others"])).stdout, /a\.txt/);
+  });
+
+  it("works in a folder whose name ends in a space, with its work tree set to itself", async () => {
+    const { root } = await aboveAndOutside();
+    const dir = path.join(root, "trailing ");
+    await mkdir(dir);
+    await fixtureGit(dir, ["init", "-q", "-b", "main"]);
+    await config(dir, `[core]\n\tworktree = ..\n`);
+    await writeFile(path.join(dir, "a.txt"), "a\n");
+    assert.match((await hostGit(dir, ["ls-files", "--others"])).stdout, /a\.txt/);
+  });
+
+  it("refuses a .git file that names the git directory of another work tree, writing nothing there", async () => {
+    const { root, dir: victim } = await aboveAndOutside();
+    const before = await fixtureGit(victim, ["rev-parse", "HEAD"]);
+    const hostile = path.join(root, "downloaded");
+    await mkdir(hostile);
+    await writeFile(path.join(hostile, ".git"), `gitdir: ${path.join(victim, ".git")}\n`);
+    await writeFile(path.join(hostile, "index.html"), "<h1>hi</h1>");
+    await assert.rejects(
+      () => hostGit(hostile, ["add", "-A"], { env: GIT_ENV }),
+      refused(HostGitRefusal.ForeignGitDir),
+    );
+    assert.equal(await fixtureGit(victim, ["rev-parse", "HEAD"]), before);
+    assert.equal(await fixtureGit(victim, ["status", "--porcelain"]), "");
   });
 
   it("refuses an absolute core.worktree too", async () => {
