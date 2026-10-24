@@ -441,6 +441,23 @@ describe("hostGit with a large config or input", { skip: !POSIX && "POSIX paths"
     assert.equal(context.config.includes("merge.ours.driver="), false, "the keep-mine driver was read and kept");
   });
 
+  it("neutralizes a merge driver whose value it could not read", async () => {
+    const { dir, marker, program } = await planted();
+    await config(dir, `[merge "ours"]\n\tdriver = ${program} %O %A %B\n`);
+    await mkdir(path.join(dir, ".git", "info"), { recursive: true });
+    await writeFile(path.join(dir, ".git", "info", "attributes"), "a.txt merge=ours\n");
+    await fixtureGit(dir, ["checkout", "-q", "-b", "build", "HEAD~1"]);
+    await writeFile(path.join(dir, "a.txt"), "build side\n");
+    await fixtureGit(dir, ["commit", "-q", "-am", "build"]);
+    await fixtureGit(dir, ["checkout", "-q", "main"]);
+    // The listing of the keys works; reading the values of the merge drivers does not.
+    const { PATH } = await gitThatFirst('case "$*" in *--get-regexp*) exit 1;; esac');
+    await assert.rejects(() =>
+      hostGit(dir, ["merge", "--no-ff", "-m", "land", "build"], { env: { ...GIT_ENV, PATH } }),
+    );
+    assert.equal(await exists(marker), false);
+  });
+
   it("reads all the merge drivers in one call, however many the folder sets", async () => {
     const counts: number[] = [];
     for (const drivers of [1, 40]) {

@@ -325,7 +325,7 @@ async function servesFolder(target: string, dir: string): Promise<boolean> {
     () => null,
   );
   if (claimed !== null) return sameFolder(path.resolve(target, claimed), path.join(dir, ".git"));
-  return path.basename(target).toLowerCase() !== ".git" || (await sameFolder(path.dirname(target), dir));
+  return path.basename(target).toLowerCase() !== ".git";
 }
 
 /**
