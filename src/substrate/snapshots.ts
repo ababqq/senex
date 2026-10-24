@@ -324,15 +324,30 @@ export class SnapshotEngine {
         throw new SnapshotRefusedError(SnapshotRefusal.RescueFailed, name, MESSAGE.RescueFailed(errorMessage(err)));
       }
     }
-    for (const { name, dir, commit } of targets) {
-      // No snapshot holds an environment file, so no restore puts one back or takes one away.
-      const environment = await this.#readEnvFiles(dir);
-      await git(dir, ["reset", "-q", "--hard", "--end-of-options", commit]);
-      await git(dir, ["clean", "-qfd", ...ENV_CLEAN_EXCLUDES]);
-      await this.#writeEnvFiles(dir, environment);
-      await this.afterRestore?.({ name, dir });
-    }
+    await this.#resetAll(targets);
     return rescue;
+  }
+
+  /** Reset each workspace to its commit, every commit looked up before the first reset moves anything. */
+  async #resetAll(targets: Array<{ name: string; dir: string; commit: string }>): Promise<void> {
+    const resets: Array<{ name: string; dir: string; hash: string }> = [];
+    for (const { name, dir, commit } of targets) resets.push({ name, dir, hash: await resolveCommit(dir, commit) });
+    for (const reset of resets) await this.#resetTo(reset);
+  }
+
+  /**
+   * Put one workspace back at a commit it already holds. The reset takes the full hash:
+   * `reset` of git before 2.44 reads `--end-of-options` as a misplaced argument, and a hash
+   * cannot be read as an option. The trailing `--` keeps a file named like the hash from making
+   * it ambiguous.
+   */
+  async #resetTo({ name, dir, hash }: { name: string; dir: string; hash: string }): Promise<void> {
+    // No snapshot holds an environment file, so no restore puts one back or takes one away.
+    const environment = await this.#readEnvFiles(dir);
+    await git(dir, ["reset", "-q", "--hard", hash, "--"]);
+    await git(dir, ["clean", "-qfd", ...ENV_CLEAN_EXCLUDES]);
+    await this.#writeEnvFiles(dir, environment);
+    await this.afterRestore?.({ name, dir });
   }
 
   /** What the tracked environment files hold now: a reset would put the committed text back over an edit. */

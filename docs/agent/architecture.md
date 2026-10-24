@@ -50,8 +50,8 @@ host for arrives over the harness RPC, which is therefore an untrusted surface:
   ([`src/shared/harness-api.ts`](../../src/shared/harness-api.ts)) answers `InvalidParams` with one
   issue per bad field. The schemas accept `null` for optional fields and hand the handler the
   params as sent. They complement the realpath checks, never replace them. `engine.abort` and
-  `engine.interrupt` are unchecked on purpose: their `cwd` is only a key into running delegations.
-- Adoption, which widens the sandbox, is not on the RPC: only user-consented host flows call
+  `engine.interrupt` are unchecked on purpose: their `cwd` only keys running delegations.
+- Adoption, which widens the sandbox, is off the RPC: only user-consented host flows call
   `sandbox.allowWrite`.
 - Only whoever answers the person in a project chat asks them: its own Claude session, or a build's
   lead or the run's coordinator, in the chat's mode
@@ -67,7 +67,7 @@ host for arrives over the harness RPC, which is therefore an untrusted surface:
   inside the exports folder. EventStore thread and artifact ids are plain names, and
   `saveRunArtifact` resolves inside `runs/<runId>/`.
 - A revision the harness names must resolve to a commit (`resolveCommit`) and reaches git after
-  `--end-of-options`. Host git always runs with `HOST_GIT_CONFIG`
+  `--end-of-options`; `reset` takes the hash. Host git always runs with `HOST_GIT_CONFIG`
   (`-c core.fsmonitor= -c core.hooksPath=/dev/null`), so a repository's config cannot make the
   host run a program.
 - The harness cannot choose its own rewind target; see [Snapshots and health](#snapshots-and-health).
