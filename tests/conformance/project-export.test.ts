@@ -476,6 +476,26 @@ describe("the public files of a site no build made", () => {
     }
   });
 
+  it("carry the site's own 404.html, in the source and in a built folder", async () => {
+    const files = {
+      "index.html": '<link rel="stylesheet" href="/css/site.css">',
+      "404.html": '<link rel="stylesheet" href="/css/site.css"><h1>gone</h1>',
+      "css/site.css": "body{}",
+    };
+    for (const options of [undefined, { buildFolder: true }]) {
+      const tree = await site(files);
+      try {
+        const roots = options ? Object.keys(files) : await siteRoots(tree.source);
+        assert.ok(roots.includes("404.html"), "the page is proposed");
+        const result = await exportPublicProject(tree.source, tree.target, roots, undefined, options);
+        assert.deepEqual([...result.included].sort(), ["404.html", "css/site.css", "index.html"]);
+        assert.equal(await readFile(path.join(tree.target, "404.html"), "utf8"), files["404.html"]);
+      } finally {
+        await removeTree(tree.temp);
+      }
+    }
+  });
+
   it("name a left-out file a page needs, so the export says so instead of calling it missing", async () => {
     for (const [file, tag] of [
       ["docs/diagram.png", '<img src="docs/diagram.png">'],
