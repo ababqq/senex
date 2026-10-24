@@ -232,10 +232,11 @@ The conventions are in [AGENTS.md](../../AGENTS.md#readability).
 5. The scans in `custom-events.test.ts`, `ui-events.test.ts` and `rpc-surface.test.ts` read
    `Vocab.Member` as its value, so a migrated call site stays covered: run them.
 6. `node scripts/check-vocabulary.ts` (part of `check:static`) refuses raw engine ids, custom
-   event names, engine status codes, seed `ctx.call` names, harness RPC handler keys, inline
-   `setTimeout` sleeps and git started outside `git-policy.ts` (use `hostGit`) outside their homes. A module that must spell one of those values for
+   event names, engine status codes, seed `ctx.call` names, harness RPC handler keys and inline
+   `setTimeout` sleeps outside their homes. A module that must spell one of those values for
    another vocabulary (a vendor, a binary name) declares its own object instead; only a
-   vocabulary's home joins a rule's `homes`, with its reason.
+   vocabulary's home joins a rule's `homes`, with its reason. The same check refuses git
+   started outside `substrate/git-policy.ts` (use `hostGit`), bar the Git Bash lookup and the Genex probes.
 
 ## Dev fixture
 

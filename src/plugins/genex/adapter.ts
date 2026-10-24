@@ -412,8 +412,8 @@ export class GenexTools {
    * git-lfs is missing, so a machine without it is refused here, before the CLI is ever spawned.
    */
   async #gitReady(home: string): Promise<void> {
-    // Run from Studio's own home: Windows looks for a bare command in the working folder first, and the
-    // folder beside it holds the project's files.
+    // From Studio's own home, not the publish folder the CLI works in: on Windows libuv looks for a bare
+    // command in the child's working folder first, and these probes read nothing from either folder.
     if (!(await this.#run("git", ["--version"], home, home))) throw new Error(PUBLISH_MESSAGE.NeedsGit);
     if (!(await this.#run("git", ["lfs", "version"], home, home))) throw new Error(PUBLISH_MESSAGE.NeedsGitLfs);
   }

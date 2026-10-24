@@ -42,10 +42,10 @@ import {
 } from "./protocol.ts";
 import type { LaunchContext } from "./launch-context.ts";
 import { DevProviders, FIXTURE_VERSION } from "./fixture-kit.ts";
+import { harnessIdentity } from "./harness-identity.ts";
 import type { StudioCore } from "../studio-core.ts";
 import type { ProjectPreview } from "../preview.ts";
 import { errorMessage } from "../../shared/errors.ts";
-import { hostGit } from "../../substrate/git-policy.ts";
 import { secretRedactor } from "../../shared/redact.ts";
 import { SECOND_MS } from "../../shared/duration.ts";
 import { HarnessState } from "../../shared/protocol.ts";
@@ -279,30 +279,6 @@ function buildIsStale(
 function isReady(rt: Runtime): boolean {
   if (rt.stopping || rt.win.isDestroyed()) return false;
   return rt.core.host.state === HarnessState.Ready;
-}
-
-/** The shipped harness seed against the harness the agent runs, and the harness's git state. */
-async function harnessIdentity(harnessWs: string, buildRoot: string) {
-  const seedDir = path.join(buildRoot, "resources/harness-seed");
-  const seed = fingerprints(seedDir, filesBelow(seedDir));
-  const runtime = fingerprints(harnessWs, filesBelow(harnessWs));
-  const divergent = [...new Set([...Object.keys(seed), ...Object.keys(runtime)])].filter((f) => seed[f] !== runtime[f]);
-  return {
-    shippedDigest: digest(seed),
-    runtimeDigest: digest(runtime),
-    sha: await harnessGit(harnessWs, "rev-parse", "HEAD"),
-    dirty: !!(await harnessGit(harnessWs, "status", "--porcelain")),
-    divergentPaths: divergent,
-  };
-}
-
-/** One read of the harness workspace's git, through the host policy: the agent edits that folder, so its config is not trusted. */
-async function harnessGit(cwd: string, ...args: string[]): Promise<string | null> {
-  try {
-    return (await hostGit(cwd, args)).stdout.trim();
-  } catch {
-    return null;
-  }
 }
 
 /** What the studio window has selected: its state and stage datasets. */

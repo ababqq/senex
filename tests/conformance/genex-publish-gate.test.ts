@@ -179,10 +179,10 @@ describe("publishing tests the build before players get it", () => {
     }
   });
 
-  it("checks for git and git-lfs from Studio's own home, never from the folder that holds the project's files", async (t) => {
+  it("checks for git and git-lfs from Studio's own home, not the publish folder the CLI works in", async (t) => {
     if (!hasGit || process.platform === "win32") return t.skip("needs git and a POSIX shell for the recording shim");
-    // On Windows a bare command is looked for in the working folder first: the probes must not run
-    // where the project's files are, or a `git.exe` among them would be the one that starts.
+    // On Windows a bare command is looked for in the working folder first: the probes run from a
+    // folder only Studio writes, not the publish folder where the CLI and the exported copy live.
     const realGit = spawnSync("sh", ["-c", "command -v git"], { encoding: "utf8" }).stdout.trim();
     const bin = await tmpDir("studio-genex-gate-probe-");
     const log = path.join(bin, "probes.log");

@@ -46,6 +46,9 @@ const ENGINE = String.raw`(["\x60])(?:claude-code|codex|ollama|bonsai)\1`;
 const LITERAL = String.raw`(?:"|\x60(?!\$\{))`;
 const EVERYWHERE = () => true;
 const inSeed = (file: string) => file.startsWith("src/harness-seed/");
+/** Browser code: no Node, so no process to start (a "git" there is a name, an icon, a word). */
+const BROWSER_TREES = ["src/renderer/", "src/shared/", "src/page/"];
+const inBrowser = (file: string) => BROWSER_TREES.some((tree) => file.startsWith(tree));
 
 const RULES: Record<VocabularyRule, RuleSpec> = {
   [VocabularyRule.EventType]: {
@@ -109,7 +112,7 @@ const RULES: Record<VocabularyRule, RuleSpec> = {
   },
   [VocabularyRule.GitSpawn]: {
     // The seed runs git through the host (`run.exec`, sandboxed), not as a process of its own.
-    applies: (file) => file.startsWith("src/") && !inSeed(file),
+    applies: (file) => file.startsWith("src/") && !inSeed(file) && !inBrowser(file),
     homes: [
       "src/substrate/git-policy.ts",
       // `git --exec-path` finds Git Bash. It runs in the app's own working folder and reads no repository.

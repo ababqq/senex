@@ -234,6 +234,18 @@ const CAUGHT: Array<{ name: string; file: string; source: string; rule: Vocabula
     rule: VocabularyRule.GitSpawn,
   },
   {
+    name: "git spawned in the wrapped form a formatter gives a long call",
+    file: APP,
+    source: 'const child = spawn(\n  "git",\n  ["status", "--porcelain"],\n  { cwd: dir },\n);',
+    rule: VocabularyRule.GitSpawn,
+  },
+  {
+    name: "git named in a template without a placeholder",
+    file: APP,
+    source: "execFileSync(`git`, ['rev-parse', 'HEAD']);",
+    rule: VocabularyRule.GitSpawn,
+  },
+  {
     name: "git as a shell command in a template",
     file: APP,
     source: "execSync(`git -C ${dir} log -1`);",
@@ -279,6 +291,16 @@ const LEFT_ALONE: Array<{ name: string; file: string; source: string }> = [
   { name: "git through the host policy", file: APP, source: 'await hostGit(dir, ["status", "--porcelain"]);' },
   { name: "copy that names git", file: APP, source: 'const hint = "git is not installed on this machine";' },
   { name: "a value that is git", file: APP, source: 'if (source.kind === "git") clone(source);' },
+  { name: "git looked up in a set", file: APP, source: 'if (SOURCE_KINDS.has("git")) clone(source);' },
+  { name: "git listed among other names", file: APP, source: 'const KINDS = ["git", "hg", "svn"];' },
+  { name: "a program whose name starts with git", file: APP, source: 'exec("gitleaks detect", { cwd: dir }, done);' },
+  { name: "a function that ends in exec", file: APP, source: 'reexec("git status", { cwd: dir });' },
+  {
+    name: "git in the renderer, which starts no process",
+    file: "src/renderer/icons.tsx",
+    source: 'iconFor("git", 16);',
+  },
+  { name: "git in shared code, which starts no process", file: "src/shared/words.ts", source: 'word("git", "noun");' },
   { name: "another program started by name", file: APP, source: 'spawn("node", ["--version"], { cwd: dir });' },
   {
     name: "git in a developer script",
