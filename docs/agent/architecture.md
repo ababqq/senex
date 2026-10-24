@@ -737,8 +737,8 @@ lexically and then realpaths every request against the real root pinned at load:
 or non-regular file, 403 for an escape (or a root swapped after load), 400 for a malformed one. The rewrite touches only the served document (`shouldRewrite`: the entry or a whole page navigated to, never under `vendor/`, over 8 MB or non-HTML), never a file on disk: charset, the classic shim
 script, the import map (the page's, with `three` and `three/webgpu` pointed at the studio hook, else the
 studio's), the module hook, then the page; it is idempotent, and a blocking meta CSP gets one
-console line, not an edit. Bundled projects serve as `http://localhost:<port>/` and open at `/` — or at the sub-path the built page names its files under, `/my-site/` (`site-base.ts`; a missing path is read again without the base); a navigation is answered as a static host does (`/about` is `about.html`, `dir/` its page, `dir` a 307 to it) and, on a bundled project, one no file answers gets the entry
-(`spaFallback`); a missing asset or `fetch` keeps its 404.
+console line, not an edit. Bundled projects serve as `http://localhost:<port>/` and open at `/` — or at the sub-path the built page names its files under, `/my-site/` (`site-base.ts`; a missing path is read again without the base); a navigation is answered as a static host does (`/about` is `about.html`, `dir/` its page, `dir` a 307 to it); an unanswered navigation gets a bundled project's entry
+(`spaFallback`) or a `project://` page's `404.html`; an asset or `fetch` keeps its 404.
 
 **Network policy.** The project partition is closed: `onBeforeRequest` allows only `project:`, `data:`,
 `blob:`, `devtools:`, registered loopback ports and https GET/HEAD to the public library and

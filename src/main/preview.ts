@@ -533,7 +533,8 @@ export class ProjectPreview {
   /**
    * `routes`: the project owns its paths (a built app on its loopback origin), so a navigation to
    * one no file answers gets the app's page. The template's `project://` pages have no routes, but
-   * get the static-host rules (a folder's page, `/about` as `about.html`, a slash redirect).
+   * get the static-host rules (a folder's page, `/about` as `about.html`, a slash redirect, and
+   * their `404.html` as a 404).
    */
   async #serveFile(
     project: string,
@@ -557,7 +558,7 @@ export class ProjectPreview {
       siteBase: () => this.#siteBase,
     };
     // A routed answer is the app's own page, read through the same check and rewritten like the entry.
-    const { relative, served, routed, redirect } = await answerRequest(
+    const { relative, served, routed, redirect, status } = await answerRequest(
       requested,
       roots,
       this.#entryPath,
@@ -578,17 +579,15 @@ export class ProjectPreview {
       // and served it through every checkpoint and every Reload click.
       const headers = new Headers(response.headers);
       headers.set("Cache-Control", "no-store");
-      const documentUrl =
-        routed && request
-          ? routedDocumentUrl(request.url, relative)
-          : (request?.url ?? `${SCHEME}://${project}/${relative}`);
+      const documentUrl = documentAddress(project, relative, routed, request);
       const rewritten = await this.#rewriteDocument(response, relative, target, documentUrl, request);
+      const code = status ?? response.status;
       if (rewritten !== null) {
         // The body changed length; a stale content-length truncates the page.
         headers.delete("content-length");
-        return new Response(rewritten, { status: response.status, headers });
+        return new Response(rewritten, { status: code, headers });
       }
-      return new Response(response.body, { status: response.status, headers });
+      return new Response(response.body, { status: code, headers });
     } catch {
       return textResponse(HttpStatus.NotFound);
     }
@@ -1460,6 +1459,12 @@ export class ProjectPreview {
 }
 
 /** Wait `ms`; a negative wait is none. */
+/** The address a page's relative URLs resolve against: what the browser asked, else the project's own name for the file. */
+function documentAddress(project: string, relative: string, routed: boolean, request: Request | undefined): string {
+  if (routed && request) return routedDocumentUrl(request.url, relative);
+  return request?.url ?? `${SCHEME}://${project}/${relative}`;
+}
+
 function sleep(ms: number): Promise<void> {
   return delay(Math.max(0, ms));
 }

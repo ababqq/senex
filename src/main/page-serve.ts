@@ -741,6 +741,8 @@ export interface Answer {
   routed: boolean;
   /** Present when the request should go to this root-relative address instead (a folder asked for without its slash). */
   redirect?: string;
+  /** Present when the page goes out under this status, not the one reading its file gave: the project's `404.html`. */
+  status?: typeof HttpStatus.NotFound;
 }
 
 /**
@@ -771,6 +773,21 @@ async function servedFile(relative: string, roots: ServedRoots): Promise<{ ok: t
   const served = await servedLocation(relative, roots);
   if (!served.ok) return null;
   return (await stat(served.path).catch(() => null))?.isFile() ? served : null;
+}
+
+/** The page a static host shows for an address it does not have: the project's own, at its root. */
+const NOT_FOUND_PAGE = "404.html";
+
+/**
+ * The project's `404.html` for a navigation nothing answers, sent as a 404. It is read through the
+ * same check as any page, so a link out of the root, a folder, a pipe and a missing file show
+ * nothing, and an empty one is not a page (Chromium would put its own error page over an empty 404).
+ */
+async function notFoundPage(roots: ServedRoots): Promise<Answer | null> {
+  const served = await servedFile(NOT_FOUND_PAGE, roots);
+  const info = served ? await stat(served.path).catch(() => null) : null;
+  if (!served || !info || info.size === 0) return null;
+  return { relative: NOT_FOUND_PAGE, served, routed: false, status: HttpStatus.NotFound };
 }
 
 /** The root-relative address of a folder, always with its slash: one path on the same origin, whatever its name holds. */
@@ -825,7 +842,7 @@ export async function answerRequest(
   if (found.ok && (await stat(found.path).catch(() => null))?.isFile()) return asNamed;
   const page = (await cleanUrl(requested, roots)) ?? (await folderPage(requested, found, roots, under));
   if (page) return page;
-  if (!routes) return asNamed;
+  if (!routes) return (await notFoundPage(roots)) ?? asNamed;
   const missing: Served = found.ok ? { ok: false, status: HttpStatus.NotFound } : found;
   const route = spaFallback(requested, missing, entryPath, request);
   if (route === null) return asNamed;
