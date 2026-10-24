@@ -25,7 +25,7 @@ import { ensureDir, pathExists } from "../substrate/fsx.ts";
 import { HostGitRefusedError, hostGit, hostGitContext, unlessRefused } from "../substrate/git-policy.ts";
 import { isInside } from "../substrate/paths.ts";
 import { normalServe } from "../substrate/project-shape.ts";
-import { NPM_REGISTRY, packageCommandsIn, withoutRunnerNoise } from "../substrate/toolchain.ts";
+import { NPM_REGISTRY, packageCommandsIn, packagesInstalled, withoutRunnerNoise } from "../substrate/toolchain.ts";
 import type { ProjectShape } from "../substrate/project-workspace.ts";
 import { type RunRequest, type RunResult, shellQuote } from "../substrate/spawn.ts";
 import type { BuildProblem, InstallResult } from "../shared/build-problem.ts";
@@ -36,6 +36,8 @@ import { GENEX_PROJECT_PACKAGES, isGenexProjectPackage } from "../shared/genex.t
 const BUILD_TIMEOUT_MS = 5 * MINUTE_MS;
 /** How long a package install may run. */
 const INSTALL_TIMEOUT_MS = 10 * MINUTE_MS;
+/** How many of the last lines a failed install shows: a conflict and the advice under it take a dozen. */
+const INSTALL_FAILURE_LINES = 20;
 /** How many files a folder that is not a repository contributes to its key and its mirror. */
 const UNINDEXED_FILE_LIMIT = 4_000;
 /** How deep the walk of a folder that is not a repository goes. */
@@ -102,6 +104,7 @@ const MESSAGE = {
   UnknownPackage: (name: string) =>
     `${name || "nothing"} is not a package Studio adds: only ${Object.keys(GENEX_PROJECT_PACKAGES).join(" and ")}`,
   NoPackageJson: "this project has no package.json, so it has no package manager to add packages with",
+  InstallStopped: (minutes: number) => `the install did not finish in ${minutes} minutes and was stopped`,
   /** Names the lever: the output folder is a guess, and `serve` in studio.json is the way to correct it. */
   ServeHint: `if your page is built somewhere else, set "serve" in studio.json to that folder ("." for the project folder)`,
   WroteNothing: (serve: string) => `the build finished but wrote nothing to ${serve}/`,
@@ -316,6 +319,12 @@ export class ProjectBuilds {
   async #memoised(dir: string, key: string, lastGood: string | null, page: string): Promise<BuildOutcome | null> {
     const memo = this.#built.get(dir);
     if (memo?.key !== key) return null;
+    // "The packages are missing" stops being true when they arrive, however they got there: the
+    // tree key does not move for node_modules, which is untracked.
+    if (memo.problem?.needsInstall && (await packagesInstalled(dir))) {
+      this.#built.delete(dir);
+      return null;
+    }
     if (memo.ok && (await pathExists(path.join(memo.output, page)))) {
       return { ok: true, output: memo.output, lastGood, problem: null, ran: false };
     }
@@ -437,7 +446,7 @@ export class ProjectBuilds {
       env: this.#cacheEnv(),
     });
     this.forget(source.dir);
-    return { ok: result.code === 0, lines: outputLines(result, result.code === 0 ? 3 : 6) };
+    return { ok: result.code === 0, lines: result.code === 0 ? outputLines(result, 3) : installFailureLines(result) };
   }
 
   /**
@@ -465,7 +474,7 @@ export class ProjectBuilds {
       env: this.#cacheEnv(),
     });
     this.forget(source.dir);
-    return { ok: result.code === 0, lines: outputLines(result, result.code === 0 ? 3 : 6) };
+    return { ok: result.code === 0, lines: result.code === 0 ? outputLines(result, 3) : installFailureLines(result) };
   }
 
   /**
@@ -497,7 +506,7 @@ export class ProjectBuilds {
       code: result.code,
       lines: [...(note ? [note] : []), ...printed].slice(0, STAGE_LINES),
       diagnostics: [...(note ? [note] : []), ...printed].slice(0, DIAGNOSTIC_LINES),
-      needsInstall: declared && !(await pathExists(path.join(source.dir, "node_modules"))),
+      needsInstall: declared && !(await packagesInstalled(source.dir)),
       install: source.shape.install,
       showingLastBuild: false,
       at: new Date().toISOString(),
@@ -557,6 +566,25 @@ export function outputLines(result: Pick<RunResult, "stdout" | "stderr">, max: n
     .filter((line) => line.trim().length > 0);
   const own = withoutRunnerNoise(printed);
   return (own.length > 0 ? own : printed).slice(0, max);
+}
+
+/**
+ * The end of a failed install, for the "Details" disclosure: the last {@link INSTALL_FAILURE_LINES}
+ * significant lines, because a package manager says what it could not do last (a conflict, then
+ * what to try), after the progress and the wrapper text. What was printed on stdout comes first and
+ * stderr last, so a long progress log cannot push the error out. An install that was stopped for
+ * taking too long says so first. As with {@link outputLines}, output that is nothing but wrapper
+ * text is returned as printed.
+ */
+export function installFailureLines(result: Pick<RunResult, "stdout" | "stderr" | "timedOut">): string[] {
+  const printed = `${result.stdout ?? ""}\n${result.stderr ?? ""}`
+    .split("\n")
+    .map((line) => line.trimEnd())
+    .filter((line) => line.trim().length > 0);
+  const own = withoutRunnerNoise(printed);
+  const tail = (own.length > 0 ? own : printed).slice(-INSTALL_FAILURE_LINES);
+  if (!result.timedOut) return tail;
+  return [MESSAGE.InstallStopped(INSTALL_TIMEOUT_MS / MINUTE_MS), ...tail.slice(-(INSTALL_FAILURE_LINES - 1))];
 }
 
 /**

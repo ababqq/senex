@@ -28,6 +28,7 @@ import { promisify } from "node:util";
 import {
   ProjectBuilds,
   buildFailureNote,
+  installFailureLines,
   mirrorList,
   outputLines,
   servedAfterBuild,
@@ -39,6 +40,7 @@ import {
   hasLoginEntries,
   mergePaths,
   packageCommands,
+  packagesInstalled,
   resolveToolchain,
 } from "../../src/substrate/toolchain.ts";
 import { readProjectShape, type ProjectShape } from "../../src/substrate/project-workspace.ts";
@@ -69,6 +71,28 @@ const VITE_SHAPE: ProjectShape = {
   serve: "dist",
 };
 
+/** What npm 10 prints when a peer dependency conflict stops an install, wrapper lines included. */
+const NPM_ERESOLVE = [
+  "npm error code ERESOLVE",
+  "npm error ERESOLVE could not resolve",
+  "npm error",
+  "npm error While resolving: react-dom@18.3.1",
+  "npm error Found: react@18.3.1",
+  "npm error node_modules/react",
+  'npm error   react@"^18.3.1" from the root project',
+  "npm error",
+  "npm error Could not resolve dependency:",
+  'npm error peer react@"^19.0.0" from some-ui-kit@4.0.0',
+  "npm error node_modules/some-ui-kit",
+  'npm error   some-ui-kit@"^4.0.0" from the root project',
+  "npm error",
+  "npm error Fix the upstream dependency conflict, or retry",
+  "npm error this command with --force or --legacy-peer-deps",
+  "npm error to accept an incorrect (and potentially broken) dependency resolution.",
+  "npm error",
+  "npm error A complete log of this run can be found in: /home/u/.npm/_logs/2026-10-24-debug-0.log",
+].join("\n");
+
 /** A project folder that is a git repository, with a gitignored pile of screenshots beside it. */
 async function projectRepo(name: string): Promise<string> {
   const dir = path.join(await tmpDir("studio-build-"), name);
@@ -92,13 +116,17 @@ async function projectRepo(name: string): Promise<string> {
 /** A sandbox stand-in: it records what was asked and writes the output a bundler would. */
 function fakeRunner(
   options: {
-    code?: number;
+    /** The exit code; null is a command that was killed. */
+    code?: number | null;
     stderr?: string;
     writes?: boolean;
     delayMs?: number;
     output?: Record<string, string>;
     /** A build that leaves its output folder as a link to this place, as a planted `dist` would. */
     outputLink?: string;
+    stdout?: string;
+    /** The command was stopped for running too long. */
+    timedOut?: boolean;
   } = {},
 ): {
   calls: RunRequest[];
@@ -109,7 +137,7 @@ function fakeRunner(
     calls,
     run: async (request) => {
       calls.push(request);
-      const code = options.code ?? 0;
+      const code = options.code === undefined ? 0 : options.code;
       if (options.delayMs) await new Promise((resolve) => setTimeout(resolve, options.delayMs));
       if (code === 0 && options.outputLink && request.label?.startsWith("build:")) {
         await rm(path.join(request.cwd, "dist"), { recursive: true, force: true });
@@ -129,10 +157,10 @@ function fakeRunner(
       return {
         code,
         signal: null,
-        stdout: "",
+        stdout: options.stdout ?? "",
         stderr: options.stderr ?? "",
         durationMs: 1,
-        timedOut: false,
+        timedOut: options.timedOut ?? false,
         truncated: false,
         sandboxed: true,
         command: request.command,
@@ -444,6 +472,37 @@ describe("building a project the user owns", () => {
     assert.equal(await realpath(linked), await realpath(path.join(helper, "node_modules")));
   });
 
+  it("builds again once the packages are there, however they got there", async () => {
+    const dir = await projectRepo("outside-install");
+    await rm(path.join(dir, "node_modules"), { recursive: true, force: true });
+    const root = path.join(await tmpDir("studio-shadow-"), "builds");
+    const failing = fakeRunner({ code: 1, stderr: "sh: vite: command not found" });
+    const builds = new ProjectBuilds({ root, run: failing.run });
+    const first = await builds.ensure({ project: "outside-install", dir, shape: VITE_SHAPE });
+    assert.equal(first.problem?.needsInstall, true);
+    // Nothing changed, so the failure is not run again: the point of the memo.
+    assert.equal((await builds.ensure({ project: "outside-install", dir, shape: VITE_SHAPE })).ran, false);
+    assert.equal(failing.calls.length, 1);
+
+    // The person installs in their own terminal: node_modules is untracked, so the tree key does not move.
+    await mkdir(path.join(dir, "node_modules", "vite"), { recursive: true });
+    const again = await builds.ensure({ project: "outside-install", dir, shape: VITE_SHAPE });
+    assert.equal(again.ran, true, "the memoised 'packages are missing' no longer holds");
+    assert.equal(failing.calls.length, 2);
+    assert.equal(again.problem?.needsInstall, false, "and it no longer says the packages are missing");
+  });
+
+  it("keeps a memoised failure that was not about packages, whatever is in node_modules", async () => {
+    const dir = await projectRepo("not-packages");
+    const root = path.join(await tmpDir("studio-shadow-"), "builds");
+    const failing = fakeRunner({ code: 2, stderr: "src/main.ts:1:1 - error TS2304" });
+    const builds = new ProjectBuilds({ root, run: failing.run });
+    await builds.ensure({ project: "not-packages", dir, shape: VITE_SHAPE });
+    await mkdir(path.join(dir, "node_modules", "extra"), { recursive: true });
+    assert.equal((await builds.ensure({ project: "not-packages", dir, shape: VITE_SHAPE })).ran, false);
+    assert.equal(failing.calls.length, 1);
+  });
+
   it("keeps the last build that worked when the next one breaks, and says why", async () => {
     const dir = await projectRepo("broken");
     const root = path.join(await tmpDir("studio-shadow-"), "builds");
@@ -518,6 +577,32 @@ describe("building a project the user owns", () => {
 
     const nothing = await builds.install({ project: "install", dir, shape: { ...VITE_SHAPE, install: null } });
     assert.equal(nothing.ok, false);
+  });
+
+  it("shows the end of a failed install: the conflict and the advice, not the first lines it printed", async () => {
+    const dir = await projectRepo("eresolve");
+    const root = path.join(await tmpDir("studio-shadow-"), "builds");
+    const runner = fakeRunner({ code: 1, stderr: NPM_ERESOLVE });
+    const builds = new ProjectBuilds({ root, run: runner.run });
+    const result = await builds.install({ project: "eresolve", dir, shape: VITE_SHAPE });
+    assert.equal(result.ok, false);
+    assert.ok(result.lines.length <= 20, `${result.lines.length} lines`);
+    const text = result.lines.join("\n");
+    assert.match(text, /Found: react@18\.3\.1/, "what npm found");
+    assert.match(text, /Could not resolve dependency/, "the conflict");
+    assert.match(text, /--legacy-peer-deps/, "the advice");
+    assert.doesNotMatch(text, /A complete log of this run/, "npm's own wrapper text is left out");
+  });
+
+  it("says when an install was stopped for taking too long, before what it printed", async () => {
+    const dir = await projectRepo("slow-install");
+    const root = path.join(await tmpDir("studio-shadow-"), "builds");
+    const runner = fakeRunner({ code: null, timedOut: true, stderr: "npm error network timeout" });
+    const builds = new ProjectBuilds({ root, run: runner.run });
+    const result = await builds.install({ project: "slow-install", dir, shape: VITE_SHAPE });
+    assert.equal(result.ok, false);
+    assert.match(result.lines[0] ?? "", /did not finish in 10 minutes/);
+    assert.ok(result.lines.includes("npm error network timeout"));
   });
 
   it("opens that domain for the package manager's own install and never for the string studio.json records", async () => {
@@ -905,5 +990,89 @@ describe("building a project the user owns", () => {
     await writeFile(path.join(dir, "src", "main.ts"), "export const project = 4;\n");
     assert.equal((await builds.ensure({ project: "race", dir, shape: VITE_SHAPE })).ran, true);
     assert.equal(runner.calls.length, 2);
+  });
+});
+
+describe("the lines a failed install shows", () => {
+  const numbered = (count: number, prefix = "line") => Array.from({ length: count }, (_, i) => `${prefix} ${i + 1}`);
+
+  it("are the last twenty significant lines, in order", () => {
+    const lines = installFailureLines({ stdout: "", stderr: numbered(45).join("\n"), timedOut: false });
+    assert.deepEqual(lines, numbered(45).slice(-20));
+  });
+
+  it("leave out the package manager's wrapper text and blank lines", () => {
+    const lines = installFailureLines({ stdout: "", stderr: NPM_ERESOLVE, timedOut: false });
+    assert.ok(lines.every((line) => line.trim().length > 0));
+    assert.ok(!lines.some((line) => /npm error (code|A complete log)/.test(line)), lines.join("\n"));
+    assert.ok(lines.some((line) => /ERESOLVE could not resolve/.test(line)));
+  });
+
+  it("put the error stream last, so a long progress log does not push the error out", () => {
+    const lines = installFailureLines({
+      stdout: numbered(30, "progress").join("\n"),
+      stderr: "npm error 404 Not Found - GET https://registry.npmjs.org/nope",
+      timedOut: false,
+    });
+    assert.equal(lines.at(-1), "npm error 404 Not Found - GET https://registry.npmjs.org/nope");
+    assert.equal(lines.length, 20);
+  });
+
+  it("show a manager that prints its error on stdout too", () => {
+    const lines = installFailureLines({
+      stdout: " ERR_PNPM_PEER_DEP_ISSUES  Unmet peer dependencies\n\nreact: expected ^19",
+      stderr: "",
+      timedOut: false,
+    });
+    assert.deepEqual(lines, [" ERR_PNPM_PEER_DEP_ISSUES  Unmet peer dependencies", "react: expected ^19"]);
+  });
+
+  it("say what is all there is when the output is nothing but wrapper text", () => {
+    const wrapper = "npm error code ELIFECYCLE\nnpm error A complete log of this run can be found in: /x.log";
+    assert.deepEqual(installFailureLines({ stdout: "", stderr: wrapper, timedOut: false }), wrapper.split("\n"));
+  });
+
+  it("start with the sentence that the install was stopped, when it was", () => {
+    const lines = installFailureLines({ stdout: "", stderr: "npm error network timeout", timedOut: true });
+    assert.match(lines[0] ?? "", /did not finish in 10 minutes/);
+    assert.equal(lines.length, 2);
+    assert.equal(installFailureLines({ stdout: "", stderr: "", timedOut: true }).length, 1);
+  });
+
+  it("are empty when a failed install printed nothing", () => {
+    assert.deepEqual(installFailureLines({ stdout: "", stderr: "", timedOut: false }), []);
+  });
+});
+
+describe("whether a project's packages are installed", () => {
+  it("is a node_modules folder, or a link to one", async () => {
+    const base = await tmpDir("studio-packages-");
+    const installed = path.join(base, "installed");
+    await mkdir(path.join(installed, "node_modules"), { recursive: true });
+    assert.equal(await packagesInstalled(installed), true);
+
+    const linked = path.join(base, "linked");
+    await mkdir(linked, { recursive: true });
+    await symlink(path.join(installed, "node_modules"), path.join(linked, "node_modules"), "dir");
+    assert.equal(await packagesInstalled(linked), true);
+  });
+
+  it("is not a missing folder, a file, a dangling link or a folder that is gone", async () => {
+    const base = await tmpDir("studio-packages-");
+    const bare = path.join(base, "bare");
+    await mkdir(bare, { recursive: true });
+    assert.equal(await packagesInstalled(bare), false);
+
+    const file = path.join(base, "file");
+    await mkdir(file, { recursive: true });
+    await writeFile(path.join(file, "node_modules"), "not a folder");
+    assert.equal(await packagesInstalled(file), false);
+
+    const dangling = path.join(base, "dangling");
+    await mkdir(dangling, { recursive: true });
+    await symlink(path.join(base, "nowhere"), path.join(dangling, "node_modules"), "dir");
+    assert.equal(await packagesInstalled(dangling), false);
+
+    assert.equal(await packagesInstalled(path.join(base, "gone")), false);
   });
 });

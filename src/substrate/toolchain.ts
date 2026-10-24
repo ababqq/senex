@@ -18,7 +18,7 @@
  * (`node.exe`, `npm.cmd`).
  */
 import { constants } from "node:fs";
-import { access, readdir } from "node:fs/promises";
+import { access, readdir, stat } from "node:fs/promises";
 import { execFile, spawn } from "node:child_process";
 import os from "node:os";
 import path from "node:path";
@@ -489,6 +489,11 @@ export const INSTALL_COMMANDS: readonly string[] = [...new Set(LOCKFILES.map((ro
 /** Whether a command line is one of those four literals. */
 export function isInstallCommand(command: unknown): boolean {
   return typeof command === "string" && INSTALL_COMMANDS.includes(command.trim());
+}
+
+/** Whether a folder's packages are installed: its `node_modules` is a folder, or a link to one. */
+export async function packagesInstalled(dir: string): Promise<boolean> {
+  return (await stat(path.join(dir, "node_modules")).catch(() => null))?.isDirectory() ?? false;
 }
 
 /** The same, read off disk. */
