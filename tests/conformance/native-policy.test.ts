@@ -132,6 +132,8 @@ test("native accounts, terminals, plugin installs, external opens and Genex are 
     "studio:packages.install",
     "studio:mcp.trust",
     "studio:mcp.authorize",
+    // A click on an https link in Live asks in a native dialog, then opens the person's browser.
+    "studio:preview.external-link",
     "studio:notify",
     "studio:project-file.reveal",
     // A file the chat names opens in another app or the file manager, outside the profile.

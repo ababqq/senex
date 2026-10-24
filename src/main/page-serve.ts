@@ -164,6 +164,10 @@ const BLOCKED_WHY = {
   window: "the preview shows only the project, so a link that leaves it does not open",
   tab: "the preview shows one window, so a link that opens a page of the project in a new tab does not open (let it open in this window)",
 } as const;
+/** Added to the note for an https link that leaves the project: Live asks the person, so the link is not broken. */
+const BLOCKED_LIVE_CLAUSE = "; in Live, a click on an https link asks first and then opens your browser";
+/** The most of an origin, or of an address that is not one, a console line repeats. */
+const MAX_NOTED_ORIGIN_CHARS = 200;
 
 /**
  * The console line for something the preview refused, and the key that says it once per origin per
@@ -176,16 +180,19 @@ export function blockedNote(
   raw: string,
 ): { key: string; text: string; origin: string; blocked: string | null } {
   let origin = raw;
+  let offered = false;
   try {
     const url = new URL(raw);
     const named = url.origin !== "null" ? url.origin : url.protocol;
     origin = kind === "tab" ? url.pathname : named;
+    offered = url.protocol === "https:" && (kind === "window" || kind === "navigation");
   } catch {
     /* not a URL: noted as given */
   }
+  if (origin.length > MAX_NOTED_ORIGIN_CHARS) origin = `${origin.slice(0, MAX_NOTED_ORIGIN_CHARS)}…`;
   return {
     key: `${kind} ${origin}`,
-    text: `the studio blocked ${BLOCKED_WHAT[kind]} ${origin}: ${BLOCKED_WHY[kind]}`,
+    text: `the studio blocked ${BLOCKED_WHAT[kind]} ${origin}: ${BLOCKED_WHY[kind]}${offered ? BLOCKED_LIVE_CLAUSE : ""}`,
     origin,
     // Only a request or navigation to somewhere else is an origin the preview refused; a link that
     // opens a window or a page of the project is the project's to change.

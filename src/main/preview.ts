@@ -52,6 +52,12 @@ import {
   threeHookModule,
   tooLargeNote,
 } from "./page-serve.ts";
+import {
+  createExternalLinks,
+  guardPreviewNavigation,
+  type ExternalLinkHost,
+  type ExternalLinks,
+} from "./external-link.ts";
 import { PAGE_DISPATCH } from "./page-dispatch.ts";
 import { emulatePageFocus } from "./preview-focus.ts";
 import { anchoredBounds } from "./preview-anchor.ts";
@@ -139,6 +145,8 @@ export interface ProjectPreviewOptions {
   muted?: boolean;
   /** The app's default page-shim settings; a single `load` may override any of them. */
   shim?: Partial<ShimOptions>;
+  /** Live only: where a person's click on an https link is asked about and opened. No host, no link opens. */
+  externalLinks?: ExternalLinkHost;
 }
 
 /** The studio method that shows a named view; the preview scrolls the page to the top before it runs. */
@@ -276,9 +284,13 @@ export class ProjectPreview {
     return this.#profiler.invalidate(reason);
   }
 
+  /** The gate between a click on an https link in this view and the person's browser. */
+  #links: ExternalLinks;
+
   constructor(options: ProjectPreviewOptions) {
     this.options = options;
     this.#audioMuted = options.muted ?? false;
+    this.#links = createExternalLinks(options.offscreen ? undefined : options.externalLinks);
   }
 
   get view(): WebContentsView | null {
@@ -335,23 +347,20 @@ export class ProjectPreview {
     wc.on("did-start-navigation", () => {
       void this.#profiler.invalidate("navigation changed");
     });
-    wc.setWindowOpenHandler(({ url }) => {
-      const ofTheProject = previewNavigationAllowed(url, loopbackPorts, { mainFrame: true });
-      this.#noteBlocked(ofTheProject ? "tab" : "window", url);
-      return { action: "deny" };
-    });
-    // The page stays on project:// or its loopback origin: a remote page inside the studio's chrome,
-    // which has no URL bar, is a sign-in form nobody can tell from the studio's own (SECUI-3).
-    wc.on("will-navigate", (event) => {
-      if (previewNavigationAllowed(event.url, loopbackPorts, { mainFrame: true })) return;
-      event.preventDefault();
-      this.#noteBlocked("navigation", event.url);
-    });
-    wc.on("will-frame-navigate", (event) => {
-      if (previewNavigationAllowed(event.url, loopbackPorts, { mainFrame: event.isMainFrame })) return;
-      event.preventDefault();
-      this.#noteBlocked("navigation", event.url);
-    });
+    guardPreviewNavigation(
+      {
+        windowOpen: (handler) => wc.setWindowOpenHandler(handler),
+        willNavigate: (listener) => wc.on("will-navigate", listener),
+        willFrameNavigate: (listener) => wc.on("will-frame-navigate", listener),
+        inputEvent: (listener) => wc.on("input-event", (_event, input) => listener(input.type)),
+      },
+      {
+        allowed: (url, mainFrame) => previewNavigationAllowed(url, loopbackPorts, { mainFrame }),
+        links: this.#links,
+        note: (kind, url) => this.#noteBlocked(kind, url),
+        asks: Boolean(this.options.externalLinks) && !this.options.offscreen,
+      },
+    );
     wc.on("console-message", (details) => {
       if (typeof details?.message !== "string") {
         this.#consoleAvailable = false;
@@ -1294,6 +1303,13 @@ export class ProjectPreview {
    * DOM events plus `__studio.injectInput`, so a paused `step()` playthrough still sees WASD.
    */
   async input(actions: PreviewInputAction[]): Promise<{ ok: boolean; applied: number; width: number; height: number }> {
+    // What an agent sends here is not a person's click: it never lets a page ask to open a link.
+    return this.#links.synthetic(() => this.#drive(actions));
+  }
+
+  async #drive(
+    actions: PreviewInputAction[],
+  ): Promise<{ ok: boolean; applied: number; width: number; height: number }> {
     await this.#profiler.invalidate("input during sample");
     const view = this.create();
     const bounds = view.getBounds();

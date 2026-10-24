@@ -747,16 +747,16 @@ origin; WebRTC is limited to proxied UDP (`confinePreviewContents`). Blocked ori
 per load, after the errors; `validateAt` and the Open Project sheet name hosts a page loads code from. No
 per-project network opt-in yet.
 
-**Project view.** Every project view (Live, facet ports, selftest, e2e fixtures) comes from
-`ProjectPreview.create()`: its own session partition (`project-preview`, `project-preview-facet-N`),
-`sandbox`, `contextIsolation`, no Node, `webSecurity`, no preload or IPC, `window.open` refused, noted.
+**Project view.** Every project view (Live, facet ports, selftest, e2e) comes from
+`ProjectPreview.create()`: own session partition (`project-preview`, `project-preview-facet-N`),
+`sandbox`, `contextIsolation`, no Node, `webSecurity`, no preload or IPC, `window.open` refused, noted; a Live https click asks first.
 The session grants pointer lock (plus fullscreen on screen) and denies every other permission,
 microphone and camera included; an agent's window cancels downloads. The view turns off `PROJECT_DISABLED_BLINK_FEATURES`
 (`OnDeviceWebSpeechAvailable`, `InstallOnDeviceSpeechRecognition`): on-device speech recognition
 (`SpeechRecognition.available()`/`install()` with `processLocally`, or `start()` with it and a
-`lang`) asks for a Mojo binder only Chrome registers, and Electron kills the whole renderer for the
+`lang`) asks for a Mojo binder only Chrome registers, and Electron kills the renderer for the
 bad message (reason 123). With both off those members exist in no frame; a plain `start()` ends in
-`not-allowed` and speech synthesis is untouched. The guard is engine-level: a page-world stub misses
+`not-allowed`, synthesis untouched. The guard is engine-level: a page-world stub misses
 about:blank, srcdoc and blob: documents, and `--disable-speech-api` removes synthesis while the
 unprefixed API still crashes. `page-shim.test.ts` only proves the list is applied; the
 [speech selftest](verification.md#acceptance-evidence) proves it holds. Any other renderer death
