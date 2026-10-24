@@ -12,8 +12,8 @@
  * repo is a bare git repo on disk. Nothing leaves the machine.
  */
 import assert from "node:assert/strict";
-import { spawn } from "node:child_process";
-import { mkdir, readFile, symlink, writeFile } from "node:fs/promises";
+import { spawn, spawnSync } from "node:child_process";
+import { mkdir, readFile, realpath, symlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { after, before, describe, it } from "node:test";
 import { pathToFileURL } from "node:url";
@@ -174,6 +174,35 @@ describe("publishing tests the build before players get it", () => {
       const copy = JSON.parse(await readFile(path.join(fx.workspace, "package.json"), "utf8"));
       assert.deepEqual(copy.dependencies, { "@genex-ai/embed-sdk": SIGN_IN });
       await assert.rejects(readFile(path.join(fx.project, "package.json")), "the project folder is never written");
+    } finally {
+      await fx.close();
+    }
+  });
+
+  it("checks for git and git-lfs from Studio's own home, never from the folder that holds the project's files", async (t) => {
+    if (!hasGit || process.platform === "win32") return t.skip("needs git and a POSIX shell for the recording shim");
+    // On Windows a bare command is looked for in the working folder first: the probes must not run
+    // where the project's files are, or a `git.exe` among them would be the one that starts.
+    const realGit = spawnSync("sh", ["-c", "command -v git"], { encoding: "utf8" }).stdout.trim();
+    const bin = await tmpDir("studio-genex-gate-probe-");
+    const log = path.join(bin, "probes.log");
+    await writeFile(
+      path.join(bin, "git"),
+      `#!/bin/sh\ncase "$1" in --version|lfs) echo "$1 $(pwd -P)" >> '${log}';; esac\nexec '${realGit}' "$@"\n`,
+      { mode: 0o755 },
+    );
+    const before = process.env.PATH;
+    process.env.PATH = `${bin}${path.delimiter}${before ?? ""}`;
+    t.after(() => {
+      process.env.PATH = before;
+    });
+    const fx = await genexFixture();
+    try {
+      const done = await fx.publish("Racing Demo");
+      assert.equal(done.job?.state, "done", done.job?.error);
+      const home = await realpath(path.join(fx.workspace, "home"));
+      const probes = (await readFile(log, "utf8")).trim().split("\n");
+      assert.deepEqual(probes.slice(0, 2), [`--version ${home}`, `lfs ${home}`]);
     } finally {
       await fx.close();
     }

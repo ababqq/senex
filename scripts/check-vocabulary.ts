@@ -16,6 +16,7 @@ export const VocabularyRule = {
   HostCall: "host-call",
   RpcKey: "rpc-key",
   Sleep: "sleep",
+  GitSpawn: "git-spawn",
 } as const;
 export type VocabularyRule = (typeof VocabularyRule)[keyof typeof VocabularyRule];
 
@@ -105,6 +106,24 @@ const RULES: Record<VocabularyRule, RuleSpec> = {
     ],
     patterns: [/new\s+Promise\s*(?:<[^>]*>)?\(\s*\(?\s*(\w+)\s*\)?\s*=>\s*\{?\s*(?:void\s+)?setTimeout\(\s*\1\s*,/],
     instead: 'sleep() from "node:timers/promises" (the seed: sleep from loop/time.ts)',
+  },
+  [VocabularyRule.GitSpawn]: {
+    // The seed runs git through the host (`run.exec`, sandboxed), not as a process of its own.
+    applies: (file) => file.startsWith("src/") && !inSeed(file),
+    homes: [
+      "src/substrate/git-policy.ts",
+      // `git --exec-path` finds Git Bash. It runs in the app's own working folder and reads no repository.
+      "src/substrate/windows-sandbox.ts",
+      // `git --version` and `git lfs version` before a publish, run from Studio's own home folder: no repository is read.
+      "src/plugins/genex/adapter.ts",
+    ],
+    // A call that names git as its program, or runs a command line that starts with it.
+    patterns: [
+      new RegExp(String.raw`\(\s*${LITERAL}git(?:\.exe)?["\x60]\s*,`),
+      new RegExp(String.raw`\bexec(?:Sync)?\s*\(\s*${LITERAL}git\s`),
+    ],
+    instead:
+      "hostGit(dir, args) or hostGitSpawn from substrate/git-policy.ts, which keeps the folder's own git config out of the command",
   },
 };
 

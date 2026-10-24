@@ -14,7 +14,6 @@ import path from "node:path";
 import os from "node:os";
 import net from "node:net";
 import { randomBytes, timingSafeEqual } from "node:crypto";
-import { execFileSync } from "node:child_process";
 import {
   buildInputs,
   sourceIdentity,
@@ -46,6 +45,7 @@ import { DevProviders, FIXTURE_VERSION } from "./fixture-kit.ts";
 import type { StudioCore } from "../studio-core.ts";
 import type { ProjectPreview } from "../preview.ts";
 import { errorMessage } from "../../shared/errors.ts";
+import { hostGit } from "../../substrate/git-policy.ts";
 import { secretRedactor } from "../../shared/redact.ts";
 import { SECOND_MS } from "../../shared/duration.ts";
 import { HarnessState } from "../../shared/protocol.ts";
@@ -244,7 +244,7 @@ async function status(rt: Runtime) {
     fixture: ctx.fixture,
     fixtureVersion: ctx.providers === DevProviders.Fixture ? FIXTURE_VERSION : null,
     readiness: isReady(rt) ? DevReadiness.Ready : DevReadiness.NotReady,
-    harness: harnessIdentity(core.layout.harnessWs, ctx.buildRoot),
+    harness: await harnessIdentity(core.layout.harnessWs, ctx.buildRoot),
     selection: await selection(rt),
     window: {
       title: win.isDestroyed() ? null : win.getTitle(),
@@ -282,7 +282,7 @@ function isReady(rt: Runtime): boolean {
 }
 
 /** The shipped harness seed against the harness the agent runs, and the harness's git state. */
-function harnessIdentity(harnessWs: string, buildRoot: string) {
+async function harnessIdentity(harnessWs: string, buildRoot: string) {
   const seedDir = path.join(buildRoot, "resources/harness-seed");
   const seed = fingerprints(seedDir, filesBelow(seedDir));
   const runtime = fingerprints(harnessWs, filesBelow(harnessWs));
@@ -290,19 +290,16 @@ function harnessIdentity(harnessWs: string, buildRoot: string) {
   return {
     shippedDigest: digest(seed),
     runtimeDigest: digest(runtime),
-    sha: harnessGit(harnessWs, "rev-parse", "HEAD"),
-    dirty: !!harnessGit(harnessWs, "status", "--porcelain"),
+    sha: await harnessGit(harnessWs, "rev-parse", "HEAD"),
+    dirty: !!(await harnessGit(harnessWs, "status", "--porcelain")),
     divergentPaths: divergent,
   };
 }
 
-function harnessGit(cwd: string, ...args: string[]): string | null {
+/** One read of the harness workspace's git, through the host policy: the agent edits that folder, so its config is not trusted. */
+async function harnessGit(cwd: string, ...args: string[]): Promise<string | null> {
   try {
-    return execFileSync("git", args, {
-      cwd,
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "ignore"],
-    }).trim();
+    return (await hostGit(cwd, args)).stdout.trim();
   } catch {
     return null;
   }

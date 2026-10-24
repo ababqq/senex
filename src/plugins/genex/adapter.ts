@@ -411,9 +411,11 @@ export class GenexTools {
    * the pinned CLI's `pushSource` runs `brew install git-lfs` / `sudo apt-get install git-lfs` when
    * git-lfs is missing, so a machine without it is refused here, before the CLI is ever spawned.
    */
-  async #gitReady(dir: string, home: string): Promise<void> {
-    if (!(await this.#run("git", ["--version"], dir, home))) throw new Error(PUBLISH_MESSAGE.NeedsGit);
-    if (!(await this.#run("git", ["lfs", "version"], dir, home))) throw new Error(PUBLISH_MESSAGE.NeedsGitLfs);
+  async #gitReady(home: string): Promise<void> {
+    // Run from Studio's own home: Windows looks for a bare command in the working folder first, and the
+    // folder beside it holds the project's files.
+    if (!(await this.#run("git", ["--version"], home, home))) throw new Error(PUBLISH_MESSAGE.NeedsGit);
+    if (!(await this.#run("git", ["lfs", "version"], home, home))) throw new Error(PUBLISH_MESSAGE.NeedsGitLfs);
   }
   /** What Studio knows about this project's pages. Read-only: it never starts or resumes an upload. */
   async publishStatus(project: string, force = false): Promise<GenexPublishState> {
@@ -569,7 +571,7 @@ export class GenexTools {
       state.job?.state === GenexPublishJobState.Running || state.job?.state === GenexPublishJobState.Unresolved;
     if (busy) return state;
     const dir = await this.#publishWorkspace(project);
-    await this.#gitReady(dir, path.join(dir, "home"));
+    await this.#gitReady(path.join(dir, "home"));
     const meta = await readJsonOr<HostedMeta>(metaFile(dir));
     const job: GenexPublishJob = {
       id: randomUUID(),
