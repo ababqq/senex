@@ -1,12 +1,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, realpathSync, symlinkSync, writeFileSync } from "node:fs";
+import { appendFileSync, mkdtempSync, mkdirSync, realpathSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import type { ChatFileLink, ChatFileLookup, ChatFileRef } from "../../src/shared/chat-files.ts";
 import { projectRelativePath, readCommitFile, readFolderFile } from "../../src/main/project-file.ts";
 import { markdownHtml } from "../../src/renderer/ui/markdown-html.ts";
+import { HostGitRefusal } from "../../src/substrate/git-policy.ts";
 import { coreLite } from "../helpers/core-lite.ts";
 import { tmpDir } from "../helpers/tmp.ts";
 
@@ -113,6 +114,31 @@ test("the project folder and the build answer; links out of the folder do not", 
   });
   assert.equal(await readCommitFile(project, head, "docs"), null, "a folder is not a file");
   assert.equal(await readCommitFile(project, "HEAD~1; rm -rf /", "docs/BRIEF.md"), null);
+});
+
+test("a build's image is read from its commit byte for byte, and a folder host git refuses says so", async () => {
+  const project = path.join(mkdtempSync(path.join(tmpdir(), "project-file-")), "project");
+  mkdirSync(project, { recursive: true });
+  const bytes = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0xff, 0xfe, 0x00, 0x80, 0x0a, 0x0d]);
+  writeFileSync(path.join(project, "art.png"), bytes);
+  const git = (...args: string[]) =>
+    execFileSync("git", ["-C", project, "-c", "user.name=t", "-c", "user.email=t@t", ...args])
+      .toString()
+      .trim();
+  git("init", "-q");
+  git("add", "art.png");
+  git("commit", "-qm", "build");
+  const head = git("rev-parse", "HEAD");
+
+  const image = await readCommitFile(project, head, "art.png");
+  assert.equal(image?.kind, "image");
+  assert.equal(image?.src, `data:image/png;base64,${bytes.toString("base64")}`);
+
+  appendFileSync(path.join(project, ".git", "config"), '[filter "a=b"]\n\tclean = true\n');
+  await assert.rejects(
+    readCommitFile(project, head, "art.png"),
+    (error: unknown) => (error as { code?: unknown }).code === HostGitRefusal.UnsafeConfigKey,
+  );
 });
 
 test("a chat reads only its own project: no folder, a name that leaves it, or a link out of it is refused", async () => {

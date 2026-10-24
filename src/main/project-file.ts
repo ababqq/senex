@@ -6,7 +6,7 @@
 import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { fileKind, imageType, type ProjectFile } from "../shared/project-file.ts";
-import { hostGit, hostGitContext } from "../substrate/git-policy.ts";
+import { HostGitRefusedError, hostGit, hostGitContext } from "../substrate/git-policy.ts";
 import { containedReal } from "../substrate/paths.ts";
 
 /** Enough for any document an agent writes; the rest is cut with a note. */
@@ -108,7 +108,9 @@ export async function readCommitFile(
     if (!(size <= IMAGE_LIMIT)) return { path: relative, name: path.basename(relative), where: "build", kind: "other" };
     const blob = await hostGit(projectDir, ["cat-file", "blob", spec], { context, maxBuffer, encoding: "buffer" });
     return fromBytes(relative, "build", blob.stdout);
-  } catch {
+  } catch (error) {
+    // A folder host git refuses to run in is not a commit without the file: the person is told.
+    if (error instanceof HostGitRefusedError) throw error;
     return null;
   }
 }

@@ -153,6 +153,14 @@ describe("hostGitArgs: what every host command is made to carry", () => {
     ]);
   });
 
+  it("does the same for the plumbing diffs, and skips the value of every option that takes one", () => {
+    const off = ["--no-ext-diff", "--no-textconv"];
+    assert.deepEqual(hostGitArgs(["diff-tree", "-r", "HEAD"]), ["diff-tree", ...off, "-r", "HEAD"]);
+    assert.deepEqual(hostGitArgs(["diff-index", "HEAD"]), ["diff-index", ...off, "HEAD"]);
+    for (const option of ["--git-dir", "--work-tree", "--namespace", "--super-prefix", "--attr-source"])
+      assert.deepEqual(hostGitArgs([option, "diff", "log", "HEAD"]), [option, "diff", "log", ...off, "HEAD"], option);
+  });
+
   it("leaves every other command alone", () => {
     assert.deepEqual(hostGitArgs(["merge", "--no-ff", "-m", "x", "abc"]), ["merge", "--no-ff", "-m", "x", "abc"]);
     assert.deepEqual(hostGitArgs([]), []);
@@ -207,6 +215,8 @@ describe("hostGitEnv: nothing ambient routes or arms a host git command", () => 
   });
 
   it("lets a caller's own override win, as the studio's identity does", () => {
+    assert.equal(hostGitEnv().GIT_PAGER, "cat");
+    assert.equal(hostGitEnv({ GIT_PAGER: "less" }).GIT_PAGER, "less");
     assert.equal(hostGitEnv({ GIT_AUTHOR_NAME: "Senex" }).GIT_AUTHOR_NAME, "Senex");
     assert.equal(hostGitEnv({ GIT_INDEX_FILE: "/private/index" }).GIT_INDEX_FILE, "/private/index");
   });

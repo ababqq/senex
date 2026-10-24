@@ -846,6 +846,26 @@ describe("a repository whose own config names a program", () => {
     assert.deepEqual(await repo.status(), [], "the folder was never touched");
   });
 
+  it("refuses a folder whose .git is an empty directory inside a larger repository, leaving that repository alone", async () => {
+    const enclosing = path.join(await tmpDir("enclosed-"), "enclosing");
+    const project = path.join(enclosing, "proj");
+    await mkdir(path.join(project, ".git"), { recursive: true });
+    await fixtureGit(enclosing, ["init", "-q", "-b", "main"]);
+    await writeFile(path.join(enclosing, "v.txt"), "v\n");
+    await fixtureGit(enclosing, ["add", "v.txt"]);
+    await fixtureGit(enclosing, ["commit", "-q", "-m", "v"]);
+    await writeFile(path.join(project, "a.txt"), "a\n");
+    await writeFile(path.join(enclosing, "outside.txt"), "an edit next to the project\n");
+    const head = await fixtureGit(enclosing, ["rev-parse", "HEAD"]);
+    const engine = new SnapshotEngine([{ name: "project", dir: project }]);
+    await engine.init();
+    await assert.rejects(() => engine.snapshot({ scope: "game", reason: "refused", projectWorkspace: "project" }), {
+      code: "foreign-git-dir",
+    });
+    assert.equal(await fixtureGit(enclosing, ["rev-parse", "HEAD"]), head, "the larger repository took no commit");
+    assert.equal(await readFile(path.join(enclosing, "outside.txt"), "utf8"), "an edit next to the project\n");
+  });
+
   it("says why a restore, and a lookup of a commit, stop in a folder host git refuses, not that the branch moved", async () => {
     const repo = await dirtyUserRepo({ modified: {}, staged: {}, untracked: {} });
     const engine = new SnapshotEngine([{ name: "project", dir: repo.dir }]);

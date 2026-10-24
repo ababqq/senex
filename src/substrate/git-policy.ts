@@ -7,7 +7,8 @@
  * - fixed-name settings that name a program pinned off (`PINNED_CONFIG`);
  * - every command-valued key the folder's own config sets (a driver name is the folder's choice)
  *   overridden to nothing, found by listing the config — and a folder whose config uses a name
- *   `-c` cannot carry, or whose `core.worktree` leaves the folder, refused with a typed error;
+ *   `-c` cannot carry, whose `core.worktree` leaves the folder, or whose `.git` leads to another
+ *   work tree's git directory, refused with a typed error;
  * - diff-family commands told to use no external diff or text conversion, and `git add` told to
  *   leave environment files out.
  *
@@ -15,7 +16,7 @@
  * folder keeps its own `.git/config`, which this does not scan.
  */
 import { type ChildProcess, type ChildProcessByStdio, execFile, spawn } from "node:child_process";
-import { readFile, realpath, stat } from "node:fs/promises";
+import { lstat, readFile, realpath, stat } from "node:fs/promises";
 import path from "node:path";
 import type { Readable } from "node:stream";
 import { promisify } from "node:util";
@@ -38,12 +39,24 @@ const GIT_FILE_MAX_CHARS = 4096;
 const DRIVER_KEY =
   /^(?:filter\..*\.(?:clean|smudge|process|required)|diff\..*\.(?:textconv|command)|merge\..*\.driver)$/is;
 const MERGE_DRIVER_KEY = /^merge\..*\.driver$/is;
+/** The same keys as `git config --get-regexp` takes them. */
+const MERGE_DRIVER_PATTERN = "^merge\\..*\\.driver$";
+/** A config that includes another file: what the file says can change after the scan. */
+const INCLUDE_KEY = /^(?:include|includeif\..*)\.path$/is;
 /** The commands a merge driver may be, and still be left as the folder set it: they start nothing. */
 const INERT_MERGE_COMMANDS: ReadonlySet<string> = new Set(["true", "false"]);
 const PRIVATE_ENV_PATHS = [":(glob,exclude)**/.env", ":(glob,exclude)**/.env.*"];
 const DIFF_FAMILY = new Set(["diff", "diff-tree", "diff-index", "show", "log"]);
 /** Options git takes before its subcommand that read the next argument as their value. */
-const GLOBAL_OPTIONS_WITH_VALUE = new Set(["-c", "-C", "--git-dir", "--work-tree", "--namespace", "--super-prefix"]);
+const GLOBAL_OPTIONS_WITH_VALUE = new Set([
+  "-c",
+  "-C",
+  "--git-dir",
+  "--work-tree",
+  "--namespace",
+  "--super-prefix",
+  "--attr-source",
+]);
 const REPLACEMENT_CHARACTER = "�";
 
 /**
@@ -71,7 +84,7 @@ const PINNED_CONFIG = {
   ...ATTACHED_MAINTENANCE,
 } as const;
 
-/** Highest-precedence settings shared by host Git callers and sandboxed Git tools. */
+/** The settings every host git command carries: `-c` beats every config file. Exported so a test holds the table to its promises. */
 export const HOST_GIT_CONFIG = Object.entries(PINNED_CONFIG).flatMap(([key, value]) => ["-c", `${key}=${value}`]);
 
 /** Why host git declined to run in a folder. */
@@ -80,7 +93,7 @@ export const HostGitRefusal = {
   UnsafeConfigKey: "unsafe-config-key",
   /** The folder's `core.worktree` sends git's work tree somewhere else. */
   ForeignWorkTree: "foreign-work-tree",
-  /** The folder's `.git` file names the git directory of another work tree, so its commits would land there. */
+  /** The folder's `.git` (a pointer, a link, or no repository at all) leads to the git directory of another work tree, so its commits would land there. */
   ForeignGitDir: "foreign-git-dir",
 } as const;
 export type HostGitRefusal = (typeof HostGitRefusal)[keyof typeof HostGitRefusal];
@@ -91,7 +104,7 @@ const MESSAGE = {
   ForeignWorkTree: (top: string) =>
     `This folder's git settings put its work tree in a different folder (${top}). Remove core.worktree from this folder's git settings (.git/config), then try again.`,
   ForeignGitDir: (target: string) =>
-    `This folder's .git file points at the git directory of another folder (${target}), so Senex's saves would be written there. Remove or replace the .git file, then try again.`,
+    `This folder's .git leads to the git directory of another folder (${target}), so Senex's saves would be written there. Remove or replace the .git entry, then try again.`,
   /** Why a name `-c` cannot carry is unusable. */
   NameHasEquals: 'its name contains "="',
   NameHasLineBreak: "its name contains a line break",
@@ -208,30 +221,32 @@ export function driverOverrides(listing: string, trusted: ReadonlySet<string> = 
   return overrides;
 }
 
-/** Every key the folder's config sets, including what its `include.path` files add, NUL-separated. */
-async function configListing(dir: string, env: NodeJS.ProcessEnv): Promise<string> {
-  const running = exec("git", [...HOST_GIT_CONFIG, "-C", dir, "config", "--list", "--null", "--name-only"], {
+/**
+ * One read-only git call of the scan. Its standard input is closed: an `include.path` of /dev/stdin
+ * waits for input that never comes on the git that macOS ships.
+ */
+async function scan(dir: string, env: NodeJS.ProcessEnv, args: readonly string[], maxBuffer: number): Promise<string> {
+  const running = exec("git", [...HOST_GIT_CONFIG, "-C", dir, ...args], {
     env,
-    maxBuffer: CONFIG_MAX_BYTES,
+    maxBuffer,
     timeout: SCAN_TIMEOUT_MS,
     windowsHide: true,
   });
-  // An `include.path` of /dev/stdin waits for input that never comes, on the git that macOS ships.
   running.child.stdin?.end();
   return (await running).stdout;
+}
+
+/** Every key the folder's config sets, including what its `include.path` files add, NUL-separated. */
+function configListing(dir: string, env: NodeJS.ProcessEnv): Promise<string> {
+  return scan(dir, env, ["config", "--list", "--null", "--name-only"], CONFIG_MAX_BYTES);
 }
 
 /** Where git says the folder's work tree is, or null when it cannot say (not a repository, a bare one). */
 async function workTreeOf(dir: string, env: NodeJS.ProcessEnv): Promise<string | null> {
   try {
-    const running = exec("git", [...HOST_GIT_CONFIG, "-C", dir, "rev-parse", "--show-toplevel"], {
-      env,
-      maxBuffer: WORK_TREE_MAX_BUFFER_BYTES,
-      timeout: SCAN_TIMEOUT_MS,
-      windowsHide: true,
-    });
-    running.child.stdin?.end();
-    return (await running).stdout.replace(/\r?\n$/, "") || null;
+    return (
+      (await scan(dir, env, ["rev-parse", "--show-toplevel"], WORK_TREE_MAX_BUFFER_BYTES)).replace(/\r?\n$/, "") || null
+    );
   } catch {
     return null;
   }
@@ -258,86 +273,115 @@ async function lies(inner: string, outer: string): Promise<boolean> {
 }
 
 /**
- * A `core.worktree` can send `add -A` and `reset --hard` into files outside the folder. The work
- * tree git reports must be the folder: a linked worktree, `--separate-git-dir` and a `.git` file
- * all answer with the folder itself. A folder with no `.git` of its own inside a larger repository
- * reads that repository, so its work tree may also be a folder that contains this one.
+ * Git must work in the folder itself. A `core.worktree` can send `add -A` and `reset --hard` into
+ * files outside it, and a `.git` that is no repository of its own (an empty directory, a dangling
+ * link) leaves git reading the repository around the folder. The work tree git reports must be the
+ * folder: a linked worktree, `--separate-git-dir` and a `.git` file all answer with the folder
+ * itself. A folder with no `.git` of its own inside a larger repository reads that repository, so
+ * its work tree may also be a folder that contains this one.
  */
 async function refuseForeignWorkTree(dir: string, env: NodeJS.ProcessEnv, keys: ReadonlySet<string>): Promise<void> {
-  if (!keys.has("core.worktree")) return;
-  const top = await workTreeOf(dir, env);
-  if (top === null || (await sameFolder(top, dir))) return;
-  const holdsGit = await stat(path.join(dir, ".git")).then(
+  const redirected = keys.has("core.worktree");
+  const holdsGit = await lstat(path.join(dir, ".git")).then(
     () => true,
     () => false,
   );
+  if (!redirected && !holdsGit) return;
+  const top = await workTreeOf(dir, env);
+  if (top === null || (await sameFolder(top, dir))) return;
   if (!holdsGit && (await lies(dir, top))) return;
-  throw new HostGitRefusedError(HostGitRefusal.ForeignWorkTree, MESSAGE.ForeignWorkTree(top));
+  throw redirected
+    ? new HostGitRefusedError(HostGitRefusal.ForeignWorkTree, MESSAGE.ForeignWorkTree(top))
+    : new HostGitRefusedError(HostGitRefusal.ForeignGitDir, MESSAGE.ForeignGitDir(top));
+}
+
+/** The git directory a folder's `.git` leads to, when `.git` is a pointer or a link rather than a directory of its own. */
+async function gitDirBehind(dir: string): Promise<string | null> {
+  try {
+    const entry = path.join(dir, ".git");
+    if ((await lstat(entry)).isDirectory()) return null;
+    const real = await realpath(entry);
+    if ((await stat(real)).isDirectory()) return real;
+    const text = (await readFile(real, "utf8")).slice(0, GIT_FILE_MAX_CHARS);
+    const pointer = /^gitdir:[ \t]*(.+?)[ \t]*$/m.exec(text)?.[1];
+    if (pointer === undefined) return null;
+    const target = path.resolve(dir, pointer);
+    return await realpath(target).catch(() => target);
+  } catch {
+    return null;
+  }
 }
 
 /**
- * A `.git` file is a pointer, and one planted in a downloaded folder can point at the git directory
- * of the person's other project, where the studio's saves and restores would then land. A pointer
- * to a linked worktree's or a submodule's directory, or to a separate git directory, is the folder's
- * own; one that names the `.git` directory of another work tree is not.
+ * Whether the git directory `target` is the folder's own: inside the folder, a linked worktree's
+ * directory that names this folder's `.git`, or any other git directory that is not the `.git` of
+ * another work tree (a separate git directory, a submodule's). Judged by what the directory is, not
+ * by how the pointer spells it.
  */
-async function refuseForeignGitFile(dir: string): Promise<void> {
-  let text: string;
-  try {
-    const file = path.join(dir, ".git");
-    if (!(await stat(file)).isFile()) return;
-    text = (await readFile(file, "utf8")).slice(0, GIT_FILE_MAX_CHARS);
-  } catch {
-    return;
-  }
-  const pointer = /^gitdir:[ \t]*(.+?)[ \t]*$/m.exec(text)?.[1];
-  if (pointer === undefined) return;
-  const target = path.resolve(dir, pointer);
-  if (path.basename(target) !== ".git") return;
-  const parent = path.dirname(target);
-  if (await sameFolder(parent, dir)) return;
+async function servesFolder(target: string, dir: string): Promise<boolean> {
+  if (await lies(target, dir)) return true;
+  const claimed = await readFile(path.join(target, "gitdir"), "utf8").then(
+    (text) => text.trim(),
+    () => null,
+  );
+  if (claimed !== null) return sameFolder(path.resolve(target, claimed), path.join(dir, ".git"));
+  return path.basename(target).toLowerCase() !== ".git" || (await sameFolder(path.dirname(target), dir));
+}
+
+/**
+ * A `.git` file or link is a pointer, and one planted in a downloaded folder can point at the git
+ * directory of the person's other project, where the studio's saves and restores would then land.
+ */
+async function refuseForeignGitDir(dir: string): Promise<void> {
+  const target = await gitDirBehind(dir);
+  if (target === null || (await servesFolder(target, dir))) return;
   throw new HostGitRefusedError(HostGitRefusal.ForeignGitDir, MESSAGE.ForeignGitDir(target));
 }
 
-/** Auto-maintenance can run a program a folder's `gc.recentObjectsHook` names, and the key cannot be reset: it is turned off for such a folder. */
+/**
+ * Auto-maintenance can run a program a `gc.recentObjectsHook` names, and the key cannot be reset.
+ * It reads the config again after the command has rewritten the work tree, so a file the config
+ * includes can bring the hook in after the scan; it is turned off for a folder that sets the key or
+ * includes anything.
+ */
 function maintenancePins(keys: ReadonlySet<string>): string[] {
-  return keys.has("gc.recentobjectshook") ? ["-c", "gc.auto=0", "-c", "maintenance.auto=false"] : [];
+  const mayRunAHook = keys.has("gc.recentobjectshook") || [...keys].some((key) => INCLUDE_KEY.test(key));
+  return mayRunAHook ? ["-c", "gc.auto=0", "-c", "maintenance.auto=false"] : [];
 }
 
 /**
  * The merge drivers whose whole command is `true` or `false`: the keep-mine idiom (`merge.ours.driver
  * = true`). They run no program of the folder's choosing, so a landing that relies on one still works.
+ * A driver set more than once counts only when every value is inert, since git uses the last.
  */
 async function trustedMergeDrivers(
   dir: string,
   env: NodeJS.ProcessEnv,
   keys: ReadonlySet<string>,
 ): Promise<Set<string>> {
-  const trusted = new Set<string>();
-  for (const key of keys) {
-    if (!MERGE_DRIVER_KEY.test(key) || unusableNameReason(key)) continue;
-    try {
-      const { stdout } = await exec("git", [...HOST_GIT_CONFIG, "-C", dir, "config", "--null", "--get-all", key], {
-        env,
-        maxBuffer: CONFIG_MAX_BYTES,
-        timeout: SCAN_TIMEOUT_MS,
-        windowsHide: true,
-      });
-      const values = stdout.split("\0").filter((value) => value !== "");
-      if (values.length > 0 && values.every((value) => INERT_MERGE_COMMANDS.has(value))) trusted.add(key);
-    } catch {
-      /* unreadable: not trusted, so neutralized */
-    }
+  if (![...keys].some((key) => MERGE_DRIVER_KEY.test(key))) return new Set();
+  let listing: string;
+  try {
+    listing = await scan(dir, env, ["config", "--null", "--get-regexp", MERGE_DRIVER_PATTERN], CONFIG_MAX_BYTES);
+  } catch {
+    return new Set(); // unreadable: nothing is trusted, so every driver is neutralized
   }
-  return trusted;
+  const inert = new Map<string, boolean>();
+  for (const record of listing.split("\0").filter(Boolean)) {
+    const split = record.indexOf("\n");
+    const key = split === -1 ? record : record.slice(0, split);
+    const value = split === -1 ? "" : record.slice(split + 1);
+    inert.set(key, (inert.get(key) ?? true) && INERT_MERGE_COMMANDS.has(value));
+  }
+  return new Set([...inert].filter(([, allInert]) => allInert).map(([key]) => key));
 }
 
 /** The `-c` arguments that make git in `dir` run nothing the folder's config names, or a typed refusal. */
 export async function hostGitConfig(dir: string, env: NodeJS.ProcessEnv = hostGitEnv()): Promise<string[]> {
   const listing = await configListing(dir, env);
   const keys = new Set(listing.split("\0").filter(Boolean));
+  await refuseForeignGitDir(dir);
   await refuseForeignWorkTree(dir, env, keys);
-  await refuseForeignGitFile(dir);
   return [
     ...HOST_GIT_CONFIG,
     ...maintenancePins(keys),
