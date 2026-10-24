@@ -1458,13 +1458,13 @@ export class ProjectPreview {
   }
 }
 
-/** Wait `ms`; a negative wait is none. */
 /** The address a page's relative URLs resolve against: what the browser asked, else the project's own name for the file. */
 function documentAddress(project: string, relative: string, routed: boolean, request: Request | undefined): string {
   if (routed && request) return routedDocumentUrl(request.url, relative);
   return request?.url ?? `${SCHEME}://${project}/${relative}`;
 }
 
+/** Wait `ms`; a negative wait is none. */
 function sleep(ms: number): Promise<void> {
   return delay(Math.max(0, ms));
 }
