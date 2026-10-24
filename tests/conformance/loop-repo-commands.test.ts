@@ -96,6 +96,15 @@ describe("running git in a worktree", () => {
     assert.equal(await gitAt(recorder.ctx, dir, GIT.status, { trim: "both" }), "M index.html");
   });
 
+  it("names a file with a Korean or accented name as it is on disk, not as an octal escape", async () => {
+    const dir = await repo();
+    await writeFile(path.join(dir, "예약폼.js"), "export {};\n");
+    await writeFile(path.join(dir, "café.js"), "export {};\n");
+    const recorder = shellCtx();
+    const lines = (await gitAt(recorder.ctx, dir, GIT.status)).split("\n").sort();
+    assert.deepEqual(lines, ["?? café.js", "?? 예약폼.js"]);
+  });
+
   it("throws what the command said on a non-zero exit, clipped, or in the caller's own words", async () => {
     const dir = await repo();
     const recorder = shellCtx();
@@ -166,6 +175,16 @@ describe("running git in a worktree", () => {
       throw new Error("the host is gone");
     });
     assert.deepEqual(await gitlinks(recorder.ctx, dir, "HEAD"), [], "a command that cannot run answers none");
+  });
+
+  it("lists a nested repository named in Korean by its real path, which a path lookup can then find", async () => {
+    const dir = await repo();
+    const inner = await repo({ "inner.txt": "inner\n" });
+    const innerHead = await fixtureGit(inner, ["rev-parse", "HEAD"]);
+    await fixtureGit(dir, ["update-index", "--add", "--cacheinfo", `160000,${innerHead},vendor/예약`]);
+    await fixtureGit(dir, ["commit", "-q", "-m", "a gitlink with a Korean name"]);
+    const recorder = shellCtx();
+    assert.deepEqual(await gitlinks(recorder.ctx, dir, "HEAD"), ["vendor/예약"]);
   });
 });
 
