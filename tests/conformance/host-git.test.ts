@@ -115,13 +115,16 @@ describe("host git never runs a program a folder's config names", { skip: !POSIX
     assert.equal(await exists(marker), false);
   });
 
-  it("declines, rather than waits on, an include that reads standard input", async () => {
+  it("does not wait on an include that reads standard input", async () => {
     const { dir } = await planted();
     await config(dir, `[include]\n\tpath = /dev/stdin\n`);
-    await assert.rejects(
-      () => hostGit(dir, ["status", "--porcelain"]),
-      (error: { killed?: boolean }) => error.killed !== true,
+    // The git that macOS ships reads /dev/stdin and blocks until the scan's timeout kills it; others fail
+    // at once or read an empty file. Either answer is fine; waiting is not.
+    const outcome = await hostGit(dir, ["status", "--porcelain"]).then(
+      () => "answered",
+      (error: { killed?: boolean }) => (error.killed === true ? "waited" : "answered"),
     );
+    assert.equal(outcome, "answered");
   });
 
   it("never proceeds unpinned on a key too long to pass to git", async () => {

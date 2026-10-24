@@ -176,25 +176,28 @@ export function driverOverrides(listing: string): string[] {
 
 /** Every key the folder's config sets, including what its `include.path` files add, NUL-separated. */
 async function configListing(dir: string, env: NodeJS.ProcessEnv): Promise<string> {
-  const { stdout } = await exec("git", [...HOST_GIT_CONFIG, "-C", dir, "config", "--list", "--null", "--name-only"], {
+  const running = exec("git", [...HOST_GIT_CONFIG, "-C", dir, "config", "--list", "--null", "--name-only"], {
     env,
     maxBuffer: CONFIG_MAX_BYTES,
     timeout: SCAN_TIMEOUT_MS,
     windowsHide: true,
   });
-  return stdout;
+  // An `include.path` of /dev/stdin waits for input that never comes, on the git that macOS ships.
+  running.child.stdin?.end();
+  return (await running).stdout;
 }
 
 /** Where git says the folder's work tree is, or null when it cannot say (not a repository, a bare one). */
 async function workTreeOf(dir: string, env: NodeJS.ProcessEnv): Promise<string | null> {
   try {
-    const { stdout } = await exec("git", [...HOST_GIT_CONFIG, "-C", dir, "rev-parse", "--show-toplevel"], {
+    const running = exec("git", [...HOST_GIT_CONFIG, "-C", dir, "rev-parse", "--show-toplevel"], {
       env,
       maxBuffer: WORK_TREE_MAX_BUFFER_BYTES,
       timeout: SCAN_TIMEOUT_MS,
       windowsHide: true,
     });
-    return stdout.trim() || null;
+    running.child.stdin?.end();
+    return (await running).stdout.trim() || null;
   } catch {
     return null;
   }
