@@ -9,7 +9,11 @@ import { describe, it } from "node:test";
 import { PAGE_DISPATCH } from "../../src/main/page-dispatch.ts";
 import { LIVE_PROBE, SCROLL_TO_TOP } from "../../src/main/preview-page-scripts.ts";
 import vm from "node:vm";
-import { PROJECT_DISABLED_BLINK_FEATURES, projectViewPreferences } from "../../src/main/project-view.ts";
+import {
+  PROJECT_DISABLED_BLINK_FEATURES,
+  projectViewPreferences,
+  shimOptionsFor,
+} from "../../src/main/project-view.ts";
 import { installStudio, makeRng } from "../../src/project-template/src/studio.js";
 import {
   AUTO_RESUME_MS,
@@ -22,6 +26,7 @@ import {
   createFacade,
   createPointerLock,
   installFacade,
+  installPageDialogs,
   installPageGlobal,
   installSeededRandom,
   mulberry32,
@@ -272,6 +277,46 @@ describe("the virtual clock", () => {
     assert.equal(normalizeShimOptions({ readyMs: "nonsense" }).readyMs, DEFAULT_SHIM_OPTIONS.readyMs);
     assert.equal(normalizeShimOptions({ clock: "studio" }).clock, "studio");
     assert.equal(rig({ clock: "studio" }).clock.frozen(), true, "a studio-clock page is frozen from its first frame");
+  });
+
+  it("leaves a page's dialogs to the page unless the studio says nobody is there to answer them", () => {
+    assert.equal(normalizeShimOptions({}).dialogs, "ask");
+    assert.equal(normalizeShimOptions({ dialogs: "answer" }).dialogs, "answer");
+    for (const other of ["yes", "", null, 1, true, undefined]) {
+      assert.equal(normalizeShimOptions({ dialogs: other }).dialogs, "ask", String(other));
+    }
+  });
+
+  it("answers the window's dialogs only when asked to, and puts what it did on the page's console", () => {
+    const lines: string[] = [];
+    const native = (..._args: unknown[]): never => {
+      throw new Error("a native dialog would have frozen the window");
+    };
+    const window = () => ({
+      alert: native,
+      confirm: native,
+      prompt: native,
+      print: native,
+      console: { warn: (line: string) => lines.push(line) },
+    });
+
+    const live = window();
+    assert.equal(installPageDialogs(live, normalizeShimOptions({})), false);
+    assert.equal(live.alert, native, "a person is there: the dialog is the page's to show");
+
+    const agent = window();
+    assert.equal(installPageDialogs(agent, normalizeShimOptions({ dialogs: "answer" })), true);
+    assert.equal(agent.confirm("Sure?"), false);
+    assert.equal(lines.length, 1);
+    assert.match(lines[0] ?? "", /confirm/);
+
+    const noConsole = { alert: native, confirm: native, prompt: native, print: native };
+    assert.doesNotThrow(() => installPageDialogs(noConsole, normalizeShimOptions({ dialogs: "answer" })));
+    assert.equal(
+      (noConsole as { confirm: () => boolean }).confirm(),
+      false,
+      "a page with no console is still answered",
+    );
   });
 });
 
@@ -588,6 +633,26 @@ describe("what a project page's renderer is given", () => {
     );
     assert.ok(!("preload" in prefs), "a project page must never get a preload");
     assert.equal(projectViewPreferences("s", true).offscreen, true);
+  });
+
+  it("lets the window, not the app default or the harness, decide whether its dialogs are answered", () => {
+    assert.deepEqual(shimOptionsFor({ readyMs: 30_000 }, { seed: null }, true), {
+      readyMs: 30_000,
+      seed: null,
+      dialogs: "answer",
+    });
+    assert.equal(
+      shimOptionsFor({}, { dialogs: "ask" }, true).dialogs,
+      "answer",
+      "the harness cannot keep them in an agent's window",
+    );
+    assert.deepEqual(shimOptionsFor({ dialogs: "answer" }, { dialogs: "answer", seed: null }, false), { seed: null });
+    assert.deepEqual(shimOptionsFor({}, {}, false), {}, "Live's tag is the one it always was");
+  });
+
+  it("shows no browser dialog in a window nobody is sitting at, and leaves Live's to the person", () => {
+    assert.equal(projectViewPreferences("s", true).disableDialogs, true);
+    assert.equal(projectViewPreferences("s", false).disableDialogs, false);
   });
 });
 

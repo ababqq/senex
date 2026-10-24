@@ -3,6 +3,8 @@
  * creates. Kept free of Electron so the settings are tested as values, not read out of source.
  */
 
+import type { ShimOptions } from "../substrate/preview-port.ts";
+
 /** The longest file name or type a download's console line repeats. */
 const MAX_DOWNLOAD_TEXT = 80;
 
@@ -47,7 +49,24 @@ export function projectViewPreferences<S>(projectSession: S, offscreen: boolean)
     // audio probes (`__studio.audio()`) measure silence forever.
     autoplayPolicy: "no-user-gesture-required" as const,
     disableBlinkFeatures: PROJECT_DISABLED_BLINK_FEATURES.join(","),
+    // No one sits at an agent's window to click a dialog: the page would freeze. Chromium dismisses
+    // them in every frame, the shim's answers (`dialogs.ts`) say which one it was; Live keeps its own.
+    disableDialogs: offscreen,
   };
+}
+
+/**
+ * The options a window's page shim is installed with: the app's default under this load's own, and
+ * the one the window decides for itself. An agent's hidden window answers the page's dialogs; Live
+ * never does, whatever was asked, so its page and its tag are as they always were.
+ */
+export function shimOptionsFor(
+  app: Partial<ShimOptions>,
+  load: Partial<ShimOptions>,
+  offscreen: boolean,
+): Partial<ShimOptions> {
+  const { dialogs: _asked, ...merged } = { ...app, ...load };
+  return offscreen ? { ...merged, dialogs: "answer" } : merged;
 }
 
 /** What the studio does with a file the page starts downloading, and what the console is told. */

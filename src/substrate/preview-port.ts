@@ -39,6 +39,11 @@ export interface ShimOptions {
   counters: boolean;
   /** Beyond this many outstanding timers the wrapper passes through to the natives. */
   maxTimers: number;
+  /**
+   * `answer` dismisses the page's `alert`, `confirm`, `prompt` and `print` in a window nobody
+   * sits at; `ask` leaves them to the page. The main process sets it for the window, not the harness.
+   */
+  dialogs: "ask" | "answer";
 }
 
 /**

@@ -18,6 +18,7 @@ import { installUiActivity, type UiActivity } from "./ui-activity.ts";
  */
 import { createFrameCapture } from "./capture.ts";
 import { installStudioDrawCounters } from "./counters.ts";
+import { installDialogAnswers } from "./dialogs.ts";
 import type { Foreign, PageGlobal } from "./foreign.ts";
 
 /** The virtual clock's version — read by the studio before it trusts any of these verbs. */
@@ -51,6 +52,7 @@ export const DEFAULT_SHIM_OPTIONS = Object.freeze({
   pointerLock: true,
   counters: true,
   maxTimers: 4096,
+  dialogs: "ask",
 });
 
 /** The seed the page is keyed with: none (`null`), the one sent, or the default. */
@@ -76,6 +78,7 @@ export function normalizeShimOptions(raw: Foreign) {
     pointerLock: input.pointerLock !== false,
     counters: input.counters !== false,
     maxTimers: Math.round(num(input.maxTimers, DEFAULT_SHIM_OPTIONS.maxTimers, 16, 65_536)),
+    dialogs: input.dialogs === "answer" ? ("answer" as const) : ("ask" as const),
   };
 }
 
@@ -1788,6 +1791,18 @@ function installClockGlobal(parts: ClockParts) {
 }
 
 /**
+ * Answer the window's browser dialogs when the studio says nobody is there to (`dialogs: "answer"`,
+ * an agent's hidden window); in Live a person is there and the dialogs are the page's own. What it
+ * did goes to the page's console, which the studio reads. True when it installed the answers.
+ */
+export function installPageDialogs(win: Foreign, options: ShimOptions): boolean {
+  if (options.dialogs !== "answer") return false;
+  const warn = typeof win.console?.warn === "function" ? win.console.warn.bind(win.console) : () => {};
+  installDialogAnswers(win, (line) => warn(line));
+  return true;
+}
+
+/**
  * Install the whole shim on a page. Idempotent: a second copy of the tag is a no-op.
  * Returns the clock it installed (or the one that was already there).
  */
@@ -1796,6 +1811,7 @@ export function installStudioShim(rawOptions: Foreign) {
   const win: Foreign = globalThis;
   if (win.__studioClock && win.__studioClock.version === CLOCK_VERSION) return win.__studioClock;
   const options = normalizeShimOptions(rawOptions);
+  installPageDialogs(win, options);
   const natives = nativesOf(win);
   if (natives.raf && natives.cancelRaf) {
     const gate = animationGate({ request: natives.raf, cancel: natives.cancelRaf });

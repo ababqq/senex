@@ -61,7 +61,20 @@ import {
 import { PAGE_DISPATCH } from "./page-dispatch.ts";
 import { emulatePageFocus } from "./preview-focus.ts";
 import { anchoredBounds } from "./preview-anchor.ts";
-import { downloadDecision, downloadLine, isBrowserNotice, projectViewPreferences } from "./project-view.ts";
+import {
+  downloadDecision,
+  downloadLine,
+  isBrowserNotice,
+  projectViewPreferences,
+  shimOptionsFor,
+} from "./project-view.ts";
+import {
+  bypassUnloadGuard,
+  NAVIGATION_SETTLE_MS,
+  PreviewNavigationError,
+  reloadWithin,
+  settleWithin,
+} from "./preview-navigation.ts";
 import { capActions, type PreviewInputAction } from "../substrate/preview-input.ts";
 import { siteBaseOfEntry } from "../substrate/project-export.ts";
 import { applyInputAction, type PageDispatch } from "./preview-input-driver.ts";
@@ -360,6 +373,11 @@ export class ProjectPreview {
         note: (kind, url) => this.#noteBlocked(kind, url),
         asks: Boolean(this.options.externalLinks) && !this.options.offscreen,
       },
+    );
+    // A page that guards against being left must not hold a load or reload the studio asked for.
+    bypassUnloadGuard(
+      { willPreventUnload: (listener) => wc.on("will-prevent-unload", listener) },
+      () => this.#navigating,
     );
     wc.on("console-message", (details) => {
       if (typeof details?.message !== "string") {
@@ -676,7 +694,7 @@ export class ProjectPreview {
 
   /** The options this page's shim is installed with: the app's default under this load's own. */
   #shimOptions(): Partial<ShimOptions> {
-    return { ...(this.options.shim ?? {}), ...(this.#shimLoad ?? {}) };
+    return shimOptionsFor(this.options.shim ?? {}, this.#shimLoad ?? {}, this.options.offscreen ?? false);
   }
 
   /** The real root pinned at load, while the preview still serves that same root for `project`. */
@@ -741,7 +759,7 @@ export class ProjectPreview {
     // offline-first page rebuilds its cache on load); localStorage and IndexedDB are left alone.
     try {
       if (options.loopback) await this.#clearWorkers(new URL(url).origin);
-      await view.webContents.loadURL(url);
+      await this.#navigate(view.webContents, url);
     } finally {
       this.#navigating = false;
     }
@@ -773,7 +791,7 @@ export class ProjectPreview {
     await this.#profiler.invalidate("preview stopped");
     this.#navigating = true;
     try {
-      await wc.loadURL(STOPPED_PAGE);
+      await this.#navigate(wc, STOPPED_PAGE);
     } finally {
       this.#navigating = false;
     }
@@ -794,9 +812,30 @@ export class ProjectPreview {
     this.#loadError = null;
     this.#navigating = true;
     try {
-      await wc.loadURL(url);
+      await this.#navigate(wc, url);
     } finally {
       this.#navigating = false;
+    }
+  }
+
+  /**
+   * Load `url` in the window the studio navigates, at most `NAVIGATION_SETTLE_MS`: a load that never
+   * settles is stopped and reported on the console, not waited for for ever.
+   */
+  async #navigate(wc: Electron.WebContents, url: string): Promise<void> {
+    await this.#bounded(() => settleWithin(wc.loadURL(url), NAVIGATION_SETTLE_MS, undefined, () => wc.stop()));
+  }
+
+  /** Run a navigation; one that was given up on is also what the console and the load error say. */
+  async #bounded<T>(run: () => Promise<T>): Promise<T> {
+    try {
+      return await run();
+    } catch (error) {
+      if (error instanceof PreviewNavigationError) {
+        this.#loadError = error.message;
+        this.#push({ at: Date.now(), level: "error", message: error.message });
+      }
+      throw error;
     }
   }
 
@@ -816,17 +855,11 @@ export class ProjectPreview {
     // The user pressing Reload means "show me what is on disk NOW" — never a cached copy.
     this.#navigating = true;
     const wc = this.#view.webContents;
-    wc.reloadIgnoringCache();
-    await new Promise<void>((resolve) => {
-      const done = () => {
-        wc.off("did-finish-load", done);
-        wc.off("did-fail-load", done);
-        this.#navigating = false;
-        resolve();
-      };
-      wc.once("did-finish-load", done);
-      wc.once("did-fail-load", done);
-    });
+    try {
+      await this.#bounded(() => reloadWithin(wc));
+    } finally {
+      this.#navigating = false;
+    }
   }
 
   /** JPEG because these go straight into a vision model's context. */
