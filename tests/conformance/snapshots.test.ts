@@ -15,6 +15,8 @@ import {
   STUDIO_COMMITTER,
   ensureRepo,
   git,
+  gitOrNull,
+  resolveCommit,
   snapshotRef,
 } from "../../src/substrate/snapshots.ts";
 import { NESTED_BACKUP, nestedRepos, versionNestedForLanding } from "../../src/substrate/project-workspace.ts";
@@ -842,6 +844,18 @@ describe("a repository whose own config names a program", () => {
     );
     await writeFile(config, original);
     assert.deepEqual(await repo.status(), [], "the folder was never touched");
+  });
+
+  it("says why a restore, and a lookup of a commit, stop in a folder host git refuses, not that the branch moved", async () => {
+    const repo = await dirtyUserRepo({ modified: {}, staged: {}, untracked: {} });
+    const engine = new SnapshotEngine([{ name: "project", dir: repo.dir }]);
+    await engine.init();
+    const before = await engine.snapshot({ scope: "game", reason: "before", projectWorkspace: "project" });
+    const config = path.join(repo.dir, ".git", "config");
+    await writeFile(config, `${await readFile(config, "utf8")}[filter "a=b"]\n\tclean = cat\n`);
+    await assert.rejects(() => engine.restore(before, { projectWorkspace: "project" }), { code: "unsafe-config-key" });
+    await assert.rejects(() => resolveCommit(repo.dir, "HEAD"), { code: "unsafe-config-key" });
+    assert.equal(await gitOrNull(repo.dir, ["rev-parse", "HEAD"]).catch((error) => error.code), "unsafe-config-key");
   });
 
   it("never makes a host-side snapshot, diff, restore or content stamp run it", async () => {

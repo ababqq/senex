@@ -7,6 +7,8 @@
  */
 import assert from "node:assert/strict";
 import { appendFile, chmod, mkdir, readFile, realpath, rm, stat, symlink, writeFile } from "node:fs/promises";
+import { spawnSync } from "node:child_process";
+import { pathToFileURL } from "node:url";
 import path from "node:path";
 import { describe, it } from "node:test";
 import { HostGitRefusal, hostGit, hostGitContext, hostGitCommand } from "../../src/substrate/git-policy.ts";
@@ -157,6 +159,35 @@ describe("host git never runs a program a folder's config names", { skip: !POSIX
     }
   });
 
+  /** Two branches that both rewrite a.txt, `a.txt` set to merge with `driver`; the checked-out one is `main`. */
+  async function divergedOn(dir: string, driver: string) {
+    await mkdir(path.join(dir, ".git", "info"), { recursive: true });
+    await writeFile(path.join(dir, ".git", "info", "attributes"), `a.txt merge=${driver}\n`);
+    await fixtureGit(dir, ["checkout", "-q", "-b", "build", "HEAD~1"]);
+    await writeFile(path.join(dir, "a.txt"), "build side\n");
+    await fixtureGit(dir, ["commit", "-q", "-am", "build"]);
+    await fixtureGit(dir, ["checkout", "-q", "main"]);
+  }
+
+  it("keeps the keep-mine merge driver a person set (`true`), so a landing that relies on it still lands", async () => {
+    const { dir, marker } = await planted();
+    await config(dir, `[merge "ours"]\n\tdriver = true\n`);
+    await divergedOn(dir, "ours");
+    await hostGit(dir, ["merge", "--no-ff", "-m", "land", "build"], { env: GIT_ENV });
+    assert.equal(await readFile(path.join(dir, "a.txt"), "utf8"), "two\n", "the checked-out side was kept");
+    assert.equal(await exists(marker), false);
+  });
+
+  it("still neutralizes a merge driver that is more than `true` or `false`", async () => {
+    for (const driver of ["true && touch MARKER", "true %A", "/bin/true", "false && touch MARKER"]) {
+      const { dir, marker } = await planted();
+      await config(dir, `[merge "ours"]\n\tdriver = ${driver.replace("MARKER", `'${marker}'`)}\n`);
+      await divergedOn(dir, "ours");
+      await assert.rejects(() => hostGit(dir, ["merge", "--no-ff", "-m", "land", "build"], { env: GIT_ENV }), driver);
+      assert.equal(await exists(marker), false, driver);
+    }
+  });
+
   it("refuses a merge driver whose name cannot be passed to git, running nothing", async () => {
     const { dir, marker, program } = await planted();
     await config(dir, `[merge "a=b"]\n\tdriver = ${program} %O %A %B\n`);
@@ -300,6 +331,42 @@ describe("host git never runs a program a folder's config names", { skip: !POSIX
     await hostGit(dir, ["reset", "-q", "--hard", "HEAD"]).catch(() => undefined);
     await hostGit(dir, ["cat-file", "blob", "HEAD:a.txt"]).catch(() => undefined);
     assert.equal(await exists(marker), false);
+  });
+});
+
+describe("hostGit with a large config or input", { skip: !POSIX && "POSIX paths" }, () => {
+  it("reads a config with ten thousand branches, which lists past a megabyte", async () => {
+    const { dir } = await planted();
+    const branches = Array.from(
+      { length: 12_000 },
+      (_, index) =>
+        `[branch "feature/team-a/ticket-${index}-some-descriptive-name"]\n\tremote = origin\n\tmerge = refs/heads/x\n`,
+    ).join("");
+    await config(dir, branches);
+    assert.equal((await hostGit(dir, ["rev-parse", "--abbrev-ref", "HEAD"])).stdout.trim(), "main");
+  });
+
+  it("ends with the command's own result when it exits without reading the input written to it", () => {
+    const module = pathToFileURL(path.resolve("src/substrate/git-policy.ts")).href;
+    const probe = `
+      import { mkdtempSync, realpathSync } from "node:fs";
+      import { execFileSync } from "node:child_process";
+      import os from "node:os";
+      import path from "node:path";
+      import { setImmediate as nextTurn } from "node:timers/promises";
+      import { hostGit, hostGitContext } from ${JSON.stringify(module)};
+      const dir = realpathSync(mkdtempSync(path.join(os.tmpdir(), "host-git-epipe-")));
+      execFileSync("git", ["init", "-q"], { cwd: dir });
+      const context = await hostGitContext(dir);
+      const answers = [];
+      for (let run = 0; run < 5; run++)
+        answers.push((await hostGit(dir, ["rev-parse", "--is-inside-work-tree"], { context, input: "x".repeat(8_000_000) })).stdout.trim());
+      await nextTurn();
+      console.log(JSON.stringify(answers));
+    `;
+    const child = spawnSync(process.execPath, ["--input-type=module", "-e", probe], { encoding: "utf8" });
+    assert.equal(child.status, 0, child.stderr);
+    assert.deepEqual(JSON.parse(child.stdout.trim().split("\n").at(-1) ?? "[]"), Array(5).fill("true"));
   });
 });
 

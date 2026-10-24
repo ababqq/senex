@@ -25,7 +25,7 @@ import { throughClaudeFolder } from "./paths.ts";
 import type { SnapshotGitRefs } from "./types.ts";
 import { type SnapshotRecord, SnapshotScope } from "../shared/event-log.ts";
 import { errorMessage } from "../shared/errors.ts";
-import { hostGit } from "./git-policy.ts";
+import { hostGit, unlessRefused } from "./git-policy.ts";
 
 /** The snapshot index entry is a contract the UI reads too; it lives in `shared/event-log.ts`. */
 export type { SnapshotRecord } from "../shared/event-log.ts";
@@ -142,12 +142,9 @@ export async function claudeFolderChanges(dir: string, from: string, to: string)
   return changed.split("\0").filter((file) => file && throughClaudeFolder(file));
 }
 
+/** A git call whose failure is an answer, so it is null; a refusal to run in the folder is still thrown. */
 export async function gitOrNull(dir: string, args: string[], env: Record<string, string> = {}): Promise<string | null> {
-  try {
-    return await git(dir, args, env);
-  } catch {
-    return null;
-  }
+  return await git(dir, args, env).catch(unlessRefused(null));
 }
 
 /** Why a revision was refused: it does not name a commit, or git would read it as an option. */

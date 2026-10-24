@@ -12,6 +12,7 @@ import {
   HostGitRefusedError,
   hostGitArgs,
   hostGitEnv,
+  unlessRefused,
 } from "../../src/substrate/git-policy.ts";
 
 const nul = (...keys: string[]) => keys.map((key) => `${key}\0`).join("");
@@ -92,6 +93,16 @@ describe("driverOverrides: the keys a folder's config uses to name a program", (
         JSON.stringify(key),
       );
     }
+  });
+
+  it("leaves a key it was told to trust", () => {
+    const listing = nul("merge.ours.driver", "merge.evil.driver", "filter.x.clean");
+    assert.deepEqual(driverOverrides(listing, new Set(["merge.ours.driver"])), [
+      "-c",
+      "merge.evil.driver=",
+      "-c",
+      "filter.x.clean=",
+    ]);
   });
 
   it("quotes at most a short stretch of a refused key", () => {
@@ -224,5 +235,17 @@ describe("HOST_GIT_CONFIG: settings a repository's config cannot override", () =
   it("is `-c` pairs and nothing else", () => {
     assert.equal(HOST_GIT_CONFIG.length % 2, 0);
     for (let index = 0; index < HOST_GIT_CONFIG.length; index += 2) assert.equal(HOST_GIT_CONFIG[index], "-c");
+  });
+});
+
+describe("unlessRefused: a failure that is an answer, and a refusal that is not", () => {
+  it("answers the fallback for an ordinary failure and throws a refusal on", () => {
+    assert.equal(unlessRefused("none")(new Error("git failed")), "none");
+    assert.equal(unlessRefused(null)("not an error"), null);
+    const refusal = new HostGitRefusedError(HostGitRefusal.ForeignWorkTree, "outside");
+    assert.throws(
+      () => unlessRefused("none")(refusal),
+      (error: unknown) => error === refusal,
+    );
   });
 });

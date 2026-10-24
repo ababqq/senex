@@ -23,8 +23,8 @@ import { SECOND_MS } from "../shared/duration.ts";
 import { startWithRecovery } from "./process-start.ts";
 
 const exec = promisify(execFile);
-/** The listing of a folder's whole config; past it the folder is not scanned (and not used). */
-const CONFIG_MAX_BYTES = 1024 * 1024;
+/** The listing of a folder's whole config; past it the folder is not scanned (and not used). A config with ten thousand branches is 1.5 MB. */
+const CONFIG_MAX_BYTES = 64 * 1024 ** 2;
 /** How long reading the config, or asking where the work tree is, may take. */
 const SCAN_TIMEOUT_MS = 20 * SECOND_MS;
 /** The most output a host command may print when its caller names no limit. */
@@ -34,6 +34,9 @@ const WORK_TREE_MAX_BUFFER_BYTES = 64 * 1024;
 /** The keys that make git run a program chosen by a name the folder invents: filter, diff and merge drivers. */
 const DRIVER_KEY =
   /^(?:filter\..*\.(?:clean|smudge|process|required)|diff\..*\.(?:textconv|command)|merge\..*\.driver)$/is;
+const MERGE_DRIVER_KEY = /^merge\..*\.driver$/is;
+/** The commands a merge driver may be, and still be left as the folder set it: they start nothing. */
+const INERT_MERGE_COMMANDS: ReadonlySet<string> = new Set(["true", "false"]);
 const PRIVATE_ENV_PATHS = [":(glob,exclude)**/.env", ":(glob,exclude)**/.env.*"];
 const DIFF_FAMILY = new Set(["diff", "diff-tree", "diff-index", "show", "log"]);
 /** Options git takes before its subcommand that read the next argument as their value. */
@@ -92,6 +95,18 @@ export class HostGitRefusedError extends Error {
     this.name = "HostGitRefusedError";
     this.code = code;
   }
+}
+
+/**
+ * For `.catch(...)` on a host git call whose failure is an answer ("no such commit", "not a
+ * repository"): the failure becomes `fallback`, but a refusal to run in the folder is still thrown,
+ * so it is not read as that answer.
+ */
+export function unlessRefused<T>(fallback: T): (error: unknown) => T {
+  return (error) => {
+    if (error instanceof HostGitRefusedError) throw error;
+    return fallback;
+  };
 }
 
 /** Index of the subcommand: the first argument after git's own leading options (`-c k=v`, `-C dir`, `--no-pager`). */
@@ -161,12 +176,12 @@ export function hostGitEnv(overrides: NodeJS.ProcessEnv = {}): NodeJS.ProcessEnv
  * One override per command-valued key in a NUL-separated key listing, so the folder's drivers do
  * nothing (a `required` filter is made optional instead, or its absence would fail the command).
  * Throws on a key `-c` cannot carry: git splits `-c` at the first `=`, and a name with bytes that
- * are not UTF-8 reaches us as U+FFFD, so no argument can name it.
+ * are not UTF-8 reaches us as U+FFFD, so no argument can name it. A key in `trusted` is left alone.
  */
-export function driverOverrides(listing: string): string[] {
+export function driverOverrides(listing: string, trusted: ReadonlySet<string> = new Set()): string[] {
   const overrides: string[] = [];
   for (const key of new Set(listing.split("\0").filter(Boolean))) {
-    if (!DRIVER_KEY.test(key)) continue;
+    if (!DRIVER_KEY.test(key) || trusted.has(key)) continue;
     if (key.includes("=") || key.includes("\n") || key.includes(REPLACEMENT_CHARACTER))
       throw new HostGitRefusedError(HostGitRefusal.UnsafeConfigKey, MESSAGE.UnsafeConfigKey(key));
     overrides.push("-c", `${key}=${/\.required$/i.test(key) ? "false" : ""}`);
@@ -230,11 +245,40 @@ async function refuseForeignWorkTree(dir: string, env: NodeJS.ProcessEnv, keys: 
   throw new HostGitRefusedError(HostGitRefusal.ForeignWorkTree, MESSAGE.ForeignWorkTree(top));
 }
 
+/**
+ * The merge drivers whose whole command is `true` or `false`: the keep-mine idiom (`merge.ours.driver
+ * = true`). They run no program of the folder's choosing, so a landing that relies on one still works.
+ */
+async function trustedMergeDrivers(
+  dir: string,
+  env: NodeJS.ProcessEnv,
+  keys: ReadonlySet<string>,
+): Promise<Set<string>> {
+  const trusted = new Set<string>();
+  for (const key of keys) {
+    if (!MERGE_DRIVER_KEY.test(key) || key.includes("=") || key.includes(REPLACEMENT_CHARACTER)) continue;
+    try {
+      const { stdout } = await exec("git", [...HOST_GIT_CONFIG, "-C", dir, "config", "--null", "--get-all", key], {
+        env,
+        maxBuffer: CONFIG_MAX_BYTES,
+        timeout: SCAN_TIMEOUT_MS,
+        windowsHide: true,
+      });
+      const values = stdout.split("\0").filter((value) => value !== "");
+      if (values.length > 0 && values.every((value) => INERT_MERGE_COMMANDS.has(value))) trusted.add(key);
+    } catch {
+      /* unreadable: not trusted, so neutralized */
+    }
+  }
+  return trusted;
+}
+
 /** The `-c` arguments that make git in `dir` run nothing the folder's config names, or a typed refusal. */
 export async function hostGitConfig(dir: string, env: NodeJS.ProcessEnv = hostGitEnv()): Promise<string[]> {
   const listing = await configListing(dir, env);
-  await refuseForeignWorkTree(dir, env, new Set(listing.split("\0").filter(Boolean)));
-  return [...HOST_GIT_CONFIG, ...driverOverrides(listing)];
+  const keys = new Set(listing.split("\0").filter(Boolean));
+  await refuseForeignWorkTree(dir, env, keys);
+  return [...HOST_GIT_CONFIG, ...driverOverrides(listing, await trustedMergeDrivers(dir, env, keys))];
 }
 
 /** What one scan of a folder yields: run any number of commands from it without scanning again. */
@@ -304,6 +348,9 @@ export async function hostGit(
     windowsHide: true,
   };
   const fed = <T extends { child: ChildProcess }>(running: T): T => {
+    // A command that exits without reading its input closes the pipe under the write; that is its
+    // business, and the run still ends with its own result.
+    running.child.stdin?.on("error", () => {});
     running.child.stdin?.end(options.input);
     return running;
   };
