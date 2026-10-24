@@ -772,6 +772,19 @@ describe("host git stays in its folder", { skip: !POSIX && "symbolic links and s
     assert.equal(await exists(path.join(root, "sibling", "secret.txt")), true);
   });
 
+  it("fails, and stages nothing, when the work tree git reports cannot be asked for at all", async () => {
+    const { dir } = await aboveAndOutside();
+    // About 1.5 MB of warnings: past what a scan answer may print, so the work tree is never learned.
+    await config(dir, `[core]\n\tworktree = ../..\n${"[core]\n\tfsync = x\n".repeat(30_000)}`);
+    await assert.rejects(() => hostGit(dir, ["add", "-A"]));
+    // (The warnings overflow fixtureGit too, so the index is read with a buffer for them.)
+    const staged = spawnSync("git", ["--git-dir", path.join(dir, ".git"), "ls-files", "--cached"], {
+      encoding: "utf8",
+      maxBuffer: 64 * 1024 * 1024,
+    });
+    assert.equal(staged.stdout.trim(), "inside.txt");
+  });
+
   it("still works when .git is a link to a separate git directory elsewhere", async () => {
     const { root } = await aboveAndOutside();
     const folder = path.join(root, "linked-git");
