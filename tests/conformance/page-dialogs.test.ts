@@ -64,7 +64,10 @@ describe("the dialogs an agent's window answers by itself", () => {
     const { call, notes } = page();
     call("alert", `first\nsecond\u0000${"x".repeat(500)}`);
     const line = notes[0] ?? "";
-    assert.ok(!/[\u0000-\u001f]/.test(line), JSON.stringify(line));
+    assert.ok(
+      [...line].every((ch) => ch.charCodeAt(0) > 0x1f),
+      JSON.stringify(line),
+    );
     assert.ok(line.length < 200, `${line.length} characters`);
     call("alert");
     call("alert", { toString: () => "an object" });
