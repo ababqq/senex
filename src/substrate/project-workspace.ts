@@ -53,7 +53,7 @@ import {
 import { isBelow, isInside, samePath, throughClaudeFolder } from "./paths.ts";
 import {
   declaresDependencies,
-  declaresSoftware,
+  folderDeclaresSoftware,
   detectProjectShape,
   findProjectRoot,
   isBuiltShape,
@@ -157,7 +157,8 @@ export interface AdoptOptions {
   /**
    * May the studio write its starter project (`index.html`, `src/main.js`) into this folder?
    * Default: only into a folder that holds no project of its own — software with no page yet (a
-   * `package.json` that declares packages or scripts) counts as one. `false` is "I am bringing my
+   * `package.json` that declares packages or scripts, or another language's manifest such as
+   * `go.mod`; `folderDeclaresSoftware`) counts as one. `false` is "I am bringing my
    * own files" — the contract module and the notes are still added; `true` asks for the starter
    * anyway.
    */
@@ -938,10 +939,10 @@ export class ProjectWorkspaces {
     await writeFile(file, `${JSON.stringify({ ...current, versionNested: true }, null, 2)}\n`);
   }
 
-  /** A `package.json` that declares software, and no `index.html`: a project of its own with no page to open yet. */
+  /** Software (a `package.json` that declares it, or another language's manifest) and no `index.html`: a project of its own with no page to open yet. */
   async #softwareWithoutPage(dir: string): Promise<boolean> {
     if (await pathExists(path.join(dir, "index.html"))) return false;
-    return declaresSoftware(await readPackageManifest(dir));
+    return folderDeclaresSoftware(dir);
   }
 
   /**

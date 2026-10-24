@@ -101,6 +101,65 @@ export function normalServe(serve: string | null | undefined): string | null {
   return folder === "" || folder === "." ? null : folder;
 }
 
+/**
+ * The one file a language's own tooling starts from, as whole names (no patterns): a folder holding
+ * one is somebody's software whatever else is in it. `package.json` is not here, because it says
+ * nothing until it declares packages or scripts (`declaresSoftware`).
+ */
+const SOFTWARE_MANIFESTS: ReadonlySet<string> = new Set([
+  // Compiled languages and their build tools.
+  "go.mod",
+  "go.work",
+  "Cargo.toml",
+  "Package.swift",
+  "build.zig",
+  "pom.xml",
+  "build.gradle",
+  "build.gradle.kts",
+  "settings.gradle",
+  "settings.gradle.kts",
+  "CMakeLists.txt",
+  "meson.build",
+  // Interpreted languages and their package managers.
+  "Gemfile",
+  "gems.rb",
+  "pyproject.toml",
+  "requirements.txt",
+  "Pipfile",
+  "setup.py",
+  "manage.py",
+  "composer.json",
+  "mix.exs",
+  "pubspec.yaml",
+  "deno.json",
+  "deno.jsonc",
+  "deps.edn",
+  "project.clj",
+  // Site generators: they build the page, so the folder has none yet.
+  "hugo.toml",
+  "hugo.yaml",
+  "hugo.yml",
+  "hugo.json",
+  "_config.yml",
+  "_config.yaml",
+  "_config.toml",
+  "mkdocs.yml",
+  "mkdocs.yaml",
+  "book.toml",
+]);
+
+/**
+ * Whether a folder is somebody's software: its package.json declares packages or a script someone
+ * wrote, or it holds one of the manifests above as a regular file. A folder, a link or a pipe with
+ * a manifest's name is not one (`Dirent.isFile` does not follow links) and the table is read from
+ * the listing alone, so none of them is opened. (`package.json` is read as JSON, as it always was.)
+ */
+export async function folderDeclaresSoftware(dir: string): Promise<boolean> {
+  if (declaresSoftware(await readPackageManifest(dir))) return true;
+  const entries = await readdir(dir, { withFileTypes: true }).catch(() => []);
+  return entries.some((entry) => entry.isFile() && SOFTWARE_MANIFESTS.has(entry.name));
+}
+
 /** A folder's package.json, or null when it is missing or does not parse. */
 export function readPackageManifest(dir: string): Promise<PackageManifest | null> {
   return readJsonIfExists<PackageManifest>(path.join(dir, "package.json")).catch(() => null);
