@@ -95,7 +95,7 @@ export const DIRECTOR_TOOLS: LiveToolSpec[] = [
         },
         kind: {
           type: "string",
-          description: `What kind of project this is, one of: ${KIND_NAMES.join(", ")}. The harness drives that kind's controls before every judgement and puts only the checks it can pass on the board; declare nothing and it assumes nothing.`,
+          description: `What kind of project this is, one of: ${KIND_NAMES.join(", ")}. The harness drives that kind's controls before every judgement and puts only the checks it can pass on the board; declare nothing and only the console-error check rides.`,
         },
         play_script: {
           type: "string",
@@ -201,7 +201,7 @@ export const DIRECTOR_TOOLS: LiveToolSpec[] = [
         traits: {
           type: "string",
           description:
-            "Comma-separated project traits the harness adds its own checks for: ui, navigation, typing, mouseLook, keyboardMove. Only what you name is added — an unnamed trait is not declared false, it is simply not measured.",
+            "Comma-separated project traits the harness adds its own checks for: ui, navigation, typing, mouseLook, keyboardMove. Only what you name is added beside the console-error check — an unnamed trait is not declared false, it is simply not measured.",
         },
         policy: {
           type: "string",

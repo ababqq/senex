@@ -546,10 +546,13 @@ describe("facet specs", () => {
 });
 
 describe("the board a project actually carries", () => {
-  it("puts no harness check on a project nobody described, and the kind's own axes on one they did", () => {
-    // Every trait is off until something declares it: the harness checks describe a page's
-    // errors, names and inputs, and a project nobody described has none of them declared.
-    assert.deepEqual(withHarnessChecks({ id: "f", checks: [] }, { ownsMain: true }).checks, []);
+  it("puts only the console-error check on a project nobody described, and the kind's own axes on one they did", () => {
+    // Every trait is off until something declares it: the names and inputs a harness check could
+    // read are undeclared. The one correctness rule, no console errors, rides on every board.
+    assert.deepEqual(
+      withHarnessChecks({ id: "f", checks: [] as Check[] }, { ownsMain: true }).checks.map((c) => c.id),
+      ["no-console-errors"],
+    );
     assert.deepEqual(normalizeAppTraits(undefined), {
       kind: null,
       ui: false,

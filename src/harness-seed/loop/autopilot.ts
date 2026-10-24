@@ -330,13 +330,13 @@ export function makeLock(): () => Promise<() => void> {
  * explicit false outranks the kind's own traits — so a form arrived declaring it has no UI, no
  * navigation and no typing, and the harness-owned checks that kind exists to bring were dropped
  * from every board with nothing said. Absent, each trait takes the declared kind's own value; a
- * plan that declares no kind is still assumed nothing.
+ * plan that declares no kind is assumed nothing beyond the console-error rule.
  */
 const APP_DECLARATION = `"app":{"kind":"<one of ${KIND_NAMES.join(", ")}, or null>","playScript":null}`;
 
 /** The same declaration, said in words, for the planner that reads the shape line above. */
 const PROJECT_EXPLANATION =
-  "`genres` names the genre groups of the catalogue that apply (what the run learns is filed under them); `app` declares what the software IS — its `kind` (one of the names above). The kind carries whether the project has DOM UI to inspect, views to move between and fields to type into; add the booleans `ui`, `navigation`, `typing` (and, for a scene with a player, `mouseLook` and `keyboardMove`) beside it ONLY where this project differs from its kind, and remember that `false` is a declaration too — it takes that check off every board. With no kind and no trait nothing is assumed: the harness adds its own checks only for what the project can pass, and drives that kind's exercise script (clicks, typing, Tab, scrolling) before every judgement. `playScript` overrides that script with your own actions (click, type, press, drag, scroll, wait); `craft` names the craft recipe packs this project needs.";
+  "`genres` names the genre groups of the catalogue that apply (what the run learns is filed under them); `app` declares what the software IS — its `kind` (one of the names above). The kind carries whether the project has DOM UI to inspect, views to move between and fields to type into; add the booleans `ui`, `navigation`, `typing` (and, for a scene with a player, `mouseLook` and `keyboardMove`) beside it ONLY where this project differs from its kind, and remember that `false` is a declaration too — it takes that check off every board. With no kind and no trait nothing is assumed beyond the console-error check: the harness adds its other checks only for what the project can pass, and drives the generic exercise script (clicks, typing, Tab, scrolling) before every judgement. `playScript` overrides that script with your own actions (click, type, press, drag, scroll, wait); `craft` names the craft recipe packs this project needs.";
 
 /**
  * The check vocabulary, for a planner whose skill file predates typed specs (an install whose

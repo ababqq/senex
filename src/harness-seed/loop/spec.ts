@@ -980,13 +980,18 @@ function deltaPathsIn(expr: unknown): string[] {
   return [...new Set(found)].slice(0, MAX_DELTA_PATHS);
 }
 
-/** The harness-owned check ids a project's declared traits put on a board: page rules everywhere, input rules on the entry's owner. */
+/**
+ * The harness-owned check ids a project's declared traits put on a board: page rules everywhere, input
+ * rules on the entry's owner. A run that declared no kind still carries the console-error rule, the one
+ * correctness rule every page can be held to.
+ */
 function harnessChecksFor(
   traits: ReturnType<typeof normalizeAppTraits>,
   { owner, screen }: { owner: boolean; screen: boolean },
 ): string[] {
+  const errorsMatter = traits.ui || traits.kind === null;
   return [
-    ...(traits.ui ? ["no-console-errors"] : []),
+    ...(errorsMatter ? ["no-console-errors"] : []),
     ...(screen && traits.ui ? ["controls-named", "no-horizontal-overflow"] : []),
     ...(owner && traits.navigation ? ["nav-changes-view"] : []),
     ...(owner && traits.typing ? ["fields-take-input"] : []),
@@ -1003,7 +1008,7 @@ function harnessChecksFor(
  * fields. Existing ids are replaced by the harness definition, never duplicated.
  *
  * Every trait is off until something declares it (loop/kinds.ts), so a project nobody described
- * carries no harness check at all. `screen: false` marks a project with its own shape, whose
+ * carries only the console-error check. `screen: false` marks a project with its own shape, whose
  * markup the studio did not write: it keeps the correctness rule (no errors) and is spared the
  * style rules (names, overflow). The two input checks read the declared kind's own counters.
  */
@@ -1323,10 +1328,16 @@ function catalogueLine([id, c]: [string, CatalogueEntry]): string {
 const learnedByRuns = (entry: { origin?: string }): boolean =>
   entry.origin === CheckOrigin.Judge || entry.origin === CheckOrigin.Spike;
 
+/** The sentence that says which page rules ride on a board: all three, or the console-error rule alone. */
+function pageRuleWords(screenRides: boolean, errorsRide: boolean): string {
+  if (screenRides) return " The page must run without errors, name every control and fit its window's width.";
+  return errorsRide ? " The page must run without errors." : "";
+}
+
 /**
  * What actually rides on THIS project's board, not the ids the table happens to hold: a project
- * that declared nothing carries none of them, and telling the planner otherwise is the lie that
- * made every plan re-declare a rule its project does not have.
+ * that declared nothing carries the console-error check alone, a scene carries none, and telling
+ * the planner otherwise is the lie that made every plan re-declare a rule its project does not have.
  */
 function ridingLine(app: AnyRecord | null, screen: boolean): string {
   const riding = withHarnessChecks(
@@ -1335,13 +1346,12 @@ function ridingLine(app: AnyRecord | null, screen: boolean): string {
   ).checks.map((c) => c.id);
   if (!riding.length)
     return `No harness-owned checks ride on this project's board — declare ui, navigation, typing, mouseLook or keyboardMove in app if it has them.`;
-  const screenRides = riding.some((id) =>
-    ["no-console-errors", "controls-named", "no-horizontal-overflow"].includes(id),
-  );
+  const screenRides = riding.some((id) => ["controls-named", "no-horizontal-overflow"].includes(id));
+  const errorsRide = riding.includes("no-console-errors");
   const inputRides = ["nav-changes-view", "fields-take-input", "look-turns-camera", "keys-move-player"].some((id) =>
     riding.includes(id),
   );
-  return `Already on this project's board (harness-owned, do not re-declare): ${riding.join(", ")}.${screenRides ? " The page must run without errors, name every control and fit its window's width." : ""}${inputRides ? " The input checks ride on the facet that owns main." : ""}`;
+  return `Already on this project's board (harness-owned, do not re-declare): ${riding.join(", ")}.${pageRuleWords(screenRides, errorsRide)}${inputRides ? " The input checks ride on the facet that owns main." : ""}`;
 }
 
 /**

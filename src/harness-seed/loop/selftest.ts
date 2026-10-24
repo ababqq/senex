@@ -315,7 +315,7 @@ const SELFTEST_STEPS: readonly SelftestStep[] = [
     "harness-owned checks ride on every plan; judge defects become checks",
     () => {
       // Every trait is off until a kind (or an explicit flag) declares it, so each of these
-      // says which project it is talking about; a spec with no project carries no harness check.
+      // says which project it is talking about; a spec with no project carries the console-error check alone.
       const dashboard = {
         kind: "graphics",
         ui: true,
@@ -347,8 +347,15 @@ const SELFTEST_STEPS: readonly SelftestStep[] = [
           3,
       );
       check(
-        "a project that declares nothing carries no harness check",
-        withHarnessChecks({ id: "x", checks: [], cameras: [] }, { ownsMain: true }).checks.length === 0,
+        "a project that declares nothing carries only the console-error check",
+        withHarnessChecks({ id: "x", checks: [] as Check[], cameras: [] }, { ownsMain: true })
+          .checks.map((c) => c.id)
+          .join() === "no-console-errors",
+      );
+      check(
+        "a graphics project, which declared its kind, carries no page check",
+        withHarnessChecks({ id: "x", checks: [], cameras: [] }, { ownsMain: true, app: { kind: "graphics" } }).checks
+          .length === 0,
       );
       check(
         "a project with neither UI, navigation nor mouse look gets no such checks",

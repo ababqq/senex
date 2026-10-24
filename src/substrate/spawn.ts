@@ -880,6 +880,10 @@ export class ProcessSandbox {
         });
       });
 
+      // A command that exits without reading its input closes the pipe under the write (`EPIPE`). That
+      // is the command's business, and its exit code says how the run went; unhandled, the error would
+      // be an uncaught exception in the host.
+      child.stdin.on("error", () => {});
       if (request.stdin !== undefined) child.stdin.end(request.stdin);
       else child.stdin.end();
     });
