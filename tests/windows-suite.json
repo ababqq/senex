@@ -79,6 +79,7 @@
   "tests/conformance/event-validation.test.ts",
   "tests/conformance/evidence.test.ts",
   "tests/conformance/external-cli.test.ts",
+  "tests/conformance/external-link.test.ts",
   "tests/conformance/file-manager-words.test.ts",
   "tests/conformance/finished-preview-cache.test.ts",
   "tests/conformance/fixture-env.test.ts",

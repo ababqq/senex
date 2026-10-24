@@ -85,6 +85,9 @@ const NATIVE_STEPS = [
   // with the user's real Genex account; `host-package` opens the npm registry for one install.
   "studio:plugins.host-cli",
   "studio:plugins.host-package",
+  // Not a channel: a click on an https link in Live asks in a native dialog, then opens the person's
+  // browser (`external-link.ts`). A fixture profile builds no such host, and refuses the step.
+  "studio:preview.external-link",
 ] as const;
 /** Channels a disposable fixture profile may run: no native account, dialog, download or external app. */
 const FIXTURE_SAFE = [

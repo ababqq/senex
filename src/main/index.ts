@@ -116,6 +116,8 @@ import { openStudioLog } from "./logs.ts";
 import { migrateLegacyUserData, userDataMigrationLine } from "./user-data-migration.ts";
 import { confirmPluginInstall, reacquirePlugin } from "./plugin-install-dialog.ts";
 import { HttpStatus, textResponse } from "./page-serve.ts";
+import { assertNativeActionAllowed } from "./dev/native-policy.ts";
+import { liveLinkHost } from "./external-link.ts";
 import { ProjectPreview, registerProjectScheme } from "./preview.ts";
 import { RunSummaryReader } from "./run-summary-reader.ts";
 import { registerRunSharingIpc } from "./ipc/run-sharing.ts";
@@ -738,6 +740,13 @@ function attachPreviews(studio: StudioCore, win: BrowserWindow): void {
     projectsRoot: studio.layout.projectsRoot,
     vendorDir: path.join(resources, "vendor"),
     resolveRoot: (name) => studio.projects.dirFor(name),
+    // A person's click on an https link in Live asks, then opens their browser. A fixture or smoke
+    // profile builds no host, so it never opens a dialog or a browser.
+    externalLinks: liveLinkHost(fixtureNativePolicy, {
+      showMessageBox: (options) => dialog.showMessageBox(win, options),
+      openExternal: (href) => shell.openExternal(href),
+      assertAllowed: (step) => assertNativeActionAllowed(fixtureNativePolicy, step),
+    }),
   });
   preview = view;
   studio.options.preview = view;

@@ -949,6 +949,35 @@ describe("what the project's console says about something the preview refused", 
     assert.notEqual(blockedNote("tab", "project://site/contact.html").key, inside.key);
     assert.match(blockedNote("request", "https://api.example.com").text, /projects run offline in the preview/);
   });
+
+  it("says that a person's click on an https link asks first in Live, so a builder keeps a working link", () => {
+    for (const kind of ["window", "navigation"] as const) {
+      const note = blockedNote(kind, "https://docs.example.com/guide?token=abc");
+      assert.match(note.text, /in Live, a click on an https link asks first and then opens your browser/, kind);
+      assert.doesNotMatch(note.text, /token|guide/, "only the origin is named");
+    }
+    // Nothing opens for these in Live either, so the clause would promise what does not happen.
+    for (const [kind, raw] of [
+      ["window", "mailto:hi@example.com"],
+      ["window", "http://example.com/"],
+      ["navigation", "javascript:void(0)"],
+      ["request", "https://api.example.com/x"],
+      ["tab", "project://site/about.html"],
+    ] as const)
+      assert.doesNotMatch(blockedNote(kind, raw).text, /in Live/, raw);
+  });
+
+  it("never repeats credentials, and cuts a very long origin or an unparsable address short", () => {
+    const withCredentials = blockedNote("navigation", "https://user:secret@evil.example/path");
+    assert.doesNotMatch(withCredentials.text, /secret|user:/);
+    assert.equal(withCredentials.origin, "https://evil.example");
+    for (const raw of [`https://${"a".repeat(5000)}.example/`, "x".repeat(5000)]) {
+      const note = blockedNote("window", raw);
+      assert.ok(note.key.length < 300, `key ${note.key.length}`);
+      assert.ok(note.origin.length <= 201, `origin ${note.origin.length}`);
+      assert.ok(note.text.length < 600, `text ${note.text.length}`);
+    }
+  });
 });
 
 describe("which http requests are the studio's", () => {
