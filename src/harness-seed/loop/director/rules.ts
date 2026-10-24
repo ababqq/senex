@@ -572,14 +572,14 @@ export interface WorkerSpecInput {
 /**
  * The harness's own checks for the kind and the traits the director named. Only what it named: a
  * trait it did not mention is not declared false — it is simply not declared, and the kind (the
- * run's, unless this part differs) decides.
+ * run's, unless this part differs) decides. A part that names neither still carries the
+ * console-error check, like any board of a run that declared no kind.
  */
 function withDeclaredApp<S extends FacetSpec>(
   spec: S,
   { kind, traits, ownsMain, screen }: { kind: string | null; traits: string[]; ownsMain: boolean; screen: boolean },
 ): S {
   const kindName = isAppKind(kind) ? kind : null;
-  if (!kindName && !traits.length) return spec;
   const declared: AnyRecord = { ...(kindName ? { kind: kindName } : {}) };
   for (const trait of Object.values(AppTrait)) if (traits.includes(trait)) declared[trait] = true;
   return withHarnessChecks(spec, { ownsMain, app: normalizeAppTraits(declared), screen });

@@ -8946,6 +8946,103 @@ describe("a run that declared no kind is software, not a game world (completion 
     }
     assert.match(integrationIntent({ kind: "graphics" }), /palette, scale, lighting, spawn/);
   });
+
+  describe("UK-6. a run that declared no kind carries the console-error check and no other page rule", () => {
+    const ONLY_ERRORS = ["no-console-errors"];
+    const boardOf = async (app: unknown, options: Record<string, unknown> = {}) => {
+      const { withHarnessChecks } = await import("../../src/harness-seed/loop/spec.ts");
+      return withHarnessChecks({ id: "f", checks: [] as Check[] }, { ownsMain: true, app: app as never, ...options })
+        .checks;
+    };
+    const idsOf = async (app: unknown, options: Record<string, unknown> = {}) =>
+      (await boardOf(app, options)).map((check) => check.id);
+
+    it("gives every spelling of 'nothing declared' the error check, and neither the style rules nor an input check", async () => {
+      const spellings = [
+        ...UNDECLARED,
+        "dashboard",
+        7,
+        [],
+        { ui: false },
+        { kind: "__proto__" },
+        { kind: "constructor" },
+      ];
+      for (const app of spellings)
+        for (const screen of [true, false])
+          assert.deepEqual(await idsOf(app, { screen }), ONLY_ERRORS, `${JSON.stringify(app)} screen:${screen}`);
+    });
+
+    it("weighs it like any declared project's: identity, harness-owned, the same expression, and never twice", async () => {
+      const { HARNESS_CHECKS, withHarnessChecks } = await import("../../src/harness-seed/loop/spec.ts");
+      const [floor] = await boardOf(undefined, { ownsMain: false, role: "facet" });
+      assert.equal(floor?.weight, "identity");
+      assert.equal(floor?.origin, "harness");
+      assert.equal(floor?.expr, HARNESS_CHECKS["no-console-errors"]?.expr);
+      const written = withHarnessChecks(
+        { id: "f", checks: [{ id: "no-console-errors", kind: "probe", expr: "true" }] as Check[] },
+        { app: null },
+      ).checks;
+      assert.equal(written.length, 1, "a planner's own copy is replaced, not added to");
+      assert.equal(written[0]?.expr, "ui.errors == 0");
+    });
+
+    it("leaves a declared project to decide for itself", async () => {
+      assert.deepEqual(await idsOf({ kind: "graphics" }), [], "a scene carries no page rule");
+      assert.deepEqual(await idsOf({ kind: "dashboard", ui: false }), ["nav-changes-view"]);
+      assert.deepEqual(await idsOf({ kind: "dashboard" }), [
+        "no-console-errors",
+        "controls-named",
+        "no-horizontal-overflow",
+        "nav-changes-view",
+      ]);
+      assert.deepEqual(await idsOf({ kind: "graphics", ui: true }), [
+        "no-console-errors",
+        "controls-named",
+        "no-horizontal-overflow",
+      ]);
+      assert.deepEqual(await idsOf({ kind: "form-flow" }, { screen: false }), [
+        "no-console-errors",
+        "fields-take-input",
+      ]);
+    });
+
+    it("gives a trait declared without a kind its own input check beside the error check, on the entry's owner", async () => {
+      assert.deepEqual(await idsOf({ typing: true }), ["no-console-errors", "fields-take-input"]);
+      assert.deepEqual(await idsOf({ typing: true }, { ownsMain: false }), ONLY_ERRORS);
+    });
+  });
+
+  it("UK-7. a director's worker that named no kind and no traits finishes on the error check alone", async () => {
+    const { compileWorkerSpec } = await import("../../src/harness-seed/loop/director/rules.ts");
+    const idsOf = (args: Record<string, unknown>) =>
+      compileWorkerSpec({ id: "w", brief: "a header", ...args } as never, null).spec.checks.map((c) => c.id);
+    assert.deepEqual(idsOf({}), ["no-console-errors"]);
+    assert.deepEqual(idsOf({ kind: "constructor" }), ["no-console-errors"], "a name that is no kind declares nothing");
+    assert.deepEqual(idsOf({ kind: "graphics" }), [], "a named kind decides for itself");
+    assert.deepEqual(idsOf({ traits: ["typing"] }), ["no-console-errors", "fields-take-input"]);
+    assert.equal(compileWorkerSpec({ id: "w", brief: "a header" } as never, null).identityTotal, 1);
+  });
+
+  it("UK-8. the planner is told what actually rides on an undeclared project's board", async () => {
+    const { renderCatalogueForPlanner } = await import("../../src/harness-seed/loop/spec.ts");
+    const catalogue = await loadCatalogue(seedDir);
+    const riding = (app: unknown, screen = true) =>
+      renderCatalogueForPlanner(catalogue, { app, screen } as never)
+        .split("\n")
+        .find((line) => /harness-owned/.test(line)) ?? "";
+    for (const app of UNDECLARED) {
+      const line = riding(app);
+      assert.match(line, /harness-owned, do not re-declare\): no-console-errors\./, JSON.stringify(app));
+      assert.match(line, /must run without errors/);
+      assert.doesNotMatch(
+        line,
+        /name every control|window's width|input checks/,
+        "it claims no rule it does not carry",
+      );
+    }
+    assert.match(riding({ kind: "graphics" }), /No harness-owned checks ride/, "a scene still carries none");
+    assert.match(riding({ kind: "form-flow" }), /name every control and fit its window's width/);
+  });
 });
 
 describe("the calls a chat stood behind, and the clock it speaks in (completion audit)", () => {

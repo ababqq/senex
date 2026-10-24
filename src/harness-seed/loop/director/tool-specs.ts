@@ -95,7 +95,7 @@ export const DIRECTOR_TOOLS: LiveToolSpec[] = [
         },
         kind: {
           type: "string",
-          description: `What kind of project this is, one of: ${KIND_NAMES.join(", ")}. The harness drives that kind's controls before every judgement and puts only the checks it can pass on the board; declare nothing and it assumes nothing.`,
+          description: `What kind of project this is, one of: ${KIND_NAMES.join(", ")}. The harness drives that kind's controls before every judgement and puts only the checks it can pass on the board; declare nothing and only the console-error check rides.`,
         },
         play_script: {
           type: "string",

@@ -64,8 +64,8 @@ const PLAN = {
       checks: [{ id: "moody-luma", kind: "pixel", camera: "default", expr: "meanLuma < 0.6", weight: "identity" }],
     },
   ],
-  // Every trait is off unless the plan declares one (M4.4): a plan that says nothing gets no
-  // page rule and no input check, so the rig declares the kind it means.
+  // Every trait is off unless the plan declares one (M4.4): a plan that says nothing gets the
+  // console-error rule and no other page rule or input check, so the rig declares the kind it means.
   app: { kind: "dashboard" },
   mainOwner: "terrain",
   base: { notes: "one palette", files: [{ path: "src/palette.js", purpose: "shared colours" }] },
@@ -437,6 +437,39 @@ describe("autopilot: a 2-facet run on the fake engine", () => {
     // The brief reached the builder as a file in the project folder (live mode), self-ignored by git.
     assert.match(await readFile(path.join(projectDir, ".studio", "BRIEF.md"), "utf8"), /## Checks/);
     assert.equal((await readFile(path.join(projectDir, ".studio", ".gitignore"), "utf8")).trim(), "*");
+  });
+
+  it("a plan that declares nothing puts the console-error check, and only it, on every board", async () => {
+    const { app: _declared, ...undeclared } = PLAN;
+    const { respond } = makeAutopilotResponder({ plan: undeclared });
+    const rig = await startRig({ respond });
+    rigs.push(rig);
+    const runId = rig.core.newRunId();
+    await rig.core.dispatchRun({
+      runId,
+      goal: "a moody dusk exploration world",
+      project: "duskworld",
+      mode: "autopilot",
+      classic: true,
+      reference: { name: "quiet dusk wandering", shots: [], kind: "direction" },
+      budgets: { wallClockMs: 300_000, maxIterations: 4 },
+    });
+    const events = await waitForLog(
+      rig.core,
+      (log) => log.some((e) => e.data.type === "custom" && e.data.event_type === "run_finished"),
+      120_000,
+    );
+    const iterations = customEvents(events, "facet_iteration");
+    assert.deepEqual([...new Set(iterations.map((i) => i.facetId))].sort(), ["integration", "lighting", "terrain"]);
+    const harnessOwned = new Set(["no-console-errors", "controls-named", "no-horizontal-overflow", "nav-changes-view"]);
+    for (const record of iterations) {
+      const board = record.scoreboard as { results: Array<{ id: string; pass: boolean | null }> };
+      assert.deepEqual(
+        board.results.filter((r) => harnessOwned.has(r.id)).map((r) => [r.id, r.pass]),
+        [["no-console-errors", true]],
+        `${record.facetId}: ${JSON.stringify(board.results)}`,
+      );
+    }
   });
 
   it("a delegated engine runs facets in parallel worktrees and merges them into the live project", async () => {

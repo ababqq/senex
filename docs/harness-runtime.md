@@ -23,7 +23,7 @@ editor, data-viz, utility, graphics. Each names the traits it implies, the state
 edit, look and move probes read, whether it wants eye cameras, its critic and its exercise script
 (clicks, focusing the first text field, typing, Tab, scrolling; `graphics` walks and looks). Every trait is
 OFF until the planner, the director or `studio.json`'s nested `app` block declares it, so a project
-nobody described carries no harness input check at all; a declared kind supplies its traits and an
+nobody described carries no harness input check and only the console-error rule; a declared kind supplies its traits and an
 explicit boolean beside it wins. The harness drives that kind's play script before every
 judgement, and `appLine(run.app)` is the first line of every judge call (for a run that declared no kind it
 says so, names those default controls and retracts `[dead-input]`). Two critics, not one:

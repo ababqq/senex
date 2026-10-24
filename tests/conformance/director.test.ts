@@ -527,9 +527,12 @@ describe("the honest landing, the plain word and the night's own starting points
  * nothing had ever read one against a real state().
  */
 describe("a worker's contract: done, compiled and dry-run", () => {
-  /** What the fork point reported the last time the harness looked at it. */
+  /**
+   * What the fork point reported the last time the harness looked at it. The page layer adds a `ui`
+   * block to every real `state()`, which is what the console-error check every board carries reads.
+   */
   const base = {
-    state: { player: { x: 2, speed: 9 }, props: { moved: 0 }, maps: { activeId: "macba" } },
+    state: { player: { x: 2, speed: 9 }, props: { moved: 0 }, maps: { activeId: "macba" }, ui: { errors: 0 } },
     demoStates: { "prop-run": { player: { x: 2, speed: 6 }, props: { moved: 3 } } },
     demos: ["prop-run"],
     cameras: ["default"],
@@ -561,7 +564,7 @@ describe("a worker's contract: done, compiled and dry-run", () => {
       } as never,
       base as never,
     );
-    assert.equal(compiled.identityTotal, 2);
+    assert.equal(compiled.identityTotal, 3, "the two `done` checks and the console-error check every board carries");
     assert.deepEqual(compiled.spec.done, [
       { id: "speed-kept", what: "a car that hits a bin keeps most of its speed" },
       { id: "props-moved", what: "the bin ends up somewhere else" },
@@ -599,7 +602,11 @@ describe("a worker's contract: done, compiled and dry-run", () => {
       } as never,
       base as never,
     );
-    assert.equal(compiled.identityTotal, 1, "the check that says the same thing as the feature carries it");
+    assert.equal(
+      compiled.identityTotal,
+      2,
+      "the check that says the same thing as the feature carries it, beside the console-error check",
+    );
     assert.equal(checkNamed(compiled.spec, "props-dont-stop-cars").weight, "identity");
     assert.equal(checkNamed(compiled.spec, "lit").weight, "normal");
   });
@@ -645,20 +652,20 @@ describe("a worker's contract: done, compiled and dry-run", () => {
     };
     const compiled = compileWorkerSpec(args as never, base as never);
     assert.deepEqual(compiled.unsatisfiable, [{ id: "speed-kept", missing: ["state.contact.speedKept"] }]);
-    assert.deepEqual(compiled.stateKeys, ["player", "props", "maps"], "the top-level keys state() actually has");
+    assert.deepEqual(compiled.stateKeys, ["player", "props", "maps", "ui"], "the top-level keys state() actually has");
     assert.match(String(checkNamed(compiled.spec, "speed-kept").note), /does not report state\.contact\.speedKept yet/);
-    assert.match(String(checkNamed(compiled.spec, "speed-kept").note), /player, props, maps/);
+    assert.match(String(checkNamed(compiled.spec, "speed-kept").note), /player, props, maps, ui/);
     assert.equal(compiled.notVerified, null);
     // It is a contract, not a rejection: the worker still starts, with the note in its brief.
-    assert.equal(compiled.spec.checks.length, 2);
-    assert.equal(compiled.identityTotal, 2);
+    assert.equal(compiled.spec.checks.length, 3, "the two `done` checks and the console-error check");
+    assert.equal(compiled.identityTotal, 3);
 
     // Nobody has looked at this fork: not verified, and still not a refusal.
     const blind = compileWorkerSpec(args as never, null);
     assert.deepEqual(blind.unsatisfiable, []);
     assert.equal(blind.stateKeys, null);
     assert.match(String(blind.notVerified), /nothing has looked at 0123456789 in this run/);
-    assert.equal(blind.spec.checks.length, 2);
+    assert.equal(blind.spec.checks.length, 3, "the same board, read or not");
   });
 
   it("finishes a worker on the checks it was given, not on the ones the judge grew", () => {
