@@ -576,6 +576,6 @@ describe("a folder whose git settings Senex will not run in", () => {
     await lite.core.loadPreview({ project: "pong" });
     assert.equal(live.loads.length, 2);
     await lite.core.reloadLive({ retry: true });
-    assert.equal(live.loads.length >= 2, true);
+    assert.equal(live.reloads, 1, "Reload reached the page");
   });
 });

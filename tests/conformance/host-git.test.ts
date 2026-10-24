@@ -312,6 +312,40 @@ describe("host git never runs a program a folder's config names", { skip: !POSIX
     assert.equal(await exists(marker), false);
   });
 
+  it("never lets auto-maintenance run a hook that a landing writes into a git directory kept inside the folder", async () => {
+    const { marker, failing } = await planted();
+    const dir = path.join(await tmpDir("host-git-meta-"), "project");
+    const meta = path.join(dir, ".meta");
+    await mkdir(dir, { recursive: true });
+    await fixtureGit(dir, ["init", "-q", "-b", "main", `--separate-git-dir=${meta}`]);
+    await writeFile(path.join(dir, "a.txt"), "one\n");
+    await fixtureGit(dir, ["add", "a.txt"]);
+    // The history tracks the git directory's own config (git refuses to add it by name, so by object).
+    const plain = await readFile(path.join(meta, "config"), "utf8");
+    const blob = await fixtureGit(dir, ["hash-object", "-w", path.join(meta, "config")]);
+    await fixtureGit(dir, ["update-index", "--add", "--cacheinfo", `100644,${blob},.meta/config`]);
+    await fixtureGit(dir, ["commit", "-q", "-m", "one"]);
+    // The build is made in a linked worktree, where .meta is an ordinary folder.
+    const side = `${dir}-side`;
+    await fixtureGit(dir, ["worktree", "add", "-q", "-b", "build", side, "HEAD"]);
+    const hostile = `${plain}[gc]\n\tauto = 1\n\tpruneExpire = now\n\trecentObjectsHook = ${failing} TAG\n`;
+    await writeFile(path.join(side, ".meta", "config"), hostile);
+    await fixtureGit(side, ["commit", "-q", "-am", "build"]);
+    await writeFile(path.join(dir, "b.txt"), "b\n");
+    await fixtureGit(dir, ["add", "b.txt"]);
+    await fixtureGit(dir, ["commit", "-q", "-m", "main moves on"]);
+    await mkdir(path.join(meta, "objects", "17"), { recursive: true });
+    for (const name of ["a".repeat(38), "b".repeat(38)])
+      await writeFile(path.join(meta, "objects", "17", name), "not an object");
+    await hostGit(dir, ["merge", "--no-ff", "-m", "land", "build"], { env: GIT_ENV });
+    assert.match(
+      await readFile(path.join(meta, "config"), "utf8"),
+      /recentObjectsHook/,
+      "the landing wrote the config",
+    );
+    assert.equal(await exists(marker), false);
+  });
+
   it("never opens an editor, whatever core.editor says", async () => {
     const { dir, marker, failing } = await planted();
     await config(dir, `[core]\n\teditor = ${failing}\n`);
@@ -617,6 +651,48 @@ describe("host git stays in its folder", { skip: !POSIX && "symbolic links and s
       plant: (hostile, victim) => symlink(path.join(victim, ".git"), path.join(hostile, ".git")),
     },
     {
+      label: "a gitdir file that goes through a link and then ..",
+      plant: async (hostile, victim) => {
+        await symlink(path.join(victim, ".git", "objects"), path.join(hostile, "sym"));
+        await writeFile(path.join(hostile, ".git"), "gitdir: sym/..\n");
+      },
+    },
+    // Git takes the rest of the file as the path, trailing CR/LF aside; a name may hold any other byte.
+    ...[
+      ["a newline", "ok\n"],
+      ["a carriage return", "ok\r"],
+      ["U+2028", "ok\u2028"],
+    ].map(([what, folder]) => ({
+      label: `a gitdir file through a folder whose name ends in ${what}`,
+      plant: async (hostile: string, victim: string) => {
+        await mkdir(path.join(hostile, folder as string));
+        const towards = path.relative(hostile, path.join(victim, ".git"));
+        await writeFile(path.join(hostile, ".git"), `gitdir: ${folder}/../${towards}`);
+      },
+    })),
+    {
+      label: "a gitdir file naming a link with a space at its end",
+      plant: async (hostile, victim) => {
+        await symlink(path.join(victim, ".git"), path.join(hostile, "lnk "));
+        await writeFile(path.join(hostile, ".git"), "gitdir: lnk ");
+      },
+    },
+    {
+      label: "a gitdir file with a NUL byte after the path",
+      plant: (hostile, victim) =>
+        writeFile(
+          path.join(hostile, ".git"),
+          Buffer.from(`gitdir: ${path.relative(hostile, path.join(victim, ".git"))}\0 trailing\n`),
+        ),
+    },
+    {
+      label: "a .git that is a link to the .git file of the other project's linked worktree",
+      plant: async (hostile, victim, root) => {
+        await fixtureGit(victim, ["worktree", "add", "--detach", path.join(root, "its-worktree"), "HEAD"]);
+        await symlink(path.join(root, "its-worktree", ".git"), path.join(hostile, ".git"));
+      },
+    },
+    {
       label: "a gitdir file naming the folder of the other project's linked worktree",
       plant: async (hostile, victim, root) => {
         await fixtureGit(victim, ["worktree", "add", "--detach", path.join(root, "its-worktree"), "HEAD"]);
@@ -654,6 +730,60 @@ describe("host git stays in its folder", { skip: !POSIX && "symbolic links and s
         );
       assert.equal(await state(), before);
     });
+
+  it("does not hang on a .git that is a pipe, or read one that is a device", { timeout: 60_000 }, async () => {
+    for (const make of [
+      (file: string) => spawnSync("mkfifo", [file]).status === 0,
+      (file: string) => symlink("/dev/zero", file).then(() => true),
+    ]) {
+      const { root } = await aboveAndOutside();
+      const folder = path.join(root, "odd");
+      await mkdir(folder);
+      assert.equal(await make(path.join(folder, ".git")), true);
+      // Git ignores a .git that is neither a file nor a directory: with no repository around it, it says so.
+      await assert.rejects(
+        () => hostGit(folder, ["status", "--porcelain"]),
+        (error: unknown) => (error as { code?: unknown }).code === 128,
+      );
+    }
+  });
+
+  it("refuses a damaged .git inside a larger repository, and tells the person to repair it, not to delete it", async () => {
+    const { root } = await aboveAndOutside();
+    const enclosing = path.join(root, "enclosing");
+    const project = path.join(enclosing, "proj");
+    await mkdir(project, { recursive: true });
+    await fixtureGit(enclosing, ["init", "-q", "-b", "main"]);
+    await fixtureGit(project, ["init", "-q", "-b", "main"]);
+    await writeFile(path.join(project, ".git", "HEAD"), "");
+    await assert.rejects(
+      () => hostGit(project, ["status", "--porcelain"]),
+      (error: unknown) =>
+        refused(HostGitRefusal.ForeignGitDir)(error) &&
+        /not a usable repository/.test((error as Error).message) &&
+        !/remove/i.test((error as Error).message),
+    );
+  });
+
+  it("refuses when the work tree git reports cannot be asked for because it warns past the buffer", async () => {
+    const { root, dir } = await aboveAndOutside();
+    await config(dir, `[core]\n\tworktree = ../..\n${"[core]\n\tfsync = x\n".repeat(1500)}`);
+    await assert.rejects(() => hostGit(dir, ["add", "-A"]), refused(HostGitRefusal.ForeignWorkTree));
+    assert.equal(await exists(path.join(root, "sibling", "secret.txt")), true);
+  });
+
+  it("still works when .git is a link to a separate git directory elsewhere", async () => {
+    const { root } = await aboveAndOutside();
+    const folder = path.join(root, "linked-git");
+    const gitdir = path.join(root, "gitdirs", "site.git");
+    await mkdir(folder);
+    await mkdir(path.dirname(gitdir));
+    await fixtureGit(folder, ["init", "-q", "-b", "main", `--separate-git-dir=${gitdir}`]);
+    await rm(path.join(folder, ".git"));
+    await symlink(gitdir, path.join(folder, ".git"));
+    await writeFile(path.join(folder, "f.txt"), "f\n");
+    assert.match((await hostGit(folder, ["status", "--porcelain"])).stdout, /f\.txt/);
+  });
 
   it("refuses a folder whose .git is an empty directory inside a larger repository, leaving that repository alone", async () => {
     const { root } = await aboveAndOutside();

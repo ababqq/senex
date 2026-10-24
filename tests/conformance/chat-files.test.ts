@@ -343,6 +343,28 @@ test("resolving and opening build files never executes repository content filter
   assert.equal(existsSync(marker), false);
 });
 
+test("every git call a chat file link makes closes the command's standard input, as the git macOS ships needs", {
+  skip: process.platform === "win32" && "a shell script stands in for git",
+  timeout: 60_000,
+}, async () => {
+  const f = fixture();
+  const bin = mkdtempSync(path.join(tmpdir(), "chat-files-git-"));
+  const real = execFileSync("sh", ["-c", "command -v git"]).toString().trim();
+  // This git reads its standard input to the end before it does anything, as /dev/stdin does there.
+  writeFileSync(path.join(bin, "git"), `#!/bin/sh\ncat > /dev/null\nexec '${real}' "$@"\n`);
+  chmodSync(path.join(bin, "git"), 0o755);
+  const resolver = new ChatFileResolver();
+  const before = process.env.PATH;
+  process.env.PATH = `${bin}${path.delimiter}${before ?? ""}`;
+  try {
+    assert.equal((await resolver.resolve(f.scope(), [{ name: "src/enemy.js" }]))[0]?.build, true);
+    const opened = await resolver.target(f.scope(), { name: "src/enemy.js" });
+    assert.equal(readFileSync(opened.target, "utf8"), "enemy");
+  } finally {
+    process.env.PATH = before;
+  }
+});
+
 test("a project chat links its own files, newer build files and files anywhere on this computer", {
   skip: process.platform === "win32" && "symbolic links and exec bits are POSIX",
 }, async () => {
