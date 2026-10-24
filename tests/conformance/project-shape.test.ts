@@ -1069,7 +1069,7 @@ describe("a project's own shape", () => {
     const commands: string[] = [];
     const fake = async (command: string) => {
       commands.push(command);
-      if (command.startsWith("git diff --name-only")) return { code: 0, stdout: "src/main.ts\n", stderr: "" };
+      if (command.includes("diff --name-only")) return { code: 0, stdout: "src/main.ts\n", stderr: "" };
       return { code: 1, stdout: "", stderr: "nope" };
     };
     assert.match(

@@ -95,19 +95,28 @@ function commitFlags({
   return `-q${allowEmpty ? " --allow-empty" : ""}${only ? " --only" : ""}${noEdit ? " --no-edit" : ""}`;
 }
 
+/**
+ * Git quotes a path with a byte above 0x7f in octal (`"src/\354\230\210.js"`) unless told not to, and every
+ * parser here reads a path as it is on disk: a Korean or accented file name was an ownership
+ * breach that could not be quarantined, and a diff the review dropped. The commands whose
+ * output the loop reads for names carry this.
+ */
+const NO_QUOTE_PATH = "-c core.quotepath=false";
+
 /** The command lines, as data. Nothing here runs anything. */
 export const GIT = Object.freeze({
   head: "git rev-parse HEAD",
   /** How many commits the branch holds: a project the studio just made has its one. */
   commitCount: "git rev-list --count HEAD",
-  status: "git status --porcelain",
+  status: `git ${NO_QUOTE_PATH} status --porcelain`,
   /**
    * A look that never writes (`--no-optional-locks`, no `git add`), capped: the monitor reads a
    * running worker's worktree without taking the index lock its own commit needs.
    */
   statusReadOnly: (maxBytes: number): string =>
-    `git --no-optional-locks status --porcelain | head -c ${Number(maxBytes)}`,
-  diffReadOnly: (maxBytes: number): string => `git --no-optional-locks diff -U0 | head -c ${Number(maxBytes)}`,
+    `git --no-optional-locks ${NO_QUOTE_PATH} status --porcelain | head -c ${Number(maxBytes)}`,
+  diffReadOnly: (maxBytes: number): string =>
+    `git --no-optional-locks ${NO_QUOTE_PATH} diff -U0 | head -c ${Number(maxBytes)}`,
   addAll: "git add -A",
   /** Intent-to-add: a new file shows in `git diff` without anything being staged for real. */
   intentToAddAll: "git add -A -N -- .",
@@ -130,7 +139,7 @@ export const GIT = Object.freeze({
     `git ${STUDIO_AS} merge${noFf ? " --no-ff" : ""}${noEdit ? " --no-edit" : ""} -m ${shellQuote(message)} ${commitArg(commit)}`,
   mergeAbort: "git merge --abort || true",
   /** The paths a failed merge left unmerged, one per line. */
-  unmerged: "git diff --name-only --diff-filter=U",
+  unmerged: `git ${NO_QUOTE_PATH} diff --name-only --diff-filter=U`,
   isAncestor: (commit: unknown): string =>
     `git merge-base --is-ancestor ${commitArg(commit)} HEAD && echo yes || echo no`,
   updateRef: (ref: unknown, rev: unknown): string => `git update-ref ${refArg(ref)} ${commitArg(rev)}`,
@@ -139,8 +148,9 @@ export const GIT = Object.freeze({
   revListCount: (from: unknown, to: unknown): string => `git rev-list --count ${commitArg(from)}..${commitArg(to)}`,
   diffStat: (base: unknown): string => `git diff --stat ${commitArg(base)} HEAD -- . ':(exclude).studio/*'`,
   /** Paths changed against `base`, restricted to `pathspec` (already-quoted shell words). */
-  diffNames: (base: unknown, pathspec: string): string => `git diff --name-only ${commitArg(base)} -- ${pathspec}`,
-  diff: (base: unknown, pathspec: string): string => `git diff ${commitArg(base)} -- ${pathspec}`,
+  diffNames: (base: unknown, pathspec: string): string =>
+    `git ${NO_QUOTE_PATH} diff --name-only ${commitArg(base)} -- ${pathspec}`,
+  diff: (base: unknown, pathspec: string): string => `git ${NO_QUOTE_PATH} diff ${commitArg(base)} -- ${pathspec}`,
   /** Does `rev:file` exist? Answers `yes` or `no` on stdout. */
   catFileExists: (rev: string, file: string): string =>
     `git cat-file -e ${shellQuote(`${rev}:${file}`)} && echo yes || echo no`,
@@ -153,7 +163,8 @@ export const GIT = Object.freeze({
   /** How a commit holds one path: a line starting `160000` is a nested repository's pointer. */
   lsTreePath: (rel: string): string => `git ls-tree HEAD -- ${shellQuote(rel)}`,
   /** Every path a commit holds as a nested repository's pointer (a gitlink), one per line. */
-  gitlinks: (rev: unknown): string => `git ls-tree -r ${commitArg(rev)} | awk '$1 == "160000" { print $4 }'`,
+  gitlinks: (rev: unknown): string =>
+    `git ${NO_QUOTE_PATH} ls-tree -r ${commitArg(rev)} | awk '$1 == "160000" { print $4 }'`,
 });
 
 /** Where a command runs: a worktree path, `{ cwd }`, or the live project folder `{ project }`. */

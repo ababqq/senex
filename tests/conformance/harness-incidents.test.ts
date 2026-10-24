@@ -9568,3 +9568,159 @@ describe("a page with no canvas is a page, not a scene that failed to draw (seco
     );
   });
 });
+
+describe("a file named in Korean is judged by its name (sweep 4)", () => {
+  /** A worktree on a real git, and a ctx that runs the harness's shell commands in it. The machine's own quotepath cannot hide the bug. */
+  async function worktree() {
+    const { tmpDir } = await import("../helpers/tmp.ts");
+    const dir = await tmpDir("korean-name-");
+    const env = { ...process.env, GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_SYSTEM: "/dev/null" };
+    const git = async (...args: string[]) => (await gitFile(["-C", dir, ...args], { env })).stdout.trim();
+    await git("init", "-q");
+    await git("config", "user.email", "t@x");
+    await git("config", "user.name", "t");
+    await mkdir(path.join(dir, "src"), { recursive: true });
+    await writeFile(path.join(dir, "src", "main.js"), "// main\n");
+    await git("add", "-A");
+    await git("commit", "-qm", "base");
+    const ctx = {
+      workspace: "/nonexistent",
+      cancelled: false,
+      notify() {},
+      call: async (method: string, p: { command: string; cwd: string }) => {
+        if (method !== "run.exec") return null;
+        try {
+          const { stdout, stderr } = await promisify(execFile)("sh", ["-c", p.command], {
+            cwd: p.cwd,
+            env,
+            maxBuffer: 10_000_000,
+          });
+          return { code: 0, stdout, stderr };
+        } catch (err) {
+          const e = err as { stdout?: string; stderr?: string; code?: number };
+          return { code: e.code ?? 1, stdout: e.stdout ?? "", stderr: e.stderr ?? "" };
+        }
+      },
+    };
+    const sh = async (command: string) =>
+      ((await ctx.call("run.exec", { command, cwd: dir })) as { stdout: string }).stdout;
+    return { dir, git, ctx, sh, incumbent: await git("rev-parse", "HEAD") };
+  }
+
+  it("K1. a facet that adds files with non-ASCII names is not told they are outside its ownership", async () => {
+    const { dir, ctx, incumbent } = await worktree();
+    for (const name of ["예약폼.js", "café.js", "my file.js"])
+      await writeFile(path.join(dir, "src", name), `// ${name}\n`);
+    const review = await reviewAttempt(
+      ctx as never,
+      {
+        run: {},
+        spec: { id: "forms", title: "Forms", owns: ["src/"], checks: [] },
+        worktree: dir,
+        incumbentCommit: incumbent,
+        ownsMain: false,
+        model: false,
+        template: false,
+      } as never,
+    );
+    assert.deepEqual(
+      review.violations.filter((v) => /outside this facet's ownership/.test(v.what)),
+      [],
+      JSON.stringify(review.violations),
+    );
+    assert.deepEqual(review.files, ["src/café.js", "src/my file.js", "src/예약폼.js"]);
+  });
+
+  it("K2. a hand merge that brings in a non-ASCII file keeps it in the diff the review reads", async () => {
+    const { dir, git, ctx, incumbent } = await worktree();
+    await git("checkout", "-qb", "integration");
+    await writeFile(path.join(dir, "src", "예약폼.js"), "export const form = 1;\n");
+    await git("add", "-A");
+    await git("commit", "-qm", "integrate the form");
+    const integrationHead = await git("rev-parse", "HEAD");
+    await git("checkout", "-q", incumbent);
+    await git("merge", "-q", "--no-edit", integrationHead);
+    await writeFile(path.join(dir, "src", "sky.js"), "export const sky = 1;\n");
+    await writeFile(path.join(dir, "src", "한글.js"), "export const own = 1;\n");
+    const review = await reviewAttempt(
+      ctx as never,
+      {
+        run: {},
+        spec: { id: "sky", title: "Sky", owns: ["src/sky.js", "src/한글.js"], checks: [] },
+        worktree: dir,
+        incumbentCommit: incumbent,
+        integrationHead,
+        ownsMain: false,
+        model: false,
+        template: false,
+      } as never,
+    );
+    assert.equal(review.merged, true);
+    assert.deepEqual(review.files, ["src/sky.js", "src/한글.js"]);
+    assert.ok((review.diffChars ?? 0) > 0);
+  });
+
+  it("K3. the monitor's own look judges a non-ASCII name by what it is, in the status and in the diff", async () => {
+    const { dir, sh } = await worktree();
+    await writeFile(path.join(dir, "src", "예약폼.js"), "export const form = 1;\n");
+    const { GIT } = await import("../../src/harness-seed/loop/git.ts");
+    const { monitorFindings } = await import("../../src/harness-seed/loop/director/rules.ts");
+    const status = await sh(GIT.statusReadOnly(4096));
+    await sh(GIT.intentToAddAll);
+    const diff = await sh(GIT.diffReadOnly(4096));
+    const seen = monitorFindings({
+      status,
+      diff,
+      spec: { id: "forms", owns: ["src/예약폼.js"] } as never,
+      ownsMain: false,
+      template: false,
+    });
+    assert.deepEqual(seen.violations, [], status);
+    assert.deepEqual(seen.files, ["src/예약폼.js"]);
+  });
+
+  it("K4. a file outside ownership with a hostile non-ASCII name is quarantined as one shell word, not run", async () => {
+    const { dir, ctx, sh, incumbent } = await worktree();
+    const hostile = "public/예약;touch PWNED.js";
+    await mkdir(path.join(dir, "public"), { recursive: true });
+    await writeFile(path.join(dir, hostile), "// not yours\n");
+    const review = await reviewAttempt(
+      ctx as never,
+      {
+        run: {},
+        spec: { id: "forms", title: "Forms", owns: ["src/"], checks: [] },
+        worktree: dir,
+        incumbentCommit: incumbent,
+        ownsMain: false,
+        model: false,
+        template: false,
+      } as never,
+    );
+    const outside = review.violations.filter((v) => /outside this facet's ownership/.test(v.what));
+    assert.equal(outside.length, 1, JSON.stringify(review.violations));
+    assert.equal(outside[0]?.file, hostile);
+    const { enforceOwnership } = await import("../../src/harness-seed/loop/review.ts");
+    const enforced = await enforceOwnership(sh, { base: incumbent, violations: review.violations, iterationId: "it1" });
+    assert.equal(enforced[0]?.action, "quarantined to .studio/quarantine/it1");
+    assert.equal((await sh(`ls .studio/quarantine/it1 | wc -l`)).trim(), "1", "it moved into quarantine");
+    assert.equal((await sh(`ls public | wc -l`)).trim(), "0", "and is gone from where it was");
+    assert.equal((await sh(`find . -name PWNED.js -not -path './.git/*' | wc -l`)).trim(), "0", "the name never ran");
+    void dir;
+  });
+
+  it("K5. a merge conflict in a non-ASCII path names it as it is", async () => {
+    const { dir, git, sh } = await worktree();
+    await writeFile(path.join(dir, "src", "예약폼.js"), "one\n");
+    await git("add", "-A");
+    await git("commit", "-qm", "form");
+    await git("checkout", "-qb", "theirs");
+    await writeFile(path.join(dir, "src", "예약폼.js"), "theirs\n");
+    await git("commit", "-qam", "theirs");
+    await git("checkout", "-q", "-");
+    await writeFile(path.join(dir, "src", "예약폼.js"), "ours\n");
+    await git("commit", "-qam", "ours");
+    await git("merge", "theirs").catch(() => "conflict");
+    const { GIT } = await import("../../src/harness-seed/loop/git.ts");
+    assert.equal((await sh(GIT.unmerged)).trim(), "src/예약폼.js");
+  });
+});

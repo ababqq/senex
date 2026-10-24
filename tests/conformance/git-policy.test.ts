@@ -230,6 +230,7 @@ describe("HOST_GIT_CONFIG: settings a repository's config cannot override", () =
       "core.hooksPath=/dev/null",
       "core.pager=cat",
       "core.alternateRefsCommand=",
+      "core.quotepath=false",
       "gpg.program=",
       "gpg.openpgp.program=",
       "gpg.x509.program=",
