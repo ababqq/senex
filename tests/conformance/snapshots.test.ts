@@ -25,6 +25,7 @@ import { shellExec as sh } from "../helpers/posix-shell.ts";
 import { workspaceContentStamp } from "../../src/substrate/workspace-content.ts";
 import { SnapshotScope } from "../../src/shared/event-log.ts";
 import { dirtyUserRepo, fixtureGit, nestedUserRepo } from "../helpers/snapshot-fixtures.ts";
+import { dirtyOutside } from "../../src/main/core/previews.ts";
 
 const exists = (target: string): Promise<boolean> =>
   stat(target).then(
@@ -552,6 +553,27 @@ describe("snapshots of the user's own repository (characterization)", () => {
     assert.equal(await readFile(path.join(repo.dir, "notes/ideas.md"), "utf8"), repo.spec.untracked["notes/ideas.md"]);
     assert.equal(await exists(path.join(repo.dir, "junk.js")), false);
     assert.deepEqual(await repo.status(), []);
+  });
+
+  it("names a file with a non-ASCII name as it is, not as a quoted octal escape", async () => {
+    const repo = await dirtyUserRepo({
+      untracked: { "src/예약폼.js": "export const form = 1;\n", "src/café.js": "export const cafe = 1;\n" },
+    });
+    const engine = new SnapshotEngine([{ name: "project", dir: repo.dir }]);
+    await engine.init();
+    const names = await engine.uncommittedPaths("project");
+    assert.ok(names.includes("src/예약폼.js") && names.includes("src/café.js"), JSON.stringify(names));
+    assert.match(await git(repo.dir, ["status", "--porcelain"]), /src\/예약폼\.js/);
+    assert.deepEqual(
+      dirtyOutside(await git(repo.dir, ["status", "--porcelain"]), ["src/예약폼.js", "src/café.js"]).filter((line) =>
+        /예약폼|café/.test(line),
+      ),
+      [],
+    );
+    const before = await engine.snapshot({ scope: "game", reason: "before", projectWorkspace: "project" });
+    await writeFile(path.join(repo.dir, "src/예약폼.js"), "export const form = 2;\n");
+    const after = await engine.snapshot({ scope: "game", reason: "after", projectWorkspace: "project" });
+    assert.deepEqual(await engine.changedPaths("project", before.git.game!, after.git.game!), ["src/예약폼.js"]);
   });
 
   it("leaves a repository one level down alone when the folder around it is snapshotted", async () => {

@@ -267,6 +267,19 @@ describe("what a build is made of", () => {
     assert.equal(await pathExists(marker), false, "nor did the one named with an equals sign");
   });
 
+  it("keys a second edit of a dirty file with a non-ASCII name, and lists that file by its name", async () => {
+    const dir = await projectRepo("korean");
+    const name = "src/메뉴.js";
+    await writeFile(path.join(dir, name), "export const menu = 1;\n");
+    await exec("git", ["add", "-A"], { cwd: dir, env: GIT_ENV });
+    await exec("git", ["commit", "-q", "-m", "menu"], { cwd: dir, env: GIT_ENV });
+    await writeFile(path.join(dir, name), "export const menu = 2;\n");
+    const edited = await treeKey(dir, "dist");
+    await writeFile(path.join(dir, name), "export const menu = 22; // longer\n");
+    assert.notEqual(await treeKey(dir, "dist"), edited, "the second edit is a new tree");
+    assert.ok((await mirrorList(dir, "dist")).includes(name));
+  });
+
   it("keeps the first lines of what the build printed, stderr first", () => {
     const lines = outputLines({ stderr: "src/main.ts:3 - error TS2304\nsecond\nthird\nfourth", stdout: "vite v5" }, 3);
     assert.deepEqual(lines, ["src/main.ts:3 - error TS2304", "second", "third"]);

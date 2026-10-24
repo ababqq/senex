@@ -75,6 +75,8 @@ const PINNED_CONFIG = {
   "commit.gpgsign": "false",
   "tag.gpgsign": "false",
   "core.alternateRefsCommand": "",
+  // Paths are read as they are on disk: git otherwise quotes a byte above 0x7f in octal.
+  "core.quotepath": "false",
   "gpg.program": "",
   "gpg.openpgp.program": "",
   "gpg.x509.program": "",
