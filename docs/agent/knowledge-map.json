@@ -109,6 +109,7 @@
         "src/substrate/git-policy.ts",
         "tests/conformance/git-policy.test.ts",
         "tests/conformance/host-git.test.ts",
+        "tests/conformance/software-manifests.test.ts",
         "src/substrate/paths.ts",
         "tests/conformance/paths.test.ts",
         "tests/conformance/fsx.test.ts",
