@@ -67,9 +67,8 @@ host for arrives over the harness RPC, which is therefore an untrusted surface:
   inside the exports folder. EventStore thread and artifact ids are plain names, and
   `saveRunArtifact` resolves inside `runs/<runId>/`.
 - A revision the harness names must resolve to a commit (`resolveCommit`) and reaches git after
-  `--end-of-options`; `reset` takes the hash. Host git always runs with `HOST_GIT_CONFIG`
-  (`-c core.fsmonitor= -c core.hooksPath=/dev/null`), so a repository's config cannot make the
-  host run a program.
+  `--end-of-options`; `reset` takes the hash. Host git runs through `hostGit`
+  (`git-policy.ts`), so a repository's config cannot make the host run a program or leave the folder.
 - The harness cannot choose its own rewind target; see [Snapshots and health](#snapshots-and-health).
 
 `tests/conformance/rpc-authority.test.ts` holds the hostile-root table;

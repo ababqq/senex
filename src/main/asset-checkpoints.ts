@@ -1,12 +1,10 @@
 import path from "node:path";
 import { createHash, randomUUID } from "node:crypto";
 import { readFile, realpath, lstat, mkdir, rm } from "node:fs/promises";
-import { execFile, spawn } from "node:child_process";
-import { promisify } from "node:util";
 import { atomicWriteJson } from "../substrate/fsx.ts";
-import { GIT_ENV, HOST_GIT_CONFIG } from "../substrate/snapshots.ts";
+import { type HostGitContext, hostGit, hostGitContext, hostGitSpawn } from "../substrate/git-policy.ts";
+import { GIT_ENV } from "../substrate/snapshots.ts";
 import { assertRelativePath } from "../substrate/paths.ts";
-const exec = promisify(execFile);
 
 /** The most output one git command of a checkpoint may print. */
 const GIT_MAX_BUFFER = 8 * 1024 ** 2;
@@ -48,14 +46,15 @@ async function checkedFile(root: string, relative: string) {
   if (resolved !== file || !(await lstat(file)).isFile()) throw new Error(MESSAGE.notContained);
   return file;
 }
+/** The scanned folder, on a private index when there is one. */
+function onIndex(context: HostGitContext, index?: string): HostGitContext {
+  return index ? { ...context, env: { ...context.env, GIT_INDEX_FILE: index } } : context;
+}
+
 /** Hash the staged blob, not a second read of a path that could change during git add. */
-async function stagedDigest(root: string, index: string, file: string): Promise<string> {
+async function stagedDigest(context: HostGitContext, index: string, file: string): Promise<string> {
   return new Promise((resolve, reject) => {
-    const child = spawn("git", [...HOST_GIT_CONFIG, "show", `:${file}`], {
-      cwd: root,
-      env: { ...process.env, ...GIT_ENV, GIT_INDEX_FILE: index },
-      stdio: ["ignore", "pipe", "pipe"],
-    });
+    const child = hostGitSpawn(onIndex(context, index), ["show", `:${file}`]);
     const hash = createHash("sha256");
     let error = "";
     child.stdout.on("data", (bytes) => hash.update(bytes));
@@ -71,15 +70,9 @@ async function stagedDigest(root: string, index: string, file: string): Promise<
 /** git in one worktree, with the host's own config, optionally on a private index; its trimmed output. */
 type HostGit = (args: string[], index?: string) => Promise<string>;
 
-function hostGit(root: string): HostGit {
+function hostGitIn(context: HostGitContext): HostGit {
   return async (args, index) =>
-    (
-      await exec("git", [...HOST_GIT_CONFIG, ...args], {
-        cwd: root,
-        env: { ...process.env, ...GIT_ENV, ...(index ? { GIT_INDEX_FILE: index } : {}) },
-        maxBuffer: GIT_MAX_BUFFER,
-      })
-    ).stdout.trim();
+    (await hostGit(context.dir, args, { context: onIndex(context, index), maxBuffer: GIT_MAX_BUFFER })).stdout.trim();
 }
 
 /**
@@ -108,7 +101,7 @@ async function pendingDeliveries(git: HostGit, root: string, latest: ReadonlyMap
  */
 async function commitDeliveries(
   git: HostGit,
-  root: string,
+  context: HostGitContext,
   index: string,
   previous: string,
   paths: readonly string[],
@@ -117,7 +110,7 @@ async function commitDeliveries(
   await git(["read-tree", previous], index);
   await git(["add", "--", ...paths], index);
   for (const file of paths)
-    if ((await stagedDigest(root, index, file)) !== latest.get(file))
+    if ((await stagedDigest(context, index, file)) !== latest.get(file))
       throw new Error(MESSAGE.changedDuringCheckpoint(file));
   const tree = await git(["write-tree"], index);
   const revision = await git(["commit-tree", tree, "-p", previous, "-m", CHECKPOINT_COMMIT_MESSAGE], index);
@@ -179,14 +172,15 @@ export class AssetCheckpoints {
       if (ids?.some((id) => !candidates.some((r) => r.id === id))) throw new Error(MESSAGE.unknownDelivery);
       const latest = new Map<string, string>();
       for (const r of candidates) for (const f of r.files) latest.set(f.path, f.sha256);
-      const git = hostGit(root);
+      const context = await hostGitContext(root, GIT_ENV);
+      const git = hostGitIn(context);
       const paths = await pendingDeliveries(git, root, latest);
       if (!paths.length) return { revision: await git(["rev-parse", "HEAD"]), files: [] };
       const previous = await git(["rev-parse", "HEAD"]);
       await mkdir(path.dirname(this.file), { recursive: true });
       const index = path.join(path.dirname(this.file), `index-${randomUUID()}`);
       try {
-        const revision = await commitDeliveries(git, root, index, previous, paths, latest);
+        const revision = await commitDeliveries(git, context, index, previous, paths, latest);
         for (const r of candidates) r.revision = revision;
         await atomicWriteJson(this.file, records);
         return { revision, files: paths };

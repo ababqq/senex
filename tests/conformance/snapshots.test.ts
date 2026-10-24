@@ -812,6 +812,36 @@ describe("a repository whose own config names a program", () => {
     assert.equal(await exists(marker), false, "configured filters never run on the host");
     assert.equal(await readFile(path.join(repo.dir, "src/main.js"), "utf8"), original);
   });
+  it("refuses a name host git cannot switch off, and a work tree outside the folder, before touching either", async () => {
+    const repo = await dirtyUserRepo({ modified: {}, staged: {}, untracked: {} });
+    const outside = await tmpDir("planted-refusal-");
+    const marker = path.join(outside, "RAN");
+    const engine = new SnapshotEngine([{ name: "project", dir: repo.dir }]);
+    await engine.init();
+    const config = path.join(repo.dir, ".git", "config");
+    const original = await readFile(config, "utf8");
+    await writeFile(config, `${original}[filter "a=b"]\n\tclean = touch '${marker}'; cat\n`);
+    await writeFile(path.join(repo.dir, ".gitattributes"), "src/main.js filter=a=b\n");
+    await assert.rejects(() => engine.snapshot({ scope: "game", reason: "refused", projectWorkspace: "project" }), {
+      code: "unsafe-config-key",
+    });
+    assert.equal(await exists(marker), false, "the filter never ran");
+
+    const parent = path.dirname(repo.dir);
+    await writeFile(path.join(parent, "top.txt"), "a file next to the project, in nobody's repository\n");
+    await writeFile(config, `${original}[core]\n\tworktree = ../..\n`);
+    await rm(path.join(repo.dir, ".gitattributes"));
+    await assert.rejects(() => engine.snapshot({ scope: "game", reason: "refused", projectWorkspace: "project" }), {
+      code: "foreign-work-tree",
+    });
+    assert.equal(
+      await readFile(path.join(parent, "top.txt"), "utf8"),
+      "a file next to the project, in nobody's repository\n",
+    );
+    await writeFile(config, original);
+    assert.deepEqual(await repo.status(), [], "the folder was never touched");
+  });
+
   it("never makes a host-side snapshot, diff, restore or content stamp run it", async () => {
     const repo = await dirtyUserRepo({ modified: {}, staged: {}, untracked: {} });
     const outside = await tmpDir("planted-config-");

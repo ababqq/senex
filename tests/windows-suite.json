@@ -91,6 +91,7 @@
   "tests/conformance/genex-plugin-cli.test.ts",
   "tests/conformance/genex-publish-settle.test.ts",
   "tests/conformance/genex.test.ts",
+  "tests/conformance/git-policy.test.ts",
   "tests/conformance/harness-api.test.ts",
   "tests/conformance/harness-host.test.ts",
   "tests/conformance/harness-inbox.test.ts",

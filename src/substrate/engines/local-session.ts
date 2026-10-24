@@ -16,7 +16,7 @@ import { PermissionMode } from "../../shared/permissions.ts";
 import { EngineId } from "../../shared/providers.ts";
 import { credentialHomes } from "../credential-homes.ts";
 import { atomicWriteText } from "../fsx.ts";
-import { HOST_GIT_CONFIG } from "../snapshots.ts";
+import { HOST_GIT_CONFIG } from "../git-policy.ts";
 import { ProcessSandbox } from "../spawn.ts";
 import type { Message, ToolCall, Usage } from "../types.ts";
 import { DEFAULT_COMPACTION_PERCENT, interruption } from "./common.ts";

@@ -1,11 +1,9 @@
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
 import { createHash, type Hash } from "node:crypto";
 import { createReadStream } from "node:fs";
 import { lstat, realpath } from "node:fs/promises";
 import path from "node:path";
 import { SECOND_MS } from "../shared/duration.ts";
-import { HOST_GIT_CONFIG } from "./snapshots.ts";
+import { hostGit } from "./git-policy.ts";
 import { isBelow } from "./paths.ts";
 import type { ContentStamps } from "../shared/project-folder.ts";
 
@@ -38,18 +36,9 @@ function isDocument(file: string): boolean {
 
 /** The files git lists in the folder (tracked and untracked), tooling and notes left out, sorted. */
 async function contentFiles(root: string): Promise<string[]> {
-  const { stdout } = await promisify(execFile)(
-    "git",
-    [
-      ...HOST_GIT_CONFIG,
-      "-C",
-      root,
-      "ls-files",
-      "--cached",
-      "--others",
-      ...TOOLING_DIRS.map((name) => `--exclude=**/${name}/`),
-      "-z",
-    ],
+  const { stdout } = await hostGit(
+    root,
+    ["ls-files", "--cached", "--others", ...TOOLING_DIRS.map((name) => `--exclude=**/${name}/`), "-z"],
     { timeout: LIST_TIMEOUT_MS, maxBuffer: LIST_MAX_BUFFER_BYTES },
   );
   return [...new Set(stdout.split("\0").filter(Boolean))]

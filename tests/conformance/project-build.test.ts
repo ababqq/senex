@@ -9,7 +9,19 @@
  */
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { lstat, mkdir, readFile, readdir, realpath, rm, stat, symlink, writeFile } from "node:fs/promises";
+import {
+  appendFile,
+  lstat,
+  mkdir,
+  readFile,
+  readdir,
+  realpath,
+  rm,
+  stat,
+  symlink,
+  utimes,
+  writeFile,
+} from "node:fs/promises";
 import path from "node:path";
 import { describe, it } from "node:test";
 import { promisify } from "node:util";
@@ -221,6 +233,28 @@ describe("what a build is made of", () => {
     const edited = await treeKey(dir, "dist");
     await writeFile(path.join(dir, ".env"), "VITE_API=https://other.example\n");
     assert.notEqual(await treeKey(dir, "dist"), edited, "the environment the build reads counts too");
+  });
+
+  it("keys and lists a folder without running a filter its own config names, and without one it cannot switch off", {
+    skip: process.platform === "win32" && "shell-script filters",
+  }, async () => {
+    const dir = await projectRepo("hostile");
+    const marker = path.join(await tmpDir("studio-marker-"), "RAN");
+    await appendFile(path.join(dir, ".git", "config"), `[filter "hostile"]\n\tclean = touch '${marker}'; cat\n`);
+    await writeFile(path.join(dir, ".gitattributes"), "* filter=hostile\n");
+    // An edit git has to look at the bytes of, which is when it would run the clean filter.
+    await writeFile(path.join(dir, "src", "main.ts"), "export const project = 2;\n");
+    await utimes(path.join(dir, "src", "main.ts"), new Date(), new Date(Date.now() + 5_000));
+    const key = await treeKey(dir, "dist");
+    assert.equal(await treeKey(dir, "dist"), key, "the key is stable");
+    assert.ok((await mirrorList(dir, "dist")).includes("src/main.ts"));
+    assert.equal(await pathExists(marker), false, "the filter never ran");
+    // A driver name no `-c` can carry: host git declines, and the folder is read as a plain one.
+    await appendFile(path.join(dir, ".git", "config"), `[filter "a=b"]\n\tclean = touch '${marker}'; cat\n`);
+    await writeFile(path.join(dir, ".gitattributes"), "* filter=a=b\n");
+    assert.ok(await treeKey(dir, "dist"));
+    assert.ok((await mirrorList(dir, "dist")).includes("src/main.ts"));
+    assert.equal(await pathExists(marker), false, "nor the one named with an equals sign");
   });
 
   it("keeps the first lines of what the build printed, stderr first", () => {

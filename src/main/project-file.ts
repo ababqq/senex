@@ -3,14 +3,11 @@
  * places answer: the project folder, and a commit of the project's own history (the build a run made).
  * A name that leaves the project — `..`, another folder, `.git` — is refused, not searched for.
  */
-import { execFile } from "node:child_process";
 import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
-import { promisify } from "node:util";
 import { fileKind, imageType, type ProjectFile } from "../shared/project-file.ts";
+import { hostGit, hostGitContext } from "../substrate/git-policy.ts";
 import { containedReal } from "../substrate/paths.ts";
-
-const execFileAsync = promisify(execFile);
 
 /** Enough for any document an agent writes; the rest is cut with a note. */
 export const TEXT_LIMIT = 400_000;
@@ -101,20 +98,16 @@ export async function readCommitFile(
   relative: string,
 ): Promise<ProjectFile | null> {
   if (!/^[0-9a-f]{7,40}$/i.test(commit)) return null;
-  const git = (args: string[], encoding: "utf8" | "buffer") =>
-    execFileAsync("git", ["-C", projectDir, ...args], {
-      encoding,
-      maxBuffer: IMAGE_LIMIT + 1024,
-      env: { ...process.env, GIT_CONFIG_GLOBAL: "/dev/null", GIT_TERMINAL_PROMPT: "0" },
-    });
   const spec = `${commit}:${relative}`;
   try {
-    const type = String((await git(["cat-file", "-t", spec], "utf8")).stdout).trim();
+    const context = await hostGitContext(projectDir);
+    const maxBuffer = IMAGE_LIMIT + 1024;
+    const type = (await hostGit(projectDir, ["cat-file", "-t", spec], { context, maxBuffer })).stdout.trim();
     if (type !== "blob") return null;
-    const size = Number(String((await git(["cat-file", "-s", spec], "utf8")).stdout).trim());
+    const size = Number((await hostGit(projectDir, ["cat-file", "-s", spec], { context, maxBuffer })).stdout.trim());
     if (!(size <= IMAGE_LIMIT)) return { path: relative, name: path.basename(relative), where: "build", kind: "other" };
-    const { stdout } = await git(["cat-file", "blob", spec], "buffer");
-    return fromBytes(relative, "build", Buffer.from(stdout));
+    const blob = await hostGit(projectDir, ["cat-file", "blob", spec], { context, maxBuffer, encoding: "buffer" });
+    return fromBytes(relative, "build", blob.stdout);
   } catch {
     return null;
   }
