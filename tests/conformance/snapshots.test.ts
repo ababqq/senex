@@ -667,6 +667,30 @@ describe("restoring a project the user may still be working in", () => {
     assert.equal(await fixtureGit(repo.dir, ["rev-parse", "HEAD"]), before.git.game);
   });
 
+  it("restores while a file in the folder is named like the commit it resets to", async () => {
+    const { repo, engine, before } = await snapshotted();
+    await writeFile(path.join(repo.dir, "src/main.js"), "attempt\n");
+    await writeFile(path.join(repo.dir, before.git.game ?? ""), "a file named like the commit\n");
+    await engine.restore(before, { projectWorkspace: "project" });
+    assert.equal(await readFile(path.join(repo.dir, "src/main.js"), "utf8"), repo.spec.modified["src/main.js"]);
+    assert.equal(await fixtureGit(repo.dir, ["rev-parse", "HEAD"]), before.git.game);
+  });
+
+  it("refuses a stored revision that names no commit, before anything in the folder moves", async () => {
+    const { repo, engine, before } = await snapshotted();
+    const edited = "export const speed = 3; // edited during the round\n";
+    await writeFile(path.join(repo.dir, "src/main.js"), edited);
+    for (const revision of ["--hard", "--orphan=x", "HEAD~99", "no-such-revision"]) {
+      await assert.rejects(
+        () => engine.restore({ ...before, git: { ...before.git, game: revision } }, { projectWorkspace: "project" }),
+        { code: "history-changed" },
+        revision,
+      );
+      assert.equal(await readFile(path.join(repo.dir, "src/main.js"), "utf8"), edited, revision);
+      assert.equal(await fixtureGit(repo.dir, ["rev-parse", "HEAD"]), before.git.game, revision);
+    }
+  });
+
   it("refuses when the user switched branches, and leaves both branches where they were", async () => {
     const { repo, engine, before } = await snapshotted();
     await fixtureGit(repo.dir, ["checkout", "-q", "-b", "feature", repo.head]);
