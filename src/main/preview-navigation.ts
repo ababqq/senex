@@ -64,7 +64,9 @@ export async function settleWithin<T>(
   onTimeout: () => void = () => {},
 ): Promise<T> {
   const stop = new AbortController();
+  let gaveUp = false;
   const elapsed = wait(ms, stop.signal).then(() => {
+    gaveUp = true;
     onTimeout();
     throw new PreviewNavigationError(NavigationFailure.TimedOut, MESSAGE.timedOut(ms));
   });
@@ -73,6 +75,11 @@ export async function settleWithin<T>(
   navigation.catch(() => {});
   try {
     return await Promise.race([navigation, elapsed]);
+  } catch (error) {
+    // Stopping the window fails the navigation it was stopped for, and that failure can reach the race
+    // first: the caller is told the give-up, not the stop.
+    if (gaveUp) throw new PreviewNavigationError(NavigationFailure.TimedOut, MESSAGE.timedOut(ms));
+    throw error;
   } finally {
     stop.abort();
   }

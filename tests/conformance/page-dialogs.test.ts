@@ -7,6 +7,9 @@
  */
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import path from "node:path";
+import vm from "node:vm";
+import * as esbuild from "esbuild";
 import { installDialogAnswers, MAX_DIALOG_NOTES } from "../../src/page/dialogs.ts";
 
 /** A page whose native dialogs would block: calling one is the failure. */
@@ -90,5 +93,71 @@ describe("the dialogs an agent's window answers by itself", () => {
     Object.defineProperty(win, "alert", { value: () => "native", writable: false, configurable: false });
     assert.doesNotThrow(() => installDialogAnswers(win, (line) => notes.push(line)));
     assert.equal(typeof win.confirm, "function", "the others are still answered");
+  });
+});
+
+describe("the shim bundle a project page is served", () => {
+  const root = path.resolve(import.meta.dirname, "../..");
+
+  /** The page bundle as scripts/build.mjs makes it (`src/page/entry.ts`, a classic script). */
+  async function bundle(): Promise<string> {
+    const built = await esbuild.build({
+      entryPoints: [path.join(root, "src/page/entry.ts")],
+      bundle: true,
+      write: false,
+      platform: "browser",
+      target: "es2022",
+      format: "iife",
+      external: ["/vendor/studio/hook.js"],
+      logLevel: "silent",
+    });
+    return built.outputFiles[0]?.text ?? "";
+  }
+
+  /** A bare page whose native dialogs would block, running the bundle with the options its tag carries. */
+  function run(code: string, optionsAttribute: string | null) {
+    const warnings: string[] = [];
+    const native = (): never => {
+      throw new Error("a native dialog would have frozen the window");
+    };
+    const page: Record<string, unknown> = {
+      alert: native,
+      confirm: native,
+      prompt: native,
+      print: native,
+      console: { warn: (line: string) => warnings.push(line), log() {}, error() {}, info() {}, debug() {} },
+      setTimeout: () => 0,
+      setInterval: () => 0,
+      clearTimeout() {},
+      clearInterval() {},
+      document: {
+        currentScript: { getAttribute: (name: string) => (name === "data-studio-options" ? optionsAttribute : null) },
+        querySelector: () => null,
+        addEventListener() {},
+        createElement: () => ({}),
+        readyState: "loading",
+      },
+    };
+    page.window = page;
+    page.self = page;
+    page.globalThis = page;
+    vm.runInContext(code, vm.createContext(page));
+    return { page, warnings, native };
+  }
+
+  it("answers the page's dialogs when its tag says nobody is there, and says so on the console", async () => {
+    const { page, warnings } = run(await bundle(), JSON.stringify({ dialogs: "answer" }));
+    assert.equal((page.confirm as (m: string) => boolean)("Delete?"), false);
+    assert.equal((page.prompt as (m: string) => string | null)("Name?"), null);
+    assert.equal(warnings.length, 2);
+  });
+
+  it("leaves the page's dialogs alone when its tag does not say so: a person is there", async () => {
+    const code = await bundle();
+    for (const attribute of [null, "{}", JSON.stringify({ seed: null }), JSON.stringify({ dialogs: "ask" })]) {
+      const { page, native, warnings } = run(code, attribute);
+      assert.equal(page.confirm, native, String(attribute));
+      assert.deepEqual(warnings, []);
+    }
   });
 });

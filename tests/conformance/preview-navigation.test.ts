@@ -77,6 +77,19 @@ describe("waiting for a navigation to settle", () => {
     assert.equal(cancelled, 1);
   });
 
+  it("still reports the give-up when stopping the window is what makes the navigation fail", async () => {
+    // Electron rejects the pending loadURL as soon as the window is stopped: that failure is the
+    // give-up's own doing, not the page's, and the caller must hear the typed one.
+    const clock = heldClock();
+    let fail: (error: Error) => void = () => {};
+    const navigation = new Promise<never>((_, reject) => {
+      fail = reject;
+    });
+    const waiting = settleWithin(navigation, 1000, clock.wait, () => fail(new Error("ERR_FAILED (-2)")));
+    clock.waits[0]?.elapse();
+    await assert.rejects(waiting, timedOut);
+  });
+
   it("does not cancel a navigation that settled", async () => {
     const clock = heldClock();
     let cancelled = 0;
