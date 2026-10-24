@@ -10,7 +10,7 @@ import {
   type NativeInputEvent,
   type PageDispatch,
 } from "../../src/main/preview-input-driver.ts";
-import type { PreviewInputAction } from "../../src/substrate/preview-input.ts";
+import { type ModifierName, type PreviewInputAction } from "../../src/substrate/preview-input.ts";
 
 type Beat = { native: NativeInputEvent } | { page: PageDispatch } | { step: number };
 
@@ -18,12 +18,15 @@ function recorder(start = { x: 400, y: 300 }): {
   target: InputTarget;
   beats: Beat[];
   at: () => { x: number; y: number };
+  held: Set<ModifierName>;
 } {
   const beats: Beat[] = [];
+  const held = new Set<ModifierName>();
   let pointer = start;
   const target: InputTarget = {
     width: 800,
     height: 600,
+    held,
     send: (event) => {
       beats.push({ native: event });
     },
@@ -38,7 +41,7 @@ function recorder(start = { x: 400, y: 300 }): {
       pointer = point;
     },
   };
-  return { target, beats, at: () => pointer };
+  return { target, beats, at: () => pointer, held };
 }
 
 function beatKind(beat: Beat): string {
@@ -55,6 +58,32 @@ async function run(action: PreviewInputAction, start?: { x: number; y: number })
   await applyInputAction(rec.target, action);
   return rec;
 }
+
+/** Several actions on one target, as a play script gives them: what is held stays held between them. */
+async function runAll(actions: PreviewInputAction[]) {
+  const rec = recorder();
+  for (const action of actions) await applyInputAction(rec.target, action);
+  return rec;
+}
+
+/** Every native key event as [type, keyCode, modifiers it carries], in the order it was sent. */
+const keyEvents = (beats: Beat[]) =>
+  beats.flatMap((beat) => {
+    if (!("native" in beat)) return [];
+    const event = beat.native;
+    if (event.type !== "keyDown" && event.type !== "char" && event.type !== "keyUp") return [];
+    return [[event.type, event.keyCode, event.modifiers ?? []]];
+  });
+
+/** Every page-side key copy as [type, key, modifiers it carries], in the order it was dispatched. */
+const keyCopies = (beats: Beat[]) =>
+  beats.flatMap((beat) =>
+    "page" in beat
+      ? (beat.page.dom ?? []).flatMap((entry) =>
+          entry.kind === "key" ? [[entry.type, entry.key, entry.modifiers ?? []]] : [],
+        )
+      : [],
+  );
 
 describe("preview input driver", () => {
   it("holds a click's modifiers around the click and carries them on the mouse events", async () => {
@@ -227,5 +256,173 @@ describe("preview input driver", () => {
   it("an action with no keys, or of an unknown type, sends nothing", async () => {
     assert.deepEqual((await run({ type: "down", keys: [] })).beats, []);
     assert.deepEqual((await run({ type: "bogus" } as unknown as PreviewInputAction)).beats, []);
+  });
+
+  describe("the modifiers a chord holds", () => {
+    it("carries ctrl on the S it strikes and on its own key, and drops it as it lets go", async () => {
+      const { beats } = await run({ type: "press", combo: "ctrl+s" });
+      assert.deepEqual(keyEvents(beats), [
+        ["keyDown", "Control", ["control"]],
+        ["keyDown", "S", ["control"]],
+        ["keyUp", "S", ["control"]],
+        ["keyUp", "Control", []],
+      ]);
+      assert.deepEqual(keyCopies(beats), [
+        ["keydown", "Control", ["control"]],
+        ["keydown", "s", ["control"]],
+        ["keyup", "s", ["control"]],
+        ["keyup", "Control", []],
+      ]);
+    });
+
+    it("adds each modifier as it goes down and takes them off in the reverse order", async () => {
+      const { beats } = await run({ type: "press", combo: "ctrl+shift+s" });
+      assert.deepEqual(keyEvents(beats), [
+        ["keyDown", "Control", ["control"]],
+        ["keyDown", "Shift", ["control", "shift"]],
+        ["keyDown", "S", ["control", "shift"]],
+        ["keyUp", "S", ["control", "shift"]],
+        ["keyUp", "Shift", ["control"]],
+        ["keyUp", "Control", []],
+      ]);
+      assert.deepEqual(
+        keyCopies(beats).map(([type, key]) => `${type} ${key}`),
+        ["keydown Control", "keydown Shift", "keydown s", "keyup s", "keyup Shift", "keyup Control"],
+        "the page hears them in the order Chromium does",
+      );
+    });
+
+    it("sends a key with nothing held exactly as it did before: no modifiers at all", async () => {
+      const { beats } = await run({ type: "tap", keys: ["w"] });
+      assert.deepEqual(
+        beats.flatMap((beat) => ("native" in beat ? [Object.keys(beat.native)] : [])),
+        [
+          ["type", "keyCode"],
+          ["type", "keyCode"],
+          ["type", "keyCode"],
+        ],
+      );
+      assert.deepEqual(keyCopies(beats), [
+        ["keydown", "w", []],
+        ["keyup", "w", []],
+      ]);
+    });
+
+    it("types a newline for shift+Return, and the space of shift+space, with shift on them", async () => {
+      const enter = (await run({ type: "press", combo: "shift+Return" })).beats;
+      assert.deepEqual(keyEvents(enter), [
+        ["keyDown", "Shift", ["shift"]],
+        ["keyDown", "Enter", ["shift"]],
+        ["char", "\r", ["shift"]],
+        ["keyUp", "Enter", ["shift"]],
+        ["keyUp", "Shift", []],
+      ]);
+      const space = (await run({ type: "press", combo: "shift+space" })).beats;
+      assert.deepEqual(
+        keyEvents(space).filter(([type]) => type === "char"),
+        [["char", "Space", ["shift"]]],
+      );
+    });
+
+    it("types nothing for ctrl+Return, a shortcut, but still sends the key with ctrl on it", async () => {
+      const { beats } = await run({ type: "press", combo: "ctrl+Return" });
+      assert.deepEqual(
+        keyEvents(beats).map(([type]) => type),
+        ["keyDown", "keyDown", "keyUp", "keyUp"],
+      );
+      assert.deepEqual(keyEvents(beats)[1], ["keyDown", "Enter", ["control"]]);
+    });
+
+    it("lets a held key combine with the next one: down shift, tap a, up shift", async () => {
+      const { beats, held } = await runAll([
+        { type: "down", keys: ["shift"] },
+        { type: "tap", keys: ["a"] },
+        { type: "up", keys: ["shift"] },
+        { type: "tap", keys: ["a"] },
+      ]);
+      assert.deepEqual(keyEvents(beats), [
+        ["keyDown", "Shift", ["shift"]],
+        ["keyDown", "A", ["shift"]],
+        ["char", "A", ["shift"]],
+        ["keyUp", "A", ["shift"]],
+        ["keyUp", "Shift", []],
+        ["keyDown", "A", []],
+        ["char", "a", []],
+        ["keyUp", "A", []],
+      ]);
+      assert.equal(held.size, 0, "nothing is left held once every key was let go");
+    });
+
+    it("types no character for a held ctrl+a, and the capital for a held shift+w", async () => {
+      const ctrlA = await run({ type: "hold", keys: ["ctrl", "a"], ms: 1 });
+      assert.deepEqual(
+        keyEvents(ctrlA.beats).filter(([type]) => type === "char"),
+        [],
+      );
+      const shiftW = await run({ type: "hold", keys: ["ShiftLeft", "KeyW"], ms: 1 });
+      assert.deepEqual(
+        keyEvents(shiftW.beats).filter(([type]) => type === "char"),
+        [["char", "W", ["shift"]]],
+      );
+    });
+
+    it("carries a held modifier on the mouse and the wheel as well as on keys", async () => {
+      const { beats } = await runAll([
+        { type: "down", keys: ["ctrl"] },
+        { type: "click", x: 5, y: 5, px: true },
+        { type: "scroll", dy: 100 },
+      ]);
+      const mouse = beats.flatMap((beat) =>
+        "native" in beat &&
+        beat.native.type !== "keyDown" &&
+        beat.native.type !== "keyUp" &&
+        beat.native.type !== "char"
+          ? [[beat.native.type, (beat.native as Electron.MouseInputEvent).modifiers ?? []]]
+          : [],
+      );
+      assert.deepEqual(mouse, [
+        ["mouseMove", ["control"]],
+        ["mouseDown", ["control"]],
+        ["mouseUp", ["control"]],
+        ["mouseWheel", ["control"]],
+      ]);
+      const copies = beats.flatMap((beat) => ("page" in beat ? (beat.page.dom ?? []) : []));
+      const wheel = copies.find((entry) => entry.kind === "wheel");
+      assert.deepEqual(wheel?.modifiers, ["control"]);
+      const click = copies.find((entry) => entry.type === "click");
+      assert.deepEqual(click?.modifiers, ["control"], "a ctrl-click's page copy says ctrl");
+    });
+
+    it("presses a click's own modifiers only when they are not already held, and lets go of just those", async () => {
+      const { beats, held } = await runAll([
+        { type: "down", keys: ["shift"] },
+        { type: "click", x: 5, y: 5, px: true, modifiers: ["shift", "ctrl"] },
+      ]);
+      const keys = keyEvents(beats);
+      assert.deepEqual(
+        keys.map(([type, key]) => `${type} ${key}`),
+        ["keyDown Shift", "keyDown Control", "keyUp Control"],
+        "shift was already down: it is not pressed again, and the click does not let it go",
+      );
+      assert.deepEqual([...held], ["shift"]);
+      const down = beats.find((beat) => "native" in beat && beat.native.type === "mouseDown");
+      assert.ok(down && "native" in down);
+      assert.deepEqual((down.native as Electron.MouseInputEvent).modifiers, ["shift", "control"]);
+    });
+
+    it("keeps modifiers off a drag's glide when none is held, and puts a held one on it", async () => {
+      const bare = await run({ type: "drag", fromX: 0, fromY: 0, x: 60, y: 0, px: true });
+      for (const beat of bare.beats) assert.ok(!("native" in beat) || !("modifiers" in beat.native));
+      const held = await runAll([
+        { type: "down", keys: ["alt"] },
+        { type: "drag", fromX: 0, fromY: 0, x: 60, y: 0, px: true },
+      ]);
+      const mouse = held.beats.flatMap((beat) =>
+        "native" in beat && beat.native.type.startsWith("mouse")
+          ? [(beat.native as Electron.MouseInputEvent).modifiers ?? []]
+          : [],
+      );
+      assert.ok(mouse.length > 0 && mouse.every((modifiers) => modifiers.join() === "alt"), JSON.stringify(mouse));
+    });
   });
 });

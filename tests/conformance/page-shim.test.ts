@@ -752,6 +752,89 @@ describe("the studio's input dispatch", () => {
   });
 });
 
+describe("the modifiers on the studio's synthetic events", () => {
+  const dispatch = new Function(`return (${PAGE_DISPATCH});`)() as (payload: unknown) => boolean;
+
+  /** A page whose key, mouse, pointer and wheel events record the init they were built with. */
+  function recordingPage() {
+    const heard: Array<{ type: string; init: Record<string, unknown> }> = [];
+    const globals = globalThis as unknown as Record<string, unknown>;
+    const before = Object.fromEntries(
+      ["window", "document", "KeyboardEvent", "MouseEvent", "PointerEvent", "WheelEvent"].map((name) => [
+        name,
+        globals[name],
+      ]),
+    );
+    const record = class {
+      type: string;
+      init: Record<string, unknown>;
+      constructor(type: string, init: Record<string, unknown>) {
+        this.type = type;
+        this.init = init;
+      }
+    };
+    const sink = { dispatchEvent: (event: { type: string; init: Record<string, unknown> }) => void heard.push(event) };
+    globals.window = { __studio: null, __studioTrustedTypes: {} };
+    globals.document = { ...sink, querySelector: () => sink, activeElement: null };
+    for (const name of ["KeyboardEvent", "MouseEvent", "PointerEvent", "WheelEvent"]) globals[name] = record;
+    return { heard, restore: () => Object.assign(globals, before) };
+  }
+
+  const flags = (init: Record<string, unknown>) => [init.ctrlKey, init.shiftKey, init.altKey, init.metaKey];
+
+  it("says which modifiers a synthetic key event carries, and none when none is held", () => {
+    const page = recordingPage();
+    try {
+      dispatch({
+        dom: [
+          { kind: "key", type: "keydown", key: "s", code: "KeyS", keyCode: 83, modifiers: ["control", "shift"] },
+          { kind: "key", type: "keyup", key: "s", code: "KeyS", keyCode: 83 },
+        ],
+      });
+      assert.deepEqual(
+        page.heard.map((event) => [event.type, ...flags(event.init)]),
+        [
+          ["keydown", true, true, false, false],
+          ["keyup", false, false, false, false],
+        ],
+      );
+    } finally {
+      page.restore();
+    }
+  });
+
+  it("says them on a synthetic press, its pointer event and a wheel as well", () => {
+    const page = recordingPage();
+    try {
+      dispatch({
+        dom: [
+          {
+            kind: "mouse",
+            type: "mousedown",
+            x: 3,
+            y: 4,
+            button: 0,
+            buttons: 1,
+            detail: 1,
+            modifiers: ["alt", "meta"],
+          },
+          { kind: "wheel", dx: 0, dy: 40, x: 3, y: 4, modifiers: ["control"] },
+        ],
+      });
+      assert.deepEqual(
+        page.heard.map((event) => [event.type, ...flags(event.init)]),
+        [
+          ["mousedown", false, false, true, true],
+          ["pointerdown", false, false, true, true],
+          ["wheel", true, false, false, false],
+        ],
+      );
+    } finally {
+      page.restore();
+    }
+  });
+});
+
 describe("the contract's own look accumulator, where the roads meet", () => {
   /**
    * One look reaches a page carrying the studio's own contract by up to three roads:

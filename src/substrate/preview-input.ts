@@ -25,6 +25,18 @@ export interface NormalizedKey {
 
 export type { PreviewInputAction };
 
+/** The modifier keys, spelled as Electron names them on an input event (`modifiers: ["control"]`). */
+export const ModifierName = { Shift: "shift", Control: "control", Alt: "alt", Meta: "meta" } as const;
+export type ModifierName = (typeof ModifierName)[keyof typeof ModifierName];
+
+/** The modifier each modifier key's `code` is; a key not here is not a modifier. */
+const MODIFIER_OF_CODE: Record<string, ModifierName> = {
+  ShiftLeft: ModifierName.Shift,
+  ControlLeft: ModifierName.Control,
+  AltLeft: ModifierName.Alt,
+  MetaLeft: ModifierName.Meta,
+};
+
 export const MAX_INPUT_ACTIONS = 24;
 export const MAX_HOLD_MS = 8_000;
 /** A held key in a computer-use session (hold_key) may last this long — a long grind, not a stuck key. */
@@ -129,16 +141,40 @@ export function keyChar(key: NormalizedKey): string {
   return key.char ?? key.key;
 }
 
+/** The modifier a key is, or null for a key that is not one. */
+export function modifierOf(key: NormalizedKey): ModifierName | null {
+  return MODIFIER_OF_CODE[key.code] ?? null;
+}
+
+/** The modifiers `keys` hold, once each, in the order they were listed. */
+export function modifiersOf(keys: readonly NormalizedKey[]): ModifierName[] {
+  const held: ModifierName[] = [];
+  for (const key of keys) {
+    const modifier = modifierOf(key);
+    if (modifier && !held.includes(modifier)) held.push(modifier);
+  }
+  return held;
+}
+
+/** The keys shift leaves typing what they type: it breaks a line and spaces, as it does on a keyboard. */
+const SHIFT_KEEPS_CODES = new Set(["Enter", "Space"]);
+
 /**
- * The text striking `key` while `modifiers` are held types, or null when it types none: a lone key types its
- * character, Shift turns a letter into its capital, and any other held modifier (ctrl, alt, meta) makes a
- * shortcut, which types nothing.
+ * The text striking `key` while `held` modifiers are down types, or null when it types none: a lone key types
+ * its character, Shift turns a letter into its capital (and leaves Enter and Space as they are), and any other
+ * held modifier (ctrl, alt, meta) makes a shortcut, which types nothing.
  */
-export function chordChar(modifiers: NormalizedKey[], key: NormalizedKey | null): string | null {
+export function typedChar(held: readonly ModifierName[], key: NormalizedKey | null): string | null {
   if (!key?.printable) return null;
-  if (modifiers.length === 0) return keyChar(key);
-  const shiftOnly = modifiers.every((modifier) => modifier.code === SHIFT_CODE);
-  return shiftOnly && /^[a-z]$/.test(key.key) ? key.key.toUpperCase() : null;
+  if (held.length === 0) return keyChar(key);
+  if (held.some((modifier) => modifier !== ModifierName.Shift)) return null;
+  if (/^[a-z]$/.test(key.key)) return key.key.toUpperCase();
+  return SHIFT_KEEPS_CODES.has(key.code) ? keyChar(key) : null;
+}
+
+/** {@link typedChar} for the modifier keys of a chord. */
+export function chordChar(modifiers: NormalizedKey[], key: NormalizedKey | null): string | null {
+  return typedChar(modifiersOf(modifiers), key);
 }
 
 /** A single key, a list of keys, or nothing, as a list. */
@@ -256,8 +292,7 @@ export function parseCombo(raw: unknown): { modifiers: NormalizedKey[]; key: Nor
   return { modifiers: modifiers.slice(0, 4), key };
 }
 
-const SHIFT_CODE = "ShiftLeft";
-const MODIFIER_CODES = new Set([SHIFT_CODE, "ControlLeft", "AltLeft", "MetaLeft"]);
+const MODIFIER_CODES = new Set(Object.keys(MODIFIER_OF_CODE));
 
 /** Modifier names on a click ("shift", "ctrl+alt") → the keys held for it. */
 export function clickModifiers(raw: unknown): string[] {

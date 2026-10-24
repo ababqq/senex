@@ -31,6 +31,10 @@ export const PAGE_DISPATCH = `(payload) => {
      because the browser's click lands after this dispatch, not before it. */
   const provenBy = { click: "mouseup", dblclick: "mouseup", pointerdown: "mousedown", pointerup: "mouseup", pointermove: "mousemove", keypress: "keydown" };
   for (const ev of payload.dom || []) {
+    /* The modifiers held when this event happened: a ctrl+S handler reads event.ctrlKey, and a
+       shift-click selection reads event.shiftKey, on the synthetic copy as on the native event. */
+    const held = ev.modifiers || [];
+    const mods = { ctrlKey: held.includes("control"), shiftKey: held.includes("shift"), altKey: held.includes("alt"), metaKey: held.includes("meta") };
     /* The look is the exception, and it is not a copy: a hidden window's native mousemove, when it
        arrives at all, carries no pointer-lock movement, and the shim aims this one at the element
        it faked the lock on. Hearing a trusted mousemove is not proof that this one is a duplicate. */
@@ -40,7 +44,7 @@ export const PAGE_DISPATCH = `(payload) => {
     }
     if (heard[ev.type] || heard[provenBy[ev.type]]) continue;
     if (ev.kind === "key") {
-      const init = { key: ev.key, code: ev.code, keyCode: ev.keyCode, which: ev.keyCode, bubbles: true, cancelable: true };
+      const init = { key: ev.key, code: ev.code, keyCode: ev.keyCode, which: ev.keyCode, bubbles: true, cancelable: true, ...mods };
       // Once: dispatched on the focused element (or the document) it bubbles to window too.
       (document.activeElement || document).dispatchEvent(new KeyboardEvent(ev.type, init));
     } else if (ev.kind === "mouse") {
@@ -57,6 +61,7 @@ export const PAGE_DISPATCH = `(payload) => {
         bubbles: true,
         cancelable: true,
         view: window,
+        ...mods,
       };
       mouseTarget.dispatchEvent(new MouseEvent(ev.type, init));
       const pointerType =
@@ -73,6 +78,7 @@ export const PAGE_DISPATCH = `(payload) => {
           clientY: ev.y,
           bubbles: true,
           cancelable: true,
+          ...mods,
         }),
       );
     }
