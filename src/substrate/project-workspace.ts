@@ -53,7 +53,7 @@ import {
 import { isBelow, isInside, samePath, throughClaudeFolder } from "./paths.ts";
 import {
   declaresDependencies,
-  declaresSoftware,
+  folderDeclaresSoftware,
   detectProjectShape,
   findProjectRoot,
   isBuiltShape,
@@ -938,10 +938,10 @@ export class ProjectWorkspaces {
     await writeFile(file, `${JSON.stringify({ ...current, versionNested: true }, null, 2)}\n`);
   }
 
-  /** A `package.json` that declares software, and no `index.html`: a project of its own with no page to open yet. */
+  /** Software (a `package.json` that declares it, or another language's manifest) and no `index.html`: a project of its own with no page to open yet. */
   async #softwareWithoutPage(dir: string): Promise<boolean> {
     if (await pathExists(path.join(dir, "index.html"))) return false;
-    return declaresSoftware(await readPackageManifest(dir));
+    return folderDeclaresSoftware(dir);
   }
 
   /**
