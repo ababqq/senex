@@ -86,12 +86,16 @@ export const HostGitRefusal = {
 export type HostGitRefusal = (typeof HostGitRefusal)[keyof typeof HostGitRefusal];
 
 const MESSAGE = {
-  UnsafeConfigKey: (key: string) =>
-    `This folder's git settings name a program in a way Senex cannot switch off (${JSON.stringify(key).slice(0, 80)}). Remove or rename that entry in .git/config, then try again.`,
+  UnsafeConfigKey: (key: string, why: string) =>
+    `A git setting of this folder, ${JSON.stringify(key).slice(0, 80)}, runs a program under a name Senex cannot turn off: ${why}. Remove or rename it in this folder's git settings (.git/config, or a file it includes), then try again.`,
   ForeignWorkTree: (top: string) =>
-    `This folder's .git/config sets core.worktree to a place other than this folder (${top}). Remove that setting from .git/config, then try again.`,
+    `This folder's git settings put its work tree in a different folder (${top}). Remove core.worktree from this folder's git settings (.git/config), then try again.`,
   ForeignGitDir: (target: string) =>
     `This folder's .git file points at the git directory of another folder (${target}), so Senex's saves would be written there. Remove or replace the .git file, then try again.`,
+  /** Why a name `-c` cannot carry is unusable. */
+  NameHasEquals: 'its name contains "="',
+  NameHasLineBreak: "its name contains a line break",
+  NameNotText: "its name is not valid text",
 } as const;
 
 /** A host git command was declined, with a typed `code`, so that nothing runs in or around the folder. */
@@ -179,6 +183,14 @@ export function hostGitEnv(overrides: NodeJS.ProcessEnv = {}): NodeJS.ProcessEnv
   };
 }
 
+/** Why `-c` cannot carry this key's name, or null when it can. */
+function unusableNameReason(key: string): string | null {
+  if (key.includes("=")) return MESSAGE.NameHasEquals;
+  if (key.includes("\n")) return MESSAGE.NameHasLineBreak;
+  if (key.includes(REPLACEMENT_CHARACTER)) return MESSAGE.NameNotText;
+  return null;
+}
+
 /**
  * One override per command-valued key in a NUL-separated key listing, so the folder's drivers do
  * nothing (a `required` filter is made optional instead, or its absence would fail the command).
@@ -189,8 +201,8 @@ export function driverOverrides(listing: string, trusted: ReadonlySet<string> = 
   const overrides: string[] = [];
   for (const key of new Set(listing.split("\0").filter(Boolean))) {
     if (!DRIVER_KEY.test(key) || trusted.has(key)) continue;
-    if (key.includes("=") || key.includes("\n") || key.includes(REPLACEMENT_CHARACTER))
-      throw new HostGitRefusedError(HostGitRefusal.UnsafeConfigKey, MESSAGE.UnsafeConfigKey(key));
+    const why = unusableNameReason(key);
+    if (why) throw new HostGitRefusedError(HostGitRefusal.UnsafeConfigKey, MESSAGE.UnsafeConfigKey(key, why));
     overrides.push("-c", `${key}=${/\.required$/i.test(key) ? "false" : ""}`);
   }
   return overrides;
@@ -303,7 +315,7 @@ async function trustedMergeDrivers(
 ): Promise<Set<string>> {
   const trusted = new Set<string>();
   for (const key of keys) {
-    if (!MERGE_DRIVER_KEY.test(key) || key.includes("=") || key.includes(REPLACEMENT_CHARACTER)) continue;
+    if (!MERGE_DRIVER_KEY.test(key) || unusableNameReason(key)) continue;
     try {
       const { stdout } = await exec("git", [...HOST_GIT_CONFIG, "-C", dir, "config", "--null", "--get-all", key], {
         env,
@@ -364,6 +376,7 @@ export function hostGitSpawn(
   return spawn("git", command.args, { env: command.env, stdio: ["ignore", "pipe", "pipe"], windowsHide: true });
 }
 
+/** What a caller may set on one `hostGit` run. */
 export interface HostGitOptions {
   /** The caller's own environment on top of the pins (a committer, a private index, a PATH for filters). */
   env?: NodeJS.ProcessEnv;

@@ -249,12 +249,22 @@ describe("what a build is made of", () => {
     assert.equal(await treeKey(dir, "dist"), key, "the key is stable");
     assert.ok((await mirrorList(dir, "dist")).includes("src/main.ts"));
     assert.equal(await pathExists(marker), false, "the filter never ran");
-    // A driver name no `-c` can carry: host git declines, and the folder is read as a plain one.
+    // A driver name no `-c` can carry: host git declines, and a build says so instead of reading the folder as a plain one.
     await appendFile(path.join(dir, ".git", "config"), `[filter "a=b"]\n\tclean = touch '${marker}'; cat\n`);
     await writeFile(path.join(dir, ".gitattributes"), "* filter=a=b\n");
-    assert.ok(await treeKey(dir, "dist"));
-    assert.ok((await mirrorList(dir, "dist")).includes("src/main.ts"));
-    assert.equal(await pathExists(marker), false, "nor the one named with an equals sign");
+    await assert.rejects(() => treeKey(dir, "dist"), { code: "unsafe-config-key" });
+    await assert.rejects(() => mirrorList(dir, "dist"), { code: "unsafe-config-key" });
+    const root = path.join(await tmpDir("studio-refused-"), "builds");
+    const runner = fakeRunner();
+    const outcome = await new ProjectBuilds({ root, run: runner.run }).ensure({
+      project: "hostile",
+      dir,
+      shape: VITE_SHAPE,
+    });
+    assert.equal(outcome.ok, false);
+    assert.match(outcome.problem?.lines.join("\n") ?? "", /runs a program under a name Senex cannot turn off/);
+    assert.equal(runner.calls.length, 0, "nothing was built");
+    assert.equal(await pathExists(marker), false, "nor did the one named with an equals sign");
   });
 
   it("keeps the first lines of what the build printed, stderr first", () => {

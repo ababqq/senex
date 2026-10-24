@@ -1,11 +1,9 @@
 /** Studio-owned agent sessions. A local completion model can execute the same host-granted
  * director/worker tools as a subscription, without borrowing a subscription's CLI or account. */
-import { execFile } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { mkdir, readdir, readFile, realpath, stat, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { promisify } from "node:util";
 import { ChatActivityPhase } from "../../shared/chat-activity.ts";
 import { ContextSource } from "../../shared/context.ts";
 import { SECOND_MS } from "../../shared/duration.ts";
@@ -16,7 +14,7 @@ import { PermissionMode } from "../../shared/permissions.ts";
 import { EngineId } from "../../shared/providers.ts";
 import { credentialHomes } from "../credential-homes.ts";
 import { atomicWriteText } from "../fsx.ts";
-import { HOST_GIT_CONFIG } from "../git-policy.ts";
+import { hostGit } from "../git-policy.ts";
 import { ProcessSandbox } from "../spawn.ts";
 import type { Message, ToolCall, Usage } from "../types.ts";
 import { DEFAULT_COMPACTION_PERCENT, interruption } from "./common.ts";
@@ -366,9 +364,9 @@ export class LocalSessions {
     // A linked worktree's index and objects live outside cwd; authorize only its Git metadata.
     const gitMetadata: string[] = [];
     for (const flag of ["--absolute-git-dir", "--git-common-dir"]) {
-      const answer = await promisify(execFile)("/usr/bin/git", [...HOST_GIT_CONFIG, "-C", cwd, "rev-parse", flag], {
-        timeout: LOCAL_SESSION_LIMITS.gitProbeTimeoutMs,
-      }).catch(() => null);
+      const answer = await hostGit(cwd, ["rev-parse", flag], { timeout: LOCAL_SESSION_LIMITS.gitProbeTimeoutMs }).catch(
+        () => null,
+      );
       if (answer) gitMetadata.push(await realpath(path.resolve(cwd, answer.stdout.trim())));
     }
     const scratchRoot = this.options.scratchRoot ?? path.join(os.tmpdir(), `studio-${EngineId.Bonsai}`);
