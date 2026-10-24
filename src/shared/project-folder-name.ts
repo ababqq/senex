@@ -16,16 +16,22 @@ const DEVICE_STEM = /^(con|prn|aux|nul|com[0-9¹²³]|lpt[0-9¹²³])$/i;
 /** The folder of a project whose title leaves nothing a file name can keep. */
 const UNTITLED_FOLDER = "Untitled project";
 
-/** A project's name in the projects folder: its title in lowercase letters, digits and dashes. */
+/** The name of a project whose title leaves no letter or digit (Korean, Japanese, emoji): a second one is `project-2`. */
+const FALLBACK_SLUG = "project";
+
+/**
+ * A project's name in the projects folder: its title's lowercase letters and digits, joined by
+ * single dashes, with none at either end. A title that keeps none of them is `project`.
+ */
 export function slugFromName(raw: string): string {
   const slug = String(raw ?? "")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
-    .slice(0, MAX_SLUG_LENGTH);
-  if (PROJECT_NAME_RE.test(slug)) return slug;
-  const padded = `project-${slug}`.replace(/[^a-z0-9-]+/g, "").slice(0, MAX_SLUG_LENGTH);
-  return PROJECT_NAME_RE.test(padded) ? padded : "project";
+    .slice(0, MAX_SLUG_LENGTH)
+    // The cut can land on a dash.
+    .replace(/-+$/g, "");
+  return slug || FALLBACK_SLUG;
 }
 
 /**
