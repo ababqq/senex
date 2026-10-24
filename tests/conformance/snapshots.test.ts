@@ -820,7 +820,9 @@ describe("a repository whose own config names a program", () => {
     await engine.init();
     const config = path.join(repo.dir, ".git", "config");
     const original = await readFile(config, "utf8");
-    await writeFile(config, `${original}[filter "a=b"]\n\tclean = touch '${marker}'; cat\n`);
+    // A backslash starts an escape in a config value, so a Windows path is written with each one doubled.
+    const bait = marker.replaceAll("\\", "\\\\");
+    await writeFile(config, `${original}[filter "a=b"]\n\tclean = touch '${bait}'; cat\n`);
     await writeFile(path.join(repo.dir, ".gitattributes"), "src/main.js filter=a=b\n");
     await assert.rejects(() => engine.snapshot({ scope: "game", reason: "refused", projectWorkspace: "project" }), {
       code: "unsafe-config-key",
