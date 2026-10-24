@@ -77,6 +77,11 @@ export function useBuildProblem(
   return { buildProblem, buildProblemRef, installing, installLines, installPackages };
 }
 
+/** Scroll a box to its last line. */
+function scrollToEnd(box: HTMLElement | null): void {
+  if (box) box.scrollTop = box.scrollHeight;
+}
+
 /** What the strip says about the build: packages missing, the last working build on show, or an error to fix. */
 function troubleWords(problem: BuildProblem): string {
   if (problem.needsInstall) return "Its packages aren’t installed yet.";
@@ -103,6 +108,12 @@ export function BuildTrouble({
   onInstall: () => void;
   onReload: () => void;
 }): JSX.Element {
+  const output = useRef<HTMLPreElement>(null);
+  // The box is shorter than a failed install's output and the last lines are the ones that name the
+  // error: show them when Details opens, and when a new install's lines arrive under an open one.
+  useEffect(() => {
+    if (installLines) scrollToEnd(output.current);
+  }, [installLines]);
   return (
     <div data-build-problem className="flex shrink-0 flex-col gap-1.5 border-b border-line bg-surface px-3 py-2.5">
       <div className="flex flex-wrap items-center gap-2">
@@ -123,9 +134,15 @@ export function BuildTrouble({
           </Button>
         )}
       </div>
-      <details className="text-xs text-ink-3">
+      <details
+        className="text-xs text-ink-3"
+        onToggle={(event) => event.currentTarget.open && scrollToEnd(output.current)}
+      >
         <summary className="cursor-pointer select-none text-ink-3 hover:text-ink-2">Details</summary>
-        <pre className="m-0 mt-1 overflow-x-auto whitespace-pre-wrap break-words font-mono text-micro leading-relaxed text-ink-2">
+        <pre
+          ref={output}
+          className="m-0 mt-1 max-h-56 overflow-y-auto whitespace-pre-wrap break-words font-mono text-micro leading-relaxed text-ink-2"
+        >
           {[
             ...(installLines ? [`${problem.install ?? "install"} failed`, ...installLines, ""] : []),
             `${problem.command} (exit ${problem.code ?? "stopped"})`,
