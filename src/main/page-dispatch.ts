@@ -39,7 +39,7 @@ export const PAGE_DISPATCH = `(payload) => {
        arrives at all, carries no pointer-lock movement, and the shim aims this one at the element
        it faked the lock on. Hearing a trusted mousemove is not proof that this one is a duplicate. */
     if (ev.kind === "mouse" && ev.type === "mousemove" && window.__studioClock && typeof window.__studioClock.mouseMove === "function") {
-      window.__studioClock.mouseMove(ev.movementX || 0, ev.movementY || 0, ev.x, ev.y);
+      window.__studioClock.mouseMove(ev.movementX || 0, ev.movementY || 0, ev.x, ev.y, held);
       continue;
     }
     if (heard[ev.type] || heard[provenBy[ev.type]]) continue;

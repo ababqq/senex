@@ -1290,11 +1290,19 @@ function pickCanvas(watch: CanvasWatch) {
   return best ?? elements[0] ?? null;
 }
 
-/** Moves the mouse over the locked element, or the largest drawn canvas, or the document. */
-function mouseMover(win: Foreign, lock: LockState, watch: CanvasWatch) {
-  return function mouseMove(dx: Foreign, dy: Foreign, x: Foreign, y: Foreign) {
+/**
+ * Moves the mouse over the locked element, or the largest drawn canvas, or the document. `modifiers` are the
+ * names of the keys held (`"shift"`, `"control"`, `"alt"`, `"meta"`): the move reports them as a real one does.
+ */
+export function mouseMover(win: Foreign, lock: LockState, watch: CanvasWatch) {
+  return function mouseMove(dx: Foreign, dy: Foreign, x: Foreign, y: Foreign, modifiers?: Foreign) {
     const target = lock.pointerLock.element() ?? pickCanvas(watch) ?? document;
+    const held: unknown[] = Array.isArray(modifiers) ? modifiers : [];
     const init = {
+      ctrlKey: held.includes("control"),
+      shiftKey: held.includes("shift"),
+      altKey: held.includes("alt"),
+      metaKey: held.includes("meta"),
       clientX: Number(x) || 0,
       clientY: Number(y) || 0,
       screenX: Number(x) || 0,

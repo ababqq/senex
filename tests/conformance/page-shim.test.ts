@@ -29,6 +29,7 @@ import {
   installPageDialogs,
   installPageGlobal,
   installSeededRandom,
+  mouseMover,
   mulberry32,
   normalizeShimOptions,
   readinessVerdict,
@@ -753,6 +754,61 @@ describe("the studio's input dispatch", () => {
 });
 
 describe("the modifiers on the studio's synthetic events", () => {
+  it("hands a mousemove's modifiers to the shim's own move, which is the only mousemove a shimmed page hears", () => {
+    const seen: unknown[][] = [];
+    const page = recordingPage();
+    const globals = globalThis as unknown as { window: { __studioClock?: unknown } };
+    globals.window.__studioClock = { mouseMove: (...args: unknown[]) => void seen.push(args) };
+    try {
+      dispatch({
+        dom: [
+          { kind: "mouse", type: "mousemove", x: 5, y: 6, movementX: 1, movementY: 2, modifiers: ["shift"] },
+          { kind: "mouse", type: "mousemove", x: 7, y: 8, movementX: 3, movementY: 4 },
+        ],
+      });
+      assert.deepEqual(seen, [
+        [1, 2, 5, 6, ["shift"]],
+        [3, 4, 7, 8, []],
+      ]);
+    } finally {
+      page.restore();
+    }
+  });
+
+  it("builds the shim's synthetic mousemove and pointermove with the modifiers it was told", () => {
+    const heard: Array<{ type: string; init: Record<string, unknown> }> = [];
+    const globals = globalThis as unknown as Record<string, unknown>;
+    const before = { MouseEvent: globals.MouseEvent };
+    globals.MouseEvent = class {
+      type: string;
+      init: Record<string, unknown>;
+      constructor(type: string, init: Record<string, unknown>) {
+        this.type = type;
+        this.init = init;
+      }
+    };
+    const element = {
+      dispatchEvent: (event: { type: string; init: Record<string, unknown> }) => void heard.push(event),
+    };
+    const win = { PointerEvent: globals.MouseEvent };
+    const move = mouseMover(win, { pointerLock: { element: () => element } } as never, {} as never);
+    try {
+      move(1, 2, 3, 4, ["control", "alt"]);
+      move(1, 2, 3, 4);
+      assert.deepEqual(
+        heard.map((event) => [event.type, ...flags(event.init)]),
+        [
+          ["mousemove", true, false, true, false],
+          ["pointermove", true, false, true, false],
+          ["mousemove", false, false, false, false],
+          ["pointermove", false, false, false, false],
+        ],
+      );
+    } finally {
+      Object.assign(globals, before);
+    }
+  });
+
   const dispatch = new Function(`return (${PAGE_DISPATCH});`)() as (payload: unknown) => boolean;
 
   /** A page whose key, mouse, pointer and wheel events record the init they were built with. */
