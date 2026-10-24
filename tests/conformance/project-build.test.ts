@@ -503,6 +503,63 @@ describe("building a project the user owns", () => {
     assert.equal(failing.calls.length, 1);
   });
 
+  it("keeps saying the packages are missing while the studio's own install is still filling node_modules", async () => {
+    const dir = await projectRepo("mid-install");
+    await rm(path.join(dir, "node_modules"), { recursive: true, force: true });
+    const root = path.join(await tmpDir("studio-shadow-"), "builds");
+    const failing = fakeRunner({ code: 1, stderr: "sh: vite: command not found" });
+    const installed = fakeRunner();
+    let started = () => {};
+    const underway = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    let finish = () => {};
+    const finished = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+    const run = async (request: RunRequest): Promise<RunResult> => {
+      if (!request.label?.startsWith("install:")) return failing.run(request);
+      // A package manager makes its folder first and fills it for as long as it runs.
+      await mkdir(path.join(request.cwd, "node_modules", ".staging"), { recursive: true });
+      started();
+      await finished;
+      return installed.run(request);
+    };
+    const builds = new ProjectBuilds({ root, run });
+    const source = { project: "mid-install", dir, shape: VITE_SHAPE };
+    assert.equal((await builds.ensure(source)).problem?.needsInstall, true);
+
+    const install = builds.install(source);
+    await underway;
+    const during = await builds.ensure(source);
+    assert.equal(during.ran, false, "no build runs against a half-written node_modules");
+    assert.equal(during.problem?.needsInstall, true, "the strip keeps offering the install it is running");
+    assert.equal(failing.calls.length, 1);
+
+    finish();
+    assert.equal((await install).ok, true);
+    assert.equal((await builds.ensure(source)).ran, true, "the first look after the install builds again");
+    assert.equal(failing.calls.length, 2);
+  });
+
+  it("shows the end of a failed add of a package, as it does for an install, and three lines when it worked", async () => {
+    const dir = await projectRepo("add-fails");
+    await writeFile(path.join(dir, "package.json"), '{"name":"add-fails"}\n');
+    const root = path.join(await tmpDir("studio-shadow-"), "builds");
+    const names = ["@genex-ai/multiplayer"];
+    const failing = new ProjectBuilds({ root, run: fakeRunner({ code: 1, stderr: NPM_ERESOLVE }).run });
+    const failed = await failing.addPackages({ project: "add-fails", dir }, names);
+    assert.equal(failed.ok, false);
+    assert.match(failed.lines.join("\n"), /--legacy-peer-deps/, "the advice at the end of what npm printed");
+
+    const stdout = Array.from({ length: 10 }, (_, index) => `added ${index}`).join("\n");
+    const worked = await new ProjectBuilds({ root, run: fakeRunner({ stdout }).run }).addPackages(
+      { project: "add-fails", dir },
+      names,
+    );
+    assert.deepEqual(worked.lines, ["added 0", "added 1", "added 2"]);
+  });
+
   it("keeps the last build that worked when the next one breaks, and says why", async () => {
     const dir = await projectRepo("broken");
     const root = path.join(await tmpDir("studio-shadow-"), "builds");

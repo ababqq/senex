@@ -196,6 +196,8 @@ export class ProjectBuilds {
   readonly #built = new Map<string, Built>();
   /** The build already running for a source, so two looks at one folder are one build. */
   readonly #inFlight = new Map<string, Promise<BuildOutcome>>();
+  /** Folders the studio is installing into now: their node_modules is being filled, not yet there. */
+  readonly #installing = new Set<string>();
 
   constructor(options: {
     root: string;
@@ -320,8 +322,9 @@ export class ProjectBuilds {
     const memo = this.#built.get(dir);
     if (memo?.key !== key) return null;
     // "The packages are missing" stops being true when they arrive, however they got there: the
-    // tree key does not move for node_modules, which is untracked.
-    if (memo.problem?.needsInstall && (await packagesInstalled(dir))) {
+    // tree key does not move for node_modules, which is untracked. A package manager makes the folder
+    // first and fills it for minutes, so an install of the studio's own is waited out, not believed.
+    if (memo.problem?.needsInstall && !this.#installing.has(dir) && (await packagesInstalled(dir))) {
       this.#built.delete(dir);
       return null;
     }
@@ -437,7 +440,7 @@ export class ProjectBuilds {
     if (!source.shape.install) return { ok: false, lines: ["this project declares no packages to install"] };
     const dir = path.resolve(source.dir);
     const commands = await packageCommandsIn(dir);
-    const result = await this.#run({
+    const result = await this.#installIn(dir, {
       command: commands.install,
       cwd: dir,
       timeoutMs: INSTALL_TIMEOUT_MS,
@@ -445,7 +448,6 @@ export class ProjectBuilds {
       policy: { allowedDomains: [...commands.registries] },
       env: this.#cacheEnv(),
     });
-    this.forget(source.dir);
     return { ok: result.code === 0, lines: result.code === 0 ? outputLines(result, 3) : installFailureLines(result) };
   }
 
@@ -465,7 +467,7 @@ export class ProjectBuilds {
     if (!manifest?.isFile()) return { ok: false, lines: [MESSAGE.NoPackageJson] };
     const pinned = packages.map((name) => shellQuote(`${name}@${GENEX_PROJECT_PACKAGES[name]}`));
     const commands = await packageCommandsIn(dir);
-    const result = await this.#run({
+    const result = await this.#installIn(dir, {
       command: `${commands.add} ${pinned.join(" ")}`,
       cwd: dir,
       timeoutMs: INSTALL_TIMEOUT_MS,
@@ -473,8 +475,18 @@ export class ProjectBuilds {
       policy: { allowedDomains: [...commands.registries] },
       env: this.#cacheEnv(),
     });
-    this.forget(source.dir);
     return { ok: result.code === 0, lines: result.code === 0 ? outputLines(result, 3) : installFailureLines(result) };
+  }
+
+  /** Run an install in `dir` (resolved), and drop its memo when it ends: what the folder holds has changed. */
+  async #installIn(dir: string, request: RunRequest): Promise<RunResult> {
+    this.#installing.add(dir);
+    try {
+      return await this.#run(request);
+    } finally {
+      this.#installing.delete(dir);
+      this.forget(dir);
+    }
   }
 
   /**
