@@ -336,17 +336,8 @@ async function servesFolder(target: string, dir: string): Promise<boolean> {
   const claimed = await smallFile(path.join(target, "gitdir"));
   if (claimed === null) return path.basename(target).toLowerCase() !== ".git";
   const named = path.resolve(target, claimed.replace(/\r?\n$/, ""));
-  // The back-pointer names a `.git` file in this very folder, and that file is really there, not a link to another's.
-  const isOurFile = await lstat(path.join(dir, ".git")).then(
-    (entry) => entry.isFile(),
-    () => false,
-  );
-  return (
-    !claimed.includes("\0") &&
-    isOurFile &&
-    path.basename(named) === ".git" &&
-    (await sameFolder(path.dirname(named), dir))
-  );
+  // The back-pointer names a `.git` in this very folder (a link to another folder's file names that folder).
+  return !claimed.includes("\0") && path.basename(named) === ".git" && (await sameFolder(path.dirname(named), dir));
 }
 
 /**

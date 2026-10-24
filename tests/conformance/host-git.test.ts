@@ -785,6 +785,28 @@ describe("host git stays in its folder", { skip: !POSIX && "symbolic links and s
     assert.equal(staged.stdout.trim(), "inside.txt");
   });
 
+  it("still works in a linked worktree reached through a link", async () => {
+    const { root, dir } = await aboveAndOutside();
+    const linked = path.join(root, "linked-real");
+    await fixtureGit(dir, ["worktree", "add", "--detach", linked, "HEAD"]);
+    await writeFile(path.join(linked, "g.txt"), "g\n");
+    const link = path.join(root, "linked-link");
+    await symlink(linked, link);
+    assert.match((await hostGit(link, ["status", "--porcelain"])).stdout, /g\.txt/);
+  });
+
+  it("does not wait on a gitdir file of the git directory that is a pipe", { timeout: 30_000 }, async () => {
+    const { root } = await aboveAndOutside();
+    const folder = path.join(root, "piped");
+    const gitdir = path.join(root, "gitdirs", "site.git");
+    await mkdir(folder);
+    await mkdir(path.dirname(gitdir));
+    await fixtureGit(folder, ["init", "-q", "-b", "main", `--separate-git-dir=${gitdir}`]);
+    assert.equal(spawnSync("mkfifo", [path.join(gitdir, "gitdir")]).status, 0);
+    await writeFile(path.join(folder, "f.txt"), "f\n");
+    assert.match((await hostGit(folder, ["status", "--porcelain"])).stdout, /f\.txt/);
+  });
+
   it("still works when .git is a link to a separate git directory elsewhere", async () => {
     const { root } = await aboveAndOutside();
     const folder = path.join(root, "linked-git");
