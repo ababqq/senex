@@ -201,7 +201,7 @@ export const DIRECTOR_TOOLS: LiveToolSpec[] = [
         traits: {
           type: "string",
           description:
-            "Comma-separated project traits the harness adds its own checks for: ui, navigation, typing, mouseLook, keyboardMove. Only what you name is added — an unnamed trait is not declared false, it is simply not measured.",
+            "Comma-separated project traits the harness adds its own checks for: ui, navigation, typing, mouseLook, keyboardMove. Only what you name is added beside the console-error check — an unnamed trait is not declared false, it is simply not measured.",
         },
         policy: {
           type: "string",

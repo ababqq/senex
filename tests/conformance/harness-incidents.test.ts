@@ -9042,6 +9042,22 @@ describe("a run that declared no kind is software, not a game world (completion 
     }
     assert.match(riding({ kind: "graphics" }), /No harness-owned checks ride/, "a scene still carries none");
     assert.match(riding({ kind: "form-flow" }), /name every control and fit its window's width/);
+    assert.doesNotMatch(
+      riding({ kind: "graphics", keyboardMove: true }),
+      /must run without errors/,
+      "inputs ride on a scene, the error check does not",
+    );
+  });
+
+  it("UK-9. a harness-owned check never earns a spike: an isolated page has no error to show for the real one", async () => {
+    const { withHarnessChecks } = await import("../../src/harness-seed/loop/spec.ts");
+    const { spikeCandidates } = await import("../../src/harness-seed/loop/spike.ts");
+    for (const app of [null, { kind: "dashboard" }, { kind: "form-flow" }]) {
+      const { checks } = withHarnessChecks({ id: "f", checks: [] as Check[] }, { ownsMain: true, app: app as never });
+      assert.ok(checks.length > 0, JSON.stringify(app));
+      const failedTwice = Object.fromEntries(checks.map((check) => [check.id, 2]));
+      assert.deepEqual(spikeCandidates({ checks }, failedTwice, new Set()), [], JSON.stringify(app));
+    }
   });
 });
 

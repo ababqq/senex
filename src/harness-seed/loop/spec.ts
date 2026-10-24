@@ -1336,8 +1336,8 @@ function pageRuleWords(screenRides: boolean, errorsRide: boolean): string {
 
 /**
  * What actually rides on THIS project's board, not the ids the table happens to hold: a project
- * that declared nothing carries none of them, and telling the planner otherwise is the lie that
- * made every plan re-declare a rule its project does not have.
+ * that declared nothing carries the console-error check alone, a scene carries none, and telling
+ * the planner otherwise is the lie that made every plan re-declare a rule its project does not have.
  */
 function ridingLine(app: AnyRecord | null, screen: boolean): string {
   const riding = withHarnessChecks(

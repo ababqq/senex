@@ -13,7 +13,15 @@ import path from "node:path";
 import { gatherEvidence } from "./evidence.ts";
 import { runDeterministicChecks } from "./checks.ts";
 import { visionCheck } from "./judge.ts";
-import { type Check, CheckKind, CheckWeight, demosNamedByChecks, type FacetSpec, renderChecks } from "./spec.ts";
+import {
+  type Check,
+  CheckKind,
+  CheckOrigin,
+  CheckWeight,
+  demosNamedByChecks,
+  type FacetSpec,
+  renderChecks,
+} from "./spec.ts";
 import { recipeFromSpike, saveRecipe } from "./library.ts";
 import { learningOn } from "./learning.ts";
 import { drawsScene } from "./kinds.ts";
@@ -96,15 +104,18 @@ export interface SpikeOptions {
   ownShape?: boolean;
 }
 
-/** A check earns a spike after two consecutive failures as an identity check, or when tagged hard. */
-export function spikeCandidates<C extends Pick<Check, "id" | "kind"> & { hard?: boolean; weight?: string }>(
-  spec: { checks?: readonly C[] | null },
-  failureStreaks: Record<string, number>,
-  spiked: ReadonlySet<string>,
-): C[] {
+/**
+ * A check earns a spike after two consecutive failures as an identity check, or when tagged hard.
+ * A harness-owned check never does: it reads the real page, and the isolated page a spike builds
+ * has nothing to fail it with, so the spike would "pass" and file a recipe for an error it never saw.
+ */
+export function spikeCandidates<
+  C extends Pick<Check, "id" | "kind"> & { hard?: boolean; weight?: string; origin?: string },
+>(spec: { checks?: readonly C[] | null }, failureStreaks: Record<string, number>, spiked: ReadonlySet<string>): C[] {
   return (spec.checks ?? []).filter((check) => {
     if (spiked.has(check.id)) return false;
     if (check.kind === CheckKind.Play) return false;
+    if (check.origin === CheckOrigin.Harness) return false;
     if (check.hard) return true;
     return check.weight === CheckWeight.Identity && (failureStreaks[check.id] ?? 0) >= SPIKE_CONSECUTIVE_FAILURES;
   });

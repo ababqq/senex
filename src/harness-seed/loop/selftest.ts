@@ -315,7 +315,7 @@ const SELFTEST_STEPS: readonly SelftestStep[] = [
     "harness-owned checks ride on every plan; judge defects become checks",
     () => {
       // Every trait is off until a kind (or an explicit flag) declares it, so each of these
-      // says which project it is talking about; a spec with no project carries no harness check.
+      // says which project it is talking about; a spec with no project carries the console-error check alone.
       const dashboard = {
         kind: "graphics",
         ui: true,

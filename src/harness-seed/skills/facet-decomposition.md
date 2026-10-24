@@ -66,7 +66,8 @@ Rules that never change:
   into; add the booleans `ui`, `navigation`, `typing` (and, for a 3D scene with a player,
   `mouseLook`, `keyboardMove`) beside it ONLY where this project differs from its kind, and
   remember that `false` is a declaration too — it takes that check off every board. The harness
-  adds `no-console-errors` to every board and the rest only for what is declared:
+  adds `no-console-errors` to every board of a project that declared no kind, and to any declared
+  kind with DOM UI; the rest only for what is declared:
   `controls-named` and `no-horizontal-overflow` for DOM UI, `nav-changes-view` when there are views to move between,
   `fields-take-input` when there are fields, `look-turns-camera` and `keys-move-player` for a
   scene with a player. Do not re-declare those ids. Build the interface in the DOM, with real
