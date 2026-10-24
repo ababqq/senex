@@ -157,7 +157,8 @@ export interface AdoptOptions {
   /**
    * May the studio write its starter project (`index.html`, `src/main.js`) into this folder?
    * Default: only into a folder that holds no project of its own — software with no page yet (a
-   * `package.json` that declares packages or scripts) counts as one. `false` is "I am bringing my
+   * `package.json` that declares packages or scripts, or another language's manifest such as
+   * `go.mod`; `folderDeclaresSoftware`) counts as one. `false` is "I am bringing my
    * own files" — the contract module and the notes are still added; `true` asks for the starter
    * anyway.
    */

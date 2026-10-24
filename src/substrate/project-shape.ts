@@ -109,6 +109,7 @@ export function normalServe(serve: string | null | undefined): string | null {
 const SOFTWARE_MANIFESTS: ReadonlySet<string> = new Set([
   // Compiled languages and their build tools.
   "go.mod",
+  "go.work",
   "Cargo.toml",
   "Package.swift",
   "build.zig",
@@ -121,6 +122,7 @@ const SOFTWARE_MANIFESTS: ReadonlySet<string> = new Set([
   "meson.build",
   // Interpreted languages and their package managers.
   "Gemfile",
+  "gems.rb",
   "pyproject.toml",
   "requirements.txt",
   "Pipfile",
@@ -140,14 +142,17 @@ const SOFTWARE_MANIFESTS: ReadonlySet<string> = new Set([
   "hugo.json",
   "_config.yml",
   "_config.yaml",
+  "_config.toml",
   "mkdocs.yml",
+  "mkdocs.yaml",
   "book.toml",
 ]);
 
 /**
  * Whether a folder is somebody's software: its package.json declares packages or a script someone
  * wrote, or it holds one of the manifests above as a regular file. A folder, a link or a pipe with
- * a manifest's name is not one (`Dirent.isFile` does not follow links) and nothing is opened.
+ * a manifest's name is not one (`Dirent.isFile` does not follow links) and the table is read from
+ * the listing alone, so none of them is opened. (`package.json` is read as JSON, as it always was.)
  */
 export async function folderDeclaresSoftware(dir: string): Promise<boolean> {
   if (declaresSoftware(await readPackageManifest(dir))) return true;

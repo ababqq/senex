@@ -22,25 +22,43 @@ const POSIX = process.platform !== "win32";
 const STARTER_PAGES = ["index.html", "src/main.js", "CLAUDE.md", "NOTES.md", "docs/CONTRACT.md"];
 
 /** What a language's tooling starts from, by ecosystem: each is a folder of software on its own. */
-const MANIFESTS: Array<[string, string]> = [
+const MANIFESTS: ReadonlyArray<readonly [string, string]> = [
   ["Go", "go.mod"],
+  ["Go workspace", "go.work"],
   ["Rust", "Cargo.toml"],
-  ["Ruby", "Gemfile"],
-  ["Python", "pyproject.toml"],
-  ["Python pip", "requirements.txt"],
-  ["Python setup", "setup.py"],
-  ["Django", "manage.py"],
-  ["PHP", "composer.json"],
+  ["Swift", "Package.swift"],
+  ["Zig", "build.zig"],
   ["Java Maven", "pom.xml"],
   ["Gradle", "build.gradle"],
   ["Gradle Kotlin", "build.gradle.kts"],
+  ["Gradle settings", "settings.gradle"],
+  ["Gradle Kotlin settings", "settings.gradle.kts"],
+  ["CMake", "CMakeLists.txt"],
+  ["Meson", "meson.build"],
+  ["Ruby", "Gemfile"],
+  ["Ruby Bundler", "gems.rb"],
+  ["Python", "pyproject.toml"],
+  ["Python pip", "requirements.txt"],
+  ["Python Pipenv", "Pipfile"],
+  ["Python setup", "setup.py"],
+  ["Django", "manage.py"],
+  ["PHP", "composer.json"],
   ["Elixir", "mix.exs"],
-  ["Swift", "Package.swift"],
   ["Dart", "pubspec.yaml"],
   ["Deno", "deno.json"],
+  ["Deno with comments", "deno.jsonc"],
+  ["Clojure deps", "deps.edn"],
+  ["Clojure Leiningen", "project.clj"],
   ["Hugo", "hugo.toml"],
+  ["Hugo yaml", "hugo.yaml"],
+  ["Hugo yml", "hugo.yml"],
+  ["Hugo json", "hugo.json"],
   ["Jekyll", "_config.yml"],
+  ["Jekyll yaml", "_config.yaml"],
+  ["Jekyll toml", "_config.toml"],
   ["MkDocs", "mkdocs.yml"],
+  ["MkDocs yaml", "mkdocs.yaml"],
+  ["mdBook", "book.toml"],
 ];
 
 /** Folders opened every way in below. */
@@ -124,23 +142,26 @@ describe("which folders are somebody's software", () => {
     }
   });
 
-  it("reads only a regular file named for a manifest: not a folder, a link or a pipe", async () => {
+  it("does not take a folder named for a manifest, or a missing folder, for software", async () => {
     const { base } = await workspaces();
     const asFolder = await folder(base, "dir-named-go-mod", {});
     await mkdir(path.join(asFolder, "go.mod"));
     assert.equal(await folderDeclaresSoftware(asFolder), false, "a folder named go.mod");
+    assert.equal(await folderDeclaresSoftware(path.join(base, "missing")), false, "a folder that is not there");
+  });
 
+  it("does not follow a link or open a pipe named for a manifest", {
+    skip: !POSIX && "links and pipes are POSIX",
+  }, async () => {
+    const { base } = await workspaces();
     const elsewhere = await folder(base, "elsewhere", { Gemfile: "source 'https://rubygems.org'\n" });
     const linked = await folder(base, "link-named-gemfile", {});
-    await symlink(path.join(elsewhere, "Gemfile"), path.join(linked, "Gemfile")).catch(() => undefined);
+    await symlink(path.join(elsewhere, "Gemfile"), path.join(linked, "Gemfile"));
     assert.equal(await folderDeclaresSoftware(linked), false, "a link named Gemfile is not followed");
 
-    if (POSIX) {
-      const piped = await folder(base, "pipe-named-cargo", {});
-      await promisify(execFile)("mkfifo", [path.join(piped, "Cargo.toml")]);
-      assert.equal(await folderDeclaresSoftware(piped), false, "a pipe named Cargo.toml is never opened");
-    }
-    assert.equal(await folderDeclaresSoftware(path.join(base, "missing")), false, "a folder that is not there");
+    const piped = await folder(base, "pipe-named-cargo", {});
+    await promisify(execFile)("mkfifo", [path.join(piped, "Cargo.toml")]);
+    assert.equal(await folderDeclaresSoftware(piped), false, "a pipe named Cargo.toml is never opened");
   });
 });
 
