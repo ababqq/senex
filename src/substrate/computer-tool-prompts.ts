@@ -43,6 +43,7 @@ export function computerToolDescription(options: {
     reload +
     " screenshot, camera and zoom take surface=screen|canvas: screen is the whole page — a DOM menu, an HTML HUD, a loading screen — and canvas is only what the project draws. Leave it out and the studio picks. " +
     `Coordinates are pixels of the last screenshot, origin top-left. ${clock} ` +
+    "Nobody can answer a browser dialog in this window: alert is dismissed, confirm says no, prompt is cancelled and print does nothing, so a flow that needs a yes cannot be driven through one. " +
     "Menus, pickers and mode switches are reached the way a person reaches them: click or press the key, then screenshot to see that you are where you think you are."
   );
 }

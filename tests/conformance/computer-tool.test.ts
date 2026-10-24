@@ -178,6 +178,16 @@ describe("computer tool — which surface a look photographs (M4.5)", () => {
   });
 });
 
+describe("the dialogs of a window nobody answers", () => {
+  it("tells the model what happens to alert, confirm, prompt and print, so it does not wait on one", () => {
+    const { description } = computerToolDefinition();
+    assert.match(description, /alert[^.]*dismissed/i);
+    assert.match(description, /confirm[^.]*\bno\b/i);
+    assert.match(description, /prompt[^.]*cancel/i);
+    assert.match(description, /print[^.]*nothing/i);
+  });
+});
+
 describe("the requested state — setup and its probe", () => {
   it("keeps only a setup the studio can run, and drops a path it cannot read", () => {
     const setup = normalizeSetup({
