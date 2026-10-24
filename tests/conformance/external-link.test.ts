@@ -50,6 +50,7 @@ const click = (links: { input(type: string): void }) => {
   links.input("mouseDown");
   links.input("mouseUp");
 };
+const nextTurn = () => new Promise<void>((resolve) => setImmediate(resolve));
 const settle = async (request: ReturnType<ReturnType<typeof createExternalLinks>["request"]>) => {
   assert.ok("answer" in request, JSON.stringify(request));
   return request.answer;
@@ -63,6 +64,16 @@ describe("externalLinkTarget: which addresses may be offered at all", () => {
       assert.match(target.link.href, /^[\x20-\x7e]+$/);
       assert.equal(target.link.host, "example.com");
     }
+  });
+
+  it("keeps a port that is not the default in the host it names", () => {
+    const host = (raw: string) => {
+      const target = externalLinkTarget(raw);
+      assert.ok(target.ok, raw);
+      return target.link.host;
+    };
+    assert.equal(host("https://example.com:8443/x"), "example.com:8443");
+    assert.equal(host("https://example.com:443/x"), "example.com");
   });
 
   it("refuses every scheme but https", () => {
@@ -125,6 +136,11 @@ describe("externalLinkTarget: which addresses may be offered at all", () => {
       refusal: ExternalLinkRefusal.TooLong,
     });
     assert.deepEqual(externalLinkTarget(`https://example.com/${"a".repeat(1024 ** 2)}`), {
+      ok: false,
+      refusal: ExternalLinkRefusal.TooLong,
+    });
+    // Long as written, short once the parser has dropped the tabs: refused before anything parses it.
+    assert.deepEqual(externalLinkTarget(`https://example.com/${"\t".repeat(MAX_LINK_LENGTH)}`), {
       ok: false,
       refusal: ExternalLinkRefusal.TooLong,
     });
@@ -212,6 +228,47 @@ describe("the gate: nothing opens without a click and a yes", () => {
     assert.ok("answer" in links.request("https://example.com/b"), "a new click is a new dialog");
   });
 
+  it("frees the dialog slot after Cancel, so later links are still offered", async () => {
+    let yes = false;
+    const asked: string[] = [];
+    const opened: string[] = [];
+    const links = createExternalLinks(
+      {
+        async confirm(link) {
+          asked.push(link.href);
+          return yes;
+        },
+        async open(href) {
+          opened.push(href);
+        },
+      },
+      clock().now,
+    );
+    click(links);
+    assert.equal(await settle(links.request("https://example.com/a")), ExternalLinkAnswer.Declined);
+    click(links);
+    assert.equal(await settle(links.request("https://example.com/b")), ExternalLinkAnswer.Declined);
+    yes = true;
+    click(links);
+    assert.equal(await settle(links.request("https://example.com/c")), ExternalLinkAnswer.Opened);
+    assert.deepEqual(asked, ["https://example.com/a", "https://example.com/b", "https://example.com/c"]);
+    assert.deepEqual(opened, ["https://example.com/c"]);
+  });
+
+  it("hands the dialog and the browser the normalized address, never the page's string", async () => {
+    const raw = "HTTPS://EXÄMPLE.com/ü?q=ü\t#x";
+    const normalized = externalLinkTarget(raw);
+    assert.ok(normalized.ok);
+    assert.notEqual(normalized.link.href, raw);
+    const { host, asked, opened } = spyHost();
+    const links = createExternalLinks(host, clock().now);
+    click(links);
+    assert.equal(await settle(links.request(raw)), ExternalLinkAnswer.Opened);
+    assert.deepEqual(asked, [normalized.link]);
+    assert.deepEqual(opened, [normalized.link.href]);
+    assert.match(normalized.link.href, /^[\x21-\x7e]+$/);
+  });
+
   it("is Unavailable without a host (an agent's window, a fixture profile), whatever the clicks", () => {
     const links = createExternalLinks(undefined, clock().now);
     click(links);
@@ -245,6 +302,32 @@ describe("the gate: nothing opens without a click and a yes", () => {
     assert.equal(asked.length, 0, "no dialog for an agent's clicks");
     click(links);
     assert.ok("answer" in links.request("https://example.com/"), "the person's own click works again");
+  });
+
+  it("keeps ignoring clicks for as long as any drive runs: awaited, overlapping and nested", async () => {
+    const { host } = spyHost();
+    const links = createExternalLinks(host, clock().now);
+    // The drive's clicks come after it has awaited something.
+    await links.synthetic(async () => {
+      await nextTurn();
+      click(links);
+    });
+    assert.deepEqual(links.request("https://example.com/"), { refused: ExternalLinkRefusal.NoGesture }, "awaited");
+    // The first drive ends while the second is still going.
+    const first = links.synthetic(() => nextTurn());
+    const second = links.synthetic(async () => {
+      await nextTurn();
+      await nextTurn();
+      click(links);
+    });
+    await Promise.all([first, second]);
+    assert.deepEqual(links.request("https://example.com/"), { refused: ExternalLinkRefusal.NoGesture }, "overlapping");
+    // An inner drive ends while the outer one goes on.
+    await links.synthetic(async () => {
+      await links.synthetic(async () => {});
+      click(links);
+    });
+    assert.deepEqual(links.request("https://example.com/"), { refused: ExternalLinkRefusal.NoGesture }, "nested");
   });
 
   it("does not open a window a form post made", () => {
@@ -317,6 +400,22 @@ describe("liveLinkHost", () => {
       await host.open("https://example.com/");
       assert.deepEqual(log.slice(1), ["https://example.com/"]);
     }
+  });
+
+  it("shows the dialog made for the address it is asked about", async () => {
+    const shown: unknown[] = [];
+    const host = liveLinkHost(false, {
+      showMessageBox: async (options) => {
+        shown.push(options);
+        return { response: ExternalLinkChoice.Cancel };
+      },
+      openExternal: async () => {},
+      assertAllowed: () => {},
+    });
+    assert.ok(host);
+    const link = { href: "https://docs.example:8443/a?b=c", host: "docs.example:8443" };
+    await host.confirm(link);
+    assert.deepEqual(shown, [externalLinkDialog(link)]);
   });
 
   it("asks the native policy first, so a fixture that got here anyway opens no dialog", async () => {
@@ -434,6 +533,41 @@ describe("guardPreviewNavigation: what the preview does with where a page tries 
     assert.equal(asked.length, 1);
     assert.deepEqual(opened, []);
     assert.deepEqual(g.notes, []);
+  });
+
+  it("is armed by clicks and key presses only, not by any other input", async () => {
+    const { host, asked } = spyHost(true);
+    const g = guarded(host);
+    for (const type of [
+      "mouseMove",
+      "mouseWheel",
+      "mouseEnter",
+      "keyUp",
+      "char",
+      "touchStart",
+      "touchMove",
+      "contextMenu",
+    ])
+      g.state.input?.(type);
+    const event = g.navigation("https://docs.example/d");
+    g.state.navigate?.(event);
+    await settleLater();
+    assert.equal(event.prevented, true);
+    assert.deepEqual(asked, []);
+    assert.deepEqual(g.notes, ["navigation https://docs.example/d"]);
+  });
+
+  it("gives the dialog and the browser the normalized address of a hostile link", async () => {
+    const raw = "HTTPS://EXÄMPLE.com/ü?q=ü\t#x";
+    const target = externalLinkTarget(raw);
+    assert.ok(target.ok);
+    const { host, asked, opened } = spyHost(true);
+    const g = guarded(host);
+    g.state.input?.("mouseUp");
+    g.state.open?.({ url: raw });
+    await settleLater();
+    assert.deepEqual(asked, [target.link]);
+    assert.deepEqual(opened, [target.link.href]);
   });
 
   it("asks once when a single click fires both navigation events", async () => {
