@@ -27,7 +27,7 @@ import { startWithRecovery } from "./process-start.ts";
 const exec = promisify(execFile);
 /** The listing of a folder's whole config; past it the folder is not scanned (and not used). A config with ten thousand branches is 1.5 MB. */
 const CONFIG_MAX_BYTES = 64 * 1024 ** 2;
-/** How long reading the config, or asking where the work tree is, may take. */
+/** How long one read-only scan call (the config listing, the work tree, the git directory, the merge drivers) may take. */
 const SCAN_TIMEOUT_MS = 20 * SECOND_MS;
 /** The most output a host command may print when its caller names no limit. */
 const DEFAULT_MAX_BUFFER_BYTES = 32 * 1024 * 1024;
@@ -105,7 +105,7 @@ const MESSAGE = {
   ForeignWorkTree: (top: string) =>
     `This folder's git settings put its work tree in a different folder (${top}). Remove core.worktree from this folder's git settings (.git/config), then try again.`,
   ForeignGitDir: (target: string) =>
-    `This folder's .git leads to the git directory of another folder (${target}), so Senex's saves would be written there. Remove or replace the .git entry, then try again.`,
+    `This folder's .git leads to a git directory that is not its own (${target}), so Senex's saves would be written there. If this is a linked worktree that was moved, run git worktree repair; otherwise remove or replace the .git entry, then try again.`,
   GitDirUnusable: (top: string) =>
     `This folder's .git is not a usable repository, so git works in the repository around it (${top}) and Senex's saves would be written there. Repair the .git (restore its HEAD, or run git fsck) or move it aside, keeping a copy if it holds history you want, then try again.`,
   /** Why a name `-c` cannot carry is unusable. */
@@ -252,7 +252,8 @@ function gitSaidNo(error: unknown): boolean {
 /** What a scan call that git may legitimately refuse printed, or null when git said no. */
 async function askGit(dir: string, env: NodeJS.ProcessEnv, args: readonly string[]): Promise<string | null> {
   try {
-    return (await scan(dir, env, args, SCAN_ANSWER_MAX_BUFFER_BYTES)).replace(/\r?\n$/, "") || null;
+    // Git ends the answer with one line feed; a path may end in a carriage return of its own.
+    return (await scan(dir, env, args, SCAN_ANSWER_MAX_BUFFER_BYTES)).replace(/\n$/, "") || null;
   } catch (error) {
     if (gitSaidNo(error)) return null;
     throw error;
@@ -344,14 +345,17 @@ async function servesFolder(target: string, dir: string): Promise<boolean> {
  * A `.git` file or link is a pointer, and one planted in a downloaded folder can point at the git
  * directory of the person's other project, where the studio's saves and restores would then land.
  * Git's own answer is judged, not the pointer's text: git resolves links and `..` as the kernel does
- * and reads the file its own way. Answers whether the git directory lies inside the folder.
+ * and reads the file its own way. Answers whether the git directory a `.git` file or link leads to
+ * lies inside the folder.
  */
 async function refuseForeignGitDir(dir: string, env: NodeJS.ProcessEnv): Promise<boolean> {
   const entry = await lstat(path.join(dir, ".git")).catch(() => null);
   if (entry === null || entry.isDirectory()) return false;
   const reported = await gitDirOf(dir, env);
   if (reported === null) return false;
-  const target = await realpath(reported).catch(() => reported);
+  // A name Node cannot spell as git printed it (bytes that are not UTF-8) cannot be judged: it counts as inside, so maintenance is off.
+  const target = await realpath(reported).catch(() => null);
+  if (target === null) return true;
   if (!(await servesFolder(target, dir)))
     throw new HostGitRefusedError(HostGitRefusal.ForeignGitDir, MESSAGE.ForeignGitDir(target));
   return lies(target, dir);
@@ -361,8 +365,9 @@ async function refuseForeignGitDir(dir: string, env: NodeJS.ProcessEnv): Promise
  * Auto-maintenance can run a program a `gc.recentObjectsHook` names, and the key cannot be reset.
  * It reads the config again after the command has rewritten the work tree, so a file the work tree
  * brings in can add the hook after the scan: a file the config includes, or the config of a git
- * directory that lies inside the folder. It is off for a folder that sets the key, includes
- * anything, or keeps its git directory inside itself.
+ * directory that lies inside the folder, other than a plain `.git` directory (one a `.git` file or
+ * link leads to). It is off for a folder that sets the key, includes anything, or has such a git
+ * directory.
  */
 function maintenancePins(keys: ReadonlySet<string>, gitDirInsideFolder: boolean): string[] {
   const mayRunAHook =

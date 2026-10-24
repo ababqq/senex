@@ -24,7 +24,7 @@ import {
 import { extensionOf, fileKind } from "../shared/project-file.ts";
 import { credentialHomes } from "../substrate/credential-homes.ts";
 import { isInside } from "../substrate/paths.ts";
-import { hostGit, hostGitContext, hostGitSpawn } from "../substrate/git-policy.ts";
+import { type HostGitContext, hostGit, hostGitContext, hostGitSpawn } from "../substrate/git-policy.ts";
 
 /** Why a click on a file the chat names opens nothing. */
 const MESSAGE = {
@@ -223,6 +223,8 @@ export class ChatFileResolver {
   readonly #trees = new Map<string, Promise<Map<string, string>>>();
   /** The folder's file list, briefly, for names given without their folder. */
   readonly #listings = new Map<string, { at: number; files: Promise<string[]> }>();
+  /** One scan of a project folder serves every file link resolved in the next moments. */
+  readonly #scans = new Map<string, { at: number; context: Promise<HostGitContext> }>();
 
   constructor(toolPath: () => Promise<string> = async () => process.env.PATH ?? "") {
     this.#toolPath = toolPath;
@@ -389,12 +391,22 @@ export class ChatFileResolver {
   async #blobOf(dir: string, file: string): Promise<string | null> {
     try {
       const { stdout } = await hostGit(dir, ["hash-object", "--no-filters", "--", file], {
-        env: await this.#toolEnv(),
+        context: await this.#scan(dir),
       });
       return stdout.trim() || null;
     } catch {
       return null;
     }
+  }
+
+  /** The folder's git scan, kept for `LISTING_MS`: a reply that links many files would otherwise scan once per file. */
+  #scan(dir: string): Promise<HostGitContext> {
+    const cached = this.#scans.get(dir);
+    if (cached && Date.now() - cached.at < LISTING_MS) return cached.context;
+    const context = this.#toolEnv().then((env) => hostGitContext(dir, env));
+    this.#scans.set(dir, { at: Date.now(), context });
+    context.catch(() => this.#scans.delete(dir));
+    return context;
   }
 
   async #denyRoots(scope: ChatFileScope): Promise<string[]> {

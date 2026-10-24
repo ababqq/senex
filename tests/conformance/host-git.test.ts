@@ -6,7 +6,7 @@
  * programs are shell scripts.
  */
 import assert from "node:assert/strict";
-import { appendFile, chmod, mkdir, readFile, realpath, rm, stat, symlink, writeFile } from "node:fs/promises";
+import { appendFile, chmod, mkdir, readFile, realpath, rename, rm, stat, symlink, writeFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
 import path from "node:path";
@@ -312,39 +312,43 @@ describe("host git never runs a program a folder's config names", { skip: !POSIX
     assert.equal(await exists(marker), false);
   });
 
-  it("never lets auto-maintenance run a hook that a landing writes into a git directory kept inside the folder", async () => {
-    const { marker, failing } = await planted();
-    const dir = path.join(await tmpDir("host-git-meta-"), "project");
-    const meta = path.join(dir, ".meta");
-    await mkdir(dir, { recursive: true });
-    await fixtureGit(dir, ["init", "-q", "-b", "main", `--separate-git-dir=${meta}`]);
-    await writeFile(path.join(dir, "a.txt"), "one\n");
-    await fixtureGit(dir, ["add", "a.txt"]);
-    // The history tracks the git directory's own config (git refuses to add it by name, so by object).
-    const plain = await readFile(path.join(meta, "config"), "utf8");
-    const blob = await fixtureGit(dir, ["hash-object", "-w", path.join(meta, "config")]);
-    await fixtureGit(dir, ["update-index", "--add", "--cacheinfo", `100644,${blob},.meta/config`]);
-    await fixtureGit(dir, ["commit", "-q", "-m", "one"]);
-    // The build is made in a linked worktree, where .meta is an ordinary folder.
-    const side = `${dir}-side`;
-    await fixtureGit(dir, ["worktree", "add", "-q", "-b", "build", side, "HEAD"]);
-    const hostile = `${plain}[gc]\n\tauto = 1\n\tpruneExpire = now\n\trecentObjectsHook = ${failing} TAG\n`;
-    await writeFile(path.join(side, ".meta", "config"), hostile);
-    await fixtureGit(side, ["commit", "-q", "-am", "build"]);
-    await writeFile(path.join(dir, "b.txt"), "b\n");
-    await fixtureGit(dir, ["add", "b.txt"]);
-    await fixtureGit(dir, ["commit", "-q", "-m", "main moves on"]);
-    await mkdir(path.join(meta, "objects", "17"), { recursive: true });
-    for (const name of ["a".repeat(38), "b".repeat(38)])
-      await writeFile(path.join(meta, "objects", "17", name), "not an object");
-    await hostGit(dir, ["merge", "--no-ff", "-m", "land", "build"], { env: GIT_ENV });
-    assert.match(
-      await readFile(path.join(meta, "config"), "utf8"),
-      /recentObjectsHook/,
-      "the landing wrote the config",
-    );
-    assert.equal(await exists(marker), false);
-  });
+  // A name may end in a carriage return, which a trimmed answer from git would lose.
+  for (const name of [".meta", ".meta\r"])
+    it(`never lets auto-maintenance run a hook that a landing writes into a git directory kept inside the folder (${JSON.stringify(name)})`, async () => {
+      const { marker, failing } = await planted();
+      const dir = path.join(await tmpDir("host-git-meta-"), "project");
+      const meta = path.join(dir, name);
+      await mkdir(dir, { recursive: true });
+      await fixtureGit(dir, ["init", "-q", "-b", "main", `--separate-git-dir=${path.join(dir, ".initial-meta")}`]);
+      await rename(path.join(dir, ".initial-meta"), meta);
+      await writeFile(path.join(dir, ".git"), `gitdir: ${name}/.\n`);
+      await writeFile(path.join(dir, "a.txt"), "one\n");
+      await fixtureGit(dir, ["add", "a.txt"]);
+      // The history tracks the git directory's own config (git refuses to add it by name, so by object).
+      const plain = await readFile(path.join(meta, "config"), "utf8");
+      const blob = await fixtureGit(dir, ["hash-object", "-w", path.join(meta, "config")]);
+      await fixtureGit(dir, ["update-index", "--add", "--cacheinfo", `100644,${blob},${name}/config`]);
+      await fixtureGit(dir, ["commit", "-q", "-m", "one"]);
+      // The build is made in a linked worktree, where the git directory's name is an ordinary folder.
+      const side = `${dir}-side`;
+      await fixtureGit(dir, ["worktree", "add", "-q", "-b", "build", side, "HEAD"]);
+      const hostile = `${plain}[gc]\n\tauto = 1\n\tpruneExpire = now\n\trecentObjectsHook = ${failing} TAG\n`;
+      await writeFile(path.join(side, name, "config"), hostile);
+      await fixtureGit(side, ["commit", "-q", "-am", "build"]);
+      await writeFile(path.join(dir, "b.txt"), "b\n");
+      await fixtureGit(dir, ["add", "b.txt"]);
+      await fixtureGit(dir, ["commit", "-q", "-m", "main moves on"]);
+      await mkdir(path.join(meta, "objects", "17"), { recursive: true });
+      for (const junk of ["a".repeat(38), "b".repeat(38)])
+        await writeFile(path.join(meta, "objects", "17", junk), "not an object");
+      await hostGit(dir, ["merge", "--no-ff", "-m", "land", "build"], { env: GIT_ENV });
+      assert.match(
+        await readFile(path.join(meta, "config"), "utf8"),
+        /recentObjectsHook/,
+        "the landing wrote the config",
+      );
+      assert.equal(await exists(marker), false);
+    });
 
   it("never opens an editor, whatever core.editor says", async () => {
     const { dir, marker, failing } = await planted();

@@ -346,7 +346,7 @@ test("resolving and opening build files never executes repository content filter
 test("every git call a chat file link makes closes the command's standard input, as the git macOS ships needs", {
   skip: process.platform === "win32" && "a shell script stands in for git",
   timeout: 60_000,
-}, async () => {
+}, async (t) => {
   const f = fixture();
   const bin = mkdtempSync(path.join(tmpdir(), "chat-files-git-"));
   const real = execFileSync("sh", ["-c", "command -v git"]).toString().trim();
@@ -355,14 +355,45 @@ test("every git call a chat file link makes closes the command's standard input,
   chmodSync(path.join(bin, "git"), 0o755);
   const resolver = new ChatFileResolver();
   const before = process.env.PATH;
-  process.env.PATH = `${bin}${path.delimiter}${before ?? ""}`;
-  try {
-    assert.equal((await resolver.resolve(f.scope(), [{ name: "src/enemy.js" }]))[0]?.build, true);
-    const opened = await resolver.target(f.scope(), { name: "src/enemy.js" });
-    assert.equal(readFileSync(opened.target, "utf8"), "enemy");
-  } finally {
+  t.after(() => {
     process.env.PATH = before;
-  }
+  });
+  process.env.PATH = `${bin}${path.delimiter}${before ?? ""}`;
+  // The tree listing (ls-tree), the folder file's blob (hash-object) and the build's copy (cat-file).
+  assert.equal((await resolver.resolve(f.scope(), [{ name: "src/enemy.js" }]))[0]?.build, true);
+  assert.equal((await resolver.resolve(f.scope(), [{ name: "src/same.js" }]))[0]?.open, "app");
+  const opened = await resolver.target(f.scope(), { name: "src/enemy.js" });
+  assert.equal(readFileSync(opened.target, "utf8"), "enemy");
+});
+
+test("a reply that links many files scans the project folder once, not once per file", {
+  skip: process.platform === "win32" && "a shell script stands in for git",
+}, async (t) => {
+  const f = fixture();
+  const bin = mkdtempSync(path.join(tmpdir(), "chat-files-count-"));
+  const log = path.join(bin, "calls.log");
+  const real = execFileSync("sh", ["-c", "command -v git"]).toString().trim();
+  writeFileSync(path.join(bin, "git"), `#!/bin/sh\necho "$*" >> '${log}'\nexec '${real}' "$@"\n`);
+  chmodSync(path.join(bin, "git"), 0o755);
+  const before = process.env.PATH;
+  t.after(() => {
+    process.env.PATH = before;
+  });
+  process.env.PATH = `${bin}${path.delimiter}${before ?? ""}`;
+  const resolver = new ChatFileResolver();
+  const links = await resolver.resolve(
+    f.scope(),
+    Array.from({ length: 12 }, () => ({ name: "src/same.js" })),
+  );
+  assert.equal(
+    links.every((link) => link?.open === "app"),
+    true,
+  );
+  const calls = readFileSync(log, "utf8").split("\n").filter(Boolean);
+  const scans = calls.filter((call) => call.includes("config --list")).length;
+  const hashes = calls.filter((call) => call.includes("hash-object")).length;
+  assert.equal(hashes, 12, "every file's blob was still asked for");
+  assert.ok(scans <= 3, `scans of the folder: ${scans}`);
 });
 
 test("a project chat links its own files, newer build files and files anywhere on this computer", {
