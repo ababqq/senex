@@ -252,6 +252,7 @@
         "tests/conformance/ui-events.test.ts",
         "tests/conformance/fixture-env.test.ts",
         "tests/conformance/studio-dev-cli.test.ts",
+        "tests/conformance/harness-identity.test.ts",
         "tests/conformance/fresh-machine.test.ts",
         "src/main/ipc/**",
         "src/main/keep-awake.ts",

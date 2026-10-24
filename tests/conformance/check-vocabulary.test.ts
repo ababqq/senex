@@ -1,8 +1,9 @@
 /**
  * scripts/check-vocabulary.ts: every raw vocabulary spelling the readability pass removed is
  * refused outside its home — engine ids, custom event names, engine status codes, seed host
- * calls, harness RPC handler keys and inline sleeps — and nothing else is: comments, text inside
- * strings, templates and regular expressions, type aliases, and the homes themselves.
+ * calls, harness RPC handler keys, inline sleeps and git started outside the host git policy —
+ * and nothing else is: comments, text inside strings, templates and regular expressions, type
+ * aliases, and the homes themselves.
  */
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
@@ -196,6 +197,60 @@ const CAUGHT: Array<{ name: string; file: string; source: string; rule: Vocabula
     source: "await new Promise<void>((done) => { setTimeout(done, 10); });",
     rule: VocabularyRule.Sleep,
   },
+  {
+    name: "git spawned by name",
+    file: APP,
+    source: 'const child = spawn("git", ["status"], { cwd: dir });',
+    rule: VocabularyRule.GitSpawn,
+  },
+  {
+    name: "git run through execFile",
+    file: "src/substrate/example.ts",
+    source: 'const { stdout } = await execFileAsync("git", ["log", "-1"], { cwd: dir });',
+    rule: VocabularyRule.GitSpawn,
+  },
+  {
+    name: "git run synchronously with single quotes",
+    file: "src/main/dev/example.ts",
+    source: "return execFileSync('git', args, { cwd, encoding: 'utf8' });",
+    rule: VocabularyRule.GitSpawn,
+  },
+  {
+    name: "git named for Windows",
+    file: APP,
+    source: 'spawnSync("git.exe", ["--version"]);',
+    rule: VocabularyRule.GitSpawn,
+  },
+  {
+    name: "git started through a local helper",
+    file: "src/plugins/genex/example.ts",
+    source: 'if (!(await this.#run("git", ["lfs", "version"], dir, home))) throw new Error(MESSAGE);',
+    rule: VocabularyRule.GitSpawn,
+  },
+  {
+    name: "git as a shell command",
+    file: APP,
+    source: 'exec("git status --porcelain", { cwd: dir }, done);',
+    rule: VocabularyRule.GitSpawn,
+  },
+  {
+    name: "git spawned in the wrapped form a formatter gives a long call",
+    file: APP,
+    source: 'const child = spawn(\n  "git",\n  ["status", "--porcelain"],\n  { cwd: dir },\n);',
+    rule: VocabularyRule.GitSpawn,
+  },
+  {
+    name: "git named in a template without a placeholder",
+    file: APP,
+    source: "execFileSync(`git`, ['rev-parse', 'HEAD']);",
+    rule: VocabularyRule.GitSpawn,
+  },
+  {
+    name: "git as a shell command in a template",
+    file: APP,
+    source: "execSync(`git -C ${dir} log -1`);",
+    rule: VocabularyRule.GitSpawn,
+  },
 ];
 
 /** Code the check must leave alone: nothing here is a raw vocabulary spelling in use. */
@@ -233,6 +288,30 @@ const LEFT_ALONE: Array<{ name: string; file: string; source: string }> = [
   },
   { name: "a sleep from timers/promises", file: APP, source: "await sleep(250);" },
   { name: "a timeout that is not a sleep", file: APP, source: "const t = setTimeout(() => done(), 250);" },
+  { name: "git through the host policy", file: APP, source: 'await hostGit(dir, ["status", "--porcelain"]);' },
+  { name: "copy that names git", file: APP, source: 'const hint = "git is not installed on this machine";' },
+  { name: "a value that is git", file: APP, source: 'if (source.kind === "git") clone(source);' },
+  { name: "git looked up in a set", file: APP, source: 'if (SOURCE_KINDS.has("git")) clone(source);' },
+  { name: "git listed among other names", file: APP, source: 'const KINDS = ["git", "hg", "svn"];' },
+  { name: "a program whose name starts with git", file: APP, source: 'exec("gitleaks detect", { cwd: dir }, done);' },
+  { name: "a function that ends in exec", file: APP, source: 'reexec("git status", { cwd: dir });' },
+  {
+    name: "git in the renderer, which starts no process",
+    file: "src/renderer/icons.tsx",
+    source: 'iconFor("git", 16);',
+  },
+  { name: "git in shared code, which starts no process", file: "src/shared/words.ts", source: 'word("git", "noun");' },
+  { name: "another program started by name", file: APP, source: 'spawn("node", ["--version"], { cwd: dir });' },
+  {
+    name: "git in a developer script",
+    file: "scripts/tool.ts",
+    source: 'execFileSync("git", ["diff", "--name-only"], { encoding: "utf8" });',
+  },
+  {
+    name: "git command lines the seed hands the host to run",
+    file: SEED,
+    source: 'const status = exec("git status --porcelain");',
+  },
   {
     name: "a division that is not a regular expression",
     file: APP,
@@ -263,6 +342,9 @@ describe("check-vocabulary", () => {
       ["src/shared/engine-descriptor.ts", 'const ready = (e) => e.status.code === "ready";'],
       ["src/harness-seed/loop/host-methods.ts", 'ctx.call("events.list");'],
       ["src/harness-seed/loop/time.ts", "return new Promise((resolve) => setTimeout(resolve, ms));"],
+      ["src/substrate/git-policy.ts", 'return spawn("git", command.args, { env: command.env });'],
+      ["src/substrate/windows-sandbox.ts", 'const out = await run("git", ["--exec-path"], { timeout });'],
+      ["src/plugins/genex/adapter.ts", 'await this.#run("git", ["--version"], home, home);'],
     ];
     for (const [file, source] of homes) assert.deepEqual(findRawVocabulary(file, source), [], file);
   });

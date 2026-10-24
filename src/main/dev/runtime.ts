@@ -14,7 +14,6 @@ import path from "node:path";
 import os from "node:os";
 import net from "node:net";
 import { randomBytes, timingSafeEqual } from "node:crypto";
-import { execFileSync } from "node:child_process";
 import {
   buildInputs,
   sourceIdentity,
@@ -43,6 +42,7 @@ import {
 } from "./protocol.ts";
 import type { LaunchContext } from "./launch-context.ts";
 import { DevProviders, FIXTURE_VERSION } from "./fixture-kit.ts";
+import { harnessIdentity } from "./harness-identity.ts";
 import type { StudioCore } from "../studio-core.ts";
 import type { ProjectPreview } from "../preview.ts";
 import { errorMessage } from "../../shared/errors.ts";
@@ -244,7 +244,7 @@ async function status(rt: Runtime) {
     fixture: ctx.fixture,
     fixtureVersion: ctx.providers === DevProviders.Fixture ? FIXTURE_VERSION : null,
     readiness: isReady(rt) ? DevReadiness.Ready : DevReadiness.NotReady,
-    harness: harnessIdentity(core.layout.harnessWs, ctx.buildRoot),
+    harness: await harnessIdentity(core.layout.harnessWs, ctx.buildRoot),
     selection: await selection(rt),
     window: {
       title: win.isDestroyed() ? null : win.getTitle(),
@@ -279,33 +279,6 @@ function buildIsStale(
 function isReady(rt: Runtime): boolean {
   if (rt.stopping || rt.win.isDestroyed()) return false;
   return rt.core.host.state === HarnessState.Ready;
-}
-
-/** The shipped harness seed against the harness the agent runs, and the harness's git state. */
-function harnessIdentity(harnessWs: string, buildRoot: string) {
-  const seedDir = path.join(buildRoot, "resources/harness-seed");
-  const seed = fingerprints(seedDir, filesBelow(seedDir));
-  const runtime = fingerprints(harnessWs, filesBelow(harnessWs));
-  const divergent = [...new Set([...Object.keys(seed), ...Object.keys(runtime)])].filter((f) => seed[f] !== runtime[f]);
-  return {
-    shippedDigest: digest(seed),
-    runtimeDigest: digest(runtime),
-    sha: harnessGit(harnessWs, "rev-parse", "HEAD"),
-    dirty: !!harnessGit(harnessWs, "status", "--porcelain"),
-    divergentPaths: divergent,
-  };
-}
-
-function harnessGit(cwd: string, ...args: string[]): string | null {
-  try {
-    return execFileSync("git", args, {
-      cwd,
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "ignore"],
-    }).trim();
-  } catch {
-    return null;
-  }
 }
 
 /** What the studio window has selected: its state and stage datasets. */

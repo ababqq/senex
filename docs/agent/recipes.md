@@ -235,7 +235,8 @@ The conventions are in [AGENTS.md](../../AGENTS.md#readability).
    event names, engine status codes, seed `ctx.call` names, harness RPC handler keys and inline
    `setTimeout` sleeps outside their homes. A module that must spell one of those values for
    another vocabulary (a vendor, a binary name) declares its own object instead; only a
-   vocabulary's home joins a rule's `homes`, with its reason.
+   vocabulary's home joins a rule's `homes`, with its reason. The same check refuses git
+   started outside `substrate/git-policy.ts` (use `hostGit`), bar the Git Bash lookup and the Genex probes.
 
 ## Dev fixture
 
