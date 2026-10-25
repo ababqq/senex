@@ -9734,3 +9734,44 @@ describe("typed text is counted in characters (sweep 4)", () => {
     assert.deepEqual(edge, [{ type: "type", text: `${"a".repeat(199)}😀` }], "half an emoji was the 200th unit");
   });
 });
+
+describe("a seam is every file it names (sweep 4)", () => {
+  const files = Array.from({ length: 15 }, (_, i) => `src/part-${String(i + 1).padStart(2, "0")}.js`);
+
+  it("OW1. a worker told to own fifteen files may write the fifteenth: the contract keeps the whole seam", async () => {
+    const { compileWorkerSpec, monitorFindings } = await import("../../src/harness-seed/loop/director/rules.ts");
+    const { spec } = compileWorkerSpec({ id: "pages", brief: "fifteen pages", owns: files, ownsMain: false } as never);
+    assert.deepEqual(spec.owns, files, "the brief names fifteen files and the contract kept twelve");
+    // The user's own project (`template: false`): with no seam a worker owns the whole repository, so a
+    // file just outside the seam is the control that says the list is read at all.
+    const own = { ...spec, template: false };
+    for (const file of files)
+      assert.equal(reviewAllowedFile(file, own as never, false), true, `the reviewer refuses ${file}`);
+    for (const outside of ["src/part-16.js", "lib/other.js"])
+      assert.equal(reviewAllowedFile(outside, own as never, false), false, `the reviewer allows ${outside}`);
+    const status = [...files, "src/part-16.js"].map((file) => `?? ${file}`).join("\n");
+    const seen = monitorFindings({ status, diff: "", spec: spec as never, ownsMain: false, template: false });
+    assert.deepEqual(
+      seen.violations,
+      ["edited a file outside this facet's ownership (src/part-16.js)"],
+      "the monitor flags only the file outside the seam",
+    );
+  });
+
+  it("OW2. folding a plan into one whole-project facet keeps every file the facets owned", async () => {
+    const { clampFacets } = await import("../../src/harness-seed/loop/autopilot.ts");
+    const facets = [0, 1, 2].map((n) => ({
+      id: `f${n}`,
+      title: `F${n}`,
+      owns: files.slice(n * 5, n * 5 + 5),
+      checks: [],
+      budgetShare: 1,
+    }));
+    const [whole] = clampFacets(facets, 1, { goal: "all of it" });
+    assert.deepEqual(whole!.owns, files, "three facets of five files fold into a facet that owns twelve");
+  });
+
+  it("OW3. a planner's facet that owns fifteen files keeps fifteen", async () => {
+    assert.deepEqual(normalizeFacetSpec({ id: "pages", intent: "pages", owns: files }, 0).owns, files);
+  });
+});
