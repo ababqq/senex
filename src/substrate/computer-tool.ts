@@ -21,6 +21,7 @@ import {
   capActions,
   clampRepeat,
   clickModifiers,
+  firstCharacters,
   MAX_HOLD_KEY_MS,
   MAX_KEYS,
   parseCombo,
@@ -514,7 +515,7 @@ function describeAction(request: ComputerRequest): string {
     case "scroll":
       return `scroll ${request.scroll_direction} ×${request.scroll_amount ?? DEFAULT_SCROLL_NOTCHES}`;
     case "type":
-      return `type "${String(request.text ?? "").slice(0, MAX_CAPTION_TEXT_CHARS)}"`;
+      return `type "${firstCharacters(String(request.text ?? ""), MAX_CAPTION_TEXT_CHARS)}"`;
     case "key":
       return `key ${request.text}${(request.repeat ?? 1) > 1 ? ` ×${request.repeat}` : ""}`;
     case "hold_key":

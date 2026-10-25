@@ -320,12 +320,19 @@ export function clickModifiers(raw: unknown): string[] {
   return all.map((k) => k.code);
 }
 
+/**
+ * The first `max` characters of `text`. A character is a code point, so an emoji (two UTF-16 units) is never
+ * cut in half; a character is at most two units, so twice `max` is all that is ever looked at.
+ */
+export function firstCharacters(text: string, max: number): string {
+  return Array.from(text.slice(0, max * 2))
+    .slice(0, max)
+    .join("");
+}
+
 /** Text a keyboard can type: every character becomes one key stroke; capped at {@link MAX_TYPE_CHARS} characters. */
 export function typedText(raw: unknown): string {
-  // A character is at most two UTF-16 units, so twice the cap is all that is ever looked at, and the cap
-  // counts characters: an emoji is not cut in half at the end.
-  const head = String(raw ?? "").slice(0, MAX_TYPE_CHARS * 2);
-  return Array.from(head).slice(0, MAX_TYPE_CHARS).join("");
+  return firstCharacters(String(raw ?? ""), MAX_TYPE_CHARS);
 }
 
 export function clampRepeat(raw: unknown): number {

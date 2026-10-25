@@ -6,7 +6,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { LABEL_SHA_LENGTH, SHORT_SHA_LENGTH, shortSha } from "../../src/harness-seed/loop/git.ts";
-import { CLIP_QUOTE, clip, clipMarked } from "../../src/harness-seed/loop/text.ts";
+import { CLIP_QUOTE, clip, clipCharacters, clipMarked } from "../../src/harness-seed/loop/text.ts";
 import {
   CANCEL_POLL_MS,
   HOUR_MS,
@@ -57,6 +57,18 @@ describe("text cut to fit", () => {
     assert.equal(clip(null, 3), "");
     assert.equal(clip(undefined, 3), "");
     assert.equal(clip("x".repeat(500), CLIP_QUOTE).length, CLIP_QUOTE);
+  });
+
+  it("counts characters, not UTF-16 units, when it must not cut one in half", () => {
+    assert.equal(clipCharacters("abcdef", 3), "abc");
+    assert.equal(clipCharacters("😀😀😀", 2), "😀😀");
+    assert.equal(clipCharacters(`ab😀cd`, 3), "ab😀", "an emoji is one character, however many units it takes");
+    assert.equal(clipCharacters("😀".repeat(1000), 5), "😀😀😀😀😀");
+    assert.equal(clipCharacters(null, 3), "");
+    assert.equal(clipCharacters(42, 1), "4");
+    const cut = clipCharacters(`${"a".repeat(50)}😀`, 51);
+    assert.equal(Array.from(cut).length, 51);
+    assert.equal(cut.at(-1), "\ude00", "the whole emoji is there, both of its units");
   });
 
   it("marks a cut", () => {

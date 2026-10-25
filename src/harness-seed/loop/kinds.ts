@@ -22,7 +22,7 @@
  * A ninth kind is a change to this table and nothing else.
  */
 import { HostMethod } from "./host-methods.ts";
-import { CLIP_QUOTE, clip } from "./text.ts";
+import { CLIP_QUOTE, clip, clipCharacters } from "./text.ts";
 import { CONTROL_EXERCISE, WALK_EXERCISE, type PlayAction } from "./play-script.ts";
 import { SECOND_MS } from "./time.ts";
 import { isPlainRecord } from "./json.ts";
@@ -357,7 +357,7 @@ const ACTIONS: Record<string, (raw: AnyRecord) => PlayAction | null> = {
     return name ? { type: "camera", name } : null;
   },
   type: (raw) => {
-    const typed = typeof raw.text === "string" ? raw.text.slice(0, MAX_TYPED_CHARS) : "";
+    const typed = typeof raw.text === "string" ? clipCharacters(raw.text, MAX_TYPED_CHARS) : "";
     return typed ? { type: "type", text: typed } : null;
   },
   press: (raw) => {
