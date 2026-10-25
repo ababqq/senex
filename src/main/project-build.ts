@@ -20,7 +20,7 @@
 import { constants } from "node:fs";
 import { cp, lstat, mkdir, readdir, realpath, rm, stat, symlink, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { createHash } from "node:crypto";
+import { createHash, type Hash } from "node:crypto";
 import { ensureDir, pathExists } from "../substrate/fsx.ts";
 import { HostGitRefusedError, hostGit, hostGitContext, unlessRefused } from "../substrate/git-policy.ts";
 import { leftOutPaths } from "../substrate/large-files.ts";
@@ -600,6 +600,13 @@ export function installFailureLines(result: Pick<RunResult, "stdout" | "stderr" 
   return [MESSAGE.InstallStopped(INSTALL_TIMEOUT_MS / MINUTE_MS), ...tail.slice(-(INSTALL_FAILURE_LINES - 1))];
 }
 
+/** Files left out of saves for their size are ignored by git too, and the build mirror copies them: stamp them by name. */
+async function stampLeftOut(hash: Hash, dir: string, serve: string | null): Promise<void> {
+  for (const rel of (await leftOutPaths(dir)).sort()) {
+    if (!isServedOutput(rel, serve)) hash.update(`${rel}\n${await stamp(path.join(dir, rel))}`);
+  }
+}
+
 /**
  * What the tree is right now: the committed tree plus every dirty file's size and mtime. Two
  * looks a second apart at an untouched folder give the same key, and the build is skipped.
@@ -622,10 +629,7 @@ export async function treeKey(dir: string, serve: string | null): Promise<string
     for (const name of (await readdir(dir).catch(() => [])).sort()) {
       if (name.startsWith(".env")) hash.update(`${name}\n${await stamp(path.join(dir, name))}`);
     }
-    // Files left out of saves for their size are ignored too, and the build mirror copies them.
-    for (const rel of (await leftOutPaths(dir)).sort()) {
-      if (!isServedOutput(rel, serve)) hash.update(`${rel}\n${await stamp(path.join(dir, rel))}`);
-    }
+    await stampLeftOut(hash, dir, serve);
     return hash.digest("hex");
   }
   // Not a repository: the files themselves, capped, so an unindexed folder still memoises.
