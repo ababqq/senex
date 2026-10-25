@@ -9870,6 +9870,14 @@ describe("steering that came too late is spent by the run that built it (sweep 4
       );
     }
     assert.deepEqual(parseSteeringBacklog("# Notes\r\n\r\n## Steering backlog\r\n\r\n- add tags\r\n"), ["add tags"]);
+    // A heading with trailing blanks is still the heading: reading it as absent would write a second section.
+    const blank = "# Notes\n\n## Steering backlog \t\n\n- add tags\n\n## Decisions\n";
+    assert.deepEqual(parseSteeringBacklog(blank), ["add tags"]);
+    assert.equal(
+      nextSteeringBacklog(blank, { consumed: ["add tags"], fresh: [] }),
+      "# Notes\n\n## Decisions\n",
+      "no second section is appended after the old one",
+    );
   });
 
   it("SB1d. the list ends at the next heading of level one or two, however it is spaced, and what follows is kept", async () => {
@@ -9890,17 +9898,41 @@ describe("steering that came too late is spent by the run that built it (sweep 4
     }
     const sub = "# Notes\n\n## Steering backlog\n\n### Later\n\n- add tags\n\n## Decisions\n";
     assert.deepEqual(parseSteeringBacklog(sub), ["add tags"], "a deeper heading is part of the section");
+    const code = "# Notes\n\n## Steering backlog\n\n- add tags\n\n    ## not a heading\n- add fog\n\n## Decisions\n";
+    assert.deepEqual(parseSteeringBacklog(code), ["add tags", "add fog"], "four spaces is code: the list goes on");
+    const bare = "# Notes\n\n## Steering backlog\n\n- add tags\n\n##";
+    assert.deepEqual(parseSteeringBacklog(bare), ["add tags"], "a bare ## at the end of the file is a heading");
+    assert.equal(nextSteeringBacklog(bare, { consumed: ["add tags"], fresh: [] }), "# Notes\n\n##");
   });
 
   it("SB1e. a steer is kept as one line that reads back as itself, never as a heading or a second item", async () => {
     const { nextSteeringBacklog, parseSteeringBacklog } = await import("../../src/harness-seed/loop/autopilot.ts");
-    const fresh = ["also:\n- add tags\n\n## Decisions", "# brighter sky", "   ", "add fog", "add fog"];
+    const fresh = [
+      "also:\n- add tags\n\n## Decisions",
+      "# brighter sky",
+      "   ",
+      "add fog",
+      "add fog",
+      "## fix the bug",
+      "# #b",
+      "#ff8800 for the buttons",
+      "fix #12 first",
+      "####### seven",
+      "#",
+    ];
+    const items = [
+      "also: - add tags ## Decisions",
+      "brighter sky",
+      "add fog",
+      "fix the bug",
+      "#b",
+      "#ff8800 for the buttons",
+      "fix #12 first",
+      "####### seven",
+    ];
     const next = nextSteeringBacklog("# Notes\n", { consumed: [], fresh });
-    assert.equal(
-      next,
-      "# Notes\n\n## Steering backlog\n\n- also: - add tags ## Decisions\n- brighter sky\n- add fog\n",
-    );
-    assert.deepEqual(parseSteeringBacklog(next), ["also: - add tags ## Decisions", "brighter sky", "add fog"]);
+    assert.equal(next, `# Notes\n\n## Steering backlog\n\n${items.map((item) => `- ${item}`).join("\n")}\n`);
+    assert.deepEqual(parseSteeringBacklog(next), items, "a hashtag or a colour is a word; only a heading marker goes");
     assert.equal(
       nextSteeringBacklog(next, { consumed: parseSteeringBacklog(next), fresh: [] }),
       "# Notes\n",
@@ -9908,18 +9940,47 @@ describe("steering that came too late is spent by the run that built it (sweep 4
     );
   });
 
-  it("SB1f. an accepted run spends what its plan took, unless a facet ended before its work was done", async () => {
+  it("SB1f. an accepted run spends what its plan took, unless a plan facet never built or a facet ended before its work was done", async () => {
     const { steeringSpent } = await import("../../src/harness-seed/loop/autopilot.ts");
     const { StopCode } = await import("../../src/harness-seed/loop/outcomes.ts");
-    const plan = { steeringTaken: ["add tags"] };
-    const facets = (code: string) => ({ facets: { water: { stopCode: StopCode.Done }, sky: { stopCode: code } } });
-    assert.deepEqual(steeringSpent(plan, facets(StopCode.Done), true), ["add tags"]);
-    assert.deepEqual(steeringSpent(plan, { facets: {} }, true), ["add tags"]);
-    assert.deepEqual(steeringSpent(plan, {}, true), ["add tags"]);
-    for (const died of [StopCode.UsageLimit, StopCode.EngineExhausted, StopCode.ObservationDown])
-      assert.deepEqual(steeringSpent(plan, facets(died), true), [], died);
-    assert.deepEqual(steeringSpent(plan, facets(StopCode.Done), false), [], "a rejected build built nothing");
-    assert.deepEqual(steeringSpent({}, facets(StopCode.Done), true), []);
+    const plan = { steeringTaken: ["add tags"], facets: [{ id: "water" }, { id: "sky" }] };
+    const built = { stopCode: StopCode.Done, iterations: 2 };
+    const report = (sky: Record<string, unknown> | undefined, more: Record<string, unknown> = {}) => ({
+      facets: { water: built, ...(sky ? { sky } : {}), ...more },
+    });
+    assert.deepEqual(steeringSpent(plan, report(built), true), ["add tags"]);
+    assert.deepEqual(steeringSpent(plan, report({ stopCode: StopCode.Budget, iterations: 1 }), true), ["add tags"]);
+    assert.deepEqual(steeringSpent({ steeringTaken: ["add tags"] }, {}, true), ["add tags"], "a plan with no facets");
+    for (const died of [
+      StopCode.UsageLimit,
+      StopCode.EngineExhausted,
+      StopCode.ObservationDown,
+      StopCode.AttemptNotKept,
+    ])
+      assert.deepEqual(steeringSpent(plan, report({ stopCode: died, iterations: 1 }), true), [], died);
+    assert.deepEqual(steeringSpent(plan, report(undefined), true), [], "a facet that never ran");
+    assert.deepEqual(
+      steeringSpent(plan, report({ stopCode: StopCode.Budget, iterations: 0 }), true),
+      [],
+      "never built",
+    );
+    assert.deepEqual(
+      steeringSpent(plan, report({ stoppedBecause: "finishing the current work at the user’s request" }), true),
+      [],
+      "a Finish asked for before the facet's turn",
+    );
+    assert.deepEqual(
+      steeringSpent(plan, report({ stopCode: StopCode.CircuitBreak, iterations: 3 }), true),
+      [],
+      "a breaker cut it off",
+    );
+    assert.deepEqual(
+      steeringSpent(plan, report(built, { integration: { stopCode: StopCode.UsageLimit, iterations: 1 } }), true),
+      [],
+      "the merged build may lack the items",
+    );
+    assert.deepEqual(steeringSpent(plan, report(built), false), [], "a rejected build built nothing");
+    assert.deepEqual(steeringSpent({ facets: [{ id: "water" }] }, report(built), true), []);
   });
 
   it("SB1g. the plan journals the backlog the planner was shown only when its close can settle it", async () => {
@@ -10034,6 +10095,37 @@ describe("steering that came too late is spent by the run that built it (sweep 4
     );
     assert.equal((await gitFile(["-C", live, "status", "--porcelain", "--", "NOTES.md"])).stdout.trim(), "");
     assert.equal(finished.steeringBacklog, undefined, "nothing arrived too late, so the report keeps nothing");
+  });
+
+  it("SB2c. an accepted run in which a facet ran out of usage keeps what the plan took", async () => {
+    const rig = await startRig();
+    rigs.push(rig);
+    const project = await rig.core.projects.scaffold("backlog-limit");
+    const live = rig.core.projects.dirFor(project.name);
+    await writeFile(path.join(live, "NOTES.md"), notesWith(["add tags", "make the header sticky"]));
+    await commitAll(live, "last week's steering");
+    const plan = twoFacetPlan();
+    registerFakeEngine(rig, {
+      complete: (text) => (text.includes("ENGINE HINT: maxParallel") ? JSON.stringify(plan) : null),
+      delegate: async (request) => {
+        if (/YOUR FACET: Sky|facet "Sky"/.test(request.prompt))
+          throw new EngineError("usage_limit", "fake-delegate", "You've hit your usage limit");
+        return buildBothFacets(request);
+      },
+    });
+    const { runId, events } = await runAutopilot(rig, project.name);
+    const finished = customEvents(events, "run_finished").find((e) => e.runId === runId)!;
+    assert.equal(finished.rolledBack ?? false, false, "the build was kept: this is an accepted run");
+    assert.equal(
+      (finished.facets as Record<string, { stopCode?: string }> | undefined)?.sky?.stopCode,
+      "usage-limit",
+      "the facet really ran out of usage",
+    );
+    assert.equal(
+      await readFile(path.join(live, "NOTES.md"), "utf8"),
+      notesWith(["add tags", "make the header sticky"]),
+      "sky may be the facet that carried them: they wait for the next run",
+    );
   });
 
   it("SB3. a run that was rejected and rolled back keeps what its plan took, and still keeps the steer that came too late", async () => {

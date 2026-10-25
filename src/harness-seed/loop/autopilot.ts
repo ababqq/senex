@@ -58,7 +58,7 @@ import {
   PAGE_SEED,
   PLAN_REVIEW_WAIT_MS,
 } from "./config.ts";
-import { diedEarly, OptimizationOutcome, StopCode, stopWith } from "./outcomes.ts";
+import { diedEarly, OptimizationOutcome, StopCode, stopOf, stopWith } from "./outcomes.ts";
 import { baseBrief, contractWiringAsk } from "./prompts-build.ts";
 import { integratorBrief } from "./autopilot-prompts.ts";
 import { HostMethod } from "./host-methods.ts";
@@ -221,6 +221,9 @@ const STEERING_HEADING_LINE = new RegExp(`^${STEERING_BACKLOG_HEADING}[ \\t]*\\r
 /** The next level-one or level-two heading after the backlog's: where its list ends. */
 const NEXT_SECTION_LINE = /\n {0,3}#{1,2}(?=[ \t]|\r?\n|$)/;
 
+/** A heading line as markdown reads one: one to six hashes, then a space or the end of the line. */
+const ATX_HEADING = /^#{1,6}(?:[ \t]|$)/;
+
 /** Where the backlog sits in NOTES.md: its heading line, and the end of its list (the next section, or the end of the file). */
 function steeringSection(text: string): { start: number; body: number; end: number } | null {
   const heading = STEERING_HEADING_LINE.exec(text);
@@ -239,7 +242,7 @@ export function parseSteeringBacklog(notes: unknown): string[] {
     .slice(section.body, section.end)
     .split("\n")
     .map((line) => line.replace(/^\s*[-*]\s*/, "").trim())
-    .filter((line) => line && !line.startsWith("#"));
+    .filter((line) => line && !ATX_HEADING.test(line));
 }
 
 /**
@@ -251,31 +254,41 @@ export function steeringTaken(plan: unknown): string[] {
   return Array.isArray(taken) ? taken.map(String) : [];
 }
 
+/** Did this plan facet get as far as a build? One that never started, or that a breaker cut off, may be the one that carried the steer. */
+function builtSomething(result: AnyRecord | undefined): boolean {
+  return Number(result?.iterations) > 0 && stopOf(result).code !== StopCode.CircuitBreak;
+}
+
 /**
- * The steering an accepted run has built: what its plan took, unless a facet ended before its
- * work was done (the usage limit, the engine, the preview), when the plan's items may be the
- * ones that were lost and wait for the next run. A rejected run built nothing.
+ * The steering an accepted run has built: what its plan took, unless a facet of the plan never
+ * built (a Finish asked for before its turn, an exhausted budget, a breaker) or any facet ended
+ * before its work was done (the usage limit, the engine, the preview). That facet may be the one
+ * that carried the items, so they wait for the next run. A rejected run built nothing.
  */
 export function steeringSpent(plan: unknown, report: AnyRecord, accepted: boolean): string[] {
   if (!accepted) return [];
-  const facets = Object.values(report.facets ?? {}) as AnyRecord[];
-  return facets.some((result) => diedEarly(result)) ? [] : steeringTaken(plan);
+  const results = (report.facets ?? {}) as Record<string, AnyRecord>;
+  const planned = ((plan as { facets?: AnyRecord[] } | null)?.facets ?? []) as AnyRecord[];
+  const lost = planned.some((facet) => !builtSomething(results[facet.id])) || Object.values(results).some(diedEarly);
+  return lost ? [] : steeringTaken(plan);
 }
 
-/** A steer as one bullet's text: one line, and not one the reader would take for a heading. */
+/** A steer as one bullet's text: one line, and not one the reader would take for a heading (`#ff8800` and `#12` are not). */
 function steeringItem(steer: string): string {
   return steer
     .replace(/\s+/g, " ")
     .trim()
-    .replace(/^#+\s*/, "");
+    .replace(/^(?:#{1,6}(?: +|$))+/, "");
 }
 
 /**
  * The project's NOTES.md once a run has settled its steering backlog: the items its plan took
  * are gone when the run was accepted (`consumed`), the steering that came too late for this run
  * is added (`fresh`, one line each), and the heading goes with the last item. Items are matched
- * by their exact text. The text after the section is kept byte for byte; the blank space just
- * before it is tidied and the block is written with LF. Unchanged text comes back as it was.
+ * by their exact text. The section belongs to the harness: it is rewritten from its bullets, and
+ * a line in it that is not a bullet is read as one. The text after the section is kept byte for
+ * byte; the blank space just before it is tidied and the block is written with LF. Unchanged
+ * text comes back as it was.
  */
 export function nextSteeringBacklog(
   notes: unknown,
