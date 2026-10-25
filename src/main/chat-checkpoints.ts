@@ -15,7 +15,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { copyFile, lstat, mkdir, readdir, realpath, rm, rmdir } from "node:fs/promises";
 import { GIT_ENV } from "../substrate/snapshots.ts";
 import { hostGit } from "../substrate/git-policy.ts";
-import { LARGE_FILE_MAX_BYTES } from "../substrate/large-files.ts";
+import { LARGE_FILE_MAX_BYTES, leftOutPaths } from "../substrate/large-files.ts";
 import { pathExists } from "../substrate/fsx.ts";
 import { nestedRepos } from "../substrate/project-workspace.ts";
 import { isBelow } from "../substrate/paths.ts";
@@ -225,6 +225,8 @@ export class ChatCheckpoints {
     ];
     const exclude = excluded.map((spec) => spec.replace(/^:\(/, ":(exclude,"));
     const skipped = await this.#oversized(dir, index, exclude);
+    // `add` refuses an exclude pathspec that names a path git ignores, as a file left out of saves is.
+    const ignoredSkipped = await ignoredAmong(dir, skipped);
     const env = { GIT_INDEX_FILE: index };
     // Out of the private index too (forced: it is ours), in case an earlier checkpoint held them;
     // so is a record a checkpoint interrupted before taking it back out.
@@ -238,7 +240,11 @@ export class ChatCheckpoints {
       dir,
       ["add", "-A", "--pathspec-from-file=-", "--pathspec-file-nul"],
       env,
-      nul([".", ...exclude, ...skipped.map((file) => `:(exclude,literal)${file}`)]),
+      nul([
+        ".",
+        ...exclude,
+        ...skipped.filter((file) => !ignoredSkipped.has(file)).map((file) => `:(exclude,literal)${file}`),
+      ]),
     );
     // Nothing left out needs no record (`snapshotOf` reads its absence as empty): three fewer git
     // runs before most answers.
@@ -277,7 +283,8 @@ export class ChatCheckpoints {
       if (size > LARGE_FILE_MAX_BYTES || total + size > CHECKPOINT_CHANGE_MAX_BYTES) skip.push(file);
       else total += size;
     }
-    return skip;
+    // A file a save left out is hidden from the listing above, and is no less too large to rewind over.
+    return [...new Set([...skip, ...(await leftOutPaths(dir))])];
   }
 
   async #take(dir: string, ref: string, text: string, deadline?: number): Promise<string | null> {

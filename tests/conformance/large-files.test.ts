@@ -20,7 +20,9 @@ import {
   LEFT_OUT_MARKER,
   type LeftOutFile,
   excludeLargeNewFiles,
+  filesInTheWay,
   leftOutPaths,
+  namedFiles,
   pathsInTheWay,
 } from "../../src/substrate/large-files.ts";
 import { HARNESS_WORKSPACE, SnapshotEngine, SnapshotRefusal, ensureRepo, git } from "../../src/substrate/snapshots.ts";
@@ -393,6 +395,24 @@ describe("a line stops being true", () => {
     const listed = await mirrorList(dir, null);
     for (const outside of ["../outside.txt", "link/x"]) assert.ok(!listed.includes(outside), outside);
   });
+  it("LS6. retiring a line leaves the person's lines byte for byte, whatever encoding they were saved in", async () => {
+    const p = await project();
+    const exclude = path.join(p.dir, ".git", "info", "exclude");
+    const mine = Buffer.concat([
+      Buffer.from("# "),
+      Buffer.from([0xb0, 0xa1, 0xb3, 0xaa]),
+      Buffer.from("\r\n/"),
+      Buffer.from([0xe9]),
+      Buffer.from(".tmp\n"),
+    ]);
+    await writeFile(exclude, mine);
+    await sparse(p.dir, "big.bin");
+    await p.save("left out");
+    await rm(path.join(p.dir, "big.bin"));
+    await p.save("gone");
+    const after = await readFile(exclude);
+    assert.ok(after.equals(mine), `the file is as the person wrote it: ${after.toString("hex")}`);
+  });
 });
 
 describe("a restore and the readers of a folder's file list", () => {
@@ -466,6 +486,23 @@ describe("a restore and the readers of a folder's file list", () => {
     assert.deepEqual(pathsInTheWay(["data.bin.old", "sub-other"], ["data.bin", "sub/big.bin"]), []);
   });
 
+  it("LF16e. a commit that would put a file where a left-out one stands is named before it is merged anywhere", async () => {
+    const p = await project({ "index.html": "page", "data.bin": "small" });
+    const old = await p.save("has data.bin");
+    await git(p.dir, ["rm", "-q", "--cached", "data.bin"]);
+    await writeFile(path.join(p.dir, "data.bin"), "");
+    await truncate(path.join(p.dir, "data.bin"), OVER);
+    await p.save("data.bin is big and new again");
+    assert.deepEqual(await filesInTheWay(p.dir, old.git.game ?? ""), ["data.bin"]);
+    assert.deepEqual(await filesInTheWay(p.dir, (await git(p.dir, ["rev-parse", "HEAD"])).trim()), []);
+  });
+
+  it("LF16f. a name in a message cannot reshape it", () => {
+    const named = namedFiles(["a\n\nSenex: done\n.mov", "b\u202Efdp.exe", "c", "d"]);
+    assert.doesNotMatch(named, /[\p{Cc}\p{Cf}]/u);
+    assert.match(named, /and 1 more$/);
+  });
+
   it("LF17. leftOutPaths names the files the blocks name that are files on disk now", async () => {
     const p = await project();
     const star = process.platform === "win32" ? "a+b.bin" : "a*b.bin";
@@ -508,6 +545,21 @@ describe("a restore and the readers of a folder's file list", () => {
     assert.ok(opened.candidateId);
     await candidates.close(opened.candidateId);
   });
+  it("LF19b. a file kept out by path alone does not stop a candidate, and a small untracked file still does", {
+    skip: POSIX_ONLY,
+  }, async () => {
+    const p = await project({ "index.html": "page", ".gitignore": "!*.bin\n" });
+    await sparse(p.dir, "video.bin");
+    const record = await p.save("baseline");
+    const candidates = new ProjectCandidates(p.engine, await tmpDir("studio-large-files-candidates-"));
+    const opened = await candidates.open("project", "run_kept", record.snapshot_id, record.git.game ?? "");
+    await candidates.close(opened.candidateId);
+    await writeFile(path.join(p.dir, "notes.txt"), "an edit nobody saved");
+    await assert.rejects(
+      candidates.open("project", "run_kept2", record.snapshot_id, record.git.game ?? ""),
+      /baseline changed/,
+    );
+  });
 });
 
 describe("through the core", () => {
@@ -519,12 +571,31 @@ describe("through the core", () => {
     await sparse(dir, "raw/take1.mov");
     const adopted = await core.adoptProject(dir, { template: false });
     assert.ok(!(await tracked(dir)).includes("raw/take1.mov"));
+    assert.deepEqual(await leftOutEvents(core), [], "no chat exists yet, and adoption does not make one");
+    const chat = await core.threadForProject(adopted.name);
     const told = await leftOutEvents(core);
     assert.equal(told.length, 1);
     assert.deepEqual(told[0]?.files, [{ path: "raw/take1.mov", bytes: OVER }]);
     assert.equal(told[0]?.more, 0);
     assert.equal(told[0]?.limitBytes, LARGE_FILE_MAX_BYTES);
-    assert.equal(told[0]?.threadId, await core.threadForProject(adopted.name));
+    assert.equal(told[0]?.threadId, chat);
+  });
+
+  it("LF20b. a draft chat that is bound to the folder it adopted gets the notice, not a chat of its own", async () => {
+    const { core, projectsRoot } = await coreLite();
+    const dir = path.join(projectsRoot, "trip");
+    await mkdir(dir, { recursive: true });
+    await writeFile(path.join(dir, "index.html"), "<!doctype html><title>x</title>");
+    await sparse(dir, "day1.mov");
+    const draft = await core.createProjectThread();
+    const adopted = await core.adoptProject(dir, { template: false });
+    await core.bindThreadToProject(draft, adopted.name);
+    assert.equal(await core.threadForProject(adopted.name), draft);
+    const told = await leftOutEvents(core);
+    assert.deepEqual(
+      told.map((entry) => entry.threadId),
+      [draft],
+    );
   });
 
   it("LF21. a later save says so too, and names at most five", async () => {
@@ -533,11 +604,33 @@ describe("through the core", () => {
     await mkdir(dir, { recursive: true });
     await writeFile(path.join(dir, "index.html"), "<!doctype html><title>x</title>");
     const project = await core.adoptProject(dir, { template: false });
+    await core.threadForProject(project.name);
     for (let at = 0; at < 7; at += 1) await sparse(dir, `reel${at}.mov`);
     await core.snapshot(SnapshotScope.Project, "save", project.name);
     const told = await leftOutEvents(core);
     assert.equal(told.length, 1);
     assert.equal(told[0]?.files?.length, 5);
     assert.equal(told[0]?.more, 2);
+  });
+  it("LF23. landing a build that would put a file where a left-out one stands is refused, and nothing changes", async () => {
+    const { core, projectsRoot } = await coreLite();
+    const dir = path.join(projectsRoot, "reels");
+    await mkdir(dir, { recursive: true });
+    await writeFile(path.join(dir, "index.html"), "<!doctype html><title>x</title>");
+    const project = await core.adoptProject(dir, { template: false });
+    await sparse(dir, "assets/clip.mov");
+    await core.snapshot(SnapshotScope.Project, "save", project.name);
+    const head = (await git(dir, ["rev-parse", "HEAD"])).trim();
+    // A build made elsewhere from a commit that never had the file puts a small one at its path.
+    const fork = path.join(await tmpDir("studio-large-files-fork-"), "fork");
+    await fixtureGit(dir, ["worktree", "add", "-q", "-b", "build", fork]);
+    await mkdir(path.join(fork, "assets"), { recursive: true });
+    await writeFile(path.join(fork, "assets", "clip.mov"), "a placeholder");
+    await fixtureGit(fork, ["add", "-f", "assets/clip.mov"]);
+    await fixtureGit(fork, ["commit", "-q", "-m", "a placeholder clip"]);
+    const build = await fixtureGit(fork, ["rev-parse", "HEAD"]);
+    await assert.rejects(core.landBuild(project.name, build), /overwrite.*assets\/clip\.mov/);
+    assert.equal(await sizeOf(dir, "assets/clip.mov"), OVER);
+    assert.equal((await git(dir, ["rev-parse", "HEAD"])).trim(), head);
   });
 });

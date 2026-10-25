@@ -23,6 +23,7 @@ import { buildFailureNote, servedAfterBuild } from "../project-build.ts";
 import type { BuildProblem, InstallResult } from "../../shared/build-problem.ts";
 import { describeUnknownImage, sniffImage } from "../../substrate/image-sniff.ts";
 import { unlessRefused } from "../../substrate/git-policy.ts";
+import { filesInTheWay, namedFiles, statusPathspec } from "../../substrate/large-files.ts";
 import { claudeFolderChanges, git } from "../../substrate/snapshots.ts";
 import type { DelegateRequest } from "../../substrate/engines/types.ts";
 import type { ReferenceFrame } from "../../shared/protocol.ts";
@@ -139,6 +140,8 @@ const MESSAGE = {
     `a contractor is building in "${project}" right now — wait for it to finish before landing a build`,
   uncommittedEdits: (files: number) =>
     `the project folder has uncommitted edits (${files} file(s)) — commit or discard them before landing a build`,
+  largeFileInTheWay: (files: string[]) =>
+    `landing would overwrite ${namedFiles(files)}, a file too large to be saved that no snapshot holds; nothing was changed — move it out of the folder first`,
   landingConflicted: (revision: string, excerpt: string) =>
     `landing ${revision} conflicted with the project folder; nothing was changed (${excerpt})`,
   noSuchProject: (project: string) => `there is no project called "${project}"`,
@@ -401,7 +404,7 @@ export class PreviewService {
   async previewRevision(project: string, root: string | null): Promise<string | null> {
     const dir = root ?? this.#core.projects.dirFor(project);
     try {
-      if ((await git(dir, ["status", "--porcelain"])).trim()) return null;
+      if ((await git(dir, ["status", "--porcelain", ...(await statusPathspec(dir))])).trim()) return null;
       return (await git(dir, ["rev-parse", "HEAD"])).trim() || null;
     } catch {
       return null;
@@ -1247,13 +1250,17 @@ export class PreviewService {
     // landed. A path the conversion is about to absorb reads modified only because it has not
     // happened yet, so it is not what "the user has uncommitted edits" means here.
     const absorbed = await nestedForLanding(projectDir, resolved);
+    // Files too large to be saved are left out on purpose: not edits to commit, but not ones to merge over either.
+    const left = await statusPathspec(projectDir);
     const dirty = dirtyOutside(
-      (await git(projectDir, ["status", "--porcelain"]).catch(unlessRefused(""))).trim(),
+      (await git(projectDir, ["status", "--porcelain", ...left]).catch(unlessRefused(""))).trim(),
       absorbed,
     );
     if (dirty.length > 0) {
       throw new Error(MESSAGE.uncommittedEdits(dirty.length));
     }
+    const inTheWay = await filesInTheWay(projectDir, resolved);
+    if (inTheWay.length > 0) throw new Error(MESSAGE.largeFileInTheWay(inTheWay));
     // The conversion happens only with the consent the Open Project sheet recorded — the one place
     // the studio touches somebody else's version history (decision 1, 2026-09-08).
     const versioned = await versionNestedForLanding(projectDir, resolved, {

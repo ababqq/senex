@@ -43,7 +43,8 @@ export class ProjectThreadService {
     this.#core = core;
   }
 
-  async threadForProject(project: string): Promise<string> {
+  /** The project's live chats, the one the library remembers first. */
+  async #chatsOf(project: string): Promise<{ current: ConversationRecord | undefined; primary: string | undefined }> {
     const threads = (await this.#core.store.listThreads())
       .filter((t) => {
         const meta = metaOf(t);
@@ -51,7 +52,16 @@ export class ProjectThreadService {
       })
       .sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1));
     const primary = (await this.#core.projects.presentation(project)).primaryThreadId;
-    const current = threads.find((thread) => thread.id === primary) ?? threads[0];
+    return { current: threads.find((thread) => thread.id === primary) ?? threads[0], primary };
+  }
+
+  /** The project's chat if it has one yet; nothing is created. */
+  async existingThreadForProject(project: string): Promise<string | null> {
+    return (await this.#chatsOf(project)).current?.id ?? null;
+  }
+
+  async threadForProject(project: string): Promise<string> {
+    const { current, primary } = await this.#chatsOf(project);
     if (current) {
       if (primary !== current.id) await this.#core.projects.rememberThread(project, current.id);
       return current.id;

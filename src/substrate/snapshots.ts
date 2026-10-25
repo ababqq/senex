@@ -28,10 +28,10 @@ import { errorMessage } from "../shared/errors.ts";
 import { hostGit, unlessRefused } from "./git-policy.ts";
 import {
   excludeLargeNewFiles,
+  filesInTheWay,
   type LeftOutFile,
   type LeftOutReport,
-  leftOutPaths,
-  pathsInTheWay,
+  namedFiles,
 } from "./large-files.ts";
 
 /** The snapshot index entry is a contract the UI reads too; it lives in `shared/event-log.ts`. */
@@ -58,10 +58,6 @@ const ENV_FILE_MAX_BYTES = 1024 * 1024;
 
 /** git output a host call may buffer before it fails. */
 const GIT_MAX_BUFFER_BYTES = 32 * 1024 * 1024;
-
-/** Up to three file names, and a count of the rest. */
-const namedFiles = (files: string[]): string =>
-  `${files.slice(0, 3).join(", ")}${files.length > 3 ? ` and ${files.length - 3} more` : ""}`;
 
 const MESSAGE = {
   UnknownWorkspace: (name: string) => `unknown workspace: ${name}`,
@@ -325,7 +321,8 @@ export class SnapshotEngine {
    * reset, everything the folder holds is committed to a rescue snapshot, which this returns (null
    * when no project was restored). The restore is refused, with the folder untouched, when that
    * rescue cannot be taken, when the folder is no longer on the branch the snapshot was taken on,
-   * or when the branch holds commits since the snapshot that are not the studio's own.
+   * when the branch holds commits since the snapshot that are not the studio's own, or when it
+   * would overwrite or delete a file too large to be saved (`large-files.ts`).
    */
   async restore(
     record: SnapshotRecord,
@@ -343,19 +340,28 @@ export class SnapshotEngine {
       await this.#refuseMidOperation(name, dir);
       await this.#refuseMovedHistory(name, dir, commit, record.git.gameBranch);
       await this.#refuseOverwritingLargeFile(name, dir, commit);
-      try {
-        rescue = await this.snapshot({
-          scope: SnapshotScope.Project,
-          projectWorkspace: name,
-          reason: MESSAGE.RescueReason(record.snapshot_id),
-        });
-      } catch (err) {
-        if (err instanceof SnapshotRefusedError) throw err;
-        throw new SnapshotRefusedError(SnapshotRefusal.RescueFailed, name, MESSAGE.RescueFailed(errorMessage(err)));
-      }
+      rescue = await this.#rescue(name, record);
+    }
+    // The rescue takes a while, and a file may have been dropped in meanwhile: it left that one out of itself.
+    for (const { name, dir, commit } of targets) {
+      if (name !== HARNESS_WORKSPACE) await this.#refuseOverwritingLargeFile(name, dir, commit);
     }
     await this.#resetAll(targets);
     return rescue;
+  }
+
+  /** Everything the project folder holds, committed before a restore moves it; refused when that cannot be done. */
+  async #rescue(name: string, record: SnapshotRecord): Promise<SnapshotRecord> {
+    try {
+      return await this.snapshot({
+        scope: SnapshotScope.Project,
+        projectWorkspace: name,
+        reason: MESSAGE.RescueReason(record.snapshot_id),
+      });
+    } catch (err) {
+      if (err instanceof SnapshotRefusedError) throw err;
+      throw new SnapshotRefusedError(SnapshotRefusal.RescueFailed, name, MESSAGE.RescueFailed(errorMessage(err)));
+    }
   }
 
   /** Reset each workspace to its commit, every commit looked up before the first reset moves anything. */
@@ -420,13 +426,7 @@ export class SnapshotEngine {
         MESSAGE.LargeFileUnprotected(unprotected),
       );
     }
-    const leftOut = await leftOutPaths(dir);
-    if (leftOut.length === 0) return;
-    const hash = await resolveCommit(dir, commit);
-    const listing = await hostGit(dir, ["ls-tree", "-r", "-z", "--name-only", hash], {
-      maxBuffer: Number.POSITIVE_INFINITY,
-    });
-    const inTheWay = pathsInTheWay(listing.stdout.split("\0"), leftOut);
+    const inTheWay = await filesInTheWay(dir, await resolveCommit(dir, commit));
     if (inTheWay.length > 0) {
       throw new SnapshotRefusedError(SnapshotRefusal.LargeFileInTheWay, name, MESSAGE.LargeFileInTheWay(inTheWay));
     }

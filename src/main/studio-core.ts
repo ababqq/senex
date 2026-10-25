@@ -412,6 +412,8 @@ export class StudioCore {
    * happened in.
    */
   readonly #activity = new Map<string, string | null>();
+  /** Notices of files left out of saves, by project that has no chat to say them in yet. */
+  readonly #leftOutWaiting = new Map<string, LeftOutFile[]>();
   #activityIndex = new ActivityIndex();
   #activityTurn: Promise<unknown> = Promise.resolve();
   #activityWarmup: NodeJS.Timeout | null = null;
@@ -1372,7 +1374,11 @@ export class StudioCore {
    * once; subsequent sidebar visits reuse that selection without creating another chat.
    */
   async threadForProject(project: string): Promise<string> {
-    return serial(this.#projectThreadOperations, project, () => this.#threads.threadForProject(project));
+    const threadId = await serial(this.#projectThreadOperations, project, () =>
+      this.#threads.threadForProject(project),
+    );
+    await this.#flushLeftOut(project, threadId);
+    return threadId;
   }
 
   createProjectThread(
@@ -1387,10 +1393,11 @@ export class StudioCore {
     return this.#threads.renameThread(...args);
   }
 
-  bindThreadToProject(
+  async bindThreadToProject(
     ...args: Parameters<ProjectThreadService["bindThreadToProject"]>
   ): ReturnType<ProjectThreadService["bindThreadToProject"]> {
-    return this.#threads.bindThreadToProject(...args);
+    await this.#threads.bindThreadToProject(...args);
+    await this.#flushLeftOut(args[1], args[0]);
   }
 
   // ── projects ────────────────────────────────────────────────────────────────────────────────
@@ -1540,17 +1547,37 @@ export class StudioCore {
     return project;
   }
 
-  /** Say in a project's chat which new files too large to save a save left out; that never fails the save. */
+  /**
+   * Say in a project's chat which new files too large to save a save left out. A project that has
+   * no chat yet (a folder adopted for a draft chat that is not bound to it until the next line) keeps
+   * the notice for the chat it gets, so the notice does not make a chat of its own. This never fails a save.
+   */
   async #announceLeftOut(project: string, files: LeftOutFile[]): Promise<void> {
-    const shown = files.slice(0, LEFT_OUT_SHOWN).map(({ path, bytes }) => ({ path, bytes }));
     try {
-      const threadId = await this.threadForProject(project);
-      const payload = { files: shown, more: files.length - shown.length, limitBytes: LARGE_FILE_MAX_BYTES };
-      await this.append([customEventData(CustomEvent.ProjectFilesLeftOut, payload)], threadId);
-      this.emit(UiEvent.ProjectChanged, { project });
+      const threadId = await this.#threads.existingThreadForProject(project);
+      if (threadId === null) {
+        this.#leftOutWaiting.set(project, [...(this.#leftOutWaiting.get(project) ?? []), ...files]);
+        return;
+      }
+      await this.#appendLeftOut(project, threadId, files);
     } catch {
       // The chat line is a courtesy: the file is out of the save either way.
     }
+  }
+
+  /** A notice that waited for its project's first chat goes into it. */
+  async #flushLeftOut(project: string, threadId: string): Promise<void> {
+    const files = this.#leftOutWaiting.get(project);
+    if (!files) return;
+    this.#leftOutWaiting.delete(project);
+    await this.#appendLeftOut(project, threadId, files).catch(() => {});
+  }
+
+  async #appendLeftOut(project: string, threadId: string, files: LeftOutFile[]): Promise<void> {
+    const shown = files.slice(0, LEFT_OUT_SHOWN).map(({ path, bytes }) => ({ path, bytes }));
+    const payload = { files: shown, more: files.length - shown.length, limitBytes: LARGE_FILE_MAX_BYTES };
+    await this.append([customEventData(CustomEvent.ProjectFilesLeftOut, payload)], threadId);
+    this.emit(UiEvent.ProjectChanged, { project });
   }
 
   async assertProjectAllowed(projectDir: string): Promise<void> {
