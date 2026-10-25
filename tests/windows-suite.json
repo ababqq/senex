@@ -60,6 +60,7 @@
   "tests/conformance/dev-launch.test.ts",
   "tests/conformance/dev-policy.test.ts",
   "tests/conformance/diagnostics.test.ts",
+  "tests/conformance/document-bytes.test.ts",
   "tests/conformance/door.test.ts",
   "tests/conformance/draw-counters.test.ts",
   "tests/conformance/electron-fixture.test.ts",

@@ -60,6 +60,7 @@ import {
 } from "./external-link.ts";
 import { PAGE_DISPATCH } from "./page-dispatch.ts";
 import { emulatePageFocus } from "./preview-focus.ts";
+import { rewriteDocumentBytes } from "../substrate/document-bytes.ts";
 import { previewPermissionAllowed } from "./preview-permissions.ts";
 import { anchoredBounds } from "./preview-anchor.ts";
 import {
@@ -612,7 +613,7 @@ export class ProjectPreview {
       const rewritten = await this.#rewriteDocument(response, relative, target, documentUrl, request);
       const code = status ?? response.status;
       if (rewritten !== null) {
-        // The body changed length; a stale content-length truncates the page.
+        // The body may have changed length; a stale content-length truncates the page.
         headers.delete("content-length");
         return new Response(rewritten, { status: code, headers });
       }
@@ -625,7 +626,8 @@ export class ProjectPreview {
   /**
    * The studio's own code goes onto the page here, on the response — so a worker who deletes
    * the tag from index.html gets it back on the next serve. Returns null for every response
-   * that is left byte-identical, which is all of them but the entry document.
+   * whose body was not read, which is all of them but the entry document; the bytes it does return
+   * are the page's own, byte for byte, with the studio's tags among them (`document-bytes.ts`).
    */
   async #rewriteDocument(
     response: Response,
@@ -633,7 +635,7 @@ export class ProjectPreview {
     target: string,
     documentUrl: string,
     request?: Request,
-  ): Promise<string | null> {
+  ): Promise<Uint8Array<ArrayBuffer> | null> {
     const isEntry = this.#entryPath !== null && samePath(relative, this.#entryPath);
     const dest = request?.headers.get("sec-fetch-dest") ?? null;
     const asked = request ? { method: request.method, dest, accept: request.headers.get("accept") } : null;
@@ -653,14 +655,18 @@ export class ProjectPreview {
       this.#push({ at: Date.now(), level: "warning", message: tooLargeNote(relative, bytes) });
       return null;
     }
-    const html = await response.text();
-    // A page reached only by its Accept header is a whole document; a fragment fetched that way is not,
-    // and its body is already read, so it is answered from the text.
-    if (!isEntry && !isDocumentDest(dest) && !looksLikeDocument(html)) return html;
-    const result = rewriteProjectHtml(html, { shim: this.#shimOptions(), documentUrl });
-    for (const note of result.notes) this.#push({ at: Date.now(), level: "warning", message: note });
-    if (isEntry) this.#reach = { reach: result.reach, hooked: result.hooked };
-    return result.injected ? result.html : html;
+    const body = new Uint8Array(await response.arrayBuffer());
+    // The text the studio looks for its tags in is the page's bytes, one character each: a page in EUC-KR or
+    // Shift_JIS is not UTF-8, and a round trip through UTF-8 text would be a different page.
+    return rewriteDocumentBytes(body, (html) => {
+      // A page reached only by its Accept header is a whole document; a fragment fetched that way is not,
+      // and its body is already read, so it is answered as it came.
+      if (!isEntry && !isDocumentDest(dest) && !looksLikeDocument(html)) return { html, injected: false };
+      const result = rewriteProjectHtml(html, { shim: this.#shimOptions(), documentUrl: asciiAddress(documentUrl) });
+      for (const note of result.notes) this.#push({ at: Date.now(), level: "warning", message: note });
+      if (isEntry) this.#reach = { reach: result.reach, hooked: result.hooked };
+      return { html: result.html, injected: result.injected };
+    }).bytes;
   }
 
   /**
@@ -1522,6 +1528,15 @@ function documentAddress(project: string, relative: string, routed: boolean, req
 /** Wait `ms`; a negative wait is none. */
 function sleep(ms: number): Promise<void> {
   return delay(Math.max(0, ms));
+}
+
+/** The address as the browser writes it, in ASCII: the studio's tags are written into the page byte for byte. */
+function asciiAddress(address: string): string {
+  try {
+    return new URL(address).href;
+  } catch {
+    return address;
+  }
 }
 
 /** Two served paths naming the same file — `dist/index.html`, `/dist/index.html`, `./dist/index.html`. */
