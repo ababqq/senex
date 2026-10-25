@@ -425,6 +425,31 @@ describe("a project's own shape", () => {
     assert.equal((await detectProjectShape(canvas))!.kind, "canvas2d");
   });
 
+  it("enters a plain page at its own script, not at the library it happens to load first", async () => {
+    const entryOf = async (scripts: string[]): Promise<string> => {
+      const dir = path.join(await tmpDir("studio-shape-"), "page");
+      await mkdir(dir, { recursive: true });
+      const tags = scripts.map((src) => `<script src="${src}"></script>`).join("");
+      await writeFile(path.join(dir, "index.html"), `<!doctype html><body><main></main>${tags}</body>`);
+      return (await detectProjectShape(dir))!.main;
+    };
+    const table: Array<[string, string[], string]> = [
+      ["a minified library first", ["js/jquery.min.js", "js/bootstrap.bundle.min.js", "js/main.js"], "js/main.js"],
+      ["a CDN tag, then a vendor folder", ["https://cdn.example/lib.js", "vendor/jquery.js", "app.js"], "app.js"],
+      ["a package folder, and a query on the entry", ["node_modules/x/dist/x.js", "./src/app.js?v=2"], "src/app.js"],
+      ["a minified name in capitals, with a query", ["JS/JQUERY.MIN.JS?v=3", "JS/App.js"], "JS/App.js"],
+      ["a minified module", ["js/lib.min.mjs", "js/app.mjs"], "js/app.mjs"],
+      ["only a minified script of its own", ["js/site.min.js"], "js/site.min.js"],
+      ["nothing but libraries keeps the first", ["vendor/a.js", "js/b.min.js"], "vendor/a.js"],
+      ["lib/ is the project's own folder", ["lib/game.js", "main.js"], "lib/game.js"],
+      ["a file called min.js is not minified", ["min.js", "app.js"], "min.js"],
+      ["a name that only contains min", ["js/jquery.minimal.js", "app.js"], "js/jquery.minimal.js"],
+      ["a config file first is a guess nobody can make by name", ["config.js", "app.js"], "config.js"],
+      ["no script of its own: the page is the entry", ["https://cdn.example/lib.min.js"], "index.html"],
+    ];
+    for (const [why, scripts, main] of table) assert.equal(await entryOf(scripts), main, why);
+  });
+
   it("counts the contract only in the files the served page loads", async () => {
     const { projects } = await workspaces();
     const godot = path.join(await tmpDir("studio-shape-"), "godot-validate");

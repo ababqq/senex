@@ -27,6 +27,26 @@ export function pageScripts(html: string): string[] {
   return srcs;
 }
 
+/** Folders that hold other people's code. `lib/` is not here: it is as often the project's own. */
+const THIRD_PARTY_FOLDERS = new Set([
+  "vendor",
+  "vendors",
+  "third_party",
+  "third-party",
+  "node_modules",
+  "bower_components",
+]);
+
+/**
+ * Whether a script of the page looks like a library it loads rather than the project's own code: a
+ * minified file, or one under a third-party folder. Only a hint: a project's own minified bundle
+ * looks the same, which is why a page with nothing else keeps it.
+ */
+export function isVendoredScript(src: string): boolean {
+  const parts = projectRelative(src).toLowerCase().split("/");
+  return /\.min\.m?js$/.test(parts.at(-1) ?? "") || parts.slice(0, -1).some((part) => THIRD_PARTY_FOLDERS.has(part));
+}
+
 /** A URL the page fetches from somewhere else — a CDN tag names a library but is not this project's source. */
 export function isRemoteSrc(src: string): boolean {
   return /^[a-z][a-z0-9+.-]*:/i.test(src) || src.startsWith("//");

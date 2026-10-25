@@ -6,7 +6,7 @@ import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import type { ProjectCandidate, ProjectKind, ProjectShape } from "../shared/project-folder.ts";
 import { pathExists, readJsonIfExists } from "./fsx.ts";
-import { isRemoteSrc, pageScripts, projectRelative } from "./project-page.ts";
+import { isRemoteSrc, isVendoredScript, pageScripts, projectRelative } from "./project-page.ts";
 import { declaredBootMs } from "./preview-ready.ts";
 import { isInstallCommand, packageCommands } from "./toolchain.ts";
 
@@ -248,7 +248,10 @@ export async function detectProjectShape(dir: string): Promise<ProjectShape | nu
   if (typeof meta?.contractVersion === "number" && writtenByStudio) return null;
 
   const srcs = pageScripts(html);
-  const [firstLocal] = srcs.filter((src) => !isRemoteSrc(src));
+  const local = srcs.filter((src) => !isRemoteSrc(src));
+  // The first script of its own: a page that loads jquery.min.js before js/main.js enters at main.js.
+  // A page that loads nothing but libraries keeps its first, as it always did.
+  const firstLocal = local.find((src) => !isVendoredScript(src)) ?? local[0];
   // A page whose scripts are all inline or all CDN tags still has an entry: itself. Naming
   // index.html keeps `main` a file the owner can open, and keeps the ownership rules honest.
   const main = firstLocal === undefined ? "index.html" : projectRelative(firstLocal);
