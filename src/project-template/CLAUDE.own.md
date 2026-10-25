@@ -37,7 +37,8 @@ the project, not defects to correct. Change what the brief asks for and leave th
 __BUILD_RULE__
 What your server writes while it runs (a database, uploads, a log) goes into `.gitignore` as soon as the
 path exists: every snapshot saves whatever git does not ignore, and a checkpoint should hold the project,
-not its data.
+not its data. If `.gitignore` is outside your seam you cannot edit it: name the exact lines in your report
+so they get added.
 
 Two lessons every contractor re-learned: before re-styling, capture the project and look at what it
 already draws; and a check that cannot pass as written is not yours to force — write a `HARNESS:`
