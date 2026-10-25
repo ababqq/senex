@@ -75,7 +75,7 @@ import {
   reloadWithin,
   settleWithin,
 } from "./preview-navigation.ts";
-import { capActions, type PreviewInputAction } from "../substrate/preview-input.ts";
+import { capActions, type ModifierName, type PreviewInputAction } from "../substrate/preview-input.ts";
 import { siteBaseOfEntry } from "../substrate/project-export.ts";
 import { applyInputAction, type PageDispatch } from "./preview-input-driver.ts";
 import { cropImageFile, diffImageFiles, encodedImageStats, pairJpeg, resizeToJpeg } from "./preview-images.ts";
@@ -249,6 +249,8 @@ export class ProjectPreview {
    * window and on document) and a picker toggled by "i" flipped shut again (computer smoke).
    */
   #nativeDelivery: boolean | null = null;
+  /** The modifier keys the harness holds down in this page: a press of `shift` stays on every event until its release. */
+  readonly #heldModifiers = new Set<ModifierName>();
   /** When set, `project://<project>/` is served from this directory instead of projectsRoot. */
   #rootOverride: { project: string; dir: string } | null = null;
   /**
@@ -730,6 +732,7 @@ export class ProjectPreview {
     options: { loopback?: boolean; shim?: Partial<ShimOptions> } = {},
   ): Promise<string> {
     this.#nativeDelivery = null;
+    this.#heldModifiers.clear();
     this.#pageSurfaceNoted = false;
     this.#stoppedUrl = null;
     this.#entryPath = String(entry ?? "index.html").split(/[?#]/)[0] ?? "index.html";
@@ -804,6 +807,7 @@ export class ProjectPreview {
     if (url === null || !wc || wc.isDestroyed()) return;
     this.#stoppedUrl = null;
     this.#nativeDelivery = null;
+    this.#heldModifiers.clear();
     this.#pageSurfaceNoted = false;
     this.#console = [];
     this.#blockedNoted.clear();
@@ -843,6 +847,7 @@ export class ProjectPreview {
     // Reload on a stopped project plays it: reloading the blank page would show nothing.
     if (this.#stoppedUrl !== null) return this.resume();
     this.#nativeDelivery = null;
+    this.#heldModifiers.clear();
     this.#pageSurfaceNoted = false;
     await this.#profiler.invalidate("preview reloaded");
     if (!this.#view) return;
@@ -1392,6 +1397,7 @@ export class ProjectPreview {
         movePointer: (point) => {
           this.#pointer = point;
         },
+        held: this.#heldModifiers,
       },
       action,
     );

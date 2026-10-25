@@ -29,6 +29,7 @@ import {
   installPageDialogs,
   installPageGlobal,
   installSeededRandom,
+  mouseMover,
   mulberry32,
   normalizeShimOptions,
   readinessVerdict,
@@ -748,6 +749,144 @@ describe("the studio's input dispatch", () => {
       assert.deepEqual(p.moved, [{ dx: 40, dy: 0 }]);
     } finally {
       p.restore();
+    }
+  });
+});
+
+describe("the modifiers on the studio's synthetic events", () => {
+  it("hands a mousemove's modifiers to the shim's own move, which is the only mousemove a shimmed page hears", () => {
+    const seen: unknown[][] = [];
+    const page = recordingPage();
+    const globals = globalThis as unknown as { window: { __studioClock?: unknown } };
+    globals.window.__studioClock = { mouseMove: (...args: unknown[]) => void seen.push(args) };
+    try {
+      dispatch({
+        dom: [
+          { kind: "mouse", type: "mousemove", x: 5, y: 6, movementX: 1, movementY: 2, modifiers: ["shift"] },
+          { kind: "mouse", type: "mousemove", x: 7, y: 8, movementX: 3, movementY: 4 },
+        ],
+      });
+      assert.deepEqual(seen, [
+        [1, 2, 5, 6, ["shift"]],
+        [3, 4, 7, 8, []],
+      ]);
+    } finally {
+      page.restore();
+    }
+  });
+
+  it("builds the shim's synthetic mousemove and pointermove with the modifiers it was told", () => {
+    const heard: Array<{ type: string; init: Record<string, unknown> }> = [];
+    const globals = globalThis as unknown as Record<string, unknown>;
+    const before = { MouseEvent: globals.MouseEvent };
+    globals.MouseEvent = class {
+      type: string;
+      init: Record<string, unknown>;
+      constructor(type: string, init: Record<string, unknown>) {
+        this.type = type;
+        this.init = init;
+      }
+    };
+    const element = {
+      dispatchEvent: (event: { type: string; init: Record<string, unknown> }) => void heard.push(event),
+    };
+    const win = { PointerEvent: globals.MouseEvent };
+    const move = mouseMover(win, { pointerLock: { element: () => element } } as never, {} as never);
+    try {
+      move(1, 2, 3, 4, ["control", "alt"]);
+      move(1, 2, 3, 4);
+      assert.deepEqual(
+        heard.map((event) => [event.type, ...flags(event.init)]),
+        [
+          ["mousemove", true, false, true, false],
+          ["pointermove", true, false, true, false],
+          ["mousemove", false, false, false, false],
+          ["pointermove", false, false, false, false],
+        ],
+      );
+    } finally {
+      Object.assign(globals, before);
+    }
+  });
+
+  const dispatch = new Function(`return (${PAGE_DISPATCH});`)() as (payload: unknown) => boolean;
+
+  /** A page whose key, mouse, pointer and wheel events record the init they were built with. */
+  function recordingPage() {
+    const heard: Array<{ type: string; init: Record<string, unknown> }> = [];
+    const globals = globalThis as unknown as Record<string, unknown>;
+    const before = Object.fromEntries(
+      ["window", "document", "KeyboardEvent", "MouseEvent", "PointerEvent", "WheelEvent"].map((name) => [
+        name,
+        globals[name],
+      ]),
+    );
+    const record = class {
+      type: string;
+      init: Record<string, unknown>;
+      constructor(type: string, init: Record<string, unknown>) {
+        this.type = type;
+        this.init = init;
+      }
+    };
+    const sink = { dispatchEvent: (event: { type: string; init: Record<string, unknown> }) => void heard.push(event) };
+    globals.window = { __studio: null, __studioTrustedTypes: {} };
+    globals.document = { ...sink, querySelector: () => sink, activeElement: null };
+    for (const name of ["KeyboardEvent", "MouseEvent", "PointerEvent", "WheelEvent"]) globals[name] = record;
+    return { heard, restore: () => Object.assign(globals, before) };
+  }
+
+  const flags = (init: Record<string, unknown>) => [init.ctrlKey, init.shiftKey, init.altKey, init.metaKey];
+
+  it("says which modifiers a synthetic key event carries, and none when none is held", () => {
+    const page = recordingPage();
+    try {
+      dispatch({
+        dom: [
+          { kind: "key", type: "keydown", key: "s", code: "KeyS", keyCode: 83, modifiers: ["control", "shift"] },
+          { kind: "key", type: "keyup", key: "s", code: "KeyS", keyCode: 83 },
+        ],
+      });
+      assert.deepEqual(
+        page.heard.map((event) => [event.type, ...flags(event.init)]),
+        [
+          ["keydown", true, true, false, false],
+          ["keyup", false, false, false, false],
+        ],
+      );
+    } finally {
+      page.restore();
+    }
+  });
+
+  it("says them on a synthetic press, its pointer event and a wheel as well", () => {
+    const page = recordingPage();
+    try {
+      dispatch({
+        dom: [
+          {
+            kind: "mouse",
+            type: "mousedown",
+            x: 3,
+            y: 4,
+            button: 0,
+            buttons: 1,
+            detail: 1,
+            modifiers: ["alt", "meta"],
+          },
+          { kind: "wheel", dx: 0, dy: 40, x: 3, y: 4, modifiers: ["control"] },
+        ],
+      });
+      assert.deepEqual(
+        page.heard.map((event) => [event.type, ...flags(event.init)]),
+        [
+          ["mousedown", false, false, true, true],
+          ["pointerdown", false, false, true, true],
+          ["wheel", true, false, false, false],
+        ],
+      );
+    } finally {
+      page.restore();
     }
   });
 });

@@ -8,12 +8,23 @@ import {
   chordChar,
   clampHoldMs,
   keyChar,
+  ModifierName,
+  modifierOf,
+  modifiersOf,
   mouseButton,
   normalizeKey,
   normalizeKeys,
   pointInView,
   studioAliases,
+  typedChar,
 } from "../../src/substrate/preview-input.ts";
+
+/** The normalized key a test names; a name the mapping does not know fails the test. */
+function keyNamed(name: string) {
+  const key = normalizeKey(name);
+  assert.ok(key, name);
+  return key;
+}
 
 describe("preview input mapping", () => {
   it("keeps the key's own letter in key and the typed case in char", () => {
@@ -39,6 +50,36 @@ describe("preview input mapping", () => {
     assert.equal(chordChar([], enter), "Enter");
     assert.equal(chordChar([shift], one), null, "a shifted digit needs a layout; it types nothing, as before");
     assert.equal(chordChar([], null), null);
+  });
+
+  it("names the modifiers a set of keys holds, once each, in the order they went down", () => {
+    const keys = normalizeKeys(["ctrl", "w", "Shift", "ControlLeft", "option", "cmd"]);
+    assert.deepEqual(modifiersOf(keys), [
+      ModifierName.Control,
+      ModifierName.Shift,
+      ModifierName.Alt,
+      ModifierName.Meta,
+    ]);
+    assert.equal(modifierOf(keyNamed("w")), null);
+    assert.equal(modifierOf(keyNamed("Return")), null);
+    assert.equal(modifierOf(keyNamed("super")), ModifierName.Meta);
+    assert.deepEqual(modifiersOf([]), []);
+  });
+
+  it("types what a keyboard types with these modifiers held", () => {
+    const key = keyNamed;
+    const { Shift, Control, Alt, Meta } = ModifierName;
+    assert.equal(typedChar([], key("a")), "a");
+    assert.equal(typedChar([Shift], key("a")), "A");
+    assert.equal(typedChar([Shift], key("Return")), "Enter", "shift+Return breaks a line in a text area");
+    assert.equal(typedChar([Shift], key("space")), " ");
+    assert.equal(typedChar([Shift], key("Tab")), null, "a key that types nothing still types nothing");
+    assert.equal(typedChar([Shift], key("1")), null, "a shifted digit needs a layout; it types nothing, as before");
+    for (const held of [[Control], [Alt], [Meta], [Shift, Control], [Control, Shift]]) {
+      for (const name of ["a", "Return", "space"])
+        assert.equal(typedChar(held, key(name)), null, `${held.join("+")}+${name} is a shortcut`);
+    }
+    assert.equal(typedChar([Shift], null), null);
   });
 
   it("maps WASD and aliases onto Electron + KeyboardEvent codes", () => {
