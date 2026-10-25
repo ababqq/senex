@@ -97,42 +97,61 @@ const NAMED: Record<string, Omit<NormalizedKey, "printable"> & { printable?: boo
   slash: { keyCode: "/", code: "Slash", key: "/", which: 191, printable: true },
 };
 
+/** A character's code point is half of a surrogate pair: UTF-16 text that is not a character. */
+function isSurrogateHalf(codePoint: number): boolean {
+  return codePoint >= 0xd800 && codePoint <= 0xdfff;
+}
+
+/**
+ * The key of one character that has no key of its own name: it types itself. Any plane (an emoji is one
+ * character of two UTF-16 units), and any Unicode space but the space bar (trimmed away otherwise, it would
+ * type nothing). Half of a surrogate pair is not a character, and Chromium types it as U+FFFD.
+ */
+function literalKey(character: string): NormalizedKey | null {
+  const codePoint = character.codePointAt(0);
+  if (codePoint === undefined || isSurrogateHalf(codePoint)) return null;
+  return { keyCode: character, code: character, key: character, which: codePoint, printable: true };
+}
+
+/** A code name (`KeyW`, `Digit3`, `ArrowUp`, as hold_key hands them back) names the key, not a capital: `KeyW` types `w`. */
+function withoutCodePrefix(text: string): string {
+  if (/^key[a-z]$/i.test(text)) return text.slice(3).toLowerCase();
+  if (/^digit[0-9]$/i.test(text)) return text.slice(5);
+  if (/^arrow/i.test(text)) return text.slice(5);
+  if (/^kp_/i.test(text)) return text.slice(3);
+  return text;
+}
+
+/** The key of one character: a letter, a digit, or anything else that types itself. */
+function characterKey(ch: string): NormalizedKey | null {
+  if (/[a-zA-Z]/.test(ch)) {
+    const up = ch.toUpperCase();
+    return { keyCode: up, code: `Key${up}`, key: ch.toLowerCase(), char: ch, which: up.charCodeAt(0), printable: true };
+  }
+  if (/[0-9]/.test(ch)) {
+    return { keyCode: ch, code: `Digit${ch}`, key: ch, which: ch.charCodeAt(0), printable: true };
+  }
+  return literalKey(ch);
+}
+
 export function normalizeKey(raw: unknown): NormalizedKey | null {
   if (raw == null) return null;
   // A typed space is the Space key; trimmed, it would be nothing and `type` would drop it.
   if (raw === " ") return { ...NAMED.space!, printable: true };
-  let text = String(raw).trim();
-  if (!text) return null;
-  // A code name (`KeyW`, as hold_key hands it back) names the key, not a capital: it types `w`.
-  if (/^key[a-z]$/i.test(text)) text = text.slice(3).toLowerCase();
-  else if (/^digit[0-9]$/i.test(text)) text = text.slice(5);
-  else if (/^arrow/i.test(text)) text = text.slice(5);
-  else if (/^kp_/i.test(text)) text = text.slice(3);
-  const lower = text.toLowerCase();
-  const named = NAMED[lower];
+  const characters = Array.from(String(raw));
+  // A lone Unicode space (no-break, ideographic, em) is the character it is, not blank to be trimmed.
+  if (characters.length === 1 && /^\p{Zs}$/u.test(characters[0] ?? "")) return literalKey(characters[0] ?? "");
+  const trimmed = String(raw).trim();
+  if (!trimmed) return null;
+  const text = withoutCodePrefix(trimmed);
+  const named = NAMED[text.toLowerCase()];
   if (named) return { ...named, printable: named.printable === true };
   if (/^f([1-9]|1[0-9]|2[0-4])$/i.test(text)) {
     const n = Number(text.slice(1));
     return { keyCode: `F${n}`, code: `F${n}`, key: `F${n}`, which: 111 + n, printable: false };
   }
-  if (text.length === 1) {
-    const ch = text;
-    if (/[a-zA-Z]/.test(ch)) {
-      const up = ch.toUpperCase();
-      return {
-        keyCode: up,
-        code: `Key${up}`,
-        key: ch.toLowerCase(),
-        char: ch,
-        which: up.charCodeAt(0),
-        printable: true,
-      };
-    }
-    if (/[0-9]/.test(ch)) {
-      return { keyCode: ch, code: `Digit${ch}`, key: ch, which: ch.charCodeAt(0), printable: true };
-    }
-    return { keyCode: ch, code: ch, key: ch, which: ch.charCodeAt(0), printable: true };
-  }
+  // One character, however many UTF-16 units it takes (an emoji takes two).
+  if (Array.from(text).length === 1) return characterKey(text);
   return { keyCode: text, code: text, key: text, which: 0, printable: false };
 }
 
@@ -301,9 +320,12 @@ export function clickModifiers(raw: unknown): string[] {
   return all.map((k) => k.code);
 }
 
-/** Text a keyboard can type: every character becomes one key stroke; capped. */
+/** Text a keyboard can type: every character becomes one key stroke; capped at {@link MAX_TYPE_CHARS} characters. */
 export function typedText(raw: unknown): string {
-  return String(raw ?? "").slice(0, MAX_TYPE_CHARS);
+  // A character is at most two UTF-16 units, so twice the cap is all that is ever looked at, and the cap
+  // counts characters: an emoji is not cut in half at the end.
+  const head = String(raw ?? "").slice(0, MAX_TYPE_CHARS * 2);
+  return Array.from(head).slice(0, MAX_TYPE_CHARS).join("");
 }
 
 export function clampRepeat(raw: unknown): number {
