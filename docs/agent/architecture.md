@@ -750,13 +750,13 @@ per-project network opt-in yet.
 **Project view.** Every project view (Live, facet ports, selftest, e2e) comes from
 `ProjectPreview.create()`: own session partition (`project-preview`, `project-preview-facet-N`),
 `sandbox`, `contextIsolation`, no Node, `webSecurity`, no preload or IPC, `window.open` refused, noted; a Live https click asks first.
-The session grants pointer lock (plus fullscreen on screen) and denies every other permission; an agent's window cancels downloads and answers dialogs; a studio load ignores an unload guard and ends after two minutes. The view turns off `PROJECT_DISABLED_BLINK_FEATURES`
+The session grants pointer lock, clipboard writes (plus fullscreen on screen) and denies the rest, reads included; an agent's window cancels downloads, answers dialogs; a studio load ignores an unload guard and ends after two minutes. The view turns off `PROJECT_DISABLED_BLINK_FEATURES`
 (`OnDeviceWebSpeechAvailable`, `InstallOnDeviceSpeechRecognition`): on-device speech recognition
 (`SpeechRecognition.available()`/`install()` with `processLocally`, or `start()` with it and a
-`lang`) asks for a Mojo binder only Chrome registers, and Electron kills the renderer for the
+`lang`) asks for a Mojo binder only Chrome registers; Electron kills the renderer for the
 bad message (reason 123). With both off those members exist in no frame; a plain `start()` ends in
 `not-allowed`, synthesis untouched. The guard is engine-level: a page-world stub misses
-about:blank, srcdoc and blob: documents, and `--disable-speech-api` removes synthesis while the
+about:blank, srcdoc and blob: documents; `--disable-speech-api` removes synthesis while the
 unprefixed API still crashes. The
 [speech selftest](verification.md#acceptance-evidence) proves it holds. Another renderer death
 sets `status().crashed` and pushes one `render process gone: <reason>` line (a cross-site
