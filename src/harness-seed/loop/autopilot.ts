@@ -229,6 +229,45 @@ export function parseSteeringBacklog(notes: unknown): string[] {
 }
 
 /**
+ * The late steering a plan was asked to plan for, as its journal kept it. A plan journaled before
+ * the field existed, or one the planner never saw the backlog for, took nothing.
+ */
+export function steeringTaken(plan: unknown): string[] {
+  const taken = (plan as { steeringTaken?: unknown } | null | undefined)?.steeringTaken;
+  return Array.isArray(taken) ? taken.map(String) : [];
+}
+
+/**
+ * The project's NOTES.md once a run has settled its steering backlog: the items its plan took
+ * are gone when the run was accepted (`consumed`), the steering that came too late for this run
+ * is added (`fresh`), and the heading goes with the last item. Items are matched by their exact
+ * text, and nothing outside the section is touched. Unchanged text comes back as it was.
+ */
+export function nextSteeringBacklog(
+  notes: unknown,
+  { consumed, fresh }: { consumed: readonly string[]; fresh: readonly string[] },
+): string {
+  const text = String(notes ?? "");
+  const existing = parseSteeringBacklog(text);
+  const kept = existing.filter((item) => !consumed.includes(item));
+  const items = [...kept, ...fresh.filter((item) => !kept.includes(item))];
+  if (items.length === existing.length && items.every((item, index) => item === existing[index])) return text;
+  const start = text.indexOf(STEERING_BACKLOG_HEADING);
+  if (start < 0) return `${text.trimEnd()}\n\n${steeringBlock(items)}`;
+  const nextHeading = text.indexOf("\n## ", start + STEERING_BACKLOG_HEADING.length);
+  const after = nextHeading < 0 ? "" : text.slice(nextHeading);
+  if (items.length) return `${text.slice(0, start)}${steeringBlock(items)}${after}`;
+  const before = text.slice(0, start).trimEnd();
+  if (!before) return after.replace(/^\n+/, "");
+  return after ? `${before}\n${after}` : `${before}\n`;
+}
+
+/** The backlog section as NOTES.md holds it: the heading, then one bullet per item. */
+function steeringBlock(items: readonly string[]): string {
+  return `${STEERING_BACKLOG_HEADING}\n\n${items.map((item) => `- ${item}`).join("\n")}\n`;
+}
+
+/**
  * How many facets build at once. A direct local engine is one stream; a delegated engine runs
  * as many facets as the preview pool can observe (WP6: three slots starved facets four and
  * five of a five-facet run). Without a facet count the old default of three stands.
@@ -406,7 +445,9 @@ export async function decompose(
   try {
     const { raw, facets, validation } = await askForFacets(plannerCall(ctx, run, skill), ask, craftRecipes);
     if (facets.length === 0) return single;
-    return finishPlan({ raw, facets, validation, scout, run, known });
+    // What the planner was asked to plan for is journaled with the plan, so the run that builds it
+    // can spend exactly that; the single-facet fallback above ignores the backlog and spends none.
+    return { ...finishPlan({ raw, facets, validation, scout, run, known }), steeringTaken: backlog };
   } catch {
     return single;
   }
@@ -498,6 +539,7 @@ function singleFacetPlan(run: Run, known: KnownApp): AnyRecord {
     genres: [],
     app: known.app,
     appFrom: known.from,
+    steeringTaken: [],
   };
 }
 
@@ -2607,12 +2649,25 @@ function globalVerdict(pipeline: Pipeline): Promise<AnyRecord> {
 
 /** Steering that came too late, the verified baseline, and the run's close. */
 async function closePipeline(pipeline: Pipeline): Promise<PipelineEnd> {
-  const { catalogue, ctx, finalDeadline, journal, projectDir, report, run, steeringBacklog, threadId } = pipeline;
+  const { catalogue, ctx, finalDeadline, journal, plan, projectDir, report, run, steeringBacklog, threadId } = pipeline;
   // Steering that arrived after the last builder hand-off is kept, said so, and heads the
-  // next run's planner ask — never dropped in silence.
-  await keepSteeringBacklog(ctx, { threadId, run, report, projectDir, backlog: await steeringBacklog() });
-  const verifiedBaseline =
-    pipeline.verdict.pick === VERDICT_CHALLENGER ? await acceptIntegrated(pipeline) : await rejectIntegrated(pipeline);
+  // next run's planner ask — never dropped in silence. What this run's plan took is spent only
+  // when the build is kept. The accepted build is snapshotted below, so its NOTES.md is settled
+  // first and the snapshot carries it; a rejected one is rolled back, and a reset would wipe a
+  // write made before it.
+  const accepted = pipeline.verdict.pick === VERDICT_CHALLENGER;
+  const settleSteering = async () =>
+    keepSteeringBacklog(ctx, {
+      threadId,
+      run,
+      report,
+      projectDir,
+      backlog: await steeringBacklog(),
+      consumed: accepted ? steeringTaken(plan) : [],
+    });
+  if (accepted) await settleSteering();
+  const verifiedBaseline = accepted ? await acceptIntegrated(pipeline) : await rejectIntegrated(pipeline);
+  if (!accepted) await settleSteering();
   if (verifiedBaseline) {
     await recordFinalization(pipeline, verifiedBaseline);
     await finalizeOptimization(ctx, { threadId, run, journal, report, deadline: finalDeadline });
@@ -2799,6 +2854,10 @@ function iterationForReport(record: AnyRecord | null | undefined): AnyRecord {
   return rest;
 }
 
+/**
+ * Settle the steering backlog in NOTES.md: spend what the plan took (`consumed`, only for an
+ * accepted run), keep what arrived with no iteration left, and say so for each of those.
+ */
 async function keepSteeringBacklog(
   ctx: HarnessCtx,
   {
@@ -2807,21 +2866,25 @@ async function keepSteeringBacklog(
     report,
     projectDir,
     backlog,
+    consumed = [],
   }: {
     threadId: string;
     run: Pick<Run, "runId">;
     report: AnyRecord;
     projectDir?: string | null;
     backlog?: string[] | null;
+    consumed?: readonly string[];
   },
 ): Promise<void> {
-  if (!backlog?.length) return;
-  report.steeringBacklog = backlog;
-  if (projectDir) await writeSteeringBacklog(projectDir, backlog);
+  const fresh = backlog ?? [];
+  if (!fresh.length && !consumed.length) return;
+  if (fresh.length) report.steeringBacklog = fresh;
+  if (projectDir) await writeSteeringBacklog(projectDir, { consumed, fresh });
+  if (!fresh.length) return;
   await ctx
     .call(HostMethod.EventsAppend, {
       threadId,
-      batch: backlog.map((item) => ({
+      batch: fresh.map((item) => ({
         type: EventKind.Custom,
         event_type: RunEvent.AutopilotDecision,
         payload: {
@@ -2834,18 +2897,15 @@ async function keepSteeringBacklog(
     .catch(() => {});
 }
 
-/** Add the backlog's new items to the project's NOTES.md, under its steering backlog heading. */
-async function writeSteeringBacklog(projectDir: string, backlog: readonly string[]): Promise<void> {
+/** Settle the project's NOTES.md under its steering backlog heading (see `nextSteeringBacklog`). */
+async function writeSteeringBacklog(
+  projectDir: string,
+  items: { consumed: readonly string[]; fresh: readonly string[] },
+): Promise<void> {
   const file = path.join(projectDir, "NOTES.md");
   const notes = await readFile(file, "utf8").catch(() => "");
-  const existing = parseSteeringBacklog(notes);
-  const fresh = backlog.filter((item) => !existing.includes(item));
-  if (!fresh.length) return;
-  const block = `${STEERING_BACKLOG_HEADING}\n\n${[...existing, ...fresh].map((item) => `- ${item}`).join("\n")}\n`;
-  const next = notes.includes(STEERING_BACKLOG_HEADING)
-    ? notes.replace(new RegExp(`${STEERING_BACKLOG_HEADING}[\\s\\S]*?(?=\\n## |$)`), block)
-    : `${notes.trimEnd()}\n\n${block}`;
-  await writeFile(file, next).catch(() => {});
+  const next = nextSteeringBacklog(notes, items);
+  if (next !== notes) await writeFile(file, next).catch(() => {});
 }
 
 async function closeRun(

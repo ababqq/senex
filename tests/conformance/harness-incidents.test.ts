@@ -628,9 +628,14 @@ function twoFacetPlan(extra: { waterChecks?: unknown[]; skyChecks?: unknown[]; m
 async function runAutopilot(
   rig: Rig,
   project: string,
-  options: { budgets?: Record<string, unknown>; reference?: Record<string, unknown>; engine?: string } = {},
+  options: {
+    budgets?: Record<string, unknown>;
+    reference?: Record<string, unknown>;
+    engine?: string;
+    runId?: string;
+  } = {},
 ) {
-  const runId = rig.core.newRunId();
+  const runId = options.runId ?? rig.core.newRunId();
   await rig.core.dispatchRun({
     runId,
     goal: "a marsh with a sun",
@@ -9773,5 +9778,152 @@ describe("a seam is every file it names (sweep 4)", () => {
 
   it("OW3. a planner's facet that owns fifteen files keeps fifteen", async () => {
     assert.deepEqual(normalizeFacetSpec({ id: "pages", intent: "pages", owns: files }, 0).owns, files);
+  });
+});
+
+describe("steering that came too late is spent by the run that built it (sweep 4)", () => {
+  /** A line only the whole-night comparison carries (the integration facet's own compare has none): after it, no builder is briefed again. */
+  const GLOBAL_JUDGE = "INTEGRATION SCOREBOARD (verified mechanically on the build under test)";
+  const section = (items: readonly string[]) =>
+    `## Steering backlog\n\n${items.map((item) => `- ${item}`).join("\n")}\n`;
+  const notesWith = (items: readonly string[]) =>
+    `# Notes\n\nThe marsh.\n\n${section(items)}\n## Decisions\n\n- keep it small\n`;
+
+  it("SB1. the NOTES.md after a run drops the items its plan took, keeps the rest, adds the new ones, and touches nothing else", async () => {
+    const { nextSteeringBacklog } = await import("../../src/harness-seed/loop/autopilot.ts");
+    const notes = notesWith(["add tags", "make the header sticky"]);
+    const next = (consumed: string[], fresh: string[], text: string = notes) =>
+      nextSteeringBacklog(text, { consumed, fresh });
+    assert.equal(next(["add tags"], ["add fog"]), notesWith(["make the header sticky", "add fog"]));
+    assert.equal(next([], []), notes, "nothing to settle leaves the file as it was");
+    assert.equal(
+      next(["add tags", "make the header sticky"], []),
+      "# Notes\n\nThe marsh.\n\n## Decisions\n\n- keep it small\n",
+      "a spent backlog takes its heading with it",
+    );
+    assert.equal(
+      next(["add tags"], ["add tags"]),
+      notesWith(["make the header sticky", "add tags"]),
+      "a steer sent again after it was planned is a new one",
+    );
+    assert.equal(next(["add tags"], ["make the header sticky"]), notesWith(["make the header sticky"]));
+    // The section at the end of the file, written by an older seed with `*` bullets and no trailing blank line.
+    const atEnd = "# Notes\n\n## Steering backlog\n\n* add tags\n* add fog";
+    assert.equal(next(["add tags"], [], atEnd), "# Notes\n\n## Steering backlog\n\n- add fog\n");
+    assert.equal(next(["add tags", "add fog"], [], atEnd), "# Notes\n");
+    assert.equal(next([], ["add tags"], "# Notes\n"), "# Notes\n\n## Steering backlog\n\n- add tags\n");
+    assert.equal(next(["add tags"], [], "# Notes\n"), "# Notes\n", "an item that is gone is not an error");
+  });
+
+  it("SB1b. a plan journaled before the field existed, or one that was never shown the backlog, took nothing", async () => {
+    const { steeringTaken } = await import("../../src/harness-seed/loop/autopilot.ts");
+    assert.deepEqual(steeringTaken({ steeringTaken: ["add tags", 7] }), ["add tags", "7"]);
+    for (const plan of [undefined, null, {}, { steeringTaken: "add tags" }, { steeringTaken: null }, "add tags"])
+      assert.deepEqual(steeringTaken(plan), [], JSON.stringify(plan ?? null));
+  });
+
+  it("SB2. a run whose plan took the backlog and was accepted spends it, and the steer that came too late for it stays", async () => {
+    const rig = await startRig();
+    rigs.push(rig);
+    const project = await rig.core.projects.scaffold("backlog-accepted");
+    const live = rig.core.projects.dirFor(project.name);
+    await writeFile(path.join(live, "NOTES.md"), notesWith(["add tags", "make the header sticky"]));
+    await gitFile(["-C", live, "add", "-A"]);
+    await gitFile(["-C", live, "-c", "user.name=u", "-c", "user.email=u@x", "commit", "-qm", "last week's steering"]);
+    const threadId = await rig.core.threadForProject(project.name);
+    const runId = rig.core.newRunId();
+    const plan = twoFacetPlan();
+    const asks: string[] = [];
+    let late = false;
+    registerFakeEngine(rig, {
+      complete: async (text) => {
+        if (text.includes("ENGINE HINT: maxParallel")) {
+          asks.push(text);
+          return JSON.stringify(plan);
+        }
+        if (text.includes(GLOBAL_JUDGE) && !late) {
+          late = true;
+          // A message with no brief left to carry it: the global judge is the last thing before the close.
+          await rig.core.store.appendEvents(threadId, [
+            { type: "custom", event_type: "run_steering", payload: { runId, text: "add fog" } },
+          ]);
+        }
+        return null;
+      },
+      delegate: async (request) => {
+        await mkdir(path.join(request.cwd, "src"), { recursive: true });
+        if (/YOUR FACET: Water|facet "Water"/.test(request.prompt))
+          await writeFile(path.join(request.cwd, "src", "water.js"), "export const water = 1;\n");
+        if (/YOUR FACET: Sky|facet "Sky"/.test(request.prompt))
+          await writeFile(path.join(request.cwd, "src", "sky.js"), "export const sky = 1;\n");
+        if (request.playtest)
+          return { summary: JSON.stringify({ answers: { "integration-play": { answer: "yes" } }, report: "played" }) };
+        return null;
+      },
+    });
+    const { events } = await runAutopilot(rig, project.name, { runId });
+    const finished = customEvents(events, "run_finished").find((e) => e.runId === runId)!;
+    assert.equal(finished.rolledBack ?? false, false, JSON.stringify(finished.stoppedBecause ?? null));
+    assert.equal(asks.length, 1, "the plan was asked for once");
+    assert.match(asks[0]!, /USER STEERING FROM THE PREVIOUS RUN[^\n]*\n- add tags\n- make the header sticky\n/);
+    assert.equal(
+      await readFile(path.join(live, "NOTES.md"), "utf8"),
+      notesWith(["add fog"]),
+      "what the plan took is spent; the message that came after it is the next run's",
+    );
+    assert.equal(
+      (await gitFile(["-C", live, "status", "--porcelain", "--", "NOTES.md"])).stdout.trim(),
+      "",
+      "the accepted build's snapshot carries the settled NOTES.md",
+    );
+  });
+
+  it("SB3. a run that was rejected and rolled back keeps what its plan took, and still keeps the steer that came too late", async () => {
+    const rig = await startRig();
+    rigs.push(rig);
+    const project = await rig.core.projects.scaffold("backlog-rejected");
+    const live = rig.core.projects.dirFor(project.name);
+    await writeFile(path.join(live, "NOTES.md"), notesWith(["add tags", "make the header sticky"]));
+    await gitFile(["-C", live, "add", "-A"]);
+    await gitFile(["-C", live, "-c", "user.name=u", "-c", "user.email=u@x", "commit", "-qm", "last week's steering"]);
+    const threadId = await rig.core.threadForProject(project.name);
+    const runId = rig.core.newRunId();
+    const plan = twoFacetPlan();
+    let late = false;
+    registerFakeEngine(rig, {
+      complete: async (text, request) => {
+        if (text.includes("ENGINE HINT: maxParallel")) return JSON.stringify(plan);
+        if (text.includes(GLOBAL_JUDGE)) {
+          if (!late) {
+            late = true;
+            await rig.core.store.appendEvents(threadId, [
+              { type: "custom", event_type: "run_steering", payload: { runId, text: "add fog" } },
+            ]);
+          }
+          // The base build wins: the older of the two pictures.
+          const older = newestFixtureBuild(request) === "A" ? "B" : "A";
+          return JSON.stringify({ pick: older, biggest_gap: "", reason: "scripted global" });
+        }
+        return null;
+      },
+      delegate: async (request) => {
+        await mkdir(path.join(request.cwd, "src"), { recursive: true });
+        if (/YOUR FACET: Water|facet "Water"/.test(request.prompt))
+          await writeFile(path.join(request.cwd, "src", "water.js"), "export const water = 1;\n");
+        if (/YOUR FACET: Sky|facet "Sky"/.test(request.prompt))
+          await writeFile(path.join(request.cwd, "src", "sky.js"), "export const sky = 1;\n");
+        if (request.playtest)
+          return { summary: JSON.stringify({ answers: { "integration-play": { answer: "yes" } }, report: "played" }) };
+        return null;
+      },
+    });
+    const { events } = await runAutopilot(rig, project.name, { runId });
+    const finished = customEvents(events, "run_finished").find((e) => e.runId === runId)!;
+    assert.equal(finished.rolledBack, true, JSON.stringify(finished.stoppedBecause ?? null));
+    assert.equal(
+      await readFile(path.join(live, "NOTES.md"), "utf8"),
+      notesWith(["add tags", "make the header sticky", "add fog"]),
+      "the rollback did not take the new steer with it, and the plan's items were not spent",
+    );
   });
 });
