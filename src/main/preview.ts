@@ -60,6 +60,7 @@ import {
 } from "./external-link.ts";
 import { PAGE_DISPATCH } from "./page-dispatch.ts";
 import { emulatePageFocus } from "./preview-focus.ts";
+import { previewPermissionAllowed } from "./preview-permissions.ts";
 import { anchoredBounds } from "./preview-anchor.ts";
 import {
   downloadDecision,
@@ -319,14 +320,13 @@ export class ProjectPreview {
     const projectSession = session.fromPartition(partition);
     this.#session = projectSession;
 
-    // The project never gets to ask for the camera, the mic, or anything else. Pointer lock (and
-    // fullscreen, which some engines request alongside it) is the one exception: first-person
-    // mouse-look is core interaction, and denying it silently killed look controls for the user.
-    const HUMAN_INPUT_PERMISSIONS = new Set(this.options.offscreen ? ["pointerLock"] : ["pointerLock", "fullscreen"]);
+    // The project never gets to ask for the camera, the mic, or anything else but what its own
+    // controls need (`preview-permissions.ts`).
+    const offscreen = this.options.offscreen ?? false;
     projectSession.setPermissionRequestHandler((_wc, permission, callback) =>
-      callback(HUMAN_INPUT_PERMISSIONS.has(permission)),
+      callback(previewPermissionAllowed(permission, offscreen)),
     );
-    projectSession.setPermissionCheckHandler((_wc, permission) => HUMAN_INPUT_PERMISSIONS.has(permission));
+    projectSession.setPermissionCheckHandler((_wc, permission) => previewPermissionAllowed(permission, offscreen));
 
     if (!projectSession.protocol.isProtocolHandled(SCHEME)) {
       projectSession.protocol.handle(SCHEME, (request) => this.#serve(request));

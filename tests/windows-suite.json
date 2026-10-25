@@ -172,6 +172,7 @@
   "tests/conformance/preview-input.test.ts",
   "tests/conformance/preview-leases.test.ts",
   "tests/conformance/preview-navigation.test.ts",
+  "tests/conformance/preview-permissions.test.ts",
   "tests/conformance/preview-pool-capacity.test.ts",
   "tests/conformance/preview-profiler.test.ts",
   "tests/conformance/preview-visibility.test.ts",
