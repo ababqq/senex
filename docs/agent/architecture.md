@@ -624,11 +624,11 @@ each answered message the same way, on `refs/studio/chat/<thread>/before|after/<
 rewinding ([conversation lifecycle](../conversation-coordinator.md#sending-and-rewinding)). Builder
 notes are `docs/notes/NOTES.<facet>.md`.
 `.studio/` is gitignored; on the long turn the studio copies `.studio/DIRECTOR.md` to run and thread
-artifacts and restores it on resume, clamped to `MAX_DIRECTOR_MEMORY`. Adoption writes a real `.gitignore` before
+artifacts and restores it on resume, clamped to `MAX_DIRECTOR_MEMORY`. Adoption writes `.gitignore` before
 `git init`. Snapshot commits land on the user's checked-out branch with hooks disabled and are
 refused during a merge, rebase, cherry-pick or revert. `SnapshotEngine.restore` runs every check
 before any reset and refuses (`branch-changed`, `history-changed`, `operation-in-progress`,
-`rescue-failed`, or `HostGitRefusedError`) touching nothing; the mandatory rescue snapshot is named on
+`rescue-failed`, `large-file-in-the-way` or `HostGitRefusedError`) touching nothing; the mandatory rescue snapshot is named on
 `workspace_restored`. Every loop shell command is built in `loop/git.ts`; model text goes through
 `shellQuote` and a commit reaches a command line only when `isCommit`.
 

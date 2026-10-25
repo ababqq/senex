@@ -62,6 +62,7 @@ import {
   readProjectShape,
   recordsShape,
 } from "./project-shape.ts";
+import type { LeftOutFile } from "./large-files.ts";
 import { ensureRepo } from "./snapshots.ts";
 
 /** The public shape of a project folder is a contract the UI reads too; it lives in `shared/project-folder.ts`. */
@@ -334,6 +335,8 @@ export class ProjectWorkspaces {
   #loading: Promise<void> | undefined;
   #presentation = new Map<string, ProjectLibraryEntry>();
   #indexWrites: Promise<void> = Promise.resolve();
+  /** New files too large to save that an adopted folder's first commit left out, by folder, until the core says so. */
+  #leftOut = new Map<string, LeftOutFile[]>();
 
   constructor(options: {
     root: string;
@@ -349,6 +352,13 @@ export class ProjectWorkspaces {
     this.indexFile = options.indexFile;
     this.userData = options.userData;
     this.homeDir = options.homeDir ?? os.homedir();
+  }
+
+  /** The files the first commit of `dir` left out for their size, once: the core tells the project's chat. */
+  takeLeftOut(dir: string): LeftOutFile[] {
+    const files = this.#leftOut.get(dir) ?? [];
+    this.#leftOut.delete(dir);
+    return files;
   }
 
   dirFor(name: string): string {
@@ -1097,7 +1107,9 @@ export class ProjectWorkspaces {
     const readme = path.join(references, "README.md");
     if (!(await pathExists(readme))) await writeFile(readme, REFERENCES_README);
 
-    await ensureRepo(dir);
+    await ensureRepo(dir, (files) => {
+      this.#leftOut.set(dir, files);
+    });
   }
 
   /**

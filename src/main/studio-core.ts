@@ -91,6 +91,7 @@ import type { PreviewInputAction } from "../substrate/preview-input.ts";
 import { DEFAULT_POOL_MAX } from "../substrate/preview-pool.ts";
 import type { PreviewConsoleEntry, PreviewPixelStats, PreviewPort } from "../substrate/preview-port.ts";
 import { SnapshotEngine, SnapshotIndex, HARNESS_WORKSPACE } from "../substrate/snapshots.ts";
+import { LARGE_FILE_MAX_BYTES, type LeftOutFile } from "../substrate/large-files.ts";
 import { claudeFolderDenyWrites, ProcessSandbox } from "../substrate/spawn.ts";
 import { toolchain } from "../substrate/toolchain.ts";
 import { TurnFactory } from "../substrate/turns.ts";
@@ -159,6 +160,8 @@ const HARNESS_CRASH_LOOP = { count: 3, windowMs: 5 * MINUTE_MS } as const;
 const PROJECTS_ROOT_FILE = "games-root.json";
 /** How long after a boot the first full read of the log (for Activity) waits. */
 const ACTIVITY_WARMUP_DELAY_MS = 5 * SECOND_MS;
+/** Files named in the chat line about a save that left big new files out; the rest are counted. */
+const LEFT_OUT_SHOWN = 5;
 
 /** What the core itself writes for people: thread titles, journal reasons, errors. */
 const MESSAGE = {
@@ -420,6 +423,7 @@ export class StudioCore {
     this.layout = layoutFor(options.paths.userData);
     if (options.projectsRoot) this.layout.projectsRoot = options.projectsRoot;
     this.snapshots = new SnapshotEngine([{ name: HARNESS_WORKSPACE, dir: this.layout.harnessWs }]);
+    this.snapshots.onLeftOut = (project, files) => this.#announceLeftOut(project, files);
     this.candidates = new ProjectCandidates(this.snapshots, path.join(this.layout.scratch, "optimization"));
     this.projects = new ProjectWorkspaces({
       root: this.layout.projectsRoot,
@@ -1529,8 +1533,24 @@ export class StudioCore {
     this.sandbox.denyWrite(claudeFolderDenyWrites(this.layout.projectsRoot, [project.dir]));
     this.snapshots.register({ name: project.name, dir: project.dir });
     await this.snapshots.init();
+    // An adopted folder's first commit was made before the project had a chat to tell.
+    const leftOut = this.projects.takeLeftOut(project.dir);
+    if (leftOut.length > 0) await this.#announceLeftOut(project.name, leftOut);
     this.emit(UiEvent.ProjectChanged, { project: project.name });
     return project;
+  }
+
+  /** Say in a project's chat which new files too large to save a save left out; that never fails the save. */
+  async #announceLeftOut(project: string, files: LeftOutFile[]): Promise<void> {
+    const shown = files.slice(0, LEFT_OUT_SHOWN).map(({ path, bytes }) => ({ path, bytes }));
+    try {
+      const threadId = await this.threadForProject(project);
+      const payload = { files: shown, more: files.length - shown.length, limitBytes: LARGE_FILE_MAX_BYTES };
+      await this.append([customEventData(CustomEvent.ProjectFilesLeftOut, payload)], threadId);
+      this.emit(UiEvent.ProjectChanged, { project });
+    } catch {
+      // The chat line is a courtesy: the file is out of the save either way.
+    }
   }
 
   async assertProjectAllowed(projectDir: string): Promise<void> {

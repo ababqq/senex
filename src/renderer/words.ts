@@ -1130,6 +1130,45 @@ export function circuitBreakWords(part: PartRound & { reason?: string | null }):
   return `${partName(part)} stopped: ${why} — its work so far is kept`;
 }
 
+const MEGABYTE = 1024 * 1024;
+const GIGABYTE = 1024 * MEGABYTE;
+/** The longest file name the chat spells out; a longer one keeps its end, where the extension is. */
+const LEFT_OUT_NAME_CHARACTERS = 60;
+/** Control and format characters (line breaks, bidi marks, zero-width joiners) that could reshape a line of chat. */
+const UNSEEN_CHARACTERS = /[\p{Cc}\p{Cf}\u2028\u2029]/gu;
+
+/** A file size as the chat says it, rounded up so a file just over the limit never reads as the limit: "700 MB", "1.2 GB". */
+function sizeWords(bytes: number): string {
+  if (bytes >= GIGABYTE) return `${Math.ceil((bytes / GIGABYTE) * 10) / 10} GB`;
+  return `${Math.ceil(bytes / MEGABYTE)} MB`;
+}
+
+/** A file's path as the chat spells it: nothing unseen in it, and no more than its last stretch. */
+function leftOutName(path: string): string {
+  const seen = path.replace(UNSEEN_CHARACTERS, "\uFFFD");
+  const letters = [...seen];
+  return letters.length > LEFT_OUT_NAME_CHARACTERS
+    ? `…${letters.slice(-(LEFT_OUT_NAME_CHARACTERS - 1)).join("")}`
+    : seen;
+}
+
+/** New files too large to save that a save left out of the project's history, and how to put one back. */
+export function leftOutWords(left: CustomPayload<typeof CustomEvent.ProjectFilesLeftOut>): string {
+  const files = (left.files ?? []).filter((file) => typeof file.path === "string" && file.path !== "");
+  const more = Math.max(0, left.more ?? 0);
+  const count = files.length + more;
+  if (count === 0) return "";
+  const limit = sizeWords(left.limitBytes ?? 0);
+  const names = files.map((file) => `${leftOutName(file.path ?? "")} (${sizeWords(file.bytes ?? 0)})`);
+  const list = more > 0 ? [...names, `${more} more`] : names;
+  const these = count === 1 ? "it is" : "they are";
+  const stay =
+    count === 1
+      ? "It stays in the folder; to save it anyway, run `git add -f` on it"
+      : "They stay in the folder; to save one anyway, run `git add -f` on it";
+  return `Left out of saves because ${these} over ${limit}: ${list.join(", ")}. ${stay}.`;
+}
+
 /** A check that could not be measured where it was pointed, re-aimed or dropped. */
 export function checkReplanWords(part: PartRound & { action?: string | null; why?: string | null }): string {
   const why = part.why ? ` — ${withoutIds(part.why)}` : "";

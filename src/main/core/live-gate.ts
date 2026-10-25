@@ -10,6 +10,7 @@ import { createHash } from "node:crypto";
 import { lstat, realpath } from "node:fs/promises";
 import path from "node:path";
 import { LiveBehindReason, type LiveBehindEvent } from "../../shared/live-behind.ts";
+import { leftOutPaths } from "../../substrate/large-files.ts";
 import { gitOrNull } from "../../substrate/snapshots.ts";
 
 /** The most uncommitted paths a folder's print reads the size and time of; past this it counts them. */
@@ -90,6 +91,11 @@ export async function folderPrint(dir: string): Promise<string | null> {
     hash.update(`\0${entry}:${stat ? `${stat.size}:${stat.mtimeMs}` : "gone"}`);
   }
   hash.update(`\0${paths.length}`);
+  // A file left out of saves for its size changes the page too, and `status` never mentions it.
+  for (const entry of (await leftOutPaths(dir)).sort().slice(0, PRINT_MAX_PATHS)) {
+    const stat = await lstat(path.join(dir, entry)).catch(() => null);
+    hash.update(`\0left out ${entry}:${stat ? `${stat.size}:${stat.mtimeMs}` : "gone"}`);
+  }
   return hash.digest("hex");
 }
 

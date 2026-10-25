@@ -3,6 +3,7 @@ import path from "node:path";
 import { lstat, readdir, mkdir, readFile, writeFile, realpath, rm } from "node:fs/promises";
 import { claudeFolderChanges, git, type SnapshotEngine } from "./snapshots.ts";
 import { shortId } from "./ids.ts";
+import { leftOutPaths } from "./large-files.ts";
 import type { OptimizationCandidate, Revision } from "../shared/optimization.ts";
 import { isBelow, toPosixRelative } from "./paths.ts";
 
@@ -130,7 +131,9 @@ export class ProjectCandidates {
     const ignored = (await git(dir, ["ls-files", "--others", "--ignored", "--exclude-standard"]))
       .split("\n")
       .filter(Boolean);
-    return ignored.some((file) => !isIgnorableMetadata(file));
+    // A file left out of saves for its size is not in any revision either, and the person put it there.
+    const leftOut = new Set(await leftOutPaths(dir));
+    return ignored.some((file) => !isIgnorableMetadata(file) && !leftOut.has(file));
   }
   async open(project: string, runId: string, snapshotId: string, commit: string) {
     if (!/^[a-zA-Z0-9_-]+$/.test(runId)) throw new Error(MESSAGE.InvalidRunId);

@@ -15,6 +15,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { copyFile, lstat, mkdir, readdir, realpath, rm, rmdir } from "node:fs/promises";
 import { GIT_ENV } from "../substrate/snapshots.ts";
 import { hostGit } from "../substrate/git-policy.ts";
+import { LARGE_FILE_MAX_BYTES } from "../substrate/large-files.ts";
 import { pathExists } from "../substrate/fsx.ts";
 import { nestedRepos } from "../substrate/project-workspace.ts";
 import { isBelow } from "../substrate/paths.ts";
@@ -38,8 +39,6 @@ const NEVER_CAPTURED = [
   "**/output/**",
   "**/.playwright-cli/**",
 ];
-/** A single file this large stays out of checkpoints. */
-export const CHECKPOINT_FILE_MAX_BYTES = 50 * 1024 * 1024;
 /** New or changed content a checkpoint takes in at once; the largest files beyond it stay out. */
 export const CHECKPOINT_CHANGE_MAX_BYTES = 1024 * 1024 * 1024;
 /** Message checkpoints kept per chat; older messages can still rewind the conversation. */
@@ -275,7 +274,7 @@ export class ChatCheckpoints {
     const skip: string[] = [];
     let total = 0;
     for (const { file, size } of sized.sort((a, b) => a.size - b.size)) {
-      if (size > CHECKPOINT_FILE_MAX_BYTES || total + size > CHECKPOINT_CHANGE_MAX_BYTES) skip.push(file);
+      if (size > LARGE_FILE_MAX_BYTES || total + size > CHECKPOINT_CHANGE_MAX_BYTES) skip.push(file);
       else total += size;
     }
     return skip;

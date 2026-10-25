@@ -139,6 +139,8 @@ export const CustomEvent = {
   FixtureNoise: "fixture_noise",
   ProjectArchived: "game_archived",
   ProjectCoverCreated: "game_cover_created",
+  /** New files too large to save that a save left out of a project's history; written by the host only. */
+  ProjectFilesLeftOut: "project_files_left_out",
   ProjectsMigrated: "games_migrated",
   HarnessBooted: "harness_booted",
   HarnessDowngraded: "harness_downgraded",
@@ -571,6 +573,15 @@ export interface CustomEventMap {
   needs_signin: { engine?: string; message?: string };
   plan_review: PlanReviewRecord;
   preview_ready: PreviewReadyPayload;
+  /**
+   * New files too large to save that a save of the project left out (`substrate/large-files.ts`):
+   * the first few (`files`), how many more there were, and the size limit.
+   */
+  project_files_left_out: {
+    files?: Array<{ path?: string; bytes?: number }>;
+    more?: number;
+    limitBytes?: number;
+  };
   plugin_consent: PluginConsentEvent;
   plugin_tool: PluginToolFinishedPayload & { facetTitle?: string };
   plugin_tool_started: PluginToolStartedPayload & { facetTitle?: string };

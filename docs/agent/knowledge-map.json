@@ -88,6 +88,8 @@
       "id": "snapshots-safety",
       "sources": [
         "src/substrate/snapshots.ts",
+        "src/substrate/large-files.ts",
+        "tests/conformance/large-files.test.ts",
         "src/substrate/ownership.ts",
         "src/substrate/fsx.ts",
         "src/substrate/project-workspace.ts",

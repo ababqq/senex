@@ -17,6 +17,7 @@ import {
   checkCounts,
   checkReplanWords,
   circuitBreakWords,
+  leftOutWords,
   connectorWords,
   consentAskWords,
   decisionWords,
@@ -1245,5 +1246,56 @@ describe("why a check on the board is not a pass", () => {
     });
     assert.doesNotMatch(early, /run_|69f573d/);
     assert.match(early, /failed: the button is cut off/);
+  });
+});
+
+describe("files left out of a save for their size", () => {
+  const MB = 1024 * 1024;
+  const limitBytes = 50 * MB;
+
+  it("names the file and its size, and how to save it anyway", () => {
+    const line = leftOutWords({ files: [{ path: "raw/take1.mov", bytes: 700 * MB }], more: 0, limitBytes });
+    assert.equal(
+      line,
+      "Left out of saves because it is over 50 MB: raw/take1.mov (700 MB). It stays in the folder; to save it anyway, run `git add -f` on it.",
+    );
+  });
+
+  it("counts what it does not name, and says gigabytes as gigabytes", () => {
+    const files = [
+      { path: "a.zip", bytes: 1536 * MB },
+      { path: "b.zip", bytes: 60 * MB },
+    ];
+    const line = leftOutWords({ files, more: 3, limitBytes });
+    assert.match(
+      line,
+      /^Left out of saves because they are over 50 MB: a\.zip \(1\.5 GB\), b\.zip \(60 MB\), 3 more\./,
+    );
+    assert.match(line, /They stay in the folder; to save one anyway, run `git add -f` on it\.$/);
+  });
+
+  it("never lets a name reshape the line, and keeps the end of a long one", () => {
+    const hostile = "evil\n\u202Efdp.exe\u200B";
+    const long = `${"d/".repeat(60)}movie.mov`;
+    const line = leftOutWords({
+      files: [
+        { path: hostile, bytes: 60 * MB },
+        { path: long, bytes: 60 * MB },
+      ],
+      more: 0,
+      limitBytes,
+    });
+    assert.doesNotMatch(line, /[\p{Cc}\p{Cf}]/u);
+    assert.match(line, /…[^ ]*movie\.mov \(60 MB\)/);
+  });
+
+  it("never calls a file just over the limit the limit", () => {
+    const line = leftOutWords({ files: [{ path: "x.bin", bytes: limitBytes + 1 }], more: 0, limitBytes });
+    assert.match(line, /over 50 MB: x\.bin \(51 MB\)/);
+  });
+
+  it("says nothing when no file is named", () => {
+    assert.equal(leftOutWords({ files: [], more: 0, limitBytes }), "");
+    assert.equal(leftOutWords({}), "");
   });
 });

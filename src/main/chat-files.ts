@@ -23,6 +23,7 @@ import {
 } from "../shared/chat-files.ts";
 import { extensionOf, fileKind } from "../shared/project-file.ts";
 import { credentialHomes } from "../substrate/credential-homes.ts";
+import { leftOutPaths } from "../substrate/large-files.ts";
 import { isInside } from "../substrate/paths.ts";
 import { type HostGitContext, hostGit, hostGitContext, hostGitSpawn } from "../substrate/git-policy.ts";
 
@@ -379,10 +380,14 @@ export class ChatFileResolver {
   #listing(dir: string): Promise<string[]> {
     const cached = this.#listings.get(dir);
     if (cached && Date.now() - cached.at < LISTING_MS) return cached.files;
-    const files = git(dir, ["ls-files", "-z", "--cached", "--others", "--exclude-standard"]).then(
-      ({ stdout }) => String(stdout).split("\0").filter(Boolean),
-      () => [] as string[],
-    );
+    // Files left out of saves for their size are still the project's files.
+    const files = Promise.all([
+      git(dir, ["ls-files", "-z", "--cached", "--others", "--exclude-standard"]).then(
+        ({ stdout }) => String(stdout).split("\0").filter(Boolean),
+        () => [] as string[],
+      ),
+      leftOutPaths(dir),
+    ]).then(([listed, large]) => [...listed, ...large]);
     this.#listings.set(dir, { at: Date.now(), files });
     return files;
   }

@@ -10,6 +10,7 @@ import {
   realpathSync,
   statSync,
   symlinkSync,
+  truncateSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -33,6 +34,7 @@ import { markdownHtml } from "../../src/renderer/ui/markdown-html.ts";
 import { toEntries } from "../../src/renderer/chat-entries.ts";
 import type { EventData, EventEnvelope } from "../../src/substrate/types.ts";
 import { coreLite } from "../helpers/core-lite.ts";
+import { LARGE_FILE_MAX_BYTES, excludeLargeNewFiles } from "../../src/substrate/large-files.ts";
 import { tmpDir } from "../helpers/tmp.ts";
 
 const names = (text: string) => fileMentions(text).map((mention) => mention.name);
@@ -576,4 +578,14 @@ test("a Claude Code tool names its file in the row's chip", () => {
   ]);
   const rows = entries.flatMap((entry) => (entry.kind === "tools" ? entry.rows : []));
   assert.equal(rows[0]?.chip, "src/a.js");
+});
+
+test("a file left out of saves for its size is still a file of the project a chat can name", async () => {
+  const f = fixture();
+  const big = path.join(f.project, "assets", "video", "long-take.mov");
+  writeFileSync(big, "");
+  truncateSync(big, LARGE_FILE_MAX_BYTES + 1);
+  assert.equal((await excludeLargeNewFiles(f.project)).reported.length, 1, "the save leaves it out of git");
+  const [link] = await new ChatFileResolver().resolve(f.scope(), [{ name: "long-take.mov" }]);
+  assert.ok(link, "and the chat still finds it by its name");
 });
