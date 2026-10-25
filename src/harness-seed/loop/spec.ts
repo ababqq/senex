@@ -49,9 +49,8 @@ const CHECK_DEMO_CHARS = 60;
 const MAX_CHECK_NEEDS = 4;
 /** How far a metric may move before the ratchet calls it a change. */
 const METRIC_TOLERANCE = 0.02;
-/** What a facet keeps of its identity features, its owned files and its title. */
+/** What a facet keeps of its identity features and its title. Its owned files are all kept: see `normalizeFacetSpec`. */
 const MAX_IDENTITY = 8;
-const MAX_OWNS = 12;
 const FACET_TITLE_CHARS = 80;
 /** A board this big or bigger may not be mostly vision checks. */
 const MIN_BOARD_FOR_VISION_RULE = 4;
@@ -617,8 +616,8 @@ function craftOf(raw: AnyRecord | null | undefined): string[] {
   );
 }
 
-/** A list field of a planner facet, as strings, at most `max` of them. */
-const stringsOf = (value: unknown, max: number): string[] =>
+/** A list field of a planner facet, as strings: at most `max` of them, all of them by default. */
+const stringsOf = (value: unknown, max = Number.POSITIVE_INFINITY): string[] =>
   Array.isArray(value) ? value.map(String).slice(0, max) : [];
 
 /** Turn one planner facet object into a spec; tolerant of the old prose-only shape. */
@@ -637,7 +636,10 @@ export function normalizeFacetSpec(raw: AnyRecord | null | undefined, index = 0)
     intent,
     // `brief` stays as an alias so every reader of the old plan shape keeps working.
     brief: intent,
-    owns: stringsOf(raw?.owns, MAX_OWNS),
+    // Every file the seam names. The ownership hook, the monitor and the reviewer read this list as
+    // the permission, and the brief tells the builder the whole seam: a cut here made the files
+    // after the twelfth ones the builder was told to write and the harness refused or reverted.
+    owns: stringsOf(raw?.owns),
     identity,
     // What "done" means, next to the checks that measure it — for the brief and the report.
     ...(done.length ? { done: done.map(({ id: checkId, what }) => ({ id: checkId, what })) } : {}),
