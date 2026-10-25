@@ -6,7 +6,7 @@ import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import type { ProjectCandidate, ProjectKind, ProjectShape } from "../shared/project-folder.ts";
 import { pathExists, readJsonIfExists } from "./fsx.ts";
-import { isRemoteSrc, pageScripts, projectRelative } from "./project-page.ts";
+import { isRemoteSrc, isVendoredScript, pageScripts, projectRelative } from "./project-page.ts";
 import { declaredBootMs } from "./preview-ready.ts";
 import { isInstallCommand, packageCommands } from "./toolchain.ts";
 
@@ -233,6 +233,23 @@ function isGenexProject(pkg: PackageManifest | null): boolean {
 }
 
 /**
+ * The script a plain page enters at: the first one of its own, not a library it loads (see
+ * `isVendoredScript`; a script in the build's output folder is the project's own, however it is
+ * named). A page whose first script is its own keeps it, in the folder or not. When a library
+ * comes first, the first own script that is in the folder wins, and a page with none in the
+ * folder keeps its first script, as it always did, rather than become a page the studio refuses.
+ */
+async function entryScript(dir: string, local: string[], out: string): Promise<string | undefined> {
+  const own = local.filter((src) => !isVendoredScript(src) || loadsFromOutput(projectRelative(src), out));
+  if (own[0] === local[0]) return local[0];
+  for (const src of own) {
+    const file = projectRelative(src);
+    if (plainRelativePath(file) && (await pathExists(path.join(dir, file)))) return src;
+  }
+  return local[0];
+}
+
+/**
  * Read a folder's own shape from the evidence in it: every script the page loads, the package's
  * build script and dependencies, the bundler's output folder, the engine's runtime files.
  * `null` means the studio's own template — recognised only by the two things the studio itself
@@ -248,17 +265,21 @@ export async function detectProjectShape(dir: string): Promise<ProjectShape | nu
   if (typeof meta?.contractVersion === "number" && writtenByStudio) return null;
 
   const srcs = pageScripts(html);
-  const [firstLocal] = srcs.filter((src) => !isRemoteSrc(src));
+  const pkg = await readPackageManifest(dir);
+  const hasBuild = typeof pkg?.scripts?.build === "string" && pkg.scripts.build.trim().length > 0;
+  const out = hasBuild ? await outputDir(dir) : ".";
+  const firstLocal = await entryScript(
+    dir,
+    srcs.filter((src) => !isRemoteSrc(src)),
+    out,
+  );
   // A page whose scripts are all inline or all CDN tags still has an entry: itself. Naming
   // index.html keeps `main` a file the owner can open, and keeps the ownership rules honest.
   const main = firstLocal === undefined ? "index.html" : projectRelative(firstLocal);
-  const pkg = await readPackageManifest(dir);
-  const hasBuild = typeof pkg?.scripts?.build === "string" && pkg.scripts.build.trim().length > 0;
   const names = (await readdir(dir, { withFileTypes: true }).catch(() => [])).map((entry) => entry.name);
   const entryText = main === "index.html" ? null : await readFile(path.join(dir, main), "utf8").catch(() => null);
   const kind = kindOf({ html, srcs, names, pkg, entryText, build: hasBuild });
   const query = isGenexProject(pkg) ? GENEX_LOCAL_TEST_QUERY : "";
-  const out = hasBuild ? await outputDir(dir) : ".";
   // A page that already loads its script from the output folder (`tsc` writing dist/app.js beside
   // a root index.html) is the served page: the build adds scripts, not a second page, so serving
   // the output folder alone would answer "not found" under a green build.

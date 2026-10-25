@@ -425,6 +425,77 @@ describe("a project's own shape", () => {
     assert.equal((await detectProjectShape(canvas))!.kind, "canvas2d");
   });
 
+  it("enters a plain page at its own script, not at the library it happens to load first", async () => {
+    const shapeOf = async (
+      scripts: string[],
+      options: { missing?: string[]; build?: boolean; main?: string } = {},
+    ): Promise<NonNullable<Awaited<ReturnType<typeof detectProjectShape>>>> => {
+      const dir = path.join(await tmpDir("studio-shape-"), "page");
+      await mkdir(dir, { recursive: true });
+      const tags = scripts.map((src) => `<script src="${src}"></script>`).join("");
+      await writeFile(path.join(dir, "index.html"), `<!doctype html><body><main></main>${tags}</body>`);
+      if (options.build) await writeFile(path.join(dir, "package.json"), `{"scripts":{"build":"esbuild"}}`);
+      for (const src of scripts) {
+        const file = src.replace(/^\.?\//, "").split(/[?#]/)[0] ?? src;
+        if (/^[a-z][a-z0-9+.-]*:|^\/\//i.test(src) || (options.missing ?? []).includes(file)) continue;
+        await mkdir(path.dirname(path.join(dir, file)), { recursive: true });
+        await writeFile(path.join(dir, file), file === options.main ? `getContext("2d");\n` : "\n");
+      }
+      return (await detectProjectShape(dir))!;
+    };
+    const table: Array<[string, string[], string, { missing?: string[]; build?: boolean }?]> = [
+      ["a minified library first", ["js/jquery.min.js", "js/bootstrap.bundle.min.js", "js/main.js"], "js/main.js"],
+      ["a CDN tag, then a vendor folder", ["https://cdn.example/lib.js", "vendor/jquery.js", "app.js"], "app.js"],
+      ["a package folder, and a query on the entry", ["node_modules/x/dist/x.js", "./src/app.js?v=2"], "src/app.js"],
+      ["a minified name in capitals, with a query", ["JS/JQUERY.MIN.JS?v=3", "JS/App.js"], "JS/App.js"],
+      ["a minified module", ["js/lib.min.mjs", "js/app.mjs"], "js/app.mjs"],
+      ["only a minified script of its own", ["js/site.min.js"], "js/site.min.js"],
+      ["nothing but libraries keeps the first", ["vendor/a.js", "js/b.min.js"], "vendor/a.js"],
+      ["lib/ is the project's own folder", ["lib/game.js", "main.js"], "lib/game.js"],
+      ["a file called min.js is not minified", ["min.js", "app.js"], "min.js"],
+      ["a name that only contains min", ["js/jquery.minimal.js", "app.js"], "js/jquery.minimal.js"],
+      ["a config file first is a guess nobody can make by name", ["config.js", "app.js"], "config.js"],
+      ["no script of its own: the page is the entry", ["https://cdn.example/lib.min.js"], "index.html"],
+      // The script a server answers for (Firebase Hosting, socket.io) is not in the folder: it cannot be the entry.
+      [
+        "a library, then a path the server answers, then the app",
+        ["js/jquery.min.js", "/__/firebase/init.js", "js/app.js"],
+        "js/app.js",
+        { missing: ["__/firebase/init.js"] },
+      ],
+      [
+        "a library, then an own script that is not in the folder: the page keeps its first, as before",
+        ["js/jquery.min.js", "dist/app.js"],
+        "js/jquery.min.js",
+        { missing: ["dist/app.js"] },
+      ],
+      [
+        "an own first script that is not in the folder stays the entry, as before",
+        ["/socket.io/socket.io.js", "js/app.js"],
+        "socket.io/socket.io.js",
+        { missing: ["socket.io/socket.io.js"] },
+      ],
+      ["a path out of the folder is never looked for", ["js/jquery.min.js", "../outside.js", "js/app.js"], "js/app.js"],
+    ];
+    for (const [why, scripts, main, options] of table) assert.equal((await shapeOf(scripts, options)).main, main, why);
+
+    // Every folder of other people's code, in any spelling of the path.
+    for (const folder of ["vendor", "vendors", "third_party", "third-party", "node_modules", "bower_components"])
+      for (const prefix of ["", "/", "./", "Js/"])
+        assert.equal((await shapeOf([`${prefix}${folder}/x.js`, "app.js"])).main, "app.js", `${prefix}${folder}`);
+
+    // A bundle the build writes into its output folder is the project's own, whatever it is called: reading it
+    // as a library would send the served page to the output folder, which has no index.html of its own.
+    const built = await shapeOf(["dist/app.min.js", "js/tracking.js"], { build: true });
+    assert.deepEqual([built.main, built.serve, built.entry], ["dist/app.min.js", ".", "index.html"]);
+    const libraryFirst = await shapeOf(["vendor/three.min.js", "dist/app.js"], { build: true });
+    assert.deepEqual([libraryFirst.main, libraryFirst.serve], ["dist/app.js", "."]);
+
+    // The entry is what the project's kind is read from.
+    const canvas = await shapeOf(["js/jquery.min.js", "js/main.js"], { main: "js/main.js" });
+    assert.deepEqual([canvas.main, canvas.kind], ["js/main.js", "canvas2d"]);
+  });
+
   it("counts the contract only in the files the served page loads", async () => {
     const { projects } = await workspaces();
     const godot = path.join(await tmpDir("studio-shape-"), "godot-validate");
