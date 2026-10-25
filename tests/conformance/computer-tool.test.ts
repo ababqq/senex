@@ -118,6 +118,18 @@ describe("computer tool — actions become the preview's HID plan", () => {
     assert.deepEqual(clickModifiers("alt"), ["AltLeft"]);
   });
 
+  it("captions a long typed text without cutting an emoji in half", () => {
+    const typed = parseComputerArgs({ action: "type", text: `a${"😀".repeat(60)}` });
+    assert.ok(typed.ok);
+    const caption = describeComputerAction(typed.request);
+    const lone = Array.from(caption).filter((ch) => {
+      const code = ch.codePointAt(0) ?? 0;
+      return code >= 0xd800 && code <= 0xdfff;
+    });
+    assert.deepEqual(lone, [], "no half of an emoji is left in the caption");
+    assert.equal(Array.from(caption).length, Array.from('type ""').length + 40);
+  });
+
   it("captions every action for the agent's screen", () => {
     const parsed = parseComputerArgs({ action: "left_click", coordinate: "412,300" });
     assert.ok(parsed.ok);

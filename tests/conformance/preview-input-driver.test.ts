@@ -253,6 +253,27 @@ describe("preview input driver", () => {
     assert.deepEqual(charsOf(beats), ["\r"]);
   });
 
+  it("types a character outside the first plane, a Hangul syllable and Unicode spaces, each as one stroke", async () => {
+    const text = "a😀가\u00a0\u3000";
+    const { beats } = await run({ type: "type", text });
+    assert.deepEqual(charsOf(beats), ["a", "😀", "가", "\u00a0", "\u3000"]);
+    assert.deepEqual(
+      nativeTypes(beats),
+      Array.from(text).flatMap(() => ["keyDown", "char", "keyUp"]),
+    );
+    assert.deepEqual(
+      keyCopies(beats)
+        .filter(([type]) => type === "keydown")
+        .map(([, key]) => key),
+      Array.from(text),
+    );
+  });
+
+  it("skips half of a surrogate pair instead of sending Chromium a broken character", async () => {
+    const { beats } = await run({ type: "type", text: "a\ud83db" });
+    assert.deepEqual(charsOf(beats), ["a", "b"]);
+  });
+
   it("an action with no keys, or of an unknown type, sends nothing", async () => {
     assert.deepEqual((await run({ type: "down", keys: [] })).beats, []);
     assert.deepEqual((await run({ type: "bogus" } as unknown as PreviewInputAction)).beats, []);

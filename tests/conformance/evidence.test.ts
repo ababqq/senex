@@ -553,6 +553,15 @@ describe("the play script under the stepped clock", () => {
     assert.deepEqual(calls[1], { method: "preview.call", payload: { method: "step", arg: 48, handle: "h1" } });
   });
 
+  it("keeps a typed text of 200 characters whole, whatever planes the characters come from", () => {
+    const emoji = "😀".repeat(150);
+    assert.deepEqual(normalizePlayScript([{ type: "type", text: emoji }]), [{ type: "type", text: emoji }]);
+    const edge = normalizePlayScript([{ type: "type", text: `${"a".repeat(199)}😀tail` }]);
+    assert.deepEqual(edge, [{ type: "type", text: `${"a".repeat(199)}😀` }]);
+    const over = normalizePlayScript([{ type: "type", text: "😀".repeat(500) }]);
+    assert.deepEqual(over, [{ type: "type", text: "😀".repeat(200) }]);
+  });
+
   it("lets a plan declare focus, and says so in words", () => {
     assert.deepEqual(normalizePlayScript([{ type: "focus" }]), [{ type: "focus" }]);
     assert.equal(

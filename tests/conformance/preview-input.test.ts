@@ -17,6 +17,8 @@ import {
   pointInView,
   studioAliases,
   typedChar,
+  typedText,
+  MAX_TYPE_CHARS,
 } from "../../src/substrate/preview-input.ts";
 
 /** The normalized key a test names; a name the mapping does not know fails the test. */
@@ -80,6 +82,40 @@ describe("preview input mapping", () => {
         assert.equal(typedChar(held, key(name)), null, `${held.join("+")}+${name} is a shortcut`);
     }
     assert.equal(typedChar([Shift], null), null);
+  });
+
+  it("makes one character of any plane a key that types it: an emoji, a Hangul syllable, a Unicode space", () => {
+    for (const ch of ["😀", "𠮷", "가", "é", "\u00a0", "\u3000", "\u2003", "\u200b"]) {
+      const key = keyNamed(ch);
+      assert.equal(key.printable, true, JSON.stringify(ch));
+      assert.equal(keyChar(key), ch);
+      assert.equal(key.keyCode, ch);
+      assert.equal(key.which, ch.codePointAt(0), "the code point, not its first half");
+    }
+  });
+
+  it("keeps the space bar the Space key, and a run of blanks nothing", () => {
+    assert.equal(normalizeKey(" ")?.code, "Space");
+    assert.equal(normalizeKey("   "), null);
+    assert.equal(normalizeKey("\n"), null, "a line break is the Enter key, which the type action names itself");
+    assert.equal(normalizeKey(""), null);
+  });
+
+  it("types nothing for half of a surrogate pair, which no keyboard can send", () => {
+    assert.equal(normalizeKey("\ud83d"), null);
+    assert.equal(normalizeKey("\ude00"), null);
+    assert.equal(normalizeKey("\ud83d\ude00")?.key, "😀", "the whole pair is the character");
+  });
+
+  it("caps typed text at a number of characters and never cuts inside one", () => {
+    assert.equal(typedText("a".repeat(MAX_TYPE_CHARS + 5)).length, MAX_TYPE_CHARS);
+    const text = typedText(`${"a".repeat(MAX_TYPE_CHARS - 1)}😀😀`);
+    assert.equal(Array.from(text).length, MAX_TYPE_CHARS);
+    assert.equal(text.at(-1), "\ude00", "the last character is a whole emoji");
+    assert.equal(text.at(-2), "\ud83d");
+    assert.equal(Array.from(typedText("😀".repeat(MAX_TYPE_CHARS * 3))).length, MAX_TYPE_CHARS);
+    assert.equal(typedText(null), "");
+    assert.equal(typedText(42), "42");
   });
 
   it("maps WASD and aliases onto Electron + KeyboardEvent codes", () => {

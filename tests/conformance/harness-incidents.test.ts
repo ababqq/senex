@@ -9724,3 +9724,13 @@ describe("a file named in Korean is judged by its name (sweep 4)", () => {
     assert.equal((await sh(GIT.unmerged)).trim(), "src/예약폼.js");
   });
 });
+
+describe("typed text is counted in characters (sweep 4)", () => {
+  it("TX1. a play script that types an emoji keeps it whole, and a text of 200 characters is not cut at 100", async () => {
+    const { normalizePlayScript } = await import("../../src/harness-seed/loop/kinds.ts");
+    const emoji = "😀".repeat(150);
+    assert.deepEqual(normalizePlayScript([{ type: "type", text: emoji }]), [{ type: "type", text: emoji }]);
+    const edge = normalizePlayScript([{ type: "type", text: `${"a".repeat(199)}😀tail` }]);
+    assert.deepEqual(edge, [{ type: "type", text: `${"a".repeat(199)}😀` }], "half an emoji was the 200th unit");
+  });
+});
