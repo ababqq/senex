@@ -13,7 +13,7 @@ screens, data and controls, and replace `phase: "empty"`. Five rules; tables in 
 3. **Build the interface in the DOM, for people.** Real buttons, links, labels and headings; landmarks;
    every control named; a visible focus ring; text that wraps; no sideways scroll; empty, loading and
    error states on every screen, a failure shown on the page. Styles are tokens in `src/styles.css`.
-   The harness reads names, errors and layout off the page itself.
+   The harness reads names, errors and layout off the page itself. Copy, sample data, `<title>` and `<html lang>` follow the person’s language.
 4. **Make it measurable.** A probe in `probes()` per thing the project holds, a view in `views` per
    screen worth photographing (always empty and error), a demo in `demos` per workflow the generic
    exercise cannot reach. The page reports what was done to it (`state().ui`) by itself; never fake it.
