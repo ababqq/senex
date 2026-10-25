@@ -3,6 +3,7 @@ import path from "node:path";
 import { lstat, readdir, mkdir, readFile, writeFile, realpath, rm } from "node:fs/promises";
 import { claudeFolderChanges, git, type SnapshotEngine } from "./snapshots.ts";
 import { shortId } from "./ids.ts";
+import { filesInTheWay, leftOutPaths, namedFiles, statusPathspec } from "./large-files.ts";
 import type { OptimizationCandidate, Revision } from "../shared/optimization.ts";
 import { isBelow, toPosixRelative } from "./paths.ts";
 
@@ -35,6 +36,8 @@ const MESSAGE = {
   MissingValidation: "missing durable candidate validation",
   TreeMismatch: "promotion tree mismatch",
   LiveChanged: "Live project changed; candidate was not applied",
+  LargeFileInTheWay: (files: string) =>
+    `candidate would overwrite ${files}, a file too large to be saved that no snapshot holds; it was not applied`,
   ClaudeFolder: (files: string[]) =>
     `candidate changes the project's .claude folder (${files.join(", ")}), Claude Code's own settings; it was not applied`,
 } as const;
@@ -123,19 +126,25 @@ export class ProjectCandidates {
       tree: (await git(dir, ["rev-parse", "HEAD^{tree}"])).trim(),
     };
   }
-  async #dirty(dir: string): Promise<boolean> {
-    if ((await git(dir, ["status", "--porcelain", "--untracked-files=all"])).trim()) return true;
+  /**
+   * Anything outside the revision. `live` is the person's own folder, where a file too large to be
+   * saved is theirs to keep and no edit; a candidate's folder holds nothing of the kind.
+   */
+  async #dirty(dir: string, live = false): Promise<boolean> {
+    const left = live ? await statusPathspec(dir) : [];
+    if ((await git(dir, ["status", "--porcelain", "--untracked-files=all", ...left])).trim()) return true;
     // Git-ignored playable files would evade immutable tree attribution. Metadata can be
     // ignored; a runtime dependency cannot quietly vary outside the measured revision.
-    const ignored = (await git(dir, ["ls-files", "--others", "--ignored", "--exclude-standard"]))
-      .split("\n")
+    const ignored = (await git(dir, ["ls-files", "-z", "--others", "--ignored", "--exclude-standard"]))
+      .split("\0")
       .filter(Boolean);
-    return ignored.some((file) => !isIgnorableMetadata(file));
+    const leftOut = new Set(live ? await leftOutPaths(dir) : []);
+    return ignored.some((file) => !isIgnorableMetadata(file) && !leftOut.has(file));
   }
   async open(project: string, runId: string, snapshotId: string, commit: string) {
     if (!/^[a-zA-Z0-9_-]+$/.test(runId)) throw new Error(MESSAGE.InvalidRunId);
     const live = await this.revision(project, snapshotId);
-    if (live.commit !== commit || (await this.#dirty(this.snapshots.dirFor(project))))
+    if (live.commit !== commit || (await this.#dirty(this.snapshots.dirFor(project), true)))
       throw new Error(MESSAGE.BaselineChanged);
     const candidateId = shortId("opt");
     const root = path.join(this.scratch, candidateId);
@@ -288,13 +297,21 @@ export class ProjectCandidates {
     if (!vouchesFor(validation, c.runId, verified)) throw new Error(MESSAGE.MissingValidation);
     const dir = this.snapshots.dirFor(c.project);
     const live = await this.revision(c.project);
-    if (!sameRevision(live, expected) || (await this.#dirty(dir)))
+    if (!sameRevision(live, expected) || (await this.#dirty(dir, true)))
       return { outcome: PromotionOutcome.BaselineChanged, revision: live, reason: MESSAGE.LiveChanged };
     // Claude Code's project settings and hooks load into the person's own session in the project:
     // no candidate brings them, however it was validated.
     const settings = await claudeFolderChanges(dir, live.commit, verified.commit);
     if (settings.length)
       return { outcome: PromotionOutcome.Failed, revision: live, reason: MESSAGE.ClaudeFolder(settings) };
+    // Git reads an ignored file as in the way of nothing; a file too large to be saved is one.
+    const inTheWay = await filesInTheWay(dir, verified.commit);
+    if (inTheWay.length > 0)
+      return {
+        outcome: PromotionOutcome.Failed,
+        revision: live,
+        reason: MESSAGE.LargeFileInTheWay(namedFiles(inTheWay)),
+      };
     try {
       // git checks local modifications itself. Never add a forced-reset fallback.
       await git(dir, ["-c", "core.hooksPath=/dev/null", "merge", "--ff-only", "--no-edit", verified.commit]);
@@ -307,7 +324,7 @@ export class ProjectCandidates {
   }
   async reconcile(project: string, baseline: Revision, candidate: Revision | null) {
     const revision = await this.revision(project);
-    const dirty = await this.#dirty(this.snapshots.dirFor(project));
+    const dirty = await this.#dirty(this.snapshots.dirFor(project), true);
     return { revision, retained: retainedState(revision, { dirty, baseline, candidate }) };
   }
   async close(id: string) {

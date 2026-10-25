@@ -20,9 +20,10 @@
 import { constants } from "node:fs";
 import { cp, lstat, mkdir, readdir, realpath, rm, stat, symlink, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { createHash } from "node:crypto";
+import { createHash, type Hash } from "node:crypto";
 import { ensureDir, pathExists } from "../substrate/fsx.ts";
 import { HostGitRefusedError, hostGit, hostGitContext, unlessRefused } from "../substrate/git-policy.ts";
+import { leftOutPaths } from "../substrate/large-files.ts";
 import { isInside } from "../substrate/paths.ts";
 import { normalServe } from "../substrate/project-shape.ts";
 import { NPM_REGISTRY, packageCommandsIn, packagesInstalled, withoutRunnerNoise } from "../substrate/toolchain.ts";
@@ -599,6 +600,13 @@ export function installFailureLines(result: Pick<RunResult, "stdout" | "stderr" 
   return [MESSAGE.InstallStopped(INSTALL_TIMEOUT_MS / MINUTE_MS), ...tail.slice(-(INSTALL_FAILURE_LINES - 1))];
 }
 
+/** Files left out of saves for their size are ignored by git too, and the build mirror copies them: stamp them by name. */
+async function stampLeftOut(hash: Hash, dir: string, serve: string | null): Promise<void> {
+  for (const rel of (await leftOutPaths(dir)).sort()) {
+    if (!isServedOutput(rel, serve)) hash.update(`${rel}\n${await stamp(path.join(dir, rel))}`);
+  }
+}
+
 /**
  * What the tree is right now: the committed tree plus every dirty file's size and mtime. Two
  * looks a second apart at an untouched folder give the same key, and the build is skipped.
@@ -621,6 +629,7 @@ export async function treeKey(dir: string, serve: string | null): Promise<string
     for (const name of (await readdir(dir).catch(() => [])).sort()) {
       if (name.startsWith(".env")) hash.update(`${name}\n${await stamp(path.join(dir, name))}`);
     }
+    await stampLeftOut(hash, dir, serve);
     return hash.digest("hex");
   }
   // Not a repository: the files themselves, capped, so an unindexed folder still memoises.
@@ -645,6 +654,8 @@ export async function mirrorList(dir: string, serve: string | null): Promise<str
   };
   add(tracked, (rel) => NEVER_MIRRORED.has(rel.split("/")[0] ?? ""));
   add(untracked, neverMirrored);
+  // Left out of saves for their size, and still part of the project the page loads.
+  add((await leftOutPaths(dir)).join("\0"), neverMirrored);
   // Gitignored on purpose and read by every Vite build: a worker's build used the defaults
   // while the user's used their own values, and nobody could see why the two differed.
   for (const name of await readdir(dir).catch(() => [])) if (name.startsWith(".env")) out.add(name);

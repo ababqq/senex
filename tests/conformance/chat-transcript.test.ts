@@ -434,3 +434,20 @@ it("a sign-in failure and its adjacent harness reply render one notice", () => {
   const rendered = rows.flatMap((row) => ("text" in row ? [row.text] : []));
   assert.equal(rendered.filter((text) => /Codex/.test(String(text))).length, 1);
 });
+
+it("files left out of a save for their size are a standing line in the project's chat", () => {
+  const rows = entries({
+    threadEvents: [
+      custom(1, "project_files_left_out", {
+        files: [{ path: "raw/take1.mov", bytes: 700 * 1024 * 1024 }],
+        more: 0,
+        limitBytes: 50 * 1024 * 1024,
+      }),
+    ],
+  });
+  const line = rows.find((row) => row.kind === "system");
+  assert.ok(line && "text" in line);
+  assert.match(String(line.text), /raw\/take1\.mov \(700 MB\)/);
+  assert.equal("attention" in line && line.attention, true, "it is not folded away with routine narration");
+  assert.deepEqual(entries({ threadEvents: [custom(2, "project_files_left_out", { files: [] })] }), []);
+});

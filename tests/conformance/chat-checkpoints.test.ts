@@ -5,10 +5,11 @@ import os from "node:os";
 import path from "node:path";
 import {
   CHAT_CHECKPOINTS_KEPT,
-  CHECKPOINT_FILE_MAX_BYTES,
   ChatCheckpoints,
+  CheckpointPhase,
   chatCheckpointRef,
 } from "../../src/main/chat-checkpoints.ts";
+import { LARGE_FILE_MAX_BYTES, excludeLargeNewFiles } from "../../src/substrate/large-files.ts";
 import { ensureRepo, git } from "../../src/substrate/snapshots.ts";
 import { removeTree } from "../helpers/tmp.ts";
 
@@ -264,7 +265,7 @@ test("files the repository tells git to skip are still saved and restored", asyn
 
 test("files too large to keep are never deleted or overwritten by a restore, and do not stop later checkpoints", async (t) => {
   const { dir, checkpoints } = await project(t);
-  const big = (file: string) => fs.truncate(path.join(dir, file), CHECKPOINT_FILE_MAX_BYTES + 1);
+  const big = (file: string) => fs.truncate(path.join(dir, file), LARGE_FILE_MAX_BYTES + 1);
   // Too large before the message: the answer shrinks it, and the rewind must not delete it.
   await fs.writeFile(path.join(dir, "intro.mp4"), "");
   await big("intro.mp4");
@@ -288,7 +289,7 @@ test("files too large to keep are never deleted or overwritten by a restore, and
   });
   await checkpoints.restore(dir, "thread-1", "msg_a");
   assert.equal(await read(dir, "intro.mp4"), "compressed");
-  assert.equal((await fs.stat(path.join(dir, "music.ogg"))).size, CHECKPOINT_FILE_MAX_BYTES + 1);
+  assert.equal((await fs.stat(path.join(dir, "music.ogg"))).size, LARGE_FILE_MAX_BYTES + 1);
   assert.equal(await read(dir, "src/main.js"), "jump();\n");
 });
 
@@ -405,10 +406,10 @@ test("a file too large to save standing where the checkpoint had a folder is lef
   await checkpoints.take(dir, "thread-1", "msg_a");
   await fs.rm(path.join(dir, "intro"), { recursive: true });
   await fs.writeFile(path.join(dir, "intro"), "");
-  await fs.truncate(path.join(dir, "intro"), CHECKPOINT_FILE_MAX_BYTES + 1);
+  await fs.truncate(path.join(dir, "intro"), LARGE_FILE_MAX_BYTES + 1);
   assert.deepEqual(await checkpoints.plan(dir, "thread-1", "msg_a"), { state: "unavailable", reason: "too-large" });
   await checkpoints.restore(dir, "thread-1", "msg_a");
-  assert.equal((await fs.stat(path.join(dir, "intro"))).size, CHECKPOINT_FILE_MAX_BYTES + 1);
+  assert.equal((await fs.stat(path.join(dir, "intro"))).size, LARGE_FILE_MAX_BYTES + 1);
 });
 
 test("a folder holding something never saved keeps what the answer put in it too", async (t) => {
@@ -436,4 +437,17 @@ test("a settled checkpoint operation releases its folder queue", async (t) => {
   await checkpoints.take(dir, "thread-1", "queue-release");
   assert.ok(queues.size > 0);
   for (const queue of queues) assert.equal(queue.has(dir), false);
+});
+
+test("a file a save left out for its size is neither overwritten nor lost by a rewind, and checkpoints go on being taken", async (t) => {
+  const { dir, checkpoints } = await project(t);
+  const music = path.join(dir, "music.ogg");
+  await fs.writeFile(music, "tiny");
+  await checkpoints.take(dir, "thread-1", "msg_a");
+  await fs.truncate(music, LARGE_FILE_MAX_BYTES + 1);
+  assert.equal((await excludeLargeNewFiles(dir)).reported.length, 1, "a save leaves it out of git");
+  assert.ok(await checkpoints.take(dir, "thread-1", "msg_a", CheckpointPhase.After), "the next checkpoint is taken");
+  assert.deepEqual(await checkpoints.plan(dir, "thread-1", "msg_a"), { state: "unavailable", reason: "too-large" });
+  await checkpoints.restore(dir, "thread-1", "msg_a");
+  assert.equal((await fs.stat(music)).size, LARGE_FILE_MAX_BYTES + 1, "the big file is still whole");
 });

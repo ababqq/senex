@@ -280,7 +280,7 @@ observation failure is not a build defect, and "evidence pass failed" is not a r
 
 What a rollback may assume of a project folder. `snapshot.restore` on a project commits a rescue
 snapshot first and may refuse with a typed `code` (`branch-changed`, `history-changed`,
-`operation-in-progress`, `rescue-failed`, and from host git `unsafe-config-key`, `foreign-work-tree`, `foreign-git-dir`), leaving the folder as it is, and it leaves `.env` and `.env.*` files as they are (no snapshot holds one); a loop must treat that as
+`operation-in-progress`, `rescue-failed`, `large-file-in-the-way` (a file too large to be saved would be overwritten or deleted), and from host git `unsafe-config-key`, `foreign-work-tree`, `foreign-git-dir`), leaving the folder as it is, and it leaves `.env` and `.env.*` files as they are (no snapshot holds one); a loop must treat that as
 "stop or pause", never retry around it with raw git, and never report a rollback that was refused
 (autopilot's `rollBackProject` sets `report.rolledBack`). A loop snapshots its attempt before rolling
 back and skips the rollback when that snapshot fails (the live spike does). Model or judge text

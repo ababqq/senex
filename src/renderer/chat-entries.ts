@@ -48,6 +48,7 @@ import {
   improvementWords,
   judgeRoundLine,
   judgeUnreachable,
+  leftOutWords,
   livenessWords,
   modelWords,
   moveWords,
@@ -966,6 +967,13 @@ function narrateSeed(chat: ChatDraft, event: EventEnvelope): void {
   if (seed) say(chat, event.id, SystemTag.Seed, seedUpgradeWords(seed));
 }
 
+/** New files too large to save were left out of a save: said once, where the person will read it. */
+function narrateLeftOut(chat: ChatDraft, event: EventEnvelope): void {
+  const left = customPayload(event.data, CustomEvent.ProjectFilesLeftOut);
+  const text = left ? leftOutWords(left) : "";
+  if (text) say(chat, event.id, SystemTag.Update, text, true);
+}
+
 /** A compaction is not routine work: it stays in the chat as its own row, with what it wrote. */
 function narrateCompaction(chat: ChatDraft, event: EventEnvelope): void {
   const compaction = customPayload(event.data, CustomEvent.Compacted);
@@ -1443,6 +1451,7 @@ const NARRATORS: readonly Narrator[] = [
   narrateRestore,
   narrateRebuild,
   narrateSeed,
+  narrateLeftOut,
   narrateCompaction,
   narrateImprovement,
   narrateSkillAccepted,

@@ -26,6 +26,13 @@ import type { SnapshotGitRefs } from "./types.ts";
 import { type SnapshotRecord, SnapshotScope } from "../shared/event-log.ts";
 import { errorMessage } from "../shared/errors.ts";
 import { hostGit, unlessRefused } from "./git-policy.ts";
+import {
+  excludeLargeNewFiles,
+  filesInTheWay,
+  type LeftOutFile,
+  type LeftOutReport,
+  namedFiles,
+} from "./large-files.ts";
 
 /** The snapshot index entry is a contract the UI reads too; it lives in `shared/event-log.ts`. */
 export type { SnapshotRecord } from "../shared/event-log.ts";
@@ -38,6 +45,7 @@ export const SnapshotRefusal = {
   BranchChanged: "branch-changed",
   HistoryChanged: "history-changed",
   RescueFailed: "rescue-failed",
+  LargeFileInTheWay: "large-file-in-the-way",
 } as const;
 export type SnapshotRefusal = (typeof SnapshotRefusal)[keyof typeof SnapshotRefusal];
 
@@ -63,6 +71,10 @@ const MESSAGE = {
   NotDescendant: "the folder's HEAD no longer descends from the snapshot",
   ForeignCommits: "the branch holds commits since the snapshot that the studio did not make",
   RescueReason: (snapshotId: string) => `pre-restore rescue before ${snapshotId}`,
+  LargeFileInTheWay: (files: string[]) =>
+    `the snapshot holds ${namedFiles(files)}, where a file too large to be saved now stands, so a restore would overwrite it for good; move it out of the folder first`,
+  LargeFileUnprotected: (files: string[]) =>
+    `${namedFiles(files)} ${files.length === 1 ? "is" : "are"} too large to be saved and cannot be set aside, so a restore would delete ${files.length === 1 ? "it" : "them"}; move ${files.length === 1 ? "it" : "them"} out of the folder first`,
 } as const;
 
 /** A refusal with a typed `code`; the folder was left exactly as it was. */
@@ -171,24 +183,53 @@ export async function resolveCommit(dir: string, revision: string): Promise<stri
   return hash;
 }
 
-/** `git init` + an initial commit if the directory is not a repo yet. */
-export async function ensureRepo(dir: string): Promise<void> {
+/**
+ * `git init` + an initial commit if the directory is not a repo yet. A project's folder passes
+ * `report`, which also leaves its new files over the size limit out of that first commit
+ * (`large-files.ts`) and is told which; the harness's own workspace passes none.
+ */
+export async function ensureRepo(dir: string, report?: LeftOutReport): Promise<void> {
   await ensureDir(dir);
   if (await pathExists(path.join(dir, ".git"))) return;
   await git(dir, ["init", "-q", "-b", "main"]);
-  await stagePublicChanges(dir);
+  await stagePublicChanges(dir, report);
   await git(dir, ["commit", "-q", "--allow-empty", "-m", "substrate: initial"]);
 }
 
-/** Environment files never enter host-created commits, even when an adopted folder has no ignore file. */
-async function stagePublicChanges(dir: string): Promise<void> {
-  await git(dir, ["add", "-A"]);
+/**
+ * Environment files never enter host-created commits, even when an adopted folder has no ignore
+ * file. With `report` (a project's folder), neither does a new file over the size limit.
+ */
+async function stagePublicChanges(dir: string, report?: LeftOutReport): Promise<void> {
+  if (!report) {
+    await git(dir, ["add", "-A"]);
+    return;
+  }
+  const keep = await leaveOutLargeFiles(dir, report);
+  // `add -A` with a pathspec: the files no exclude line could safely be written for stay out of it too.
+  const skipped = keep.map((file) => `:(exclude,literal)${file}`);
+  await git(dir, keep.length ? ["add", "-A", "--", ".", ...skipped] : ["add", "-A"]);
+}
+
+/** Leave the folder's new files over the size limit out of the next save (`large-files.ts`), say so to `report`; the paths still to skip. */
+async function leaveOutLargeFiles(dir: string, report: LeftOutReport): Promise<string[]> {
+  const { reported, keep } = await excludeLargeNewFiles(dir);
+  if (reported.length > 0) {
+    try {
+      await report(reported);
+    } catch {
+      // The notice is for the person; a save never fails for want of one.
+    }
+  }
+  return keep;
 }
 
 export class SnapshotEngine {
   readonly workspaces: Map<string, string>;
   /** Optional hook for dependency restore; no-op by design (see file header). */
   afterRestore?: (workspace: WorkspaceSpec) => Promise<void>;
+  /** Told which new files over the size limit a project's save left out, so the person can be (`large-files.ts`). */
+  onLeftOut?: (workspace: string, files: LeftOutFile[]) => void | Promise<void>;
 
   constructor(workspaces: WorkspaceSpec[]) {
     this.workspaces = new Map(workspaces.map((w) => [w.name, w.dir]));
@@ -205,7 +246,13 @@ export class SnapshotEngine {
   }
 
   async init(): Promise<void> {
-    for (const dir of this.workspaces.values()) await ensureRepo(dir);
+    for (const [name, dir] of this.workspaces) await ensureRepo(dir, this.#leftOutReport(name));
+  }
+
+  /** Where a workspace's left-out files are reported: a project's, not the harness's own. */
+  #leftOutReport(name: string): LeftOutReport | undefined {
+    if (name === HARNESS_WORKSPACE) return undefined;
+    return async (files) => await this.onLeftOut?.(name, files);
   }
 
   #namesForScope(scope: SnapshotScope, projectWorkspace?: string): string[] {
@@ -234,10 +281,10 @@ export class SnapshotEngine {
     const refs: SnapshotRecordGit = {};
     for (const name of this.#namesForScope(options.scope, options.projectWorkspace)) {
       const dir = this.dirFor(name);
-      await ensureRepo(dir);
+      await ensureRepo(dir, this.#leftOutReport(name));
       // `add -A` in the middle of the user's merge would commit their conflict markers for them.
       if (name !== HARNESS_WORKSPACE) await this.#refuseMidOperation(name, dir);
-      await stagePublicChanges(dir);
+      await stagePublicChanges(dir, this.#leftOutReport(name));
       // --allow-empty: a snapshot must exist even when nothing changed, so that timeline
       // positions and `healthy` marks stay addressable.
       await git(dir, [...NO_HOOKS, "commit", "-q", "--allow-empty", "-m", `snapshot ${snapshotId}: ${options.reason}`]);
@@ -274,7 +321,8 @@ export class SnapshotEngine {
    * reset, everything the folder holds is committed to a rescue snapshot, which this returns (null
    * when no project was restored). The restore is refused, with the folder untouched, when that
    * rescue cannot be taken, when the folder is no longer on the branch the snapshot was taken on,
-   * or when the branch holds commits since the snapshot that are not the studio's own.
+   * when the branch holds commits since the snapshot that are not the studio's own, or when it
+   * would overwrite or delete a file too large to be saved (`large-files.ts`).
    */
   async restore(
     record: SnapshotRecord,
@@ -291,19 +339,29 @@ export class SnapshotEngine {
       if (name === HARNESS_WORKSPACE) continue;
       await this.#refuseMidOperation(name, dir);
       await this.#refuseMovedHistory(name, dir, commit, record.git.gameBranch);
-      try {
-        rescue = await this.snapshot({
-          scope: SnapshotScope.Project,
-          projectWorkspace: name,
-          reason: MESSAGE.RescueReason(record.snapshot_id),
-        });
-      } catch (err) {
-        if (err instanceof SnapshotRefusedError) throw err;
-        throw new SnapshotRefusedError(SnapshotRefusal.RescueFailed, name, MESSAGE.RescueFailed(errorMessage(err)));
-      }
+      await this.#refuseOverwritingLargeFile(name, dir, commit);
+      rescue = await this.#rescue(name, record);
+    }
+    // The rescue takes a while, and a file may have been dropped in meanwhile: it left that one out of itself.
+    for (const { name, dir, commit } of targets) {
+      if (name !== HARNESS_WORKSPACE) await this.#refuseOverwritingLargeFile(name, dir, commit);
     }
     await this.#resetAll(targets);
     return rescue;
+  }
+
+  /** Everything the project folder holds, committed before a restore moves it; refused when that cannot be done. */
+  async #rescue(name: string, record: SnapshotRecord): Promise<SnapshotRecord> {
+    try {
+      return await this.snapshot({
+        scope: SnapshotScope.Project,
+        projectWorkspace: name,
+        reason: MESSAGE.RescueReason(record.snapshot_id),
+      });
+    } catch (err) {
+      if (err instanceof SnapshotRefusedError) throw err;
+      throw new SnapshotRefusedError(SnapshotRefusal.RescueFailed, name, MESSAGE.RescueFailed(errorMessage(err)));
+    }
   }
 
   /** Reset each workspace to its commit, every commit looked up before the first reset moves anything. */
@@ -348,6 +406,29 @@ export class SnapshotEngine {
       if (now?.equals(bytes)) continue;
       await mkdir(path.dirname(file), { recursive: true });
       await writeFile(file, bytes);
+    }
+  }
+
+  /**
+   * A file left out of saves for its size is in no snapshot, so a reset that puts a tracked file at
+   * its path (or a folder, or a file where its folder is) would replace it with nothing to rescue
+   * it from, and `clean` would delete one that only a pathspec keeps out. The restore is refused
+   * instead. The folder's new big files are left out first, so one made since the last save is
+   * seen too.
+   */
+  async #refuseOverwritingLargeFile(name: string, dir: string, commit: string): Promise<void> {
+    const report = this.#leftOutReport(name);
+    const unprotected = report ? await leaveOutLargeFiles(dir, report) : [];
+    if (unprotected.length > 0) {
+      throw new SnapshotRefusedError(
+        SnapshotRefusal.LargeFileInTheWay,
+        name,
+        MESSAGE.LargeFileUnprotected(unprotected),
+      );
+    }
+    const inTheWay = await filesInTheWay(dir, await resolveCommit(dir, commit));
+    if (inTheWay.length > 0) {
+      throw new SnapshotRefusedError(SnapshotRefusal.LargeFileInTheWay, name, MESSAGE.LargeFileInTheWay(inTheWay));
     }
   }
 
