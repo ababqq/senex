@@ -22,7 +22,7 @@
  * A ninth kind is a change to this table and nothing else.
  */
 import { HostMethod } from "./host-methods.ts";
-import { CLIP_QUOTE, clip, clipCharacters } from "./text.ts";
+import { CLIP_QUOTE, clip } from "./text.ts";
 import { CONTROL_EXERCISE, WALK_EXERCISE, type PlayAction } from "./play-script.ts";
 import { SECOND_MS } from "./time.ts";
 import { isPlainRecord } from "./json.ts";
@@ -335,6 +335,17 @@ function dragAction(raw: AnyRecord): PlayAction | null {
   };
 }
 
+/**
+ * The first `max` characters of `text`, counting a character as a person does: an emoji (two UTF-16 units) is
+ * one and is never cut in half. Kept here, beside its one caller, so a workspace that kept an older `text.ts`
+ * still loads this file.
+ */
+function firstCharacters(text: string, max: number): string {
+  return Array.from(text.slice(0, max * 2))
+    .slice(0, max)
+    .join("");
+}
+
 /** Each action a script may declare, as the harness will drive it — or null for one it cannot. */
 const ACTIONS: Record<string, (raw: AnyRecord) => PlayAction | null> = {
   hold: (raw) => {
@@ -357,7 +368,7 @@ const ACTIONS: Record<string, (raw: AnyRecord) => PlayAction | null> = {
     return name ? { type: "camera", name } : null;
   },
   type: (raw) => {
-    const typed = typeof raw.text === "string" ? clipCharacters(raw.text, MAX_TYPED_CHARS) : "";
+    const typed = typeof raw.text === "string" ? firstCharacters(raw.text, MAX_TYPED_CHARS) : "";
     return typed ? { type: "type", text: typed } : null;
   },
   press: (raw) => {

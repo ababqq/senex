@@ -32,16 +32,6 @@ export function clip(value: unknown, max: number): string {
   return String(value ?? "").slice(0, max);
 }
 
-/**
- * The first `max` characters of `value`, counting a character as a person does: an emoji (two UTF-16 units)
- * is one and is never cut in half. Nothing (`""`) for null or undefined.
- */
-export function clipCharacters(value: unknown, max: number): string {
-  return Array.from(String(value ?? "").slice(0, max * 2))
-    .slice(0, max)
-    .join("");
-}
-
 /** Like `clip`, with `…` added when something was cut. */
 export function clipMarked(value: unknown, max: number): string {
   const text = String(value ?? "");
