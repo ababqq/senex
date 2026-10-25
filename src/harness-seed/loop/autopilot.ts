@@ -215,14 +215,28 @@ type AppSource = (typeof AppSource)[keyof typeof AppSource];
 /** The NOTES.md heading under which steering that arrived too late to be built is kept. */
 const STEERING_BACKLOG_HEADING = "## Steering backlog";
 
+/** The backlog's heading as a whole line: a mention in prose, a deeper heading or a suffixed one is not it. */
+const STEERING_HEADING_LINE = new RegExp(`^${STEERING_BACKLOG_HEADING}[ \\t]*\\r?$`, "m");
+
+/** The next level-one or level-two heading after the backlog's: where its list ends. */
+const NEXT_SECTION_LINE = /\n {0,3}#{1,2}(?=[ \t]|\r?\n|$)/;
+
+/** Where the backlog sits in NOTES.md: its heading line, and the end of its list (the next section, or the end of the file). */
+function steeringSection(text: string): { start: number; body: number; end: number } | null {
+  const heading = STEERING_HEADING_LINE.exec(text);
+  if (!heading) return null;
+  const body = heading.index + heading[0].length;
+  const next = NEXT_SECTION_LINE.exec(text.slice(body));
+  return { start: heading.index, body, end: next ? body + next.index : text.length };
+}
+
 /** The unapplied steering of earlier runs, from the project's NOTES.md; empty when none. */
 export function parseSteeringBacklog(notes: unknown): string[] {
   const text = String(notes ?? "");
-  const start = text.indexOf(STEERING_BACKLOG_HEADING);
-  if (start < 0) return [];
-  const body = text.slice(start + STEERING_BACKLOG_HEADING.length);
-  const end = body.search(/\n## /);
-  return (end >= 0 ? body.slice(0, end) : body)
+  const section = steeringSection(text);
+  if (!section) return [];
+  return text
+    .slice(section.body, section.end)
     .split("\n")
     .map((line) => line.replace(/^\s*[-*]\s*/, "").trim())
     .filter((line) => line && !line.startsWith("#"));
@@ -238,10 +252,30 @@ export function steeringTaken(plan: unknown): string[] {
 }
 
 /**
+ * The steering an accepted run has built: what its plan took, unless a facet ended before its
+ * work was done (the usage limit, the engine, the preview), when the plan's items may be the
+ * ones that were lost and wait for the next run. A rejected run built nothing.
+ */
+export function steeringSpent(plan: unknown, report: AnyRecord, accepted: boolean): string[] {
+  if (!accepted) return [];
+  const facets = Object.values(report.facets ?? {}) as AnyRecord[];
+  return facets.some((result) => diedEarly(result)) ? [] : steeringTaken(plan);
+}
+
+/** A steer as one bullet's text: one line, and not one the reader would take for a heading. */
+function steeringItem(steer: string): string {
+  return steer
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/^#+\s*/, "");
+}
+
+/**
  * The project's NOTES.md once a run has settled its steering backlog: the items its plan took
  * are gone when the run was accepted (`consumed`), the steering that came too late for this run
- * is added (`fresh`), and the heading goes with the last item. Items are matched by their exact
- * text, and nothing outside the section is touched. Unchanged text comes back as it was.
+ * is added (`fresh`, one line each), and the heading goes with the last item. Items are matched
+ * by their exact text. The text after the section is kept byte for byte; the blank space just
+ * before it is tidied and the block is written with LF. Unchanged text comes back as it was.
  */
 export function nextSteeringBacklog(
   notes: unknown,
@@ -250,14 +284,14 @@ export function nextSteeringBacklog(
   const text = String(notes ?? "");
   const existing = parseSteeringBacklog(text);
   const kept = existing.filter((item) => !consumed.includes(item));
-  const items = [...kept, ...fresh.filter((item) => !kept.includes(item))];
+  const added = fresh.map(steeringItem).filter((item) => item && !kept.includes(item));
+  const items = [...kept, ...new Set(added)];
   if (items.length === existing.length && items.every((item, index) => item === existing[index])) return text;
-  const start = text.indexOf(STEERING_BACKLOG_HEADING);
-  if (start < 0) return `${text.trimEnd()}\n\n${steeringBlock(items)}`;
-  const nextHeading = text.indexOf("\n## ", start + STEERING_BACKLOG_HEADING.length);
-  const after = nextHeading < 0 ? "" : text.slice(nextHeading);
-  if (items.length) return `${text.slice(0, start)}${steeringBlock(items)}${after}`;
-  const before = text.slice(0, start).trimEnd();
+  const section = steeringSection(text);
+  if (!section) return `${text.trimEnd()}\n\n${steeringBlock(items)}`;
+  const after = text.slice(section.end);
+  if (items.length) return `${text.slice(0, section.start)}${steeringBlock(items)}${after}`;
+  const before = text.slice(0, section.start).trimEnd();
   if (!before) return after.replace(/^\n+/, "");
   return after ? `${before}\n${after}` : `${before}\n`;
 }
@@ -446,8 +480,10 @@ export async function decompose(
     const { raw, facets, validation } = await askForFacets(plannerCall(ctx, run, skill), ask, craftRecipes);
     if (facets.length === 0) return single;
     // What the planner was asked to plan for is journaled with the plan, so the run that builds it
-    // can spend exactly that; the single-facet fallback above ignores the backlog and spends none.
-    return { ...finishPlan({ raw, facets, validation, scout, run, known }), steeringTaken: backlog };
+    // can spend exactly that. Only a plan of several facets reaches the close that settles the
+    // backlog: the single-facet fallback above, and a one-facet plan, run the gauntlet and spend none.
+    const plan = finishPlan({ raw, facets, validation, scout, run, known });
+    return { ...plan, steeringTaken: plan.facets.length > 1 ? backlog : [] };
   } catch {
     return single;
   }
@@ -2663,7 +2699,7 @@ async function closePipeline(pipeline: Pipeline): Promise<PipelineEnd> {
       report,
       projectDir,
       backlog: await steeringBacklog(),
-      consumed: accepted ? steeringTaken(plan) : [],
+      consumed: steeringSpent(plan, report, accepted),
     });
   if (accepted) await settleSteering();
   const verifiedBaseline = accepted ? await acceptIntegrated(pipeline) : await rejectIntegrated(pipeline);
